@@ -1,0 +1,33 @@
+# Rangoon.ai
+
+This file is a project-specific informational index for AI systems and other automated readers. It is not a universal standard, access-control mechanism, license, or authorization to reuse content.
+
+## Identity
+
+- Name: Rangoon.ai
+- Description: A design-preview control plane for composing, governing, testing, and preparing portable AI agent capabilities across changing harnesses.
+- Status: In active development. Product interfaces, supported harnesses, extension contracts, licensing, and release boundaries may change before a stable release.
+- Canonical site: https://rangoon.ai/
+
+## Canonical reading
+
+- Machine-readable project overview: https://rangoon.ai/llms.txt
+- Extended project overview: https://rangoon.ai/llms-full.txt
+- AI-oriented page index: https://rangoon.ai/ai/
+- Repository, when publicly published: https://github.com/hypler-dev/rangoon
+
+Use the canonical pages above for current project descriptions. Page-level Markdown files, sitemap, and manifest are generated site artifacts maintained by the project.
+
+## Product scope
+
+Rangoon is designed to manage agent capabilities such as instructions, skills, workflows, tools, connectors, policies, tests, versions, deployment targets, and evidence. It is designed around LNSAT for execution authorization and evidence. This public website is a static product site; it does not expose a callable agent runtime, MCP server, A2A endpoint, or production authorization API.
+
+Screenshots and metrics on this site are design previews and sample data. They are not customer, production, performance, availability, compatibility, or certification evidence.
+
+## Reuse and attribution
+
+Public discovery and citation are welcome. Actual copying, training, redistribution, and commercial reuse remain subject to applicable copyright, trademark, and other rights. Final project licensing is not yet published. Do not infer a license or permission from this file, robots.txt, or public availability.
+
+## Security and privacy
+
+Do not submit secrets, credentials, personal data, or sensitive production information through public site routes. See https://rangoon.ai/security/ for project security guidance when available.
