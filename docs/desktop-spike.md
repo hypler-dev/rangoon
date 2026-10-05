@@ -20,6 +20,12 @@ Current save/restart/open evidence: [native workspace reopen](screenshots/native
 
 Actual macOS development build, October 5: the selected fixture is analyzed by Rust and the Evidence section highlights lines 6–7. This is distinct from the synthetic design preview.
 
+## Engine integration status (A1)
+
+The native bridge exposes `get_engine_status` with no arguments on `analyze.html#engine`. It returns the application-owned `rangoon-engine` placeholder status: adapter `placeholder`, connection `not_attempted`, runtime `not_checked`, no installed or observed version, no execution authority, and `networkAttempted: false`. The five future operations remain unavailable. This command does not detect, install, start, authenticate, connect to, or retry LNSAT.
+
+The CLI exposes the same inert boundary through `rangoon engine status` and `rangoon engine check --operation OPERATION`. `engine status` exits 0 and reports diagnostics; `engine check` prints a fixed unavailable diagnostic and exits 4. Neither command reads stdin or performs filesystem, process, network, credential, mutation, or execution work. The [engine integration specification](engine-integration.md) and [application architecture](application-architecture.md) define the v0 application contract and later qualification gates.
+
 ## Boundary and data flow
 
 ```text
@@ -37,7 +43,7 @@ The host validates the basename and accepts regular files only. It rejects final
 
 This does not promise immutable filesystem identity or a directory confinement sandbox: parent directories are not held, a selected file may change during reading, and a file selected from a mounted filesystem may involve that filesystem's own behavior. The digest identifies the bytes read. The app makes no provider request or upload. Unsupported, missing and unreadable inputs return fixed errors without echoing path or contents.
 
-The [Tauri command manifest and capability](https://v2.tauri.app/security/capabilities/) restrict the five documented application commands to the bundled main window. The new save/list/open/clear commands accept only the shapes in the [workspace specification](local-workspace.md); they expose no arbitrary filesystem or database API. No generic frontend filesystem, shell, HTTP, clipboard or dialog-plugin permission is granted. The Rust side opens its picker directly. Navigation is restricted to bundled origins; the shell has a separate CSP allowing its IPC transport but no external content or frames. The preview HTTP server's policy is not assumed to protect a native WebView.
+The [Tauri command manifest and capability](https://v2.tauri.app/security/capabilities/) restrict the six documented application commands to the bundled main window. The save/list/open/clear/status commands accept only the shapes in the [workspace specification](local-workspace.md) and engine integration specification; they expose no arbitrary filesystem or database API. No generic frontend filesystem, shell, HTTP, clipboard or dialog-plugin permission is granted. The Rust side opens its picker directly. Navigation is restricted to bundled origins; the shell has a separate CSP allowing its IPC transport but no external content or frames. The preview HTTP server's policy is not assumed to protect a native WebView.
 
 ## Validation and limits
 

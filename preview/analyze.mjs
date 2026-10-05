@@ -1,4 +1,6 @@
 import { createAnalysisController, escapeText } from './analysis-model.mjs';
+import { createEngineController } from './engine-model.mjs';
+import { renderEngineView } from './engine-view.mjs';
 import { createStartupSplash } from './launch.mjs';
 
 const app = document.querySelector('#analysis-app');
@@ -16,6 +18,11 @@ try {
 document.documentElement.dataset.theme = theme;
 let requestedFocus = null;
 let renderedSourceId = null;
+let route = location.hash === '#engine' ? 'engine' : 'analysis';
+let retainedSourceScroll = null;
+let routeFocusPending = route;
+let engineCheckFocusPending = false;
+let openEngineDetails = new Set();
 
 const text = value => escapeText(value);
 const formatBytes = value => new Intl.NumberFormat().format(value ?? 0);
@@ -109,11 +116,16 @@ function revealSelectedLine() {
 }
 
 function render(state) {
+  document.title = route === 'engine' ? 'Rangoon — Engine integration' : 'Rangoon — Import & Analyze';
+  if (route === 'engine') {
+    renderEngine();
+    return;
+  }
   const previousFragments = document.querySelector('.analysis-fragment-list');
   const previousSource = document.querySelector('.analysis-code');
   const fragmentScrollTop = previousFragments?.scrollTop ?? 0;
-  const sourceScrollTop = previousSource?.scrollTop ?? 0;
-  const sourceScrollLeft = previousSource?.scrollLeft ?? 0;
+  const sourceScrollTop = retainedSourceScroll?.top ?? previousSource?.scrollTop ?? 0;
+  const sourceScrollLeft = retainedSourceScroll?.left ?? previousSource?.scrollLeft ?? 0;
   const sourceId = state.report?.source?.id ?? null;
   const sourceChanged = sourceId !== renderedSourceId;
   const unavailable = state.status === 'unavailable';
@@ -125,15 +137,16 @@ function render(state) {
   const chooseDisabled = unavailable || pending;
   const saveDisabled = !hasReport || pending;
   app.innerHTML = `<div class="analysis-shell">
-    <aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis-main" aria-current="page">Import &amp; Analyze</a><a href="index.html">Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>
+    <aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis" aria-current="page">Import &amp; Analyze</a><a href="#engine">Engine integration</a><a href="index.html">Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>
     <main id="analysis-main" tabindex="-1">
-      <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1>Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
+      <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1 id="analysis-title" tabindex="-1">Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
       <section class="analysis-truth" aria-label="Analysis boundaries"><span>Native picker only</span><span>No scan or upload</span><span>Local save available</span><span>Sections are proposals, not semantic skills</span></section>
       ${snapshotsView(state)}
       ${reportView(state)}
     </main>
   </div>`;
   renderedSourceId = sourceId;
+  retainedSourceScroll = null;
   if (!sourceChanged) {
     const nextFragments = document.querySelector('.analysis-fragment-list');
     const nextSource = document.querySelector('.analysis-code');
@@ -144,6 +157,10 @@ function render(state) {
     }
   }
   announcer.textContent = unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message;
+  if (routeFocusPending === 'analysis') {
+    document.querySelector('#analysis-title')?.focus({ preventScroll: true });
+    routeFocusPending = null;
+  }
   if (!pending && requestedFocus === 'choose' && !unavailable) document.querySelector('#analysis-choose')?.focus({ preventScroll: true });
   if (!pending && requestedFocus === 'save') document.querySelector('#analysis-save')?.focus({ preventScroll: true });
   if (!pending && requestedFocus?.startsWith('snapshot:')) document.querySelector(`[data-open-snapshot="${CSS.escape(requestedFocus.slice(9))}"]`)?.focus({ preventScroll: true });
@@ -153,6 +170,32 @@ function render(state) {
   }
 }
 
+function retainSourceScroll() {
+  const source = document.querySelector('.analysis-code');
+  if (source) retainedSourceScroll = { top: source.scrollTop, left: source.scrollLeft };
+}
+
+function renderEngine() {
+  const existingDetails = document.querySelectorAll('.engine-capabilities details[open]');
+  openEngineDetails = new Set([...existingDetails].map(detail => detail.dataset.operation).filter(Boolean));
+  const state = engineController.getState();
+  app.innerHTML = `<div class="analysis-shell"><aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis">Import &amp; Analyze</a><a href="#engine" aria-current="page">Engine integration</a><a href="index.html">Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside><main id="analysis-main" tabindex="-1">${renderEngineView(state)}</main></div>`;
+  for (const operation of openEngineDetails) document.querySelector(`[data-operation="${operation}"]`)?.setAttribute('open', '');
+  announcer.textContent = state.message;
+  if (routeFocusPending === 'engine') {
+    document.querySelector('#engine-title')?.focus({ preventScroll: true });
+    routeFocusPending = null;
+  } else if (engineCheckFocusPending && !loadingEngineStatus(state)) {
+    document.querySelector('#engine-check')?.focus({ preventScroll: true });
+    engineCheckFocusPending = false;
+  }
+}
+
+function loadingEngineStatus(state) { return state.status === 'loading'; }
+
+const engineController = createEngineController({ invoke: bridge, onChange: () => {
+  if (route === 'engine') renderEngine();
+} });
 const controller = createAnalysisController({ invoke: bridge, onChange: state => {
   render(state);
   startupSplash.sync(state);
@@ -161,6 +204,7 @@ startupSplash.setRetry(() => controller.listSnapshots());
 render(controller.getState());
 
 app.addEventListener('click', event => {
+  if (event.target.closest('#engine-check')) { engineCheckFocusPending = true; return engineController.check(); }
   const fragment = event.target.closest('[data-fragment]');
   if (fragment) { requestedFocus = `fragment:${fragment.dataset.fragment}`; return controller.selectFragment(fragment.dataset.fragment); }
   const snapshot = event.target.closest('[data-open-snapshot]');
@@ -177,4 +221,13 @@ app.addEventListener('click', event => {
     render(controller.getState());
     document.querySelector('#analysis-theme')?.focus({ preventScroll: true });
   }
+});
+
+window.addEventListener('hashchange', () => {
+  retainSourceScroll();
+  route = location.hash === '#engine' ? 'engine' : 'analysis';
+  routeFocusPending = route;
+  requestedFocus = null;
+  engineCheckFocusPending = false;
+  render(controller.getState());
 });

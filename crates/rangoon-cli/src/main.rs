@@ -1,17 +1,19 @@
-//! Local stdin-only entry point. No filename is opened or executed by this CLI.
+//! Local source analysis and inert engine diagnostics.
+//! Analyze reads stdin only; no filename is opened or executed by this CLI.
 #![forbid(unsafe_code)]
 
 use std::io::{self, Read, Write};
 use std::process::ExitCode;
 
+use rangoon_engine::{EngineOperation, GovernancePort, LnsatPlaceholder};
 use rangoon_import::{MAX_SOURCE_BYTES, analyze, validate_display_name};
 use serde_json::json;
 
-const HELP: &str = "Rangoon source analyzer (development)\n\nUsage: rangoon analyze --name DISPLAY_NAME.md < source.md\n\nReads at most 256 KiB of UTF-8 Markdown from stdin. The name is a display\nlabel, never a path to open. Emits JSON containing original source text,\nhashes, exact spans and unreviewed section proposals. No network, filesystem\nscanning, execution, authorization, or persistence. Experimental v0 contract.\n";
+const HELP: &str = "Rangoon source analyzer (development)\n\nUsage:\n  rangoon analyze --name DISPLAY_NAME.md < source.md\n  rangoon engine status\n  rangoon engine check --operation OPERATION\n\nOperations:\n  negotiate_contract | inspect_configuration | read_evidence\n  submit_operation | reconcile_operation\n\nAnalyze reads at most 256 KiB of UTF-8 Markdown from stdin. The name is a\ndisplay label, never a path to open. Engine commands are inert diagnostics and\nnever read stdin. No network, filesystem scanning, execution, authorization,\nor persistence. Experimental v0 contract.\n";
 
 fn main() -> ExitCode {
     match run() {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(exit) => exit,
         Err(error) => {
             let payload = json!({
                 "schemaVersion": "rangoon.cli-error.v0",
@@ -30,13 +32,34 @@ struct Failure {
     exit: u8,
 }
 
-fn run() -> Result<(), Failure> {
+fn run() -> Result<ExitCode, Failure> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     if args.len() == 1 && matches!(args[0].to_str(), Some("--help" | "-h")) {
-        return io::stdout()
+        io::stdout()
             .lock()
             .write_all(HELP.as_bytes())
-            .map_err(|_| output_failure());
+            .map_err(|_| output_failure())?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if args.len() == 2 && args[0] == "engine" && args[1] == "status" {
+        write_json(&LnsatPlaceholder.status())?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if args.len() == 4 && args[0] == "engine" && args[1] == "check" && args[2] == "--operation" {
+        let operation = args[3].to_str().and_then(parse_operation).ok_or(Failure {
+            code: "usage",
+            message: "expected: rangoon engine check --operation OPERATION",
+            exit: 2,
+        })?;
+        write_json(&LnsatPlaceholder.invoke(operation))?;
+        return Ok(ExitCode::from(4));
+    }
+    if args.first().is_some_and(|arg| arg == "engine") {
+        return Err(Failure {
+            code: "usage",
+            message: "expected: rangoon engine status | engine check --operation OPERATION",
+            exit: 2,
+        });
     }
     if args.len() != 3 || args[0] != "analyze" || args[1] != "--name" {
         return Err(Failure {
@@ -73,9 +96,25 @@ fn run() -> Result<(), Failure> {
         message: error.message,
         exit: 2,
     })?;
-    let encoded = serde_json::to_vec(&report).map_err(|_| Failure {
+    write_json(&report)?;
+    Ok(ExitCode::SUCCESS)
+}
+
+fn parse_operation(value: &str) -> Option<EngineOperation> {
+    match value {
+        "negotiate_contract" => Some(EngineOperation::NegotiateContract),
+        "inspect_configuration" => Some(EngineOperation::InspectConfiguration),
+        "read_evidence" => Some(EngineOperation::ReadEvidence),
+        "submit_operation" => Some(EngineOperation::SubmitOperation),
+        "reconcile_operation" => Some(EngineOperation::ReconcileOperation),
+        _ => None,
+    }
+}
+
+fn write_json(value: &impl serde::Serialize) -> Result<(), Failure> {
+    let encoded = serde_json::to_vec(value).map_err(|_| Failure {
         code: "serialization",
-        message: "could not encode the analysis report",
+        message: "could not encode JSON output",
         exit: 3,
     })?;
     let mut output = io::stdout().lock();

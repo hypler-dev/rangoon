@@ -1,6 +1,6 @@
 {
   "identifier": "source-analysis",
-  "description": "One local workbench can analyze a picked file, explicitly save source snapshots, list and reopen them, and clear its active analysis. No renderer paths or source bodies are accepted.",
+  "description": "One local workbench can analyze a picked file, explicitly save source snapshots, list and reopen them, clear its active analysis, and read this build's inert engine-integration status. No renderer paths, source bodies or engine requests are accepted.",
   "windows": [
     "main"
   ],
@@ -10,6 +10,7 @@
     "allow-list-snapshots",
     "allow-save-analysis",
     "allow-open-snapshot",
-    "allow-clear-analysis"
+    "allow-clear-analysis",
+    "allow-get-engine-status"
   ]
 }

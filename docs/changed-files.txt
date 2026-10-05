@@ -102,3 +102,13 @@ scripts/validate-review.mjs
 tests/analysis.test.mjs
 tests/preview.test.mjs
 tests/server.test.mjs
+preview/engine-model.mjs
+preview/engine-view.mjs
+preview/engine.css
+tests/engine.test.mjs
+fixtures/contracts/engine-status.json
+crates/rangoon-engine/Cargo.toml
+crates/rangoon-engine/src/lib.rs
+docs/engine-integration.md
+docs/application-architecture.md
+docs/screenshots/native-engine-status.jpg
