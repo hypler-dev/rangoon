@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "rangoon.visual-assets.v1",
+  "assets": [
+    {
+      "path": "preview/assets/capability-assembly-v1.png",
+      "method": "OpenAI built-in image generation, descriptive prompt only",
+      "created": "2026-10-05",
+      "width": 1374,
+      "height": 1145,
+      "transparent": true,
+      "bytes": 1094814,
+      "sha256": "01c335d2cada65f8e521a82570f66abe912516001e81948e6203e24de82db34e",
+      "prompt": "Use case: stylized-concept. Asset type: a premium transparent-background decorative illustration for the Rangoon AI capability workbench, used alongside crisp vector UI icons. Primary request: a beautifully crafted abstract capability assembly, an orange folded origami core built from two interlocking triangular wings, surrounded by three small modular rounded-square nodes connected with delicate brushed-metal rails. The core's folds echo a rangoon dumpling and the warm orange origami identity. No face, no lettering, no wordmark, no replacement app logo. Composition: single compact centered object, three-quarter isometric view, plenty of clean transparent margin; intended to sit in the right side of a dark or light dashboard hero at 320px wide. Materials: rich amber-orange anodized metal and softly translucent orange glass edge insets, small ivory ceramic nodes, restrained graphite metal detail. Lighting: refined studio product render, soft realistic ambient occlusion only immediately under the object, crisp silhouette, controlled warm highlights, tasteful detail visible at medium size. Overall feel: premium desktop software, tactile and precise, beautifully art-directed, elegant and confident. Background truly transparent. Avoid words, numbers, grids, UI screenshots, badges, check marks, shields, padlocks, currency, neon cyberpunk effects, sprawling cables, excessive glow, floor/background planes, watermark, or any implication of a real running/authorized system.",
+      "usage": "Decorative capability assembly on the sample Command Center. Not an app icon or status indicator."
+    },
+    {
+      "path": "preview/assets/brand-symbol.png",
+      "method": "User supplied original, unchanged",
+      "sha256": "7dfcf1dddf5a8df85dd373c147ad182d716c4b0d747868d9ced4518102fbc8e2",
+      "usage": "Chosen Rangoon brand symbol; source for OS icons."
+    }
+  ],
+  "icons": {
+    "path": "preview/icons.mjs",
+    "method": "Locally authored SVG paths, no external icon library",
+    "family": "Foldline",
+    "licenseNote": "No additional license grant or licensing decision in this packet."
+  }
+}

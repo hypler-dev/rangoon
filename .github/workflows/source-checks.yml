@@ -48,6 +48,7 @@ jobs:
         with:
           node-version: '24.21.0'
       - run: npm run check
+      - run: npm run validate:visuals
       - run: npm test
       - run: node scripts/validate-review.mjs
       - run: git diff --check

@@ -1,6 +1,9 @@
 //! Explicit, bounded local source snapshots. Stored bytes never confer authority.
 #![forbid(unsafe_code)]
 
+mod capabilities;
+pub use capabilities::{CapabilityReceipt, MAX_CAPABILITIES, MAX_REVISIONS, MAX_TOTAL_REVISIONS};
+
 use rangoon_domain::AnalysisReport;
 use rangoon_import::{MAX_SOURCE_BYTES, analyze, validate_display_name};
 use rusqlite::{
@@ -43,10 +46,30 @@ pub enum StoreError {
     InvalidId,
     NotFound,
     Full,
+    CapabilityInvalid,
+    CapabilityConflict,
+    CapabilityNotFound,
+    CapabilityFull,
 }
 impl StoreError {
     pub fn public(self) -> (&'static str, &'static str) {
         match self {
+            Self::CapabilityInvalid => (
+                "capability_invalid",
+                "Choose a saved source section and provide a nonempty title and content within the displayed limits.",
+            ),
+            Self::CapabilityConflict => (
+                "capability_conflict",
+                "This skill has a newer revision. Your draft remains available. Open the current revision before saving or reviewing again.",
+            ),
+            Self::CapabilityNotFound => (
+                "capability_not_found",
+                "That skill or revision is unavailable. Refresh the skills list and try again.",
+            ),
+            Self::CapabilityFull => (
+                "capability_full",
+                "The local skills workspace reached its capability or revision limit. Existing records remain available.",
+            ),
             Self::Unavailable => (
                 "workspace_unavailable",
                 "Local workspace could not be accessed. Retry after checking available disk space and access. A save may have completed; retry safely checks for an existing copy.",
@@ -291,14 +314,21 @@ fn initialize_or_verify(db: &Connection) -> Result<(), StoreError> {
 fn verify_schema(db: &Connection) -> Result<(), StoreError> {
     let version: i64 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
     let app_id: i64 = db.pragma_query_value(None, "application_id", |r| r.get(0))?;
-    let mut query = db.prepare("SELECT type, name, sql FROM sqlite_schema WHERE name != 'sqlite_autoindex_snapshots_1' ORDER BY name")?;
+    let mut query = db.prepare("SELECT type, name, sql FROM sqlite_schema WHERE name NOT IN ('sqlite_autoindex_snapshots_1','sqlite_autoindex_capabilities_1','sqlite_autoindex_revisions_1','sqlite_autoindex_reviews_1') ORDER BY name")?;
     let schema: Vec<(String, String, String)> = query
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
         .collect::<Result<_, _>>()?;
-    if version != 1
-        || app_id != APPLICATION_ID
-        || schema != [("table".into(), "snapshots".into(), SCHEMA.into())]
-    {
+    let mut expected: Vec<(String, String, String)> =
+        vec![("table".into(), "snapshots".into(), SCHEMA.into())];
+    if version == 2 {
+        expected.extend(
+            capabilities::SCHEMAS
+                .iter()
+                .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
+        );
+        expected.sort_by(|a, b| a.1.cmp(&b.1));
+    }
+    if ![1, 2].contains(&version) || app_id != APPLICATION_ID || schema != expected {
         return Err(StoreError::UnsupportedSchema);
     }
     Ok(())
@@ -376,3 +406,6 @@ fn read_report(db: &Connection, id: &str) -> Result<AnalysisReport, StoreError> 
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod capability_tests;

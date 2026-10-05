@@ -2,7 +2,7 @@
 
 Supporting audit, October 4, 2026. [intent.md](intent.md) governs this packet. This is a product/architecture readiness review with targeted source and test inspection, not a full security audit, runtime qualification, or line-by-line verification. No LNSAT tests were rerun in this task.
 
-R1a continuation: Rangoon now includes an experimental Rust library and stdin-only CLI that analyze explicitly supplied Markdown bytes into exact source spans and unreviewed section records. [Development evidence](development.md) records the tests and exact CI/push receipts. This is bounded source analysis, not a persistent project importer, semantic capability compiler, connected desktop flow or execution engine. The LNSAT audit below remains pinned to its original snapshots.
+Application continuation, October 5: the real desktop workbench analyzes selected Markdown, explicitly saves and reopens source snapshots, and exposes an inert engine status. The R2b branch adds source-derived capability revisions and local content review, with an isolated macOS create/edit/review/restart check passed; see [reviewed capabilities](reviewed-capabilities.md) and [development evidence](development.md) for validation and exact publication receipts. Local review does not establish semantic preservation, tested compatibility, authenticated authorship or authority to act. The LNSAT audit below remains pinned to its original snapshots.
 
 ## Assessment
 
@@ -22,7 +22,7 @@ Canonical documentation pointers are `docs/PROJECT_STATUS.md`, `docs/ROADMAP.md`
 
 | Claim / aspiration | Current evidence | Safe wording now | Required proof / packet |
 | --- | --- | --- | --- |
-| Rangoon is an available application | Initial app main `4dfcb746` contained README only; the development branch adds a prototype and bounded source-analysis CLI | “Application in development; design preview and experimental source analyzer available.” | R1–R6 actual app, installer, docs, release artifacts |
+| Rangoon is an available application | Initial app main `4dfcb746` contained README only; the application now has selected-file desktop analysis, explicit source persistence, inert engine status and a branch implementing reviewed capability revisions; exact evidence lives in the development ledger | “Application in development; local source and capability workflows are being built and qualified.” | Complete lifecycle, three-OS GUI/install/update evidence, license decision and release artifacts |
 | Free open-source Rangoon | Explicit current user direction; app license not adopted | “Initial product is planned as free and open source.” | R1 license/notice/edition decision, R6 source + artifact release |
 | LNSAT is an open authority core | Canonical Cargo license metadata/NOTICE and ADR-0003; four Rust crates plus TS surfaces | “Apache-2.0 pre-release execution-authorization and evidence source foundation.” | Published support artifacts and release gates; license is not operational warranty |
 | Exact authorization and anti-replay | `crates/lnsat-contracts/src/execution.rs:58,245`; `crates/lnsat-store/src/phase7_git_adapter.rs:740` at canonical snapshot | “Source contracts bind exact request/configuration identities and one-time capability use.” | Real selected runtime/conformance tests; R7 integrated negative suite |
