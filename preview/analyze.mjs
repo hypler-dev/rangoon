@@ -1,6 +1,7 @@
 import { createAnalysisController, escapeText } from './analysis-model.mjs';
 import { createEngineController } from './engine-model.mjs';
 import { renderEngineView } from './engine-view.mjs';
+import { icon } from './icons.mjs';
 import { createStartupSplash } from './launch.mjs';
 
 const app = document.querySelector('#analysis-app');
@@ -22,6 +23,7 @@ let route = location.hash === '#engine' ? 'engine' : 'analysis';
 let retainedSourceScroll = null;
 let routeFocusPending = route;
 let engineCheckFocusPending = false;
+let routeEntry = true;
 let openEngineDetails = new Set();
 
 const text = value => escapeText(value);
@@ -137,15 +139,16 @@ function render(state) {
   const chooseDisabled = unavailable || pending;
   const saveDisabled = !hasReport || pending;
   app.innerHTML = `<div class="analysis-shell">
-    <aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis" aria-current="page">Import &amp; Analyze</a><a href="#engine">Engine integration</a><a href="index.html">Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>
-    <main id="analysis-main" tabindex="-1">
-      <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1 id="analysis-title" tabindex="-1">Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
+    <aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis" aria-current="page">${icon('import',{size:16})} Import &amp; Analyze</a><a href="#engine">${icon('gate',{size:16})} Engine integration</a><a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>
+    <main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">
+      <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1 id="analysis-title" tabindex="-1">Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${icon('import',{size:16})}${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${icon('clear',{size:16})}${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${icon('save',{size:16})}${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
       <section class="analysis-truth" aria-label="Analysis boundaries"><span>Native picker only</span><span>No scan or upload</span><span>Local save available</span><span>Sections are proposals, not semantic skills</span></section>
       ${snapshotsView(state)}
       ${reportView(state)}
     </main>
   </div>`;
   renderedSourceId = sourceId;
+  routeEntry = false;
   retainedSourceScroll = null;
   if (!sourceChanged) {
     const nextFragments = document.querySelector('.analysis-fragment-list');
@@ -179,7 +182,8 @@ function renderEngine() {
   const existingDetails = document.querySelectorAll('.engine-capabilities details[open]');
   openEngineDetails = new Set([...existingDetails].map(detail => detail.dataset.operation).filter(Boolean));
   const state = engineController.getState();
-  app.innerHTML = `<div class="analysis-shell"><aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis">Import &amp; Analyze</a><a href="#engine" aria-current="page">Engine integration</a><a href="index.html">Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside><main id="analysis-main" tabindex="-1">${renderEngineView(state)}</main></div>`;
+  app.innerHTML = `<div class="analysis-shell"><aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis">${icon('import',{size:16})} Import &amp; Analyze</a><a href="#engine" aria-current="page">${icon('gate',{size:16})} Engine integration</a><a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside><main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderEngineView(state)}</main></div>`;
+  routeEntry = false;
   for (const operation of openEngineDetails) document.querySelector(`[data-operation="${operation}"]`)?.setAttribute('open', '');
   announcer.textContent = state.message;
   if (routeFocusPending === 'engine') {
@@ -225,7 +229,9 @@ app.addEventListener('click', event => {
 
 window.addEventListener('hashchange', () => {
   retainSourceScroll();
-  route = location.hash === '#engine' ? 'engine' : 'analysis';
+  const nextRoute = location.hash === '#engine' ? 'engine' : 'analysis';
+  routeEntry = route !== nextRoute;
+  route = nextRoute;
   routeFocusPending = route;
   requestedFocus = null;
   engineCheckFocusPending = false;

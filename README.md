@@ -4,6 +4,8 @@ Rangoon is a capability workbench for making AI instructions, skills, workflows,
 
 ![Rangoon Command Center preview](docs/screenshots/command-dark.jpg)
 
+The preview's V1 visual system uses a custom Foldline SVG icon family, a generated decorative capability illustration, and restrained dark/light motion with reduced-motion support. Inspect the local icon specimen at `http://127.0.0.1:4377/icon-gallery.html` after starting the preview, then run `npm run validate:visuals` to check the visual assets and contracts. See the [visual system specification](docs/visual-system.md) and [visual asset provenance](docs/visual-assets.json).
+
 The product direction is a free, open-source workbench for developers and small platform teams managing `AGENTS.md`, `CLAUDE.md`, `SKILL.md`, rules, tools, hooks, and project context across repositories. The first desktop release is planned for macOS, Windows, and Linux together. A specific software license has not been adopted yet, so this repository makes no license grant.
 
 ## What exists now
@@ -187,6 +189,8 @@ The Node checks cover the local preview and server. The Rust checks cover the so
 - [Application architecture](docs/application-architecture.md) — module ownership, workflow records, and staged engine adoption.
 - [Product experience](docs/product-experience.md) — image-to-behavior contract and first useful file lifecycle.
 - [Preview gallery](docs/preview-gallery.md) — rendered synthetic screens.
+- [Visual system](docs/visual-system.md) — Foldline icons, motion, themes, and decorative asset rules.
+- [Visual assets](docs/visual-assets.json) — generated asset provenance and hashes.
 - [Visual provenance](docs/artwork.md) — source and derived asset records.
 - [Funding research](docs/government-funding.md) — research plan, not eligibility or submission.
 - [Review submission](docs/review-submission.md) — packet review proposal.

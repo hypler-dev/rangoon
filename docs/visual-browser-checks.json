@@ -1,0 +1,167 @@
+{
+  "description": "V1 rendered sample-route checks; actual CSS widths from browser DOM.",
+  "checks": [
+    {
+      "client": 305,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#command",
+      "scroll": 305,
+      "width": 320
+    },
+    {
+      "client": 305,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#import",
+      "scroll": 305,
+      "width": 320
+    },
+    {
+      "client": 305,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#decompose",
+      "scroll": 305,
+      "width": 320
+    },
+    {
+      "client": 305,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#merge",
+      "scroll": 305,
+      "width": 320
+    },
+    {
+      "client": 305,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#skills",
+      "scroll": 305,
+      "width": 320
+    },
+    {
+      "client": 305,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#workflows",
+      "scroll": 305,
+      "width": 320
+    },
+    {
+      "client": 305,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#connectors",
+      "scroll": 305,
+      "width": 320
+    },
+    {
+      "client": 305,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#evidence",
+      "scroll": 305,
+      "width": 320
+    },
+    {
+      "client": 305,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#release",
+      "scroll": 305,
+      "width": 320
+    },
+    {
+      "client": 753,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#command",
+      "scroll": 753,
+      "width": 768
+    },
+    {
+      "client": 753,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#import",
+      "scroll": 753,
+      "width": 768
+    },
+    {
+      "client": 753,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#decompose",
+      "scroll": 753,
+      "width": 768
+    },
+    {
+      "client": 753,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#merge",
+      "scroll": 753,
+      "width": 768
+    },
+    {
+      "client": 753,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#skills",
+      "scroll": 753,
+      "width": 768
+    },
+    {
+      "client": 753,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#workflows",
+      "scroll": 753,
+      "width": 768
+    },
+    {
+      "client": 753,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#connectors",
+      "scroll": 753,
+      "width": 768
+    },
+    {
+      "client": 753,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#evidence",
+      "scroll": 753,
+      "width": 768
+    },
+    {
+      "client": 753,
+      "focus": "H1",
+      "iconBoxes": true,
+      "missingImages": 0,
+      "route": "#release",
+      "scroll": 753,
+      "width": 768
+    }
+  ]
+}
