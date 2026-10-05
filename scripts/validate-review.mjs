@@ -14,11 +14,11 @@ for (const entry of [...manifest.images, manifest.historical_brief]) {
 let checked = 0;
 async function inspect(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.name.startsWith('.')) continue;
+    if (entry.name.startsWith('.') || ['target', 'node_modules'].includes(entry.name)) continue;
     const file = path.join(directory, entry.name);
     if (entry.isDirectory()) { await inspect(file); continue; }
-    if (!/\.(md|mjs|css|html|json)$/.test(entry.name)) continue;
-    if (file.includes(`${path.sep}references${path.sep}`)) continue;
+    if (!/\.(md|mjs|css|html|json|rs|toml|yml)$/.test(entry.name)) continue;
+    if (file.includes(`${path.sep}references${path.sep}`) || file.includes(`${path.sep}fixtures${path.sep}`)) continue;
     const content = await readFile(file, 'utf8');
     if (/[\t ]+$/m.test(content)) throw new Error(`Trailing whitespace: ${file}`);
     if (entry.name.endsWith('.md')) {

@@ -37,7 +37,7 @@ Privileged execution, automatic repository scanning, persistent workspace/databa
 ## Assumptions and verified facts
 
 - Website checkout: `website-local` at `0ea1a2d9b6bc904867a62965a80487aa0d46b52d`; pre-existing untracked `.codex/` preserved.
-- Application origin: `https://github.com/hypler-dev/rangoon.git`; initial `main` at `4dfcb746db076ca59455773527c381ae4359de7e`, with README only. The repository description will be aligned with its application purpose as part of the authorized publication.
+- Application origin: `https://github.com/hypler-dev/rangoon.git`; initial `main` at `4dfcb746db076ca59455773527c381ae4359de7e`, with README only. The repository description was aligned with its application purpose during the authorized publication.
 - Application work branch: `codex/app-vision-preview`.
 - Prior implementation brief is supporting evidence, not a replacement for this packet's acceptance state.
 

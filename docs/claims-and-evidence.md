@@ -50,7 +50,7 @@ Canonical documentation pointers are `docs/PROJECT_STATUS.md`, `docs/ROADMAP.md`
 
 **P2 evidence defect in the broader narrative: scope conflation.** A configuration parser, readback console, or protocol contract does not deliver general import, capability composition, workflow execution or supported integrations. R2–R7 explicitly supply those missing product layers. The real enforcement boundary must mediate the actual tool path; an unmanaged harness can bypass Rangoon. Show advisory-only status rather than implying universal control.
 
-**Packaging/brand inconsistency:** the live application repository's description still says public website, despite the README correctly reserving it for app source. Prepare a metadata correction with the first reviewed application submission. No repository metadata was changed here. The website itself already discloses concept/release limitations; do not strip those disclosures because this prototype looks more finished.
+**Packaging/brand inconsistency:** the application repository's description initially said public website, despite the README reserving it for app source. The later user-authorized publication corrected this metadata; see [development.md](development.md). This historical R0 audit did not change it. The website itself already discloses concept/release limitations; do not strip those disclosures because this prototype looks more finished.
 
 ## Recommended replacement positioning
 
