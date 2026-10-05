@@ -8,19 +8,21 @@ R0 was committed and pushed as `b37e1f9e3d201440e4c6480c2a33dc42367e2abd` on `co
 
 R0 validation: [validation.md](validation.md). Final root-owned changes were independently reviewed by OpenAI GPT-5.6-Terra; review corrections passed. OpenAI GPT-5.6-Luna independently checked the exact outgoing packet for accidental private payloads; no blocking finding was reported.
 
-## Active implementation slice: R1a
+## Completed source foundation: R1a
 
 Implemented a platform-neutral Rust domain and source-analysis foundation with a stdin-only CLI. It accepts bounded UTF-8 instruction bytes, preserves original byte hashes and exact line spans, detects Markdown sections deterministically, and represents extracted sections as unreviewed proposals. The caller supplies every byte; a display name never opens a path. No recursive scan, archives, network, models, hooks, scripts, execution authority, persistence or installation. The experimental contract is recorded in [source-analysis.md](source-analysis.md).
 
-This is a bounded early implementation of R1 contracts and the pure-analysis prerequisite for R2/R3, not completion of those packets. Establish three-OS source-test CI without claiming all three platforms have been qualified before their actual CI results exist. Tauri/React shell qualification, license selection and real installers remain R1/R6 follow-ups.
+This is a bounded early implementation of R1 contracts and the pure-analysis prerequisite for R2/R3, not completion of those packets. Three-OS source-test CI now passes. Tauri/React shell qualification, license selection and real installers remain R1/R6 follow-ups.
 
-Controller owns architecture, contracts, integration, validation and git state. Producer roles: primary Sol controller for domain/CLI/contracts/CI and integration; native OpenAI GPT-5.6-Terra high for the bounded analyzer and its tests. A fresh OpenAI GPT-5.6-Terra xhigh reviewer returned PASS for the 25-file R1a diff, with no actionable P1/P2/P3 findings. The remaining minimum-toolchain and three-OS qualification gap is assigned to hosted CI. GLM was not retried after the recorded transport failures in the preview packet; an adequate native review lane is available.
+Controller owns architecture, contracts, integration, validation and git state. Producer roles: primary Sol controller for domain/CLI/contracts/CI and integration; native OpenAI GPT-5.6-Terra high for the bounded analyzer and its tests. A fresh OpenAI GPT-5.6-Terra xhigh reviewer returned PASS for the 25-file R1a diff, with no actionable P1/P2/P3 findings, then independently passed the test-fixture correction. Hosted CI closed the minimum-toolchain and three-OS source-check gap. GLM was not retried after the recorded transport failures in the preview packet; an adequate native review lane is available.
 
 ## R1a validation ledger
 
 Local validation on macOS, October 4, 2026: Rust 1.98.0 and Node 24.21.0. The CI configuration pins Rust 1.85.0 on Ubuntu 24.04, Windows Server 2022 and macOS 14.
 
-R1a was committed and pushed as `ac6648ccb5ebbbc4c12b0c7f3d8ad4b36bed11e2`; the remote SHA matched exactly. The first [hosted run](https://github.com/hypler-dev/rangoon/actions/runs/37267155400) passed formatting and all 18 Rust tests on every OS, and passed the preview job. Its three Rust jobs failed Clippy 1.85's `format_collect` lint in two test-fixture builders. The follow-up appends headings directly to a string with `writeln!`, preserving the fixtures and warning-denial policy. A fresh CI run must confirm the correction; the first run is not an overall PASS.
+R1a was committed and pushed as `ac6648ccb5ebbbc4c12b0c7f3d8ad4b36bed11e2`; the remote SHA matched exactly. The first [hosted run](https://github.com/hypler-dev/rangoon/actions/runs/37267155400) passed formatting and all 18 Rust tests on every OS, and passed the preview job. Its three Rust jobs failed Clippy 1.85's `format_collect` lint in two test-fixture builders. The follow-up appends headings directly to a string with `writeln!`, preserving the fixtures and warning-denial policy. The first run remains a failure in the historical record.
+
+Corrected source commit: `36a5ce68b85912af76cf4e0e1a2e2ce2931caf3e`. [PR CI run 37267392112](https://github.com/hypler-dev/rangoon/actions/runs/37267392112) completed successfully for that exact head: Rust 1.85 formatting, all 18 tests and Clippy on Ubuntu 24.04, Windows Server 2022 and macOS 14, plus the Linux preview/review-artifact job. These are hosted source checks; they do not establish released desktop support, installer readiness or native execution enforcement. Later documentation-only commits retain this immutable source receipt; inspect PR checks for their own exact-head results.
 
 | Check | Result |
 | --- | --- |
@@ -34,7 +36,7 @@ R1a was committed and pushed as `ac6648ccb5ebbbc4c12b0c7f3d8ad4b36bed11e2`; the 
 | Intent and plan schema validators | PASS for both canonical artifacts |
 | `git diff --cached --check` | PASS |
 | Independent R1a review | PASS: OpenAI GPT-5.6-Terra xhigh; no actionable findings |
-| Three-OS hosted CI | Initial run: all tests/formatting passed; two test-helper Clippy errors require a corrected run. No desktop release qualification inferred |
+| Three-OS hosted CI | PASS for corrected source `36a5ce68b85912af76cf4e0e1a2e2ce2931caf3e`: three Rust jobs and the preview job |
 
 Initial Cargo resolution required fetching the locked public dependencies; offline tests then passed. Parser boundary tests cover BOM-prefixed fences, CRLF line-length limits, invalid UTF-8/NUL, duplicate headings, unsupported names, line/fragment/input caps and inert hostile instructions. The golden fixture is synthetic and enforces identical report semantics across platforms.
 
