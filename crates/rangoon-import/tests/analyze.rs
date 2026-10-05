@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use rangoon_domain::{
     Authority, DiagnosticCode, FragmentKind, ReviewState, SourceFormat, byte_digest, fragment_id,
     source_id,
@@ -211,9 +213,10 @@ fn strict_limits_fail_without_truncating_input() {
     let exact_lines = vec![b'\n'; MAX_LINES];
     assert!(analyze("limits.md", &exact_lines).is_ok());
 
-    let exact_fragments = (0..MAX_FRAGMENTS)
-        .map(|number| format!("# {number}\n"))
-        .collect::<String>();
+    let mut exact_fragments = String::new();
+    for number in 0..MAX_FRAGMENTS {
+        writeln!(&mut exact_fragments, "# {number}").expect("writing to String cannot fail");
+    }
     assert_eq!(
         analyze("limits.md", exact_fragments.as_bytes())
             .expect("fragment limit is inclusive")
@@ -246,9 +249,10 @@ fn strict_limits_fail_without_truncating_input() {
         ErrorCode::TooManyLines
     );
 
-    let many_headings = (0..=MAX_FRAGMENTS)
-        .map(|number| format!("# {number}\n"))
-        .collect::<String>();
+    let mut many_headings = String::new();
+    for number in 0..=MAX_FRAGMENTS {
+        writeln!(&mut many_headings, "# {number}").expect("writing to String cannot fail");
+    }
     assert_eq!(
         analyze("limits.md", many_headings.as_bytes())
             .unwrap_err()

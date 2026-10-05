@@ -18,7 +18,9 @@ Controller owns architecture, contracts, integration, validation and git state. 
 
 ## R1a validation ledger
 
-Local validation on macOS, October 4, 2026: Rust 1.98.0 and Node 24.21.0. The CI configuration pins Rust 1.85.0 on Ubuntu 24.04, Windows Server 2022 and macOS 14; those runs are pending publication of this slice.
+Local validation on macOS, October 4, 2026: Rust 1.98.0 and Node 24.21.0. The CI configuration pins Rust 1.85.0 on Ubuntu 24.04, Windows Server 2022 and macOS 14.
+
+R1a was committed and pushed as `ac6648ccb5ebbbc4c12b0c7f3d8ad4b36bed11e2`; the remote SHA matched exactly. The first [hosted run](https://github.com/hypler-dev/rangoon/actions/runs/37267155400) passed formatting and all 18 Rust tests on every OS, and passed the preview job. Its three Rust jobs failed Clippy 1.85's `format_collect` lint in two test-fixture builders. The follow-up appends headings directly to a string with `writeln!`, preserving the fixtures and warning-denial policy. A fresh CI run must confirm the correction; the first run is not an overall PASS.
 
 | Check | Result |
 | --- | --- |
@@ -32,7 +34,7 @@ Local validation on macOS, October 4, 2026: Rust 1.98.0 and Node 24.21.0. The CI
 | Intent and plan schema validators | PASS for both canonical artifacts |
 | `git diff --cached --check` | PASS |
 | Independent R1a review | PASS: OpenAI GPT-5.6-Terra xhigh; no actionable findings |
-| Three-OS hosted CI | Pending; no desktop release qualification inferred |
+| Three-OS hosted CI | Initial run: all tests/formatting passed; two test-helper Clippy errors require a corrected run. No desktop release qualification inferred |
 
 Initial Cargo resolution required fetching the locked public dependencies; offline tests then passed. Parser boundary tests cover BOM-prefixed fences, CRLF line-length limits, invalid UTF-8/NUL, duplicate headings, unsupported names, line/fragment/input caps and inert hostile instructions. The golden fixture is synthetic and enforces identical report semantics across platforms.
 
