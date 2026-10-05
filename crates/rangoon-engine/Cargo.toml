@@ -1,17 +1,13 @@
 [package]
-name = "rangoon-cli"
+name = "rangoon-engine"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 repository.workspace = true
 
-[[bin]]
-name = "rangoon"
-path = "src/main.rs"
-
 [dependencies]
-rangoon-engine = { path = "../rangoon-engine" }
-rangoon-import.workspace = true
 serde.workspace = true
+
+[dev-dependencies]
 serde_json.workspace = true

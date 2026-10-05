@@ -6,6 +6,7 @@ fn main() {
             "save_analysis",
             "open_snapshot",
             "clear_analysis",
+            "get_engine_status",
         ]),
     ))
     .expect("desktop configuration must be valid");

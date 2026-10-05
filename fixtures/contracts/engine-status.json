@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "rangoon.engine-status.v0",
+  "provider": "lnsat",
+  "adapterState": "placeholder",
+  "connectionState": "not_attempted",
+  "runtimeState": "not_checked",
+  "installedVersion": null,
+  "observedContract": null,
+  "executionAuthority": "none",
+  "networkAttempted": false,
+  "reference": {
+    "repository": "https://github.com/hypler-dev/LNSAT",
+    "sourceCommit": "e09a6b02634b04a46f861ed8b092acc2c2e50fe8",
+    "productVersion": "0.1.0",
+    "wireContract": "lnsat.contracts.v1_0",
+    "defaultProductSurface": "lnsat.product_surface.v1",
+    "configurationProductSurface": "lnsat.product_surface.v2",
+    "releaseQualified": false
+  },
+  "capabilities": [
+    {
+      "operation": "negotiate_contract",
+      "state": "unavailable",
+      "reason": "adapter_not_implemented"
+    },
+    {
+      "operation": "inspect_configuration",
+      "state": "unavailable",
+      "reason": "adapter_not_implemented"
+    },
+    {
+      "operation": "read_evidence",
+      "state": "unavailable",
+      "reason": "adapter_not_implemented"
+    },
+    {
+      "operation": "submit_operation",
+      "state": "unavailable",
+      "reason": "adapter_not_implemented"
+    },
+    {
+      "operation": "reconcile_operation",
+      "state": "unavailable",
+      "reason": "adapter_not_implemented"
+    }
+  ]
+}

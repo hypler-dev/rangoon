@@ -1,6 +1,6 @@
 # Rangoon
 
-Rangoon is a capability workbench for making AI instructions, skills, workflows, and connector plans understandable, portable, and reviewable. It is an application in development. This repository currently contains a synthetic interactive preview, a deterministic Rust source-analysis foundation, an R1b Tauri desktop spike, and an R2a local source-snapshot loop; it is not a released desktop app or execution runtime.
+Rangoon is a capability workbench for making AI instructions, skills, workflows, and connector plans understandable, portable, and reviewable. It is an application in development. This repository currently contains a synthetic interactive preview, a deterministic Rust source-analysis foundation, an R1b Tauri desktop spike, an R2a local source-snapshot loop, and an A1 inert engine-integration boundary; it is not a released desktop app or execution runtime.
 
 ![Rangoon Command Center preview](docs/screenshots/command-dark.jpg)
 
@@ -77,6 +77,19 @@ Install the [Tauri native build prerequisites](docs/desktop-spike.md#run-from-so
 
 The three-OS source/build qualification matrix covers macOS, Windows, and Linux as work in progress. Current manual runtime evidence covers the macOS R1b path and R2a save/restart/reopen loop. Local source/storage checks passed; Windows/Linux GUI and release qualification remain pending. Three-OS source CI and a Mac GUI check are separate from all-three-OS release proof. There is no installer and no released OS support claim. See the [desktop spike record](docs/desktop-spike.md), [local workspace specification](docs/local-workspace.md), and [product-experience behavior contract](docs/product-experience.md#image-to-behavior-contract).
 
+### Engine integration boundary (A1)
+
+The application owns an inert `rangoon-engine` placeholder for a future LNSAT adapter. Its five closed operations return an explicit unavailable diagnostic with no network, filesystem, process, credential, mutation, or execution behavior. The native desktop exposes `get_engine_status` with no arguments; the CLI exposes `rangoon engine status` and `rangoon engine check --operation OPERATION`. Status reports the placeholder and unknown runtime state. `engine check` prints the unavailable diagnostic and exits 4. Neither command detects, installs, starts, authenticates, connects to, or retries an engine.
+
+Open **Engine integration** in the real workbench, or preview its browser-unavailable state at `http://127.0.0.1:4377/analyze.html#engine`. Local analysis remains available independently. From source:
+
+```sh
+cargo run --locked -p rangoon-cli -- engine status
+cargo run --locked -p rangoon-cli -- engine check --operation read_evidence
+```
+
+The second command deliberately exits 4: no engine evidence was read. This is Rangoon's experimental v0 application contract, not LNSAT's wire API or a release qualification claim. See the [engine integration specification](docs/engine-integration.md) and [application architecture](docs/application-architecture.md).
+
 ## Product boundary
 
 Rangoon owns the user-facing lifecycle: discovery, provenance, editing, decomposition, composition, compatibility, static tests, compilation planning, review, and evidence views. LNSAT remains an independent reference authority and evidence engine. Rangoon does not copy LNSAT implementation or recreate its authority semantics in UI code. A future qualified adapter may reference exact LNSAT contracts; the present preview and analyzer do not connect to it.
@@ -92,6 +105,7 @@ Management must remain useful when execution is unavailable. Imported files are 
 | Editing | Fixture interactions for review, merge, split, and draft states | Capability revisions, lineage, provenance, and reversible editing |
 | Compatibility | No production adapters | Versioned harness adapters with golden fixtures and visible unsupported fields |
 | Testing | Static preview tests and Rust source-analysis tests | Deterministic bundles, fixture simulation, static test lab, and export evidence |
+| Engine integration | A1 inert `rangoon-engine` boundary; native status and CLI status/check diagnostics only | R2b capability revisions while LNSAT matures; later qualification gates for a supported LNSAT 1.0 artifact and adapter |
 | Execution | No executor, provider call, connector call, or deployment | Only qualified governed operations through an explicit authority and enforcement path |
 | Distribution | No installer or released OS support; R2a local source/storage tests and macOS save/restart/reopen smoke pass; Windows/Linux GUI qualification remains pending | Fresh-host qualification, signing, update, rollback, and release proof for all three OSs |
 
@@ -107,6 +121,7 @@ apps/desktop/                Tauri shell and scoped native bridge
 apps/server/                 Rust API, service composition, job supervisor
 crates/rangoon-domain/       capability revisions, provenance, compatibility
 crates/rangoon-import/       bounded inert discovery and parser isolation
+crates/rangoon-engine/       inert engine status and unavailable-operation port
 crates/rangoon-jobs/         durable jobs, leases, cancellation, recovery
 packages/contracts/          versioned schemas and generated types
 packages/adapter-kit/        importer/compiler/runner conformance fixtures
@@ -142,7 +157,7 @@ Rangoon and LNSAT stay separate stores and trust boundaries. Nothing here claims
 
 ## Development and contribution
 
-Read [intent.md](docs/intent.md) first, then [plan.md](docs/plan.md), [development.md](docs/development.md), and [validation.md](docs/validation.md). Keep changes small, scoped, and evidence-backed. Include the exact commands and results for behavior you change. Preserve synthetic fixture labels and separate implemented behavior from proposals. Do not add secrets, customer data, provider payloads, deployment state, or claims of certification.
+Read [intent.md](docs/intent.md) first, then [plan.md](docs/plan.md), [development.md](docs/development.md), [engine-integration.md](docs/engine-integration.md), [application-architecture.md](docs/application-architecture.md), and [validation.md](docs/validation.md). Keep changes small, scoped, and evidence-backed. Include the exact commands and results for behavior you change. Preserve synthetic fixture labels and separate implemented behavior from proposals. Do not add secrets, customer data, provider payloads, deployment state, or claims of certification.
 
 Useful checks from the repository root:
 
@@ -168,6 +183,8 @@ The Node checks cover the local preview and server. The Rust checks cover the so
 - [Development status](docs/development.md) — current implementation and validation receipts.
 - [Validation and review](docs/validation.md) — command results, browser QA, review scope, and limitations.
 - [Desktop spike](docs/desktop-spike.md) — native selected-file analysis boundary, prerequisites, and qualification limits.
+- [Engine integration](docs/engine-integration.md) — A1 inert port, diagnostics, and LNSAT qualification boundary.
+- [Application architecture](docs/application-architecture.md) — module ownership, workflow records, and staged engine adoption.
 - [Product experience](docs/product-experience.md) — image-to-behavior contract and first useful file lifecycle.
 - [Preview gallery](docs/preview-gallery.md) — rendered synthetic screens.
 - [Visual provenance](docs/artwork.md) — source and derived asset records.

@@ -152,7 +152,9 @@ dependencies = [
 name = "rangoon-cli"
 version = "0.1.0-dev"
 dependencies = [
+ "rangoon-engine",
  "rangoon-import",
+ "serde",
  "serde_json",
 ]
 
@@ -163,6 +165,14 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "rangoon-engine"
+version = "0.1.0-dev"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

@@ -8,6 +8,7 @@ use std::sync::{
 
 mod session;
 
+use rangoon_engine::{EngineStatus, GovernancePort, LnsatPlaceholder};
 use rangoon_host::{PublicError, SelectionResult, analyze_selected_path};
 use rangoon_store::{SnapshotMetadata, StoreError, Workspace};
 use serde::Serialize;
@@ -223,6 +224,12 @@ fn clear_analysis(app: AppHandle) -> WorkspaceResult {
     }
 }
 
+/// Describes this build's integration only. Never discovers or contacts LNSAT.
+#[tauri::command]
+fn get_engine_status() -> EngineStatus {
+    LnsatPlaceholder.status()
+}
+
 fn bundled_navigation(url: &tauri::Url) -> bool {
     matches!(
         (url.scheme(), url.host_str()),
@@ -240,11 +247,12 @@ fn main() {
             list_snapshots,
             save_analysis,
             open_snapshot,
-            clear_analysis
+            clear_analysis,
+            get_engine_status
         ])
         .setup(|app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("analyze.html".into()))
-                .title("Rangoon · Import & Analyze")
+                .title("Rangoon")
                 .inner_size(1440.0, 960.0)
                 .min_inner_size(320.0, 480.0)
                 .on_navigation(bundled_navigation)
