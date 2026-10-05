@@ -1,0 +1,18 @@
+[package]
+name = "rangoon-host"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+rangoon-domain.workspace = true
+rangoon-import.workspace = true
+serde.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.190"
+
+[dev-dependencies]
+serde_json.workspace = true

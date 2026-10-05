@@ -1,0 +1,7 @@
+{
+  "identifier": "source-analysis",
+  "description": "One local workbench may request a native single-file picker and bounded analysis.",
+  "windows": ["main"],
+  "local": true,
+  "permissions": ["allow-select-and-analyze"]
+}
