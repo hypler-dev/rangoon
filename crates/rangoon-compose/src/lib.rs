@@ -131,7 +131,7 @@ impl<'de> Deserialize<'de> for RequiredNullableString {
         D: serde::Deserializer<'de>,
     {
         struct NullableVisitor;
-        impl<'de> serde::de::Visitor<'de> for NullableVisitor {
+        impl serde::de::Visitor<'_> for NullableVisitor {
             type Value = RequiredNullableString;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -992,7 +992,7 @@ struct JsonParser<'a> {
     depth: usize,
     piece_count: usize,
 }
-impl<'a> JsonParser<'a> {
+impl JsonParser<'_> {
     fn ws(&mut self) {
         while self
             .bytes
