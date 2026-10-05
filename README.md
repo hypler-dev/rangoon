@@ -100,6 +100,12 @@ The macOS development-bundle check covered creation, review, editing, history co
 
 Schema 1 remains source-only. The first explicit capability creation lazily upgrades a validated schema 1 store to schema 2 in the same immediate transaction; reads and listing do not migrate or create stores. Older binaries reject schema 2 rather than overwrite it. The source section and original bytes remain intact. Semantic decomposition, merge/split, and broader composition are still planned work. See the [reviewed capabilities specification](docs/reviewed-capabilities.md) and [development ledger](docs/development.md) for scope and validation state.
 
+### Workspace data controls (R2c, in progress)
+
+The current development branch adds a bounded Workspace surface for saved-data ownership. Its source implements usage counts, deterministic portable backups through a native save picker, additive restore with stale-preview checks, and dependency-aware logical deletion of saved sources or skills. Backups include saved sources, immutable revisions, and local review records; unsaved drafts are excluded. Restore never overwrites existing records or elevates authority, and deleting a referenced source is blocked with its dependent skills named. Logical deletion does not promise secure erasure, and original selected files are never modified. See the [workspace data-controls specification](docs/workspace-data-controls.md).
+
+R2c is source work on the local `codex/workspace-data-controls` branch. Isolated unsigned macOS QA proves the native backup/restore path, and synthetic populated browser checks pass at 320 and 768 pixels in dark/light themes; Windows/Linux GUI qualification, publication, and release validation remain pending. This work does not change licensing, engine activation, release state, or installer support.
+
 ## Product boundary
 
 Rangoon owns the user-facing lifecycle: discovery, provenance, editing, decomposition, composition, compatibility, static tests, compilation planning, review, and evidence views. LNSAT remains an independent reference authority and evidence engine. Rangoon does not copy LNSAT implementation or recreate its authority semantics in UI code. A future qualified adapter may reference exact LNSAT contracts; the present preview and analyzer do not connect to it.
@@ -112,12 +118,13 @@ Management must remain useful when execution is unavailable. Imported files are 
 | --- | --- | --- |
 | UI | Local synthetic browser preview with nine views and dark/light states; native R1b analysis view | Qualify the native shell and bridge on macOS, Windows, and Linux |
 | Import | Bounded stdin analysis plus one explicitly selected native Markdown file; no directory scan | Broader discovery and a persistent local workspace beyond R2a |
-| Editing | R2b derives saved sections into immutable capability revisions with explicit local review; macOS create/edit/review/restart check passed | Windows/Linux GUI qualification, semantic decomposition, merge/split, lineage expansion, and reversible composition |
+| Workspace data | R2c source implements bounded inventory, portable backup, additive restore, and dependency-aware logical deletion; isolated unsigned macOS QA and synthetic populated browser checks pass | Cross-platform GUI qualification, publication, release evidence, and later workspace evolution |
+| Editing | R2b derives saved sections into immutable capability revisions with explicit local review; PR #6 is merged with all 14 checks passed | Windows/Linux GUI qualification, semantic decomposition, merge/split, lineage expansion, and reversible composition |
 | Compatibility | No production adapters | Versioned harness adapters with golden fixtures and visible unsupported fields |
 | Testing | Static preview tests and Rust source-analysis tests | Deterministic bundles, fixture simulation, static test lab, and export evidence |
 | Engine integration | A1 inert `rangoon-engine` boundary; native status and CLI status/check diagnostics only | Later qualification gates for a supported LNSAT 1.0 artifact and adapter |
 | Execution | No executor, provider call, connector call, or deployment | Only qualified governed operations through an explicit authority and enforcement path |
-| Distribution | No installer or released OS support; R2a local source/storage tests and macOS save/restart/reopen smoke pass; Windows/Linux GUI qualification remains pending | Fresh-host qualification, signing, update, rollback, and release proof for all three OSs |
+| Distribution | No installer or released OS support; Windows/Linux GUI qualification and release proof remain pending | Fresh-host qualification, signing, update, rollback, and release proof for all three OSs |
 
 These distinctions are deliberate. A buildable artifact, a browser capture, or a passing source test does not establish desktop support, native enforcement, security certification, or production readiness.
 

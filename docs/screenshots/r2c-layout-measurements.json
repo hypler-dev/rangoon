@@ -1,0 +1,121 @@
+{
+  "evidence": "Synthetic fixture using production Workspace controller, view and styles; no database or native bridge. Layout screenshots preceded focus-only fix; fixed keyboard checks follow initial regression.",
+  "measurements": [
+    {
+      "bodyScrollWidth": 305,
+      "focus": "workspace-title",
+      "height": 720,
+      "scrollWidth": 305,
+      "theme": "dark",
+      "width": 320,
+      "state": "workspace"
+    },
+    {
+      "dialog": {
+        "clientWidth": 254,
+        "height": 692,
+        "scrollWidth": 254,
+        "width": 271,
+        "x": 17,
+        "y": 14
+      },
+      "focus": "Cancel",
+      "height": 720,
+      "scrollWidth": 305,
+      "theme": "dark",
+      "width": 320,
+      "state": "restore-preview"
+    },
+    {
+      "state": "keyboard-restore",
+      "tabFromCancel": "Restore additions",
+      "tabFromRestore": "Cancel",
+      "escape": {
+        "dialogs": 0,
+        "id": "workspace-title"
+      }
+    },
+    {
+      "bodyScrollWidth": 320,
+      "height": 720,
+      "scrollWidth": 320,
+      "theme": "light",
+      "width": 320,
+      "state": "workspace"
+    },
+    {
+      "bodyScrollWidth": 768,
+      "height": 900,
+      "scrollWidth": 768,
+      "theme": "light",
+      "width": 768,
+      "state": "workspace"
+    },
+    {
+      "buttons": [
+        "Close"
+      ],
+      "dialog": {
+        "clientWidth": 538,
+        "height": 408.234375,
+        "scrollWidth": 538,
+        "width": 540,
+        "x": 114,
+        "y": 245.8828125
+      },
+      "focus": "Close",
+      "height": 900,
+      "theme": "light",
+      "width": 768,
+      "state": "source-delete-blocked"
+    },
+    {
+      "bodyScrollWidth": 768,
+      "height": 900,
+      "scrollWidth": 768,
+      "theme": "dark",
+      "width": 768,
+      "state": "workspace"
+    },
+    {
+      "state": "keyboard-restore-fixed",
+      "tabFromCancel": "Restore additions",
+      "tabFromRestore": "Cancel",
+      "escape": {
+        "dialogs": 0,
+        "id": "workspace-restore"
+      }
+    },
+    {
+      "state": "outside-focus-after-render",
+      "focus": "outside"
+    },
+    {
+      "state": "row-dialog-focus",
+      "checks": [
+        {
+          "initiator": "Inspect deletion impact for source AGENTS.md",
+          "returned": "Inspect deletion impact for source AGENTS.md"
+        },
+        {
+          "initiator": "Preview deletion for source AGENTS.md",
+          "returned": "Preview deletion for source AGENTS.md"
+        },
+        {
+          "initiator": "Inspect deletion impact for skill Review source changes — synthetic fixture",
+          "returned": "Inspect deletion impact for skill Review source changes — synthetic fixture"
+        },
+        {
+          "initiator": "Preview deletion for skill Review source changes — synthetic fixture",
+          "returned": "Preview deletion for skill Review source changes — synthetic fixture"
+        }
+      ]
+    },
+    {
+      "state": "pending-escape",
+      "disabledButtons": true,
+      "focusTag": "DIALOG",
+      "openDialogs": 1
+    }
+  ]
+}

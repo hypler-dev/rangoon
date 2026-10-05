@@ -2,6 +2,9 @@
 //! This is not a generic frontend path API or a directory confinement boundary.
 #![forbid(unsafe_code)]
 
+mod backup;
+pub use backup::{MAX_BACKUP_FILE_BYTES, read_selected_backup, write_selected_backup};
+
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::Read;
 use std::path::Path;

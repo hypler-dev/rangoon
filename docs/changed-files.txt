@@ -15,6 +15,7 @@ apps/desktop/icons/README.md
 apps/desktop/icons/icon.icns
 apps/desktop/icons/icon.ico
 apps/desktop/src/capabilities.rs
+apps/desktop/src/data_controls.rs
 apps/desktop/src/main.rs
 apps/desktop/src/session.rs
 apps/desktop/tauri.conf.json
@@ -28,6 +29,7 @@ crates/rangoon-domain/src/lib.rs
 crates/rangoon-engine/Cargo.toml
 crates/rangoon-engine/src/lib.rs
 crates/rangoon-host/Cargo.toml
+crates/rangoon-host/src/backup.rs
 crates/rangoon-host/src/lib.rs
 crates/rangoon-host/tests/selected_file.rs
 crates/rangoon-import/Cargo.toml
@@ -38,6 +40,8 @@ crates/rangoon-store/src/capabilities.rs
 crates/rangoon-store/src/capability_tests.rs
 crates/rangoon-store/src/lib.rs
 crates/rangoon-store/src/tests.rs
+crates/rangoon-store/src/workspace_data.rs
+crates/rangoon-store/src/workspace_data_tests.rs
 docs/application-architecture.md
 docs/artwork.md
 docs/browser-checks.json
@@ -94,6 +98,18 @@ docs/screenshots/r2b-skills-fixture-light-320.jpg
 docs/screenshots/r2b-skills-fixture-light-768.jpg
 docs/screenshots/r2b-skills-native-dark.jpg
 docs/screenshots/r2b-skills-native-light.jpg
+docs/screenshots/r2c-delete-fixture-light-768.jpg
+docs/screenshots/r2c-layout-measurements.json
+docs/screenshots/r2c-native-delete-blocked.jpg
+docs/screenshots/r2c-native-reopened.txt
+docs/screenshots/r2c-native-restore-preview.jpg
+docs/screenshots/r2c-native-restore-receipt.txt
+docs/screenshots/r2c-restore-fixture-dark-320.jpg
+docs/screenshots/r2c-workspace-browser-320.jpg
+docs/screenshots/r2c-workspace-fixture-dark-320.jpg
+docs/screenshots/r2c-workspace-fixture-dark-768.jpg
+docs/screenshots/r2c-workspace-fixture-light-320.jpg
+docs/screenshots/r2c-workspace-fixture-light-768.jpg
 docs/screenshots/release-dark.jpg
 docs/screenshots/skills-dark.jpg
 docs/screenshots/skills-light.jpg
@@ -105,6 +121,7 @@ docs/validation.md
 docs/visual-assets.json
 docs/visual-browser-checks.json
 docs/visual-system.md
+docs/workspace-data-controls.md
 fixtures/contracts/AGENTS.md
 fixtures/contracts/engine-status.json
 fixtures/contracts/source-analysis.golden.json
@@ -138,6 +155,9 @@ preview/skills-view.mjs
 preview/splash.css
 preview/splash.html
 preview/visual-system.css
+preview/workspace-model.mjs
+preview/workspace-view.mjs
+preview/workspace.css
 scripts/serve.mjs
 scripts/validate-review.mjs
 scripts/validate-visuals.mjs
@@ -146,3 +166,4 @@ tests/engine.test.mjs
 tests/preview.test.mjs
 tests/server.test.mjs
 tests/skills-model.test.mjs
+tests/workspace-model.test.mjs

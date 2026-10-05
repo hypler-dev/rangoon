@@ -2,14 +2,20 @@
 #![forbid(unsafe_code)]
 
 mod capabilities;
+mod workspace_data;
+#[cfg(test)]
+mod workspace_data_tests;
 pub use capabilities::{CapabilityReceipt, MAX_CAPABILITIES, MAX_REVISIONS, MAX_TOTAL_REVISIONS};
+pub use workspace_data::{
+    Backup, DeletionPlan, MAX_BACKUP_BYTES, RecordKind, RestorePlan, WorkspaceData, WorkspaceUsage,
+};
 
 use rangoon_domain::AnalysisReport;
 use rangoon_import::{MAX_SOURCE_BYTES, analyze, validate_display_name};
 use rusqlite::{
     Connection, OpenFlags, OptionalExtension, TransactionBehavior, limits::Limit, params,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::PathBuf,
@@ -21,8 +27,8 @@ const MAX_DATABASE_BYTES: u64 = 64 * 1024 * 1024;
 const APPLICATION_ID: i64 = 0x52474e31;
 const SCHEMA: &str = "CREATE TABLE snapshots (source_id TEXT PRIMARY KEY NOT NULL, display_name TEXT NOT NULL, sha256 TEXT NOT NULL, content BLOB NOT NULL, saved_at_ms INTEGER NOT NULL)";
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SnapshotMetadata {
     pub source_id: String,
     pub display_name: String,
@@ -50,10 +56,25 @@ pub enum StoreError {
     CapabilityConflict,
     CapabilityNotFound,
     CapabilityFull,
+    BackupInvalid,
+    WorkspaceChanged,
+    SourceInUse,
 }
 impl StoreError {
     pub fn public(self) -> (&'static str, &'static str) {
         match self {
+            Self::BackupInvalid => (
+                "backup_invalid",
+                "This backup is unsupported, incomplete or failed validation. No data was restored.",
+            ),
+            Self::WorkspaceChanged => (
+                "workspace_changed",
+                "Saved data changed since this preview. Refresh and review the operation again.",
+            ),
+            Self::SourceInUse => (
+                "source_in_use",
+                "This source is referenced by saved skills. Remove those skills first or keep the source.",
+            ),
             Self::CapabilityInvalid => (
                 "capability_invalid",
                 "Choose a saved source section and provide a nonempty title and content within the displayed limits.",
@@ -192,6 +213,16 @@ impl Workspace {
     }
 
     fn connect(&self, create: bool) -> Result<Option<Connection>, StoreError> {
+        self.connect_with_empty(create, false)
+    }
+
+    // Recovery previews may inspect a verified empty file left by a failed first
+    // write. They never create a file or initialize tables.
+    fn connect_with_empty(
+        &self,
+        create: bool,
+        allow_empty: bool,
+    ) -> Result<Option<Connection>, StoreError> {
         match fs::symlink_metadata(&self.directory) {
             Ok(meta) if !linked(&meta) && meta.is_dir() => (),
             Ok(_) => return Err(StoreError::Unavailable),
@@ -239,7 +270,7 @@ impl Workspace {
                 Err(_) => return Err(StoreError::Unavailable),
             }
         }
-        // No CREATE flag: only the explicit Save path above creates the file.
+        // No CREATE flag: only explicit Save/Restore creates the file above.
         let db = Connection::open_with_flags(
             &path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
@@ -255,10 +286,17 @@ impl Workspace {
         let version: i64 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version != 0 {
             verify_schema(&db)?;
-        } else if !create {
+        } else if !create && !allow_empty {
             return Err(StoreError::UnsupportedSchema);
         } else {
             verify_empty(&db)?;
+            // Match canonical backup reconstruction. An existing noncanonical
+            // empty SQLite file is rejected rather than vacuumed or replaced.
+            db.pragma_update(None, "page_size", 4096)?;
+            let initial_page_size: u32 = db.pragma_query_value(None, "page_size", |r| r.get(0))?;
+            if initial_page_size != 4096 {
+                return Err(StoreError::UnsupportedSchema);
+            }
         }
         let mode: String = db.pragma_query_value(None, "journal_mode", |r| r.get(0))?;
         if mode != "delete" {
