@@ -3,11 +3,11 @@
   "version": "0.0.0-preview",
   "private": true,
   "type": "module",
-  "description": "Local synthetic Rangoon application design preview",
+  "description": "Rangoon application development: source analysis and design preview",
   "scripts": {
     "start": "node scripts/serve.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check preview/app.mjs && node --check preview/model.mjs && node --check scripts/serve.mjs"
+    "check": "node --check preview/app.mjs && node --check preview/model.mjs && node --check preview/analyze.mjs && node --check preview/analysis-model.mjs && node --check scripts/serve.mjs"
   },
   "engines": { "node": ">=20" }
 }

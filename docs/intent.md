@@ -6,6 +6,7 @@ Authority: This record, based on Jeff's October 4, 2026 request in chat `01a10a1
 Owner: Jeff
 Accepted by: Jeff authorized gathering prior files and conversations, evaluating LNSAT claims, planning government-grant evidence, and creating a dark application preview. He explicitly selected all three desktop operating systems for the initial release. Jeff subsequently instructed: “push to git this should be the repository, its in development so we still have much more to build out, keep working after.” This authorizes committing and pushing the reviewed application packet and continuing bounded development in this repository. The next implementation slice is a platform-neutral, inert source-analysis foundation. License adoption, released OS support, privileged execution, merge, deployment, and grant submission remain separate decisions.
 Publication continuation, October 5, 2026: Jeff explicitly requested correct repository tags/topics and description, a detailed README, publication to main, and continued work. This authorizes the reviewed main merge and repository metadata updates. The next bounded development slice is a Tauri desktop-shell spike with an explicit user-selected-file analysis flow backed by the existing Rust library. It may read the selected file into memory, but does not add automatic scanning, durable storage, providers or execution. Installer publication, license adoption, deployment and grant submission remain separate decisions. This dated continuation supersedes the earlier merge restriction above.
+Experience continuation, October 5, 2026: Jeff asked to review the supplied images, make their workflows real, and build an easy-to-use platform. The [product experience contract](product-experience.md) maps each image to actual outcomes and recovery states. This reinforces the bounded selected-file lifecycle; it does not imply that every pictured workflow is implemented.
 Last updated: 2026-10-05
 
 ## Problem and evidence
@@ -39,7 +40,7 @@ Privileged execution, automatic repository scanning, persistent workspace/databa
 
 - Website checkout: `website-local` at `0ea1a2d9b6bc904867a62965a80487aa0d46b52d`; pre-existing untracked `.codex/` preserved.
 - Application origin: `https://github.com/hypler-dev/rangoon.git`; initial `main` at `4dfcb746db076ca59455773527c381ae4359de7e`, with README only. The repository description was aligned with its application purpose during the authorized publication.
-- Application work branch: `codex/app-vision-preview`.
+- R0/R1a reached main in PR #1 at `ff901594d731ee74ea8b9170c885629c3e4caf09`; the desktop continuation branch is `codex/desktop-file-analysis`.
 - Prior implementation brief is supporting evidence, not a replacement for this packet's acceptance state.
 
 ## Risks
