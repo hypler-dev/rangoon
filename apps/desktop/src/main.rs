@@ -7,6 +7,11 @@ use std::sync::{
 };
 
 mod capabilities;
+mod data_controls;
+use data_controls::{
+    BackupSession, delete_workspace_record, export_workspace_backup, get_workspace_data,
+    inspect_workspace_deletion, prepare_workspace_restore, restore_workspace_backup,
+};
 mod session;
 use capabilities::{
     create_capability, list_capabilities, open_capability, review_capability, revise_capability,
@@ -246,6 +251,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(PickerState::default())
         .manage(Session::default())
+        .manage(BackupSession::default())
         .invoke_handler(tauri::generate_handler![
             select_and_analyze,
             list_snapshots,
@@ -257,7 +263,13 @@ fn main() {
             open_capability,
             create_capability,
             revise_capability,
-            review_capability
+            review_capability,
+            get_workspace_data,
+            export_workspace_backup,
+            prepare_workspace_restore,
+            restore_workspace_backup,
+            inspect_workspace_deletion,
+            delete_workspace_record,
         ])
         .setup(|app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("analyze.html".into()))

@@ -1,0 +1,76 @@
+Window: "Rangoon", App: Rangoon Restore QA.
+0 standard window Rangoon, Secondary Actions: Raise
+	1 scroll area
+		2 HTML content Description: Rangoon — Workspace data, URL: tauri://localhost/analyze.html#workspace
+			3 link Skip to analysis workbench, Value: tauri://localhost/analyze.html#analysis-main
+			4 container
+				5 link Rangoon, Value: tauri://localhost/index.html
+				6 container Desktop areas
+					7 link Import & Analyze, Value: tauri://localhost/analyze.html#analysis
+					8 link Skills, Value: tauri://localhost/analyze.html#skills
+					9 link Workspace, Value: tauri://localhost/analyze.html#workspace
+					10 link Engine integration, Value: tauri://localhost/analyze.html#engine
+					11 link Sample design preview, Value: tauri://localhost/index.html
+				12 button Light mode
+			13 container Own the local record.
+				14 container
+					15 text WORKSPACE / LOCAL DATA CONTROLS
+					16 heading Own the local record., Value: 1
+						17 text Own the
+						18 text local record.
+					19 text Review actual saved sources and skills. Export an unencrypted portable backup, preview additive restore, or inspect a deletion before it changes local data.
+					20 button Refresh inventory
+					21 button Export backup
+					22 button Restore backup
+					23 text Confirmation cancelled. Saved records are unchanged.
+				24 container Local workspace usage
+					25 text Sources
+					26 container
+						27 text 1  / 128
+					28 text Skills
+					29 container
+						30 text 1  / 128
+					31 text Revisions
+					32 container
+						33 text 1  / 1,024
+					34 text Reviews
+					35 text 1
+					36 text Database
+					37 container
+						38 text 36,864  bytes
+					39 text 0 reusable
+				40 container Workspace data limits
+					41 text 64 MiB local allocation Unencrypted backup content Native picker only No automatic removal
+				42 container
+					43 text SAVED SOURCES
+					44 heading Local source records, Value: 2
+						45 text Local source records
+					46 text 1 source
+				47 container
+					48 text AGENTS.md source:2c0…c69301b8 · 144 bytes Saved Oct 5, 2026 at 3:30 PM
+					49 button Inspect deletion impact for source AGENTS.md
+					50 button Preview deletion for source AGENTS.md
+				51 container
+					52 text SAVED SKILLS
+					53 heading Local capability records, Value: 2
+						54 text Local capability records
+					55 text 1 skill
+				56 container
+					57 text Review capability…f6b6bb02 · 1 revision Latest revision locally reviewed
+					58 button Inspect deletion impact for skill Review
+					59 button Preview deletion for skill Review
+			60 text Confirmation cancelled. Saved records are unchanged.
+		61 scroll bar (settable, float) 0
+	62 close button
+	63 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	64 minimize button
+	65 text Rangoon
+66 menu bar
+	67 Rangoon Restore QA
+	68 File
+	69 Edit
+	70 View
+	71 Window
+	72 Help
+
+The focused UI element is 22 button Restore backup

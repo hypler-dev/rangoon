@@ -68,6 +68,7 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
   const bridgeAvailable = typeof invoke === 'function';
   let state = { ...EMPTY_SKILLS_STATE, bridgeAvailable, listStatus: bridgeAvailable ? 'idle' : 'unavailable', message: bridgeAvailable ? 'Create a skill from a saved section, or open one from your library.' : EMPTY_SKILLS_STATE.message };
   let actionEpoch = 0;
+  let openingCapabilityId = null;
   let listEpoch = 0;
   const drafts = new Map();
   const creationTitles = new Map();
@@ -90,6 +91,23 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
     return { detail, alreadyApplied: result.alreadyApplied, action };
   }
   const controller = {
+    hasUnsavedDraft: capabilityId => Boolean(drafts.get(capabilityId)?.dirty || (state.draft?.capabilityId === capabilityId && state.draft.dirty)),
+    forgetDeleted(capabilityId) {
+      drafts.delete(capabilityId);
+      ++listEpoch;
+      const changes = { capabilities: state.capabilities.filter(item => item.id !== capabilityId) };
+      if (openingCapabilityId === capabilityId) {
+        ++actionEpoch;
+        openingCapabilityId = null;
+        Object.assign(changes, { pending: null, error: null, message: 'The skill being opened was removed.' });
+      }
+      if (state.selected?.id === capabilityId) {
+        ++actionEpoch;
+        openingCapabilityId = null;
+        Object.assign(changes, { selected: null, viewedRevisionId: null, draft: null, pending: null, error: null, needsReload: false, message: 'Saved skill and its local revision history were removed.' });
+      }
+      set(changes);
+    },
     getState: () => ({ ...state, capabilities: [...state.capabilities], selected: state.selected ? structuredClone(state.selected) : null, draft: state.draft ? { ...state.draft } : null }),
     setSourceContext({ report = null, snapshots = [], snapshotsStatus = 'idle' } = {}) {
       const sourceId = typeof report?.source?.id === 'string' ? report.source.id : null;
@@ -126,9 +144,11 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
     async open(capabilityId, revisionId = null, { preserveDraft = null } = {}) {
       if (unavailable() || state.pending || !id(capabilityId, 'capability:') || (revisionId !== null && !id(revisionId, 'revision:'))) return;
       const localRequest = ++actionEpoch;
+      openingCapabilityId = capabilityId;
       set({ pending: 'open', error: null, message: 'Opening local capability…' });
       const result = await call('open_capability', { capabilityId, revisionId });
       if (localRequest !== actionEpoch) return;
+      openingCapabilityId = null;
       const opened = acceptOpened(result, 'open');
       if (!opened || opened.detail.id !== capabilityId || opened.detail.revision.id !== (revisionId ?? opened.detail.latestRevisionId)) { set({ pending: null, error: failure(result), message: failure(result).message }); return; }
       const latest = opened.detail.latestRevisionId;

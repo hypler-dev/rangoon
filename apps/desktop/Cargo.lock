@@ -2510,6 +2510,7 @@ dependencies = [
  "rangoon-import",
  "rusqlite",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

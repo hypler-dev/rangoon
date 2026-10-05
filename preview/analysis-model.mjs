@@ -54,6 +54,13 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
   const canStart = action => !unavailable() && !state.busyAction && action;
 
   const controller = {
+    noteSnapshotDeleted(sourceId) {
+      ++snapshotRequestId;
+      setState({
+        snapshots: state.snapshots.filter(item => item.sourceId !== sourceId),
+        ...(state.report?.source?.id === sourceId ? { message: 'Saved source removed. Current analysis remains in memory and is now unsaved.' } : {}),
+      });
+    },
     getState: () => ({ ...state }),
     async listSnapshots() {
       if (unavailable()) {

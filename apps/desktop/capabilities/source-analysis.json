@@ -1,6 +1,6 @@
 {
   "identifier": "source-analysis",
-  "description": "The local main workbench can inspect and explicitly save sources, derive and review inert capability revisions, and inspect this build's inert engine status. Edited capability text is data; source paths, SQL and engine requests are never accepted.",
+  "description": "The local main workbench can inspect and save sources, derive and review inert skills, manage local backups and record deletion, and inspect inert engine status. Paths, SQL and engine requests are never accepted.",
   "windows": [
     "main"
   ],
@@ -16,6 +16,12 @@
     "allow-open-capability",
     "allow-create-capability",
     "allow-revise-capability",
-    "allow-review-capability"
+    "allow-review-capability",
+    "allow-get-workspace-data",
+    "allow-export-workspace-backup",
+    "allow-prepare-workspace-restore",
+    "allow-restore-workspace-backup",
+    "allow-inspect-workspace-deletion",
+    "allow-delete-workspace-record"
   ]
 }

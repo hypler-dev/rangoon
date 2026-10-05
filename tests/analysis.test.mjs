@@ -166,3 +166,21 @@ test('untrusted report text is escaped before HTML rendering', () => {
   assert.equal(escapeText('<img src=x onerror=alert(1)>'), '&lt;img src=x onerror=alert(1)&gt;');
   assert.equal(escapeText('"quoted" &'), '&quot;quoted&quot; &amp;');
 });
+
+test('confirmed snapshot deletion preserves active source and invalidates stale list results', async () => {
+  let resolveList;
+  let delayed = false;
+  const controller = createAnalysisController({ invoke: async command => {
+    if (command === 'list_snapshots') return delayed ? new Promise(resolve => { resolveList = resolve; }) : listed;
+    return { outcome: 'analyzed', report };
+  } });
+  await controller.choose();
+  delayed = true;
+  const pending = controller.listSnapshots();
+  controller.noteSnapshotDeleted(report.source.id);
+  resolveList(listed);
+  await pending;
+  assert.equal(controller.getState().report, report);
+  assert.deepEqual(controller.getState().snapshots, []);
+  assert.match(controller.getState().message, /now unsaved/);
+});

@@ -12,6 +12,12 @@ fn main() {
             "create_capability",
             "revise_capability",
             "review_capability",
+            "get_workspace_data",
+            "export_workspace_backup",
+            "prepare_workspace_restore",
+            "restore_workspace_backup",
+            "inspect_workspace_deletion",
+            "delete_workspace_record",
         ]),
     ))
     .expect("desktop configuration must be valid");

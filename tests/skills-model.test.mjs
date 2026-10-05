@@ -189,3 +189,27 @@ test('coverage counts source sections once and browser unknown is never presente
   assert.match(renderSkillsView(state), /1 derived section/);
   assert.doesNotMatch(renderSkillsView(state), /2 derived sections/);
 });
+
+test('confirmed deletion clears only that skill draft and prevents a late open from resurrecting it', async () => {
+  let resolveOpen;
+  let delayed = false;
+  const controller = createSkillsController({ invoke: async command => {
+    if (command === 'list_capabilities') return listed();
+    if (delayed) return new Promise(resolve => { resolveOpen = resolve; });
+    return { outcome: 'opened', capability: detail(), alreadyApplied: false };
+  } });
+  await controller.open(capabilityId);
+  controller.updateDraft({ content: 'Unsaved work\n' });
+  assert.equal(controller.hasUnsavedDraft(capabilityId), true);
+  controller.forgetDeleted(`capability:${'9'.repeat(64)}`);
+  assert.equal(controller.getState().draft.content, 'Unsaved work\n');
+  delayed = true;
+  const pending = controller.open(capabilityId);
+  controller.forgetDeleted(capabilityId);
+  resolveOpen({ outcome: 'opened', capability: detail(), alreadyApplied: false });
+  await pending;
+  assert.equal(controller.getState().selected, null);
+  assert.equal(controller.getState().draft, null);
+  assert.equal(controller.hasUnsavedDraft(capabilityId), false);
+  assert.equal(controller.getState().pending, null);
+});

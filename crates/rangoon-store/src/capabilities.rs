@@ -212,7 +212,7 @@ impl Workspace {
 fn schema_version(db: &Connection) -> Result<i64, StoreError> {
     Ok(db.pragma_query_value(None, "user_version", |r| r.get(0))?)
 }
-fn migrate(db: &Connection) -> Result<(), StoreError> {
+pub(super) fn migrate(db: &Connection) -> Result<(), StoreError> {
     verify_schema(db)?;
     if schema_version(db)? == 1 {
         for (_, sql) in SCHEMAS {
@@ -240,7 +240,7 @@ fn ensure_revision_capacity(db: &Connection) -> Result<(), StoreError> {
         Ok(())
     }
 }
-fn validate_links_and_limits(db: &Connection) -> Result<(), StoreError> {
+pub(super) fn validate_links_and_limits(db: &Connection) -> Result<(), StoreError> {
     if count(db, "SELECT count(*) FROM capabilities")? > MAX_CAPABILITIES
         || count(db, "SELECT count(*) FROM revisions")? > MAX_TOTAL_REVISIONS
         || count(db, "SELECT count(*) FROM reviews")? > MAX_TOTAL_REVISIONS
@@ -301,7 +301,7 @@ fn insert_revision(db: &Connection, id: &str, r: &Revision) -> Result<(), StoreE
     )?;
     Ok(())
 }
-fn read_capability(
+pub(super) fn read_capability(
     db: &Connection,
     id: &str,
     selected: Option<&str>,
