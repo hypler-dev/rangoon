@@ -1,7 +1,15 @@
 {
   "identifier": "source-analysis",
-  "description": "One local workbench may request a native single-file picker and bounded analysis.",
-  "windows": ["main"],
+  "description": "One local workbench can analyze a picked file, explicitly save source snapshots, list and reopen them, and clear its active analysis. No renderer paths or source bodies are accepted.",
+  "windows": [
+    "main"
+  ],
   "local": true,
-  "permissions": ["allow-select-and-analyze"]
+  "permissions": [
+    "allow-select-and-analyze",
+    "allow-list-snapshots",
+    "allow-save-analysis",
+    "allow-open-snapshot",
+    "allow-clear-analysis"
+  ]
 }

@@ -8,9 +8,14 @@ apps/desktop/Cargo.lock
 apps/desktop/Cargo.toml
 apps/desktop/build.rs
 apps/desktop/capabilities/source-analysis.json
+apps/desktop/icons/128x128.png
+apps/desktop/icons/128x128@2x.png
+apps/desktop/icons/32x32.png
 apps/desktop/icons/README.md
+apps/desktop/icons/icon.icns
 apps/desktop/icons/icon.ico
 apps/desktop/src/main.rs
+apps/desktop/src/session.rs
 apps/desktop/tauri.conf.json
 crates/rangoon-cli/Cargo.toml
 crates/rangoon-cli/src/main.rs
@@ -24,6 +29,9 @@ crates/rangoon-host/tests/selected_file.rs
 crates/rangoon-import/Cargo.toml
 crates/rangoon-import/src/lib.rs
 crates/rangoon-import/tests/analyze.rs
+crates/rangoon-store/Cargo.toml
+crates/rangoon-store/src/lib.rs
+crates/rangoon-store/src/tests.rs
 docs/artwork.md
 docs/browser-checks.json
 docs/changed-files.txt
@@ -33,6 +41,7 @@ docs/desktop-spike.md
 docs/development.md
 docs/government-funding.md
 docs/intent.md
+docs/local-workspace.md
 docs/plan.md
 docs/preview-gallery.md
 docs/product-experience.md
@@ -57,9 +66,11 @@ docs/screenshots/import-dark.jpg
 docs/screenshots/merge-dark.jpg
 docs/screenshots/native-analysis-dark.png
 docs/screenshots/native-analysis-long.png
+docs/screenshots/native-workspace-reopen.png
 docs/screenshots/release-dark.jpg
 docs/screenshots/skills-dark.jpg
 docs/screenshots/skills-light.jpg
+docs/screenshots/splash-dark.png
 docs/screenshots/workflows-dark.jpg
 docs/source-analysis.md
 docs/sources-and-features.md
@@ -82,7 +93,10 @@ preview/assets/reference-command.webp
 preview/assets/reference-decompose.webp
 preview/assets/reference-merge.webp
 preview/index.html
+preview/launch.mjs
 preview/model.mjs
+preview/splash.css
+preview/splash.html
 scripts/serve.mjs
 scripts/validate-review.mjs
 tests/analysis.test.mjs

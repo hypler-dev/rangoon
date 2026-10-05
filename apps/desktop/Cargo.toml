@@ -17,6 +17,13 @@ tauri-build = "=2.7.1"
 tauri = "=2.12.1"
 tauri-plugin-dialog = "=2.8.1"
 rangoon-host = { path = "../../crates/rangoon-host" }
+rangoon-domain = { path = "../../crates/rangoon-domain" }
+rangoon-store = { path = "../../crates/rangoon-store" }
+serde = { version = "=1.0.229", features = ["derive"] }
+
+[dev-dependencies]
+rangoon-import = { path = "../../crates/rangoon-import" }
+serde_json = "=1.0.151"
 
 [features]
 default = ["custom-protocol"]

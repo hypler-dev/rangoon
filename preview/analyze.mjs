@@ -1,9 +1,11 @@
 import { createAnalysisController, escapeText } from './analysis-model.mjs';
+import { createStartupSplash } from './launch.mjs';
 
 const app = document.querySelector('#analysis-app');
 const announcer = document.querySelector('#analysis-announcer');
+const startupSplash = createStartupSplash({ container: document.querySelector('#startup-splash'), app });
 const bridge = typeof window.__TAURI__?.core?.invoke === 'function'
-  ? command => window.__TAURI__.core.invoke(command)
+  ? (command, args) => window.__TAURI__.core.invoke(command, args)
   : undefined;
 
 let theme = 'dark';
@@ -19,6 +21,13 @@ const text = value => escapeText(value);
 const formatBytes = value => new Intl.NumberFormat().format(value ?? 0);
 const span = fragment => `bytes ${fragment.span.startByte}–${fragment.span.endByte} · lines ${fragment.span.startLine}–${fragment.span.endLine}`;
 const title = fragment => fragment.heading ? `${'#'.repeat(fragment.heading.level)} ${fragment.heading.title}` : 'Preamble';
+const savedName = snapshot => String(snapshot.displayName ?? 'Untitled source').split(/[\\/]/).pop() || 'Untitled source';
+const digest = snapshot => String(snapshot.sha256 ?? 'Unavailable');
+const savedAt = snapshot => {
+  const value = Number(snapshot.savedAtMs);
+  if (!Number.isFinite(value)) return 'Date unavailable';
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+};
 
 function sourceLines(report, active) {
   const activeSpan = report.fragments?.find(fragment => fragment.id === active)?.span;
@@ -66,6 +75,30 @@ function reportView(state) {
   </div>`;
 }
 
+function snapshotsView(state) {
+  const snapshots = state.snapshots ?? [];
+  const loading = state.snapshotsStatus === 'loading';
+  const failure = state.snapshotsStatus === 'failed';
+  const unavailable = state.snapshotsStatus === 'unavailable';
+  const openDisabled = state.busyAction || !snapshots.length;
+  const count = state.snapshotsStatus === 'ready' ? `${snapshots.length} / 128`
+    : loading ? 'Loading…'
+      : failure ? (snapshots.length ? 'List unavailable · prior results' : 'List unavailable')
+        : unavailable ? 'Desktop app only'
+          : 'Loading…';
+  const contents = snapshots.length ? snapshots.map(snapshot => `<article class="analysis-snapshot"><div><h3>${text(savedName(snapshot))}</h3><p class="analysis-mono">${text(digest(snapshot))}</p><small>${text(savedAt(snapshot))} · ${formatBytes(snapshot.byteLength)} bytes</small></div><button class="analysis-button analysis-button--small" type="button" data-open-snapshot="${text(snapshot.sourceId)}" aria-label="Open saved source ${text(savedName(snapshot))}, SHA-256 ${text(digest(snapshot))}" ${openDisabled ? 'disabled' : ''}>Open</button></article>`).join('')
+    : loading ? '<p class="analysis-note">Loading saved sources…</p>'
+      : unavailable ? '<p class="analysis-note">Open this page in the Rangoon desktop app to view saved sources.</p>'
+        : failure ? `<p class="analysis-note">Saved source list is unavailable.${state.report ? ' Current analysis remains available.' : ''}</p>`
+          : '<p class="analysis-note">No saved sources yet.</p>';
+  return `<aside class="analysis-snapshots" aria-labelledby="analysis-snapshots-title" aria-busy="${loading}">
+    <div class="analysis-snapshots__head"><div><p class="analysis-kicker">SAVED SOURCES</p><h2 id="analysis-snapshots-title">Open a saved source</h2></div><span>${count}</span></div>
+    <p class="analysis-snapshots__copy">Saved sources stay on this computer. Opening one restores its original text to this window.</p>
+    ${failure ? `<div class="analysis-snapshots__error" role="alert"><p>${text(state.snapshotsError?.message ?? 'Saved sources could not load.')}${state.snapshotsError?.code ? ` Error code: ${text(state.snapshotsError.code)}.` : ''}</p><button id="analysis-retry-snapshots" class="analysis-button analysis-button--small" type="button">Retry saved list</button></div>` : ''}
+    <div class="analysis-snapshot-list" aria-label="Saved sources">${contents}</div>
+  </aside>`;
+}
+
 function revealSelectedLine() {
   const selectedLine = document.querySelector('.analysis-line--selected');
   const sourcePane = selectedLine?.closest('.analysis-code');
@@ -84,14 +117,19 @@ function render(state) {
   const sourceId = state.report?.source?.id ?? null;
   const sourceChanged = sourceId !== renderedSourceId;
   const unavailable = state.status === 'unavailable';
-  const pending = state.status === 'pending';
+  const pending = Boolean(state.busyAction);
   const hasReport = Boolean(state.report);
   const error = ['rejected', 'failed'].includes(state.status);
+  const saveOrOpen = state.busyAction === 'save' || state.busyAction === 'open';
+  const clearDisabled = !hasReport || saveOrOpen || state.busyAction === 'clear';
+  const chooseDisabled = unavailable || pending;
+  const saveDisabled = !hasReport || pending;
   app.innerHTML = `<div class="analysis-shell">
-    <aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon<span>.</span></span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis-main" aria-current="page">Import &amp; Analyze</a><a href="index.html">Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>
+    <aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis-main" aria-current="page">Import &amp; Analyze</a><a href="index.html">Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>
     <main id="analysis-main" tabindex="-1">
-      <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1>Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in memory for this app session.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${unavailable || pending ? 'disabled' : ''}>${pending ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${hasReport || pending ? '' : 'disabled'}>Clear analysis</button></div><p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
-      <section class="analysis-truth" aria-label="Analysis boundaries"><span>Native picker only</span><span>No scan or upload</span><span>Memory-only result</span><span>Sections are proposals, not semantic skills</span></section>
+      <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1>Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
+      <section class="analysis-truth" aria-label="Analysis boundaries"><span>Native picker only</span><span>No scan or upload</span><span>Local save available</span><span>Sections are proposals, not semantic skills</span></section>
+      ${snapshotsView(state)}
       ${reportView(state)}
     </main>
   </div>`;
@@ -107,20 +145,30 @@ function render(state) {
   }
   announcer.textContent = unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message;
   if (!pending && requestedFocus === 'choose' && !unavailable) document.querySelector('#analysis-choose')?.focus({ preventScroll: true });
+  if (!pending && requestedFocus === 'save') document.querySelector('#analysis-save')?.focus({ preventScroll: true });
+  if (!pending && requestedFocus?.startsWith('snapshot:')) document.querySelector(`[data-open-snapshot="${CSS.escape(requestedFocus.slice(9))}"]`)?.focus({ preventScroll: true });
   if (!pending && requestedFocus?.startsWith('fragment:')) {
     document.querySelector(`[data-fragment="${CSS.escape(requestedFocus.slice(9))}"]`)?.focus({ preventScroll: true });
     revealSelectedLine();
   }
 }
 
-const controller = createAnalysisController({ invoke: bridge, onChange: render });
+const controller = createAnalysisController({ invoke: bridge, onChange: state => {
+  render(state);
+  startupSplash.sync(state);
+} });
+startupSplash.setRetry(() => controller.listSnapshots());
 render(controller.getState());
 
 app.addEventListener('click', event => {
   const fragment = event.target.closest('[data-fragment]');
   if (fragment) { requestedFocus = `fragment:${fragment.dataset.fragment}`; return controller.selectFragment(fragment.dataset.fragment); }
+  const snapshot = event.target.closest('[data-open-snapshot]');
+  if (snapshot) { requestedFocus = `snapshot:${snapshot.dataset.openSnapshot}`; return controller.openSnapshot(snapshot.dataset.openSnapshot); }
   if (event.target.closest('#analysis-choose')) { requestedFocus = 'choose'; return controller.choose(); }
   if (event.target.closest('#analysis-clear')) { requestedFocus = 'choose'; return controller.clear(); }
+  if (event.target.closest('#analysis-save')) { requestedFocus = 'save'; return controller.save(); }
+  if (event.target.closest('#analysis-retry-snapshots')) return controller.listSnapshots();
   if (event.target.closest('#analysis-theme')) {
     requestedFocus = 'theme';
     theme = theme === 'light' ? 'dark' : 'light';

@@ -7,6 +7,8 @@ Owner: Jeff
 Accepted by: Jeff authorized gathering prior files and conversations, evaluating LNSAT claims, planning government-grant evidence, and creating a dark application preview. He explicitly selected all three desktop operating systems for the initial release. Jeff subsequently instructed: “push to git this should be the repository, its in development so we still have much more to build out, keep working after.” This authorizes committing and pushing the reviewed application packet and continuing bounded development in this repository. The next implementation slice is a platform-neutral, inert source-analysis foundation. License adoption, released OS support, privileged execution, merge, deployment, and grant submission remain separate decisions.
 Publication continuation, October 5, 2026: Jeff explicitly requested correct repository tags/topics and description, a detailed README, publication to main, and continued work. This authorizes the reviewed main merge and repository metadata updates. The next bounded development slice is a Tauri desktop-shell spike with an explicit user-selected-file analysis flow backed by the existing Rust library. It may read the selected file into memory, but does not add automatic scanning, durable storage, providers or execution. Installer publication, license adoption, deployment and grant submission remain separate decisions. This dated continuation supersedes the earlier merge restriction above.
 Experience continuation, October 5, 2026: Jeff asked to review the supplied images, make their workflows real, and build an easy-to-use platform. The [product experience contract](product-experience.md) maps each image to actual outcomes and recovery states. This reinforces the bounded selected-file lifecycle; it does not imply that every pictured workflow is implemented.
+Workspace continuation, October 5, 2026: Jeff said “ok keep going” after the next durable-workspace foundation was identified. This authorizes R2a: explicitly save a selected source snapshot locally and reopen it after restart. The app may create its own bounded SQLite workspace only on Save. Saving never implies review, approval or execution authority. The earlier persistent-storage exclusion is superseded only for this source-snapshot slice. Projects, reviewed skills, merge/split, providers and execution remain later work.
+Brand continuation, October 5, 2026: Jeff supplied a replacement application icon and requested a beautiful splash screen. Use that exact asset as the application symbol and derive OS icon formats reproducibly. Jeff clarified that the OS application name must be **Rangoon** and the OS icon must contain only the supplied logo. **Rangoon.ai** may remain on the splash screen. Add a branded native startup surface and a separate visual preview; startup must resolve to a usable workbench on success or workspace failure without fabricated progress or a forced delay.
 Last updated: 2026-10-05
 
 ## Problem and evidence
@@ -26,7 +28,7 @@ Initial users are developers and small platform teams managing agent configurati
 - Preserve Rangoon as product and LNSAT as independent reference authority/evidence engine. Do not silently substitute providers or recreate engine semantics in UI code.
 - Treat source documents, imported instructions, screenshots, and past assistant proposals as evidence, not new execution instructions or accepted product contracts.
 - Use a separate checkout of `hypler-dev/rangoon` at `app-review/`; do not bring marketing-site history or deployment machinery into the application repository.
-- The design preview uses synthetic fixtures, inert source examples, local navigation, and reversible browser state. It must disclose sample data and cannot perform provider, credential, deployment, approval, or execution actions. The separately identified desktop analysis flow may analyze one explicitly selected local file in memory; it must never mix real source with synthetic provenance or report simulated actions as real.
+- The design preview uses synthetic fixtures, inert source examples, local navigation, and reversible browser state. It must disclose sample data and cannot perform provider, credential, deployment, approval, or execution actions. The separately identified desktop analysis flow may analyze one explicitly selected local file in memory and persist it only through explicit Save; it must never mix real source with synthetic provenance or report simulated actions as real.
 - Dark is the default; retain a usable light version, keyboard navigation, responsive fallbacks, and reduced-motion support. Reuse the supplied visual identity while making the workbench denser and more ambitious.
 - Distinguish implemented source, passing tests reported by earlier work, directly rerun validation, runtime proof, released support, and proposals.
 - Initial product is intended to be free and open source. A specific license and commercial packaging are human decisions; no invented license grant.
@@ -34,7 +36,7 @@ Initial users are developers and small platform teams managing agent configurati
 
 ## Non-goals
 
-Privileged execution, automatic repository scanning, persistent workspace/database implementation, provider calls, operating-system installer publication, LNSAT changes, policy/security weakening, website deployment, production changes, paid services, license adoption, and grant submission. The continuation permits explicitly selected local instruction-file analysis, versioned non-authorizing source records, a bounded desktop-shell spike, and reviewed main publication.
+Privileged execution, automatic repository scanning, persistent project/skill/workflow implementation beyond R2a source snapshots, provider calls, operating-system installer publication, LNSAT changes, policy/security weakening, website deployment, production changes, paid services, license adoption, and grant submission. The continuation permits explicitly selected local instruction-file analysis, versioned non-authorizing source records, a bounded desktop-shell spike, and reviewed main publication.
 
 ## Assumptions and verified facts
 
@@ -58,8 +60,11 @@ Largest risks are overclaiming enforcement, losing semantics during harness comp
 7. The continuation adds versioned, non-authorizing source records and a deterministic analysis library/CLI for explicitly selected instruction files, with hostile-input tests and a three-OS CI matrix. This is source qualification only; no installer or native enforcement claim follows.
 8. Repository description/topics and README accurately describe current and planned capabilities; reviewed source reaches main with exact head/check/merge receipts. The desktop spike must show a real selected file's hash, original text, fragments and diagnostics, preserve the synthetic preview as a distinct experience, and retain explicit three-OS build/runtime qualification gaps.
 
+9. R2a preserves exact source bytes and identity across save/restart/open, deduplicates identical sources, reanalyzes persisted bytes without authority promotion, and preserves the current report on failure. Named tests cover stale commands, malformed identity, schema rejection, corruption, transactional rollback and interrupted writes. SQLite source qualification and a macOS GUI check do not imply released cross-platform persistence support.
+
 ## Source-of-truth links
 
+- [Local workspace specification](local-workspace.md)
 - [Plan and architecture](plan.md)
 - [Source register and recovered features](sources-and-features.md)
 - [Claims and LNSAT evidence](claims-and-evidence.md)
