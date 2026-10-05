@@ -1,0 +1,13 @@
+{
+  "name": "rangoon-app-review",
+  "version": "0.0.0-preview",
+  "private": true,
+  "type": "module",
+  "description": "Local synthetic Rangoon application design preview",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "check": "node --check preview/app.mjs && node --check preview/model.mjs && node --check scripts/serve.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

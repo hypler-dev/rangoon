@@ -1,0 +1,123 @@
+{
+  "schema": "rangoon.review-reference-manifest.v1",
+  "date": "2026-10-04",
+  "images": [
+    {
+      "id": "S01",
+      "original_name": "Rangoon.ai Merge & Split Dashboard.png",
+      "path": "docs/references/merge-split.png",
+      "sha256": "c09db4fba08c72173c68d9100bd1062260b61fd52cebe19b62dfa39ae50310c0",
+      "bytes": 1535816,
+      "width": 1672,
+      "height": 941,
+      "route": "Merge & Split",
+      "theme": "light",
+      "state": "concept / synthetic",
+      "source": "User supplied 2026-10-04",
+      "note": "Reference IDs follow this request order, not the older brief IDs."
+    },
+    {
+      "id": "S02",
+      "original_name": "Rangoon.ai Import & Analyze Dashboard.png",
+      "path": "docs/references/import-analyze.png",
+      "sha256": "936b2188c20c549940f20cfb9f3c09ca17ebbeb91cab943ef392f8d2a02c6052",
+      "bytes": 1691620,
+      "width": 1536,
+      "height": 1024,
+      "route": "Import & Analyze",
+      "theme": "light",
+      "state": "concept / synthetic",
+      "source": "User supplied 2026-10-04",
+      "note": "Reference IDs follow this request order, not the older brief IDs."
+    },
+    {
+      "id": "S03",
+      "original_name": "Rangoon.ai Connector Command Center.png",
+      "path": "docs/references/connectors.png",
+      "sha256": "4a7d7048fbcb8ba0a0d90b5ce7b1471c981e844aea81ab4c32bb339e617fe453",
+      "bytes": 1699588,
+      "width": 1536,
+      "height": 1024,
+      "route": "Connectors",
+      "theme": "light",
+      "state": "concept / synthetic",
+      "source": "User supplied 2026-10-04",
+      "note": "Reference IDs follow this request order, not the older brief IDs."
+    },
+    {
+      "id": "S04",
+      "original_name": "ChatGPT Image Oct 1, 2026 at 04_44_06 PM.png",
+      "path": "docs/references/workflows.png",
+      "sha256": "26c24f94705335ee7b692012b91bc9ae10ae42e5364f5e21b0550cfe410b0fb4",
+      "bytes": 1677570,
+      "width": 1672,
+      "height": 941,
+      "route": "Workflows",
+      "theme": "light",
+      "state": "concept / synthetic",
+      "source": "User supplied 2026-10-04",
+      "note": "Reference IDs follow this request order, not the older brief IDs."
+    },
+    {
+      "id": "S05",
+      "original_name": "Rangoon.ai AI Control Center Dashboard.png",
+      "path": "docs/references/command-center.png",
+      "sha256": "bd6b2727b6dcb93c68c910df0e90610ef7533f630360b46b7841a60f65b0d3d8",
+      "bytes": 1696698,
+      "width": 1536,
+      "height": 1024,
+      "route": "Command Center",
+      "theme": "light",
+      "state": "concept / synthetic",
+      "source": "User supplied 2026-10-04",
+      "note": "Reference IDs follow this request order, not the older brief IDs."
+    },
+    {
+      "id": "S06",
+      "original_name": "Rangoon.ai Governed AI Command Center.png",
+      "path": "docs/references/governed-command-center.png",
+      "sha256": "abdc4684804cfa1437624a0d8f79793d2a3e0dd62a32448c869d967c26672a92",
+      "bytes": 1887484,
+      "width": 1672,
+      "height": 941,
+      "route": "Command Center alternate",
+      "theme": "light",
+      "state": "concept / synthetic",
+      "source": "User supplied 2026-10-04",
+      "note": "Reference IDs follow this request order, not the older brief IDs."
+    },
+    {
+      "id": "S07",
+      "original_name": "Rangoon.ai Skills Management Dashboard.png",
+      "path": "docs/references/skills.png",
+      "sha256": "5adf418d1fee7b789363c8732f1e6f2986be414acfa1da32bcb5823e330180a0",
+      "bytes": 1593449,
+      "width": 1536,
+      "height": 1024,
+      "route": "Skills",
+      "theme": "light",
+      "state": "concept / synthetic",
+      "source": "User supplied 2026-10-04",
+      "note": "Reference IDs follow this request order, not the older brief IDs."
+    },
+    {
+      "id": "S08",
+      "original_name": "Rangoon.ai Decompose Dashboard.png",
+      "path": "docs/references/decompose.png",
+      "sha256": "cca9949aaea592a01c1c7eaf50e4f7a20c8acb9b8056017a275f085dae4c81b8",
+      "bytes": 1631423,
+      "width": 1536,
+      "height": 1024,
+      "route": "Decompose",
+      "theme": "light",
+      "state": "concept / synthetic",
+      "source": "User supplied 2026-10-04",
+      "note": "Reference IDs follow this request order, not the older brief IDs."
+    }
+  ],
+  "historical_brief": {
+    "path": "docs/references/implementation-brief-2026-10-02.md",
+    "sha256": "f4ce2f57d5d6012384c1fe5e4b5135f78f46c7b0e0ad3b9b94bdd9d8e2b84f32",
+    "authority": "Historical proposal; current intent.md governs this packet."
+  }
+}
