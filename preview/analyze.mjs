@@ -13,6 +13,7 @@ try {
 } catch {}
 document.documentElement.dataset.theme = theme;
 let requestedFocus = null;
+let renderedSourceId = null;
 
 const text = value => escapeText(value);
 const formatBytes = value => new Intl.NumberFormat().format(value ?? 0);
@@ -65,7 +66,23 @@ function reportView(state) {
   </div>`;
 }
 
+function revealSelectedLine() {
+  const selectedLine = document.querySelector('.analysis-line--selected');
+  const sourcePane = selectedLine?.closest('.analysis-code');
+  if (!selectedLine || !sourcePane) return;
+  const lineRect = selectedLine.getBoundingClientRect();
+  const paneRect = sourcePane.getBoundingClientRect();
+  sourcePane.scrollTop += lineRect.top - paneRect.top - Math.max(0, (sourcePane.clientHeight - selectedLine.clientHeight) / 2);
+}
+
 function render(state) {
+  const previousFragments = document.querySelector('.analysis-fragment-list');
+  const previousSource = document.querySelector('.analysis-code');
+  const fragmentScrollTop = previousFragments?.scrollTop ?? 0;
+  const sourceScrollTop = previousSource?.scrollTop ?? 0;
+  const sourceScrollLeft = previousSource?.scrollLeft ?? 0;
+  const sourceId = state.report?.source?.id ?? null;
+  const sourceChanged = sourceId !== renderedSourceId;
   const unavailable = state.status === 'unavailable';
   const pending = state.status === 'pending';
   const hasReport = Boolean(state.report);
@@ -78,9 +95,22 @@ function render(state) {
       ${reportView(state)}
     </main>
   </div>`;
+  renderedSourceId = sourceId;
+  if (!sourceChanged) {
+    const nextFragments = document.querySelector('.analysis-fragment-list');
+    const nextSource = document.querySelector('.analysis-code');
+    if (nextFragments) nextFragments.scrollTop = fragmentScrollTop;
+    if (nextSource) {
+      nextSource.scrollTop = sourceScrollTop;
+      nextSource.scrollLeft = sourceScrollLeft;
+    }
+  }
   announcer.textContent = unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message;
-  if (!pending && requestedFocus === 'choose' && !unavailable) document.querySelector('#analysis-choose')?.focus();
-  if (!pending && requestedFocus?.startsWith('fragment:')) document.querySelector(`[data-fragment="${CSS.escape(requestedFocus.slice(9))}"]`)?.focus();
+  if (!pending && requestedFocus === 'choose' && !unavailable) document.querySelector('#analysis-choose')?.focus({ preventScroll: true });
+  if (!pending && requestedFocus?.startsWith('fragment:')) {
+    document.querySelector(`[data-fragment="${CSS.escape(requestedFocus.slice(9))}"]`)?.focus({ preventScroll: true });
+    revealSelectedLine();
+  }
 }
 
 const controller = createAnalysisController({ invoke: bridge, onChange: render });
@@ -97,6 +127,6 @@ app.addEventListener('click', event => {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem('rangoon-theme', theme); } catch {}
     render(controller.getState());
-    document.querySelector('#analysis-theme')?.focus();
+    document.querySelector('#analysis-theme')?.focus({ preventScroll: true });
   }
 });

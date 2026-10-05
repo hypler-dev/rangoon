@@ -8,6 +8,8 @@ apps/desktop/Cargo.lock
 apps/desktop/Cargo.toml
 apps/desktop/build.rs
 apps/desktop/capabilities/source-analysis.json
+apps/desktop/icons/README.md
+apps/desktop/icons/icon.ico
 apps/desktop/src/main.rs
 apps/desktop/tauri.conf.json
 crates/rangoon-cli/Cargo.toml
@@ -54,6 +56,7 @@ docs/screenshots/evidence-dark.jpg
 docs/screenshots/import-dark.jpg
 docs/screenshots/merge-dark.jpg
 docs/screenshots/native-analysis-dark.png
+docs/screenshots/native-analysis-long.png
 docs/screenshots/release-dark.jpg
 docs/screenshots/skills-dark.jpg
 docs/screenshots/skills-light.jpg
