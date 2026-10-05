@@ -159,6 +159,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rangoon-compose"
+version = "0.1.0-dev"
+dependencies = [
+ "rangoon-domain",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "rangoon-domain"
 version = "0.1.0-dev"
 dependencies = [

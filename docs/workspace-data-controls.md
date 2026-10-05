@@ -86,7 +86,7 @@ No new workspace schema is needed. Schema 1 exports source-only data. Restore in
 4. Referenced source deletion is blocked; skill deletion removes only its owned history/reviews; subsequent source deletion succeeds; stale confirmation and failed/interrupted deletion preserve committed data.
 5. Host file tests cover bounded regular-file reads, final link/reparse rejection, exclusive destination creation and write failure. No original input file or unrelated workspace is modified.
 6. UI tests cover exact native arguments, unavailable states, cancellation, preview invalidation, draft retention/clearing, keyboard focus and confirmation. Isolated unsigned macOS QA covers native backup/restore and deletion/reopen states. Explicit synthetic populated dark/light responsive checks pass at 320/768 pixels; they use fixtures using the production controller/view/styles, with no DB or native bridge.
-7. Fresh independent storage/native and UI review, named local tests, exact-head CI and publication receipts precede main merge. All-three-OS GUI, packaging and release gates remain separate.
+7. Fresh independent storage/native and UI review, named local tests, exact-head CI and the PR #7 publication receipt are recorded. All-three-OS GUI, packaging and release gates remain separate.
 
 ## Non-goals and open questions
 

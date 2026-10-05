@@ -100,11 +100,17 @@ The macOS development-bundle check covered creation, review, editing, history co
 
 Schema 1 remains source-only. The first explicit capability creation lazily upgrades a validated schema 1 store to schema 2 in the same immediate transaction; reads and listing do not migrate or create stores. Older binaries reject schema 2 rather than overwrite it. The source section and original bytes remain intact. Semantic decomposition, merge/split, and broader composition are still planned work. See the [reviewed capabilities specification](docs/reviewed-capabilities.md) and [development ledger](docs/development.md) for scope and validation state.
 
-### Workspace data controls (R2c, in progress)
+### Workspace data controls (R2c, published source)
 
-The current development branch adds a bounded Workspace surface for saved-data ownership. Its source implements usage counts, deterministic portable backups through a native save picker, additive restore with stale-preview checks, and dependency-aware logical deletion of saved sources or skills. Backups include saved sources, immutable revisions, and local review records; unsaved drafts are excluded. Restore never overwrites existing records or elevates authority, and deleting a referenced source is blocked with its dependent skills named. Logical deletion does not promise secure erasure, and original selected files are never modified. See the [workspace data-controls specification](docs/workspace-data-controls.md).
+The native Workspace surface provides bounded saved-data controls: usage counts, deterministic portable backups through a native save picker, additive restore with stale-preview checks, and dependency-aware logical deletion of saved sources or skills. Backups include saved sources, immutable revisions, and local review records; unsaved drafts are excluded. Restore never overwrites existing records or elevates authority, and deleting a referenced source is blocked with its dependent skills named. Logical deletion does not promise secure erasure, and original selected files are never modified. See the [workspace data-controls specification](docs/workspace-data-controls.md).
 
-R2c is source work on the local `codex/workspace-data-controls` branch. Isolated unsigned macOS QA proves the native backup/restore path, and synthetic populated browser checks pass at 320 and 768 pixels in dark/light themes; Windows/Linux GUI qualification, publication, and release validation remain pending. This work does not change licensing, engine activation, release state, or installer support.
+R2c source is published on `main` through PR #7. Isolated unsigned macOS QA proves the native backup/restore path, and synthetic populated browser checks pass at 320 and 768 pixels in dark/light themes. Windows/Linux GUI qualification, installer/released-OS support, and security claims remain pending. This work does not change licensing or engine activation.
+
+### Composition core (R3 foundation)
+
+The experimental `rangoon-compose` library provides deterministic content transformation over caller-resolved immutable inputs. It previews Decompose, Merge and Split recipes, preserves exact UTF-8 byte provenance, requires explanations for exclusions and replacements, checks deliberate duplication and complete input coverage, and blocks unresolved declared conflicts. Its identifiers are pinned by an independently constructed golden fixture. It has no database, native command, provider, network or execution behavior; results retain `authority: none`.
+
+The initial core proposes new capabilities. The pictured **Update existing skill** destination remains required and needs revision-level provenance before persistence is finalized. Real saved composition workflows and their native interface are not implemented yet. See the [composition contract](docs/composition.md), [workbench design](docs/composition-ui.md), and [validation ledger](docs/development.md).
 
 ## Product boundary
 
@@ -118,13 +124,15 @@ Management must remain useful when execution is unavailable. Imported files are 
 | --- | --- | --- |
 | UI | Local synthetic browser preview with nine views and dark/light states; native R1b analysis view | Qualify the native shell and bridge on macOS, Windows, and Linux |
 | Import | Bounded stdin analysis plus one explicitly selected native Markdown file; no directory scan | Broader discovery and a persistent local workspace beyond R2a |
-| Workspace data | R2c source implements bounded inventory, portable backup, additive restore, and dependency-aware logical deletion; isolated unsigned macOS QA and synthetic populated browser checks pass | Cross-platform GUI qualification, publication, release evidence, and later workspace evolution |
+| Workspace data | R2c source is published on main; isolated unsigned macOS QA and synthetic populated browser checks pass | Cross-platform GUI qualification, installer/released-OS evidence, and later workspace evolution |
 | Editing | R2b derives saved sections into immutable capability revisions with explicit local review; PR #6 is merged with all 14 checks passed | Windows/Linux GUI qualification, semantic decomposition, merge/split, lineage expansion, and reversible composition |
 | Compatibility | No production adapters | Versioned harness adapters with golden fixtures and visible unsupported fields |
 | Testing | Static preview tests and Rust source-analysis tests | Deterministic bundles, fixture simulation, static test lab, and export evidence |
 | Engine integration | A1 inert `rangoon-engine` boundary; native status and CLI status/check diagnostics only | Later qualification gates for a supported LNSAT 1.0 artifact and adapter |
 | Execution | No executor, provider call, connector call, or deployment | Only qualified governed operations through an explicit authority and enforcement path |
 | Distribution | No installer or released OS support; Windows/Linux GUI qualification and release proof remain pending | Fresh-host qualification, signing, update, rollback, and release proof for all three OSs |
+
+R3 real Decompose/Merge/Split work continues under the accepted V1 objective. The pure core is an implementation stage; persistence, both output destinations and native workflows remain open.
 
 These distinctions are deliberate. A buildable artifact, a browser capture, or a passing source test does not establish desktop support, native enforcement, security certification, or production readiness.
 

@@ -1,0 +1,76 @@
+{
+  "evidence": "Independently constructed with Python hashlib/struct and the specified fixed-field compact JSON encoding, without invoking Rangoon Rust code. Synthetic UTF-8 BOM and CRLF source.",
+  "draft": {
+    "schemaVersion": "rangoon.composition-draft.v0",
+    "operation": "decompose",
+    "inputs": [
+      {
+        "kind": "source",
+        "sourceId": "source:a9ce5d569c0640926a9f753961dbd460de8f775654d6883dbec80c235ce0128a",
+        "sha256": "5ab132b28936c008281c0113335b206b3ccf3de5913dec14e99c41177bf99dd8"
+      }
+    ],
+    "outputs": [
+      {
+        "title": "Rules",
+        "pieces": [
+          {
+            "kind": "copy",
+            "range": {
+              "inputIndex": 0,
+              "startByte": 0,
+              "endByte": 29
+            }
+          }
+        ]
+      },
+      {
+        "title": "Tests",
+        "pieces": [
+          {
+            "kind": "copy",
+            "range": {
+              "inputIndex": 0,
+              "startByte": 29,
+              "endByte": 52
+            }
+          }
+        ]
+      }
+    ],
+    "exclusions": [],
+    "duplications": [],
+    "conflicts": []
+  },
+  "resolvedInputs": [
+    {
+      "reference": {
+        "kind": "source",
+        "sourceId": "source:a9ce5d569c0640926a9f753961dbd460de8f775654d6883dbec80c235ce0128a",
+        "sha256": "5ab132b28936c008281c0113335b206b3ccf3de5913dec14e99c41177bf99dd8"
+      },
+      "content": "﻿# Rules\r\nKeep originals.\r\n# Tests\r\nCheck edits.\r\n"
+    }
+  ],
+  "expectedEnvelope": "{\"transformationVersion\":\"0.1.0\",\"draft\":{\"schemaVersion\":\"rangoon.composition-draft.v0\",\"operation\":\"decompose\",\"inputs\":[{\"kind\":\"source\",\"sourceId\":\"source:a9ce5d569c0640926a9f753961dbd460de8f775654d6883dbec80c235ce0128a\",\"sha256\":\"5ab132b28936c008281c0113335b206b3ccf3de5913dec14e99c41177bf99dd8\"}],\"outputs\":[{\"title\":\"Rules\",\"pieces\":[{\"kind\":\"copy\",\"range\":{\"inputIndex\":0,\"startByte\":0,\"endByte\":29}}]},{\"title\":\"Tests\",\"pieces\":[{\"kind\":\"copy\",\"range\":{\"inputIndex\":0,\"startByte\":29,\"endByte\":52}}]}],\"exclusions\":[],\"duplications\":[],\"conflicts\":[]}}",
+  "expectedEnvelopeByteLength": 560,
+  "expectedCompositionId": "composition:0b2728072f1c198fe6594bee3838e2a30856d4c1d0bdd3e3724fa72c39e3435f",
+  "expectedOutputs": [
+    {
+      "index": 0,
+      "title": "Rules",
+      "content": "﻿# Rules\r\nKeep originals.\r\n",
+      "sha256": "88b881372c3f33af65f72ebc636d2d351e8040ca1705aedca83ec976177eeee8",
+      "capabilityId": "capability:d923945eaf50000e2872aeae3636b369a6b63830919a7497afd67e5ff70de197",
+      "revisionId": "revision:5edcac4d720657cecd373559077e56d5371bb01d22fe4981161c35615609329e"
+    },
+    {
+      "index": 1,
+      "title": "Tests",
+      "content": "# Tests\r\nCheck edits.\r\n",
+      "sha256": "d216b12e001639a42f56ed98d405340bb13ee9cf11df54d8a26ff993796fea41",
+      "capabilityId": "capability:30813edcb5e2b936a01dd935616d0fc410a7d6e4a4af8dc071e35ccbfd882150",
+      "revisionId": "revision:fe7e7b5f710d6c361e1601d6b5c8b6df1d2d1429c23f0bb6f29b8c0ba9282cd4"
+    }
+  ]
+}
