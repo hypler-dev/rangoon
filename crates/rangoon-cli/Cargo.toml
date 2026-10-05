@@ -1,0 +1,15 @@
+[package]
+name = "rangoon-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "rangoon"
+path = "src/main.rs"
+
+[dependencies]
+rangoon-import.workspace = true
+serde_json.workspace = true
