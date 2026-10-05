@@ -1,6 +1,6 @@
 # Rangoon
 
-Rangoon is a capability workbench for making AI instructions, skills, workflows, and connector plans understandable, portable, and reviewable. It is an application in development. This repository currently contains a synthetic interactive preview, a small deterministic Rust source-analysis foundation, and an R1b Tauri desktop spike for analyzing one explicitly selected file; it is not a released desktop app or execution runtime.
+Rangoon is a capability workbench for making AI instructions, skills, workflows, and connector plans understandable, portable, and reviewable. It is an application in development. This repository currently contains a synthetic interactive preview, a deterministic Rust source-analysis foundation, an R1b Tauri desktop spike, and an R2a local source-snapshot loop; it is not a released desktop app or execution runtime.
 
 ![Rangoon Command Center preview](docs/screenshots/command-dark.jpg)
 
@@ -22,7 +22,7 @@ The local preview has nine synthetic workbench views:
 - Evidence
 - Three-desktop release plan
 
-It includes dark and light themes, narrow layouts, keyboard navigation, compact and focus modes, fixture-driven state changes, merge conflict review, inert draft compilation, and an explicit unknown-outcome workflow state. It uses sample data only. It does not read project folders, call providers, persist a workspace, install anything, execute instructions, authorize actions, or connect to LNSAT. Its analysis route explains that browser preview analysis is disabled; the real selected-file flow belongs to the native desktop spike below.
+It includes dark and light themes, narrow layouts, keyboard navigation, compact and focus modes, fixture-driven state changes, merge conflict review, inert draft compilation, and an explicit unknown-outcome workflow state. It uses sample data only. It does not read project folders, call providers, persist source snapshots, install anything, execute instructions, authorize actions, or connect to LNSAT. Its analysis route explains that browser preview analysis is disabled; the real selected-file and local-snapshot flow belongs to the native desktop spike below.
 
 Run it with Node.js 20 or later:
 
@@ -32,7 +32,7 @@ cd rangoon
 npm start
 ```
 
-Open `http://127.0.0.1:4377`. The preview server is local and dependency-free. Theme preference may remain in the browser; reloading resets the sample workspace. See the [preview gallery](docs/preview-gallery.md) for rendered dark, light, and narrow captures.
+Open `http://127.0.0.1:4377`. The **Rangoon** app uses the explicitly selected icon and a native startup screen. The branded [launch preview](preview/splash.html) is available at `http://127.0.0.1:4377/splash.html`. The preview server is local and dependency-free. Theme preference may remain in the browser; reloading resets the sample workspace. See the [preview gallery](docs/preview-gallery.md) for rendered dark, light, and narrow captures.
 
 ### Rust source-analysis foundation
 
@@ -73,9 +73,9 @@ The desktop shell is a separate Tauri workspace under `apps/desktop`, using Rust
 cargo run --manifest-path apps/desktop/Cargo.toml --locked
 ```
 
-Install the [Tauri native build prerequisites](docs/desktop-spike.md#run-from-source) for the host OS first. The native window opens a file picker for one Markdown file. The renderer supplies no path, source bytes, or options: the native side reads the selected file, returns its original source, fragments, digest, diagnostics, and fixed errors, and keeps the report in memory only. Cancellation and failed replacement preserve the current report. No selected path is sent from the renderer, no provider request or upload occurs, and no source is written to storage, logs, telemetry, or a database.
+Install the [Tauri native build prerequisites](docs/desktop-spike.md#run-from-source) for the host OS first. The native window opens a file picker for one Markdown file. The renderer supplies no path, source bytes, or options: the native side reads the selected file, returns its original source, fragments, digest, diagnostics, and fixed errors. Cancellation and failed replacement preserve the current report. An explicit **Save locally** stores one immutable source snapshot in unencrypted OS app-local SQLite; listing and reopening are real local records, while selection alone never writes. Identical basename and bytes deduplicate; changed bytes or basename create a separate snapshot. No provider request or upload occurs.
 
-The three-OS source/build qualification matrix covers macOS, Windows, and Linux as work in progress. Current manual runtime evidence proves the macOS path only: picker launch and cancellation, a golden 144-byte file producing 7 lines and 3 sections, and section selection highlighting. Windows and Linux native UI behavior remain unverified. There is no installer and no released OS support claim. See the [desktop spike record](docs/desktop-spike.md) and [product-experience behavior contract](docs/product-experience.md#image-to-behavior-contract).
+The three-OS source/build qualification matrix covers macOS, Windows, and Linux as work in progress. Current manual runtime evidence covers the macOS R1b path and R2a save/restart/reopen loop. Local source/storage checks passed; Windows/Linux GUI and release qualification remain pending. Three-OS source CI and a Mac GUI check are separate from all-three-OS release proof. There is no installer and no released OS support claim. See the [desktop spike record](docs/desktop-spike.md), [local workspace specification](docs/local-workspace.md), and [product-experience behavior contract](docs/product-experience.md#image-to-behavior-contract).
 
 ## Product boundary
 
@@ -88,18 +88,18 @@ Management must remain useful when execution is unavailable. Imported files are 
 | Area | Current evidence | Planned work |
 | --- | --- | --- |
 | UI | Local synthetic browser preview with nine views and dark/light states; native R1b analysis view | Qualify the native shell and bridge on macOS, Windows, and Linux |
-| Import | Bounded stdin analysis plus one explicitly selected native Markdown file; no directory scan | Safe discovery, durable snapshots, and a persistent local workspace |
+| Import | Bounded stdin analysis plus one explicitly selected native Markdown file; no directory scan | Broader discovery, reviewed capabilities, and a persistent local workspace beyond R2a |
 | Editing | Fixture interactions for review, merge, split, and draft states | Capability revisions, lineage, provenance, and reversible editing |
 | Compatibility | No production adapters | Versioned harness adapters with golden fixtures and visible unsupported fields |
 | Testing | Static preview tests and Rust source-analysis tests | Deterministic bundles, fixture simulation, static test lab, and export evidence |
 | Execution | No executor, provider call, connector call, or deployment | Only qualified governed operations through an explicit authority and enforcement path |
-| Distribution | No installer or released OS support; native UI evidence is currently macOS-only | Fresh-host qualification, signing, update, rollback, and docs for all three OSs |
+| Distribution | No installer or released OS support; R2a local source/storage tests and macOS save/restart/reopen smoke pass; Windows/Linux GUI qualification remains pending | Fresh-host qualification, signing, update, rollback, and release proof for all three OSs |
 
 These distinctions are deliberate. A buildable artifact, a browser capture, or a passing source test does not establish desktop support, native enforcement, security certification, or production readiness.
 
 ## Architecture direction
 
-The proposed shape is a modular monolith: React/TypeScript for interaction, Rust for application services and native boundaries, and a Tauri shell after a three-OS qualification spike. Local management and a later owner-hosted service should share versioned domain contracts. Local SQLite and content-addressed artifacts are proposed for the first durable workspace; a service boundary and authenticated workers come later. These paths are planning targets, not implemented modules:
+The proposed shape is a modular monolith: React/TypeScript for interaction, Rust for application services and native boundaries, and a Tauri shell after a three-OS qualification spike. R2a uses unencrypted SQLite under the OS app-local data directory, bounded to 128 snapshots, 256 KiB per source and a 64 MiB database; no delete or retention UI exists yet. Broader local workspaces, content-addressed artifacts, a service boundary and authenticated workers remain planning targets:
 
 ```text
 apps/studio/                 shared React + TypeScript UI
@@ -122,7 +122,7 @@ The current Rust crates are the first small foundation under this direction. The
 The roadmap is proposed in [plan.md](docs/plan.md). Its sequence is:
 
 1. Select a license, freeze contracts, and qualify the desktop shell and native bridge on all three operating systems.
-2. Add durable local workspaces and safe, explicit import with hostile-input coverage.
+2. Extend R2a durable local source snapshots into safe, explicit import with hostile-input coverage and recovery evidence.
 3. Add capability IR, editing, lineage, merge/split, and provenance.
 4. Add pinned harness adapters and visible compatibility results.
 5. Add static tests, fixture simulation, deterministic export, and evidence bundles.
@@ -134,7 +134,7 @@ No roadmap item changes LNSAT, grants a license, claims released OS support, or 
 
 ## Security and privacy boundary
 
-The portable analyzer performs no network access, persistence, filesystem scanning, model/provider call, script execution, package installation, hook execution, authorization, or external write. The R1b desktop spike reads only one explicitly selected file and keeps its report in memory; it does not scan directories or persist source. Its output includes original source content and is therefore a local analysis artifact, not redacted telemetry. Keep sensitive files out of shared logs and exports.
+The portable analyzer performs no network access, persistence, filesystem scanning, model/provider call, script execution, package installation, hook execution, authorization, or external write. The desktop spike reads only one explicitly selected file. R2a stores source only after explicit Save locally, unencrypted on this computer, and reanalyzes bytes on reopen. It does not scan directories or upload source. Its output includes original source content and is therefore a local analysis artifact, not redacted telemetry. Keep sensitive files out of shared logs and exports.
 
 Future import and remote-analysis work must keep prompt-injection content as data, validate outputs against schemas, show payload and retention choices, and distinguish unreadable or excluded files from an empty project. Native bridges must expose narrow selected-folder and approved-output operations rather than a generic shell. Credentials belong in OS secret stores or an explicitly reviewed fallback. A subprocess is not automatically a sandbox.
 

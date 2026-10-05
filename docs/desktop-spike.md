@@ -1,4 +1,4 @@
-# Desktop source-analysis spike (R1b)
+# Desktop source-analysis spike (R1b/R2a)
 
 Authority: [intent.md](intent.md). Experience acceptance: [product-experience.md](product-experience.md). Exact validation/publication state: [development.md](development.md). This is development source and a qualification spike, not a signed desktop release.
 
@@ -13,6 +13,8 @@ cargo run --manifest-path apps/desktop/Cargo.toml --locked
 ```
 
 Choose `fixtures/contracts/AGENTS.md` from the native picker for the first test. The browser-only preview cannot invoke the native analyzer; its analysis page explains that state. No Node server or localhost HTTP API is started by the desktop app. Installer bundling is disabled.
+
+Current save/restart/open evidence: [native workspace reopen](screenshots/native-workspace-reopen.png). The branded [launch preview](../preview/splash.html) uses the same composition as the native startup overlay; it is labelled as a preview and does not simulate loading.
 
 ![Native macOS analysis of the tracked golden fixture](screenshots/native-analysis-dark.png)
 
@@ -29,13 +31,13 @@ Choose Markdown file
   -> original source, sections and inspector in memory
 ```
 
-The shell command returns `cancelled`, `analyzed` with an existing `AnalysisReport`, or `rejected`/`failed` with a fixed public code and message. The frontend never receives an absolute path. Only one picker operation is active at a time. Cancellation, failed replacements and UI clear/late-result handling must preserve the specified lifecycle. Closing or reloading the page clears the in-memory report; source contents are not written to local storage, logs, telemetry or a database.
+The shell command returns `cancelled`, `analyzed` with an existing `AnalysisReport`, or `rejected`/`failed` with a fixed public code and message. The frontend never receives an absolute path. Only one picker operation is active at a time. Cancellation, failed replacements and UI clear/late-result handling must preserve the specified lifecycle. Closing or reloading the page removes its rendered report; native active-source memory lasts until Clear, replacement or process exit. R2a adds explicit Save locally: saved source bytes live in unencrypted OS app-local SQLite under `source-workspace/workspace.sqlite3`, then list/open can restore and reanalyze them after restart. Selection alone does not write. No source upload, provider call, browser source storage or automatic save exists.
 
 The host validates the basename and accepts regular files only. It rejects final symlinks/reparse points and special files before reading; opened-handle metadata is checked again. Unix opens include `O_NOFOLLOW` and `O_NONBLOCK`; Windows opens inspect reparse points instead of following them. Reads are limited to the existing 256 KiB maximum plus one overflow-detection byte. Parser limits and errors remain authoritative. The picker filter is a convenience, not validation.
 
 This does not promise immutable filesystem identity or a directory confinement sandbox: parent directories are not held, a selected file may change during reading, and a file selected from a mounted filesystem may involve that filesystem's own behavior. The digest identifies the bytes read. The app makes no provider request or upload. Unsupported, missing and unreadable inputs return fixed errors without echoing path or contents.
 
-The [Tauri command manifest and capability](https://v2.tauri.app/security/capabilities/) restrict the one application command to the bundled main window. No frontend filesystem, shell, HTTP, clipboard, save or dialog-plugin permission is granted. The Rust side opens its picker directly. Navigation is restricted to bundled origins; the shell has a separate CSP allowing its IPC transport but no external content or frames. The preview HTTP server's policy is not assumed to protect a native WebView.
+The [Tauri command manifest and capability](https://v2.tauri.app/security/capabilities/) restrict the five documented application commands to the bundled main window. The new save/list/open/clear commands accept only the shapes in the [workspace specification](local-workspace.md); they expose no arbitrary filesystem or database API. No generic frontend filesystem, shell, HTTP, clipboard or dialog-plugin permission is granted. The Rust side opens its picker directly. Navigation is restricted to bundled origins; the shell has a separate CSP allowing its IPC transport but no external content or frames. The preview HTTP server's policy is not assumed to protect a native WebView.
 
 ## Validation and limits
 

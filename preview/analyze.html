@@ -7,10 +7,25 @@
     <title>Rangoon — Import &amp; Analyze</title>
     <link rel="stylesheet" href="app.css">
     <link rel="stylesheet" href="analyze.css">
+    <link rel="stylesheet" href="splash.css">
   </head>
   <body>
-    <a class="skip" href="#analysis-main">Skip to analysis workbench</a>
-    <div id="analysis-app"></div>
+    <a id="analysis-skip" class="skip" href="#analysis-main" inert>Skip to analysis workbench</a>
+    <div id="analysis-app" inert aria-hidden="true"></div>
+    <div id="startup-splash" class="splash-overlay" aria-label="Opening Rangoon workspace">
+      <section class="splash-card" aria-labelledby="startup-splash-title">
+        <div class="splash-content">
+          <img class="splash-mark" src="assets/brand-symbol.png" alt="">
+          <h1 id="startup-splash-title" class="splash-wordmark">Rangoon<span>.ai</span></h1>
+          <p class="splash-purpose">Build capable agents. Keep them in bounds.</p>
+          <div class="splash-rule" aria-hidden="true"></div>
+          <p class="splash-status" role="status">Starting Rangoon…</p>
+          <p class="splash-boundary">Local workspace only. No upload or provider connection.</p>
+          <div class="splash-actions"><a class="splash-link" href="analyze.html">Retry workspace</a><a class="splash-link" href="index.html">Sample design preview</a></div>
+          <p class="splash-footer">Development preview</p>
+        </div>
+      </section>
+    </div>
     <div id="analysis-announcer" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
     <script type="module" src="analyze.mjs"></script>
   </body>
