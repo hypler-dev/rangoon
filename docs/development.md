@@ -2,6 +2,8 @@
 
 Authority: [intent.md](intent.md). Jeff authorized publishing the application work to `hypler-dev/rangoon` and continuing development on October 4, 2026. The repository is an application in development. Preview completeness does not imply product or runtime qualification.
 
+October 5 continuation: Jeff authorized a detailed README, corrected repository metadata/topics, publication to main and further development. The R0/R1a branch is being prepared for reviewed main publication. A bounded desktop-shell and explicit file-analysis spike follows; it is not a desktop release.
+
 ## Publication
 
 R0 was committed and pushed as `b37e1f9e3d201440e4c6480c2a33dc42367e2abd` on `codex/app-vision-preview`. GitHub returned the exact same branch SHA. [Draft PR #1](https://github.com/hypler-dev/rangoon/pull/1) is open and attached to this chat. The repository description now identifies Rangoon as an application in development. Two initial HTTP pushes returned `HTTP 400`; the bounded retry using HTTP/1.1 and a 50 MiB request buffer succeeded. No force push was used. No merge or direct update to main was performed. The marketing-site repository stays separate.
@@ -44,4 +46,4 @@ The next bounded candidate is a three-OS desktop shell/native-bridge spike and a
 
 ## External action boundaries
 
-Commit and push of reviewed app work, review PR creation, and correcting the repository description to its app purpose are within the current publication request. Merge, deployment, production data changes, LNSAT mutations, license adoption, paid infrastructure and government application submission remain closed.
+Commit and push of reviewed app work, review PR creation, repository metadata updates and main merge are authorized by the October 5 request. Deployment, production data changes, LNSAT mutations, license adoption, installer/release publication, paid infrastructure and government application submission remain closed.
