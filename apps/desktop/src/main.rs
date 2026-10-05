@@ -6,7 +6,11 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
+mod capabilities;
 mod session;
+use capabilities::{
+    create_capability, list_capabilities, open_capability, review_capability, revise_capability,
+};
 
 use rangoon_engine::{EngineStatus, GovernancePort, LnsatPlaceholder};
 use rangoon_host::{PublicError, SelectionResult, analyze_selected_path};
@@ -248,7 +252,12 @@ fn main() {
             save_analysis,
             open_snapshot,
             clear_analysis,
-            get_engine_status
+            get_engine_status,
+            list_capabilities,
+            open_capability,
+            create_capability,
+            revise_capability,
+            review_capability
         ])
         .setup(|app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("analyze.html".into()))

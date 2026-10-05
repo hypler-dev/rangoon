@@ -1,6 +1,6 @@
 {
   "identifier": "source-analysis",
-  "description": "One local workbench can analyze a picked file, explicitly save source snapshots, list and reopen them, clear its active analysis, and read this build's inert engine-integration status. No renderer paths, source bodies or engine requests are accepted.",
+  "description": "The local main workbench can inspect and explicitly save sources, derive and review inert capability revisions, and inspect this build's inert engine status. Edited capability text is data; source paths, SQL and engine requests are never accepted.",
   "windows": [
     "main"
   ],
@@ -11,6 +11,11 @@
     "allow-save-analysis",
     "allow-open-snapshot",
     "allow-clear-analysis",
-    "allow-get-engine-status"
+    "allow-get-engine-status",
+    "allow-list-capabilities",
+    "allow-open-capability",
+    "allow-create-capability",
+    "allow-revise-capability",
+    "allow-review-capability"
   ]
 }

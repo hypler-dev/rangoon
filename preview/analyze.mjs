@@ -1,6 +1,8 @@
 import { createAnalysisController, escapeText } from './analysis-model.mjs';
 import { createEngineController } from './engine-model.mjs';
 import { renderEngineView } from './engine-view.mjs';
+import { createSkillsController, validCapabilityContent, validCapabilityTitle } from './skills-model.mjs';
+import { renderSkillsView } from './skills-view.mjs';
 import { icon } from './icons.mjs';
 import { createStartupSplash } from './launch.mjs';
 
@@ -19,12 +21,17 @@ try {
 document.documentElement.dataset.theme = theme;
 let requestedFocus = null;
 let renderedSourceId = null;
-let route = location.hash === '#engine' ? 'engine' : 'analysis';
+let route = location.hash === '#engine' ? 'engine' : location.hash === '#skills' ? 'skills' : 'analysis';
 let retainedSourceScroll = null;
 let routeFocusPending = route;
 let engineCheckFocusPending = false;
 let routeEntry = true;
 let openEngineDetails = new Set();
+let skillsActionFocus = null;
+let skillsOriginalOpen = false;
+let skillsSavedOpen = false;
+let skillsCreateFocusPending = false;
+let analysisReady = false;
 
 const text = value => escapeText(value);
 const formatBytes = value => new Intl.NumberFormat().format(value ?? 0);
@@ -56,11 +63,16 @@ function reportView(state) {
   const fragments = report.fragments ?? [];
   const diagnostics = report.diagnostics ?? [];
   const active = fragments.find(fragment => fragment.id === state.selectedFragmentId) ?? fragments[0];
+  const skills = skillsController.getState();
+  const derived = new Set(skills.capabilities.filter(item => item.sourceId === report.source.id).map(item => item.fragmentId));
+  const coverage = skills.listStatus === 'ready' ? `${fragments.filter(f => derived.has(f.id)).length} / ${fragments.length} sections linked to skills` : 'Skill coverage unavailable';
+  const canCreate = active && state.snapshotsStatus === 'ready' && state.snapshots.some(s => s.sourceId === report.source.id) && !state.busyAction;
+
   return `<div class="analysis-workbench" aria-busy="${state.status === 'pending'}">
     <aside class="analysis-panel analysis-fragments" aria-label="Source sections">
       <div class="analysis-panel__head"><div><p class="analysis-kicker">SOURCE MAP</p><h2>Read source sections</h2></div><span>${fragments.length} sections</span></div>
       <div class="analysis-fragment-list">${fragments.length ? fragments.map(fragment => `<button type="button" class="analysis-fragment${fragment.id === active?.id ? ' analysis-fragment--active' : ''}" data-fragment="${text(fragment.id)}" aria-pressed="${fragment.id === active?.id}"><strong>${text(title(fragment))}</strong><small>${text(span(fragment))}</small></button>`).join('') : '<p class="analysis-note">The analyzer returned no fragments.</p>'}</div>
-      <div class="analysis-panel__foot">Review state: <strong>${text(active?.reviewState ?? 'unreviewed')}</strong><br>Authority: <strong>${text(report.authority)}</strong></div>
+      <div class="analysis-panel__foot">Review state: <strong>${text(active?.reviewState ?? 'unreviewed')}</strong><br>Authority: <strong>${text(report.authority)}</strong><p>${text(coverage)}. Derivation does not prove meaning was preserved.</p><button id="analysis-create-skill" class="analysis-button analysis-button--small" type="button" ${canCreate ? '' : 'disabled'}>Create skill from section</button>${!canCreate ? '<p>Save this source before creating a skill.</p>' : ''}</div>
     </aside>
     <section class="analysis-panel analysis-source" aria-labelledby="analysis-source-title">
       <div class="analysis-panel__head"><div><p class="analysis-kicker">ORIGINAL SOURCE</p><h2 id="analysis-source-title">Inspect original text</h2></div><span class="analysis-mono">${text(report.source.displayName)}</span></div>
@@ -118,9 +130,13 @@ function revealSelectedLine() {
 }
 
 function render(state) {
-  document.title = route === 'engine' ? 'Rangoon — Engine integration' : 'Rangoon — Import & Analyze';
+  document.title = route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
   if (route === 'engine') {
     renderEngine();
+    return;
+  }
+  if (route === 'skills') {
+    renderSkills();
     return;
   }
   const previousFragments = document.querySelector('.analysis-fragment-list');
@@ -139,7 +155,7 @@ function render(state) {
   const chooseDisabled = unavailable || pending;
   const saveDisabled = !hasReport || pending;
   app.innerHTML = `<div class="analysis-shell">
-    <aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis" aria-current="page">${icon('import',{size:16})} Import &amp; Analyze</a><a href="#engine">${icon('gate',{size:16})} Engine integration</a><a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>
+    <aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis" aria-current="page">${icon('import',{size:16})} Import &amp; Analyze</a><a href="#skills">${icon('skill',{size:16})} Skills</a><a href="#engine">${icon('gate',{size:16})} Engine integration</a><a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>
     <main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">
       <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1 id="analysis-title" tabindex="-1">Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${icon('import',{size:16})}${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${icon('clear',{size:16})}${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${icon('save',{size:16})}${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
       <section class="analysis-truth" aria-label="Analysis boundaries"><span>Native picker only</span><span>No scan or upload</span><span>Local save available</span><span>Sections are proposals, not semantic skills</span></section>
@@ -182,7 +198,7 @@ function renderEngine() {
   const existingDetails = document.querySelectorAll('.engine-capabilities details[open]');
   openEngineDetails = new Set([...existingDetails].map(detail => detail.dataset.operation).filter(Boolean));
   const state = engineController.getState();
-  app.innerHTML = `<div class="analysis-shell"><aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis">${icon('import',{size:16})} Import &amp; Analyze</a><a href="#engine" aria-current="page">${icon('gate',{size:16})} Engine integration</a><a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside><main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderEngineView(state)}</main></div>`;
+  app.innerHTML = `<div class="analysis-shell"><aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis">${icon('import',{size:16})} Import &amp; Analyze</a><a href="#skills">${icon('skill',{size:16})} Skills</a><a href="#engine" aria-current="page">${icon('gate',{size:16})} Engine integration</a><a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside><main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderEngineView(state)}</main></div>`;
   routeEntry = false;
   for (const operation of openEngineDetails) document.querySelector(`[data-operation="${operation}"]`)?.setAttribute('open', '');
   announcer.textContent = state.message;
@@ -195,20 +211,92 @@ function renderEngine() {
   }
 }
 
+function renderSkills() {
+  const active = document.activeElement;
+  const focus = active?.id ? `#${CSS.escape(active.id)}`
+    : active?.dataset?.capability ? `[data-capability="${CSS.escape(active.dataset.capability)}"]`
+      : active?.dataset?.revision ? `[data-revision="${CSS.escape(active.dataset.revision)}"]` : null;
+  const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
+  const editorScroll = document.querySelector('#skills-content-input')?.scrollTop ?? 0;
+  const libraryScroll = document.querySelector('.skills-library__list')?.scrollTop ?? 0;
+  const original = document.querySelector('.skills-original');
+  if (original) skillsOriginalOpen = original.open;
+  const saved = document.querySelector('.skills-saved');
+  if (saved) skillsSavedOpen = saved.open;
+  const state = skillsController.getState();
+  app.innerHTML = `<div class="analysis-shell"><aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><a href="#analysis">${icon('import',{size:16})} Import &amp; Analyze</a><a href="#skills" aria-current="page">${icon('skill',{size:16})} Skills</a><a href="#engine">${icon('gate',{size:16})} Engine integration</a><a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside><main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderSkillsView(state)}</main></div>`;
+  routeEntry = false;
+  announcer.textContent = state.message;
+  if (skillsOriginalOpen) document.querySelector('.skills-original')?.setAttribute('open', '');
+  if (skillsSavedOpen) document.querySelector('.skills-saved')?.setAttribute('open', '');
+  const textarea = document.querySelector('#skills-content-input');
+  if (textarea) textarea.scrollTop = editorScroll;
+  const library = document.querySelector('.skills-library__list');
+  if (library) library.scrollTop = libraryScroll;
+  if (routeFocusPending === 'skills') {
+    document.querySelector(skillsCreateFocusPending ? '#skills-create-title' : '#skills-title')?.focus({ preventScroll: true });
+    skillsCreateFocusPending = false;
+    routeFocusPending = null;
+  } else {
+    const target = !state.pending && skillsActionFocus ? skillsActionFocus : focus;
+    let element = target ? document.querySelector(target) : null;
+    if (element?.disabled) element = document.querySelector('#skills-editor-title');
+    if (!element && skillsActionFocus) element = document.querySelector('#skills-create-title');
+    element?.focus({ preventScroll: true });
+    if (selection && element === document.querySelector(focus ?? ':not(*)') && typeof element?.setSelectionRange === 'function') element.setSelectionRange(...selection);
+    if (!state.pending) skillsActionFocus = null;
+  }
+}
+
 function loadingEngineStatus(state) { return state.status === 'loading'; }
 
 const engineController = createEngineController({ invoke: bridge, onChange: () => {
   if (route === 'engine') renderEngine();
 } });
+const skillsController = createSkillsController({ invoke: bridge, onChange: () => {
+  if (route === 'skills') renderSkills();
+  else if (analysisReady && route === 'analysis') {
+    const active = document.activeElement;
+    const selector = active?.id ? `#${CSS.escape(active.id)}`
+      : active?.dataset?.fragment ? `[data-fragment="${CSS.escape(active.dataset.fragment)}"]`
+        : active?.dataset?.openSnapshot ? `[data-open-snapshot="${CSS.escape(active.dataset.openSnapshot)}"]`
+          : active?.matches?.('a[href]') ? `a[href="${CSS.escape(active.getAttribute('href'))}"]` : null;
+    render(controller.getState());
+    // Passive library completion must not move focus to an earlier source action.
+    if (selector) document.querySelector(selector)?.focus({ preventScroll: true });
+  }
+} });
 const controller = createAnalysisController({ invoke: bridge, onChange: state => {
+  skillsController.setSourceContext({
+    report: state.report ? { ...state.report, selectedFragmentId: state.selectedFragmentId } : null,
+    snapshots: state.snapshots,
+    snapshotsStatus: state.snapshotsStatus,
+  });
   render(state);
   startupSplash.sync(state);
 } });
+analysisReady = true;
 startupSplash.setRetry(() => controller.listSnapshots());
 render(controller.getState());
+void skillsController.list();
 
 app.addEventListener('click', event => {
   if (event.target.closest('#engine-check')) { engineCheckFocusPending = true; return engineController.check(); }
+  const capability = event.target.closest('[data-capability]');
+  if (capability) { skillsActionFocus = '#skills-editor-title'; return skillsController.open(capability.dataset.capability); }
+  const revision = event.target.closest('[data-revision]');
+  if (revision && skillsController.getState().selected) { skillsActionFocus = `[data-revision="${CSS.escape(revision.dataset.revision)}"]`; return skillsController.open(skillsController.getState().selected.id, revision.dataset.revision); }
+  if (event.target.closest('#skills-create')) { skillsActionFocus = '#skills-editor-title'; return skillsController.create(skillsController.getState().createTitle); }
+  if (event.target.closest('#skills-save')) { skillsActionFocus = '#skills-save'; return skillsController.save(); }
+  if (event.target.closest('#skills-review')) { skillsActionFocus = '#skills-review'; return skillsController.review(); }
+  if (event.target.closest('#skills-reload-list')) return skillsController.list();
+  if (event.target.closest('#skills-return-current') || event.target.closest('#skills-reload-current')) {
+    skillsActionFocus = '#skills-editor-title';
+    if (event.target.closest('#skills-reload-current')) { skillsSavedOpen = true; document.querySelector('.skills-saved')?.setAttribute('open', ''); return skillsController.reloadCurrent(); }
+    const selected = skillsController.getState().selected;
+    if (selected) return skillsController.open(selected.id, null);
+  }
+  if (event.target.closest('#analysis-create-skill')) { skillsCreateFocusPending = true; location.hash = '#skills'; return; }
   const fragment = event.target.closest('[data-fragment]');
   if (fragment) { requestedFocus = `fragment:${fragment.dataset.fragment}`; return controller.selectFragment(fragment.dataset.fragment); }
   const snapshot = event.target.closest('[data-open-snapshot]');
@@ -227,13 +315,39 @@ app.addEventListener('click', event => {
   }
 });
 
+app.addEventListener('input', event => {
+  if (event.target.matches('#skills-create-title')) {
+    skillsController.updateCreateTitle(event.target.value);
+    const state = skillsController.getState();
+    document.querySelector('#skills-create').disabled = !state.bridgeAvailable || !state.source?.saved || state.pending || state.needsReload || !validCapabilityTitle(state.createTitle);
+    document.querySelector('#skills-create-count').textContent = `${new TextEncoder().encode(event.target.value).length} / 160 UTF-8 bytes. Source stays unreviewed; count does not prove preservation.`;
+    return;
+  }
+  if (!event.target.matches('#skills-title-input, #skills-content-input')) return;
+  skillsController.updateDraft(event.target.matches('#skills-title-input') ? { title: event.target.value } : { content: event.target.value });
+  const skills = skillsController.getState();
+  const draft = skills.draft;
+  const titleOK = validCapabilityTitle(draft?.title);
+  const contentOK = validCapabilityContent(draft?.content);
+  document.querySelector('#skills-title-count').textContent = `${new TextEncoder().encode(draft?.title ?? '').length} / 160 UTF-8 bytes${titleOK ? '' : ' · use one nonblank line'}`;
+  document.querySelector('#skills-content-count').textContent = `${new TextEncoder().encode(draft?.content ?? '').length} / 262144 UTF-8 bytes${contentOK ? '' : ' · content cannot be blank or contain NUL'}`;
+  const save = document.querySelector('#skills-save');
+  const review = document.querySelector('#skills-review');
+  const blocked = !skills.bridgeAvailable || skills.pending || skills.needsReload || skills.viewedRevisionId !== skills.selected?.latestRevisionId;
+  if (save) save.disabled = Boolean(blocked || !draft?.dirty || !titleOK || !contentOK);
+  if (review) review.disabled = Boolean(blocked || draft?.dirty || !titleOK || !contentOK || skills.selected?.revision.review);
+  const draftStatus = document.querySelector('#skills-draft-status');
+  if (draftStatus) draftStatus.textContent = draft?.dirty ? 'Unsaved edits. Save a revision before review.' : 'Local content review does not validate, publish or authorize execution.';
+});
+
 window.addEventListener('hashchange', () => {
   retainSourceScroll();
-  const nextRoute = location.hash === '#engine' ? 'engine' : 'analysis';
+  const nextRoute = location.hash === '#engine' ? 'engine' : location.hash === '#skills' ? 'skills' : 'analysis';
   routeEntry = route !== nextRoute;
   route = nextRoute;
   routeFocusPending = route;
   requestedFocus = null;
   engineCheckFocusPending = false;
+  skillsActionFocus = null;
   render(controller.getState());
 });

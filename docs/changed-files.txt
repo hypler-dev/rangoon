@@ -14,6 +14,7 @@ apps/desktop/icons/32x32.png
 apps/desktop/icons/README.md
 apps/desktop/icons/icon.icns
 apps/desktop/icons/icon.ico
+apps/desktop/src/capabilities.rs
 apps/desktop/src/main.rs
 apps/desktop/src/session.rs
 apps/desktop/tauri.conf.json
@@ -22,6 +23,7 @@ crates/rangoon-cli/src/main.rs
 crates/rangoon-cli/tests/cli.rs
 crates/rangoon-cli/tests/golden.rs
 crates/rangoon-domain/Cargo.toml
+crates/rangoon-domain/src/capability.rs
 crates/rangoon-domain/src/lib.rs
 crates/rangoon-engine/Cargo.toml
 crates/rangoon-engine/src/lib.rs
@@ -32,6 +34,8 @@ crates/rangoon-import/Cargo.toml
 crates/rangoon-import/src/lib.rs
 crates/rangoon-import/tests/analyze.rs
 crates/rangoon-store/Cargo.toml
+crates/rangoon-store/src/capabilities.rs
+crates/rangoon-store/src/capability_tests.rs
 crates/rangoon-store/src/lib.rs
 crates/rangoon-store/src/tests.rs
 docs/application-architecture.md
@@ -60,6 +64,7 @@ docs/references/merge-split.png
 docs/references/skills.png
 docs/references/workflows.png
 docs/review-submission.md
+docs/reviewed-capabilities.md
 docs/screenshots/command-dark.jpg
 docs/screenshots/command-light.jpg
 docs/screenshots/command-narrow.jpg
@@ -80,6 +85,15 @@ docs/screenshots/native-analysis-dark.png
 docs/screenshots/native-analysis-long.png
 docs/screenshots/native-engine-status.jpg
 docs/screenshots/native-workspace-reopen.png
+docs/screenshots/r2b-layout-measurements.json
+docs/screenshots/r2b-native-reopen.txt
+docs/screenshots/r2b-skills-browser-narrow.jpg
+docs/screenshots/r2b-skills-fixture-dark-320.jpg
+docs/screenshots/r2b-skills-fixture-dark-768.jpg
+docs/screenshots/r2b-skills-fixture-light-320.jpg
+docs/screenshots/r2b-skills-fixture-light-768.jpg
+docs/screenshots/r2b-skills-native-dark.jpg
+docs/screenshots/r2b-skills-native-light.jpg
 docs/screenshots/release-dark.jpg
 docs/screenshots/skills-dark.jpg
 docs/screenshots/skills-light.jpg
@@ -119,6 +133,8 @@ preview/icons.mjs
 preview/index.html
 preview/launch.mjs
 preview/model.mjs
+preview/skills-model.mjs
+preview/skills-view.mjs
 preview/splash.css
 preview/splash.html
 preview/visual-system.css
@@ -129,3 +145,4 @@ tests/analysis.test.mjs
 tests/engine.test.mjs
 tests/preview.test.mjs
 tests/server.test.mjs
+tests/skills-model.test.mjs

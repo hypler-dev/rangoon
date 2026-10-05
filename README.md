@@ -1,6 +1,6 @@
 # Rangoon
 
-Rangoon is a capability workbench for making AI instructions, skills, workflows, and connector plans understandable, portable, and reviewable. It is an application in development. This repository currently contains a synthetic interactive preview, a deterministic Rust source-analysis foundation, an R1b Tauri desktop spike, an R2a local source-snapshot loop, and an A1 inert engine-integration boundary; it is not a released desktop app or execution runtime.
+Rangoon is a capability workbench for making AI instructions, skills, workflows, and connector plans understandable, portable, and reviewable. It is an application in development. This repository contains a synthetic interactive preview, a deterministic Rust source-analysis foundation, a Tauri desktop workbench, local source snapshots and reviewed skill revisions, and an inert engine-integration boundary. It is not a released desktop app or execution runtime.
 
 ![Rangoon Command Center preview](docs/screenshots/command-dark.jpg)
 
@@ -92,6 +92,14 @@ cargo run --locked -p rangoon-cli -- engine check --operation read_evidence
 
 The second command deliberately exits 4: no engine evidence was read. This is Rangoon's experimental v0 application contract, not LNSAT's wire API or a release qualification claim. See the [engine integration specification](docs/engine-integration.md) and [application architecture](docs/application-architecture.md).
 
+### Reviewed capability revisions (R2b)
+
+The native Skills workbench derives a capability from one saved source section, retains immutable revisions and provenance, compares revision content, and records explicit local content review. Save a source in Import & Analyze, select a section, and choose **Create skill from section**. Later edits create an unreviewed successor while preserving the earlier content and review. Review records mean that a local operator inspected that revision; they do not grant authorship, validation, publication, execution, or other authority. Every result retains `authority: none`. The implementation caps each capability at 32 revisions, the workspace at 128 capabilities, and the database at 1,024 total revisions.
+
+The macOS development-bundle check covered creation, review, editing, history comparison, quit/restart and reopen through real native commands. Windows/Linux GUI qualification remains pending. Browser-only Skills is explicitly unavailable; the separate nine-screen design preview still uses sample data. See the [native dark](docs/screenshots/r2b-skills-native-dark.jpg) and [native light](docs/screenshots/r2b-skills-native-light.jpg) captures.
+
+Schema 1 remains source-only. The first explicit capability creation lazily upgrades a validated schema 1 store to schema 2 in the same immediate transaction; reads and listing do not migrate or create stores. Older binaries reject schema 2 rather than overwrite it. The source section and original bytes remain intact. Semantic decomposition, merge/split, and broader composition are still planned work. See the [reviewed capabilities specification](docs/reviewed-capabilities.md) and [development ledger](docs/development.md) for scope and validation state.
+
 ## Product boundary
 
 Rangoon owns the user-facing lifecycle: discovery, provenance, editing, decomposition, composition, compatibility, static tests, compilation planning, review, and evidence views. LNSAT remains an independent reference authority and evidence engine. Rangoon does not copy LNSAT implementation or recreate its authority semantics in UI code. A future qualified adapter may reference exact LNSAT contracts; the present preview and analyzer do not connect to it.
@@ -103,11 +111,11 @@ Management must remain useful when execution is unavailable. Imported files are 
 | Area | Current evidence | Planned work |
 | --- | --- | --- |
 | UI | Local synthetic browser preview with nine views and dark/light states; native R1b analysis view | Qualify the native shell and bridge on macOS, Windows, and Linux |
-| Import | Bounded stdin analysis plus one explicitly selected native Markdown file; no directory scan | Broader discovery, reviewed capabilities, and a persistent local workspace beyond R2a |
-| Editing | Fixture interactions for review, merge, split, and draft states | Capability revisions, lineage, provenance, and reversible editing |
+| Import | Bounded stdin analysis plus one explicitly selected native Markdown file; no directory scan | Broader discovery and a persistent local workspace beyond R2a |
+| Editing | R2b derives saved sections into immutable capability revisions with explicit local review; macOS create/edit/review/restart check passed | Windows/Linux GUI qualification, semantic decomposition, merge/split, lineage expansion, and reversible composition |
 | Compatibility | No production adapters | Versioned harness adapters with golden fixtures and visible unsupported fields |
 | Testing | Static preview tests and Rust source-analysis tests | Deterministic bundles, fixture simulation, static test lab, and export evidence |
-| Engine integration | A1 inert `rangoon-engine` boundary; native status and CLI status/check diagnostics only | R2b capability revisions while LNSAT matures; later qualification gates for a supported LNSAT 1.0 artifact and adapter |
+| Engine integration | A1 inert `rangoon-engine` boundary; native status and CLI status/check diagnostics only | Later qualification gates for a supported LNSAT 1.0 artifact and adapter |
 | Execution | No executor, provider call, connector call, or deployment | Only qualified governed operations through an explicit authority and enforcement path |
 | Distribution | No installer or released OS support; R2a local source/storage tests and macOS save/restart/reopen smoke pass; Windows/Linux GUI qualification remains pending | Fresh-host qualification, signing, update, rollback, and release proof for all three OSs |
 
@@ -115,7 +123,7 @@ These distinctions are deliberate. A buildable artifact, a browser capture, or a
 
 ## Architecture direction
 
-The proposed shape is a modular monolith: React/TypeScript for interaction, Rust for application services and native boundaries, and a Tauri shell after a three-OS qualification spike. R2a uses unencrypted SQLite under the OS app-local data directory, bounded to 128 snapshots, 256 KiB per source and a 64 MiB database; no delete or retention UI exists yet. Broader local workspaces, content-addressed artifacts, a service boundary and authenticated workers remain planning targets:
+The proposed shape is a modular monolith: the current vanilla-JS workbench evolves incrementally toward typed shared UI where useful, Rust owns application services and native boundaries, and Tauri remains the shell after a three-OS qualification spike. A framework rewrite is not a prerequisite. R2a uses unencrypted SQLite under the OS app-local data directory, bounded to 128 snapshots, 256 KiB per source and a 64 MiB database; R2b adds a lazy schema 2 capability store on first explicit creation. Broader local workspaces, content-addressed artifacts, a service boundary and authenticated workers remain planning targets:
 
 ```text
 apps/studio/                 shared React + TypeScript UI
@@ -159,7 +167,7 @@ Rangoon and LNSAT stay separate stores and trust boundaries. Nothing here claims
 
 ## Development and contribution
 
-Read [intent.md](docs/intent.md) first, then [plan.md](docs/plan.md), [development.md](docs/development.md), [engine-integration.md](docs/engine-integration.md), [application-architecture.md](docs/application-architecture.md), and [validation.md](docs/validation.md). Keep changes small, scoped, and evidence-backed. Include the exact commands and results for behavior you change. Preserve synthetic fixture labels and separate implemented behavior from proposals. Do not add secrets, customer data, provider payloads, deployment state, or claims of certification.
+Read [intent.md](docs/intent.md) first, then [plan.md](docs/plan.md), [development.md](docs/development.md), [reviewed-capabilities.md](docs/reviewed-capabilities.md), [engine-integration.md](docs/engine-integration.md), [application-architecture.md](docs/application-architecture.md), and [validation.md](docs/validation.md). Keep changes small, scoped, and evidence-backed. Include the exact commands and results for behavior you change. Preserve synthetic fixture labels and separate implemented behavior from proposals. Do not add secrets, customer data, provider payloads, deployment state, or claims of certification.
 
 Useful checks from the repository root:
 
@@ -183,6 +191,7 @@ The Node checks cover the local preview and server. The Rust checks cover the so
 - [Claims and LNSAT evidence](docs/claims-and-evidence.md) — maturity, proof gaps, and safe wording.
 - [Source-analysis contract](docs/source-analysis.md) — input limits, parser subset, records, and errors.
 - [Development status](docs/development.md) — current implementation and validation receipts.
+- [Reviewed capabilities](docs/reviewed-capabilities.md) — R2b revision, provenance, review, schema, and limit contract.
 - [Validation and review](docs/validation.md) — command results, browser QA, review scope, and limitations.
 - [Desktop spike](docs/desktop-spike.md) — native selected-file analysis boundary, prerequisites, and qualification limits.
 - [Engine integration](docs/engine-integration.md) — A1 inert port, diagnostics, and LNSAT qualification boundary.

@@ -24,12 +24,12 @@ The supplied images describe a connected product lifecycle, not twenty unrelated
 | --- | --- | --- |
 | `preview/` workbench | Source/section inspector, saved sources, integration status, launch; separate synthetic design surfaces | Real source workbench and A1 status page; nine sample design screens remain synthetic |
 | `apps/desktop` | Window lifecycle, explicit file selection, trusted app-local path, narrow commands | Implemented host; no generic shell, renderer paths or native credential API |
-| `rangoon-domain` | Byte identity, spans, source and fragment report types | Implemented source types; reviewed asset/revision contracts next |
+| `rangoon-domain` | Byte identity, spans, source and fragment report types, capability revision contracts | R2b capability/revision contracts implemented and locally tested; macOS lifecycle checked |
 | `rangoon-import` | Deterministic bounded parsing of caller-supplied bytes | Implemented Markdown subset; bounded folder/archive inventory later |
 | `rangoon-host` | Safe read of the explicitly selected local file | Implemented; broader grants require separate rooted-read design |
-| `rangoon-store` | Rangoon-local transactional repository | R2a source snapshots only; projects/revisions require a versioned migration and recovery packet |
+| `rangoon-store` | Rangoon-local transactional repository | R2a source snapshots plus R2b lazy schema 2 capability/revision/review writes; recovery tests and macOS restart/reopen passed; Windows/Linux GUI qualification pending |
 | `rangoon-engine` | Application integration status and engine-dependent port | A1 inert placeholder; no transport, detection or authority |
-| `rangoon-cli` | Headless use of the same application functions | Source analysis and A1 diagnostics; no alternate execution path |
+| `rangoon-cli` | Headless use of the same application functions | Source analysis and A1 diagnostics; capability commands are native desktop only; no alternate execution path |
 | Future application service | Coordinate revisions, validation, jobs and projections | Extract from host when the second real workflow appears; host and server must call the same use cases |
 | Future job supervisor | Durable attempts, cancellation, bounded concurrency and recovery | Required before long-running analysis, real test runs or connectors; not needed for a constant A1 status |
 | Future server | Authenticated workspace and worker API | Later self-hosted phase; not an HTTP wrapper around privileged Tauri commands |
@@ -108,7 +108,7 @@ The source review shows useful existing contracts and several still-gated runtim
 | Stage | Concrete delivery | Exit gate |
 | --- | --- | --- |
 | A1 now | Inert `rangoon-engine` port, CLI and real native status, five unavailable seams, integration page and this map | No connection attempted, no grant/success output, bad/future UI status fails closed; tests and native/browser evidence |
-| R2b next | Reviewed capability revisions derived from saved snapshots, exact span coverage, compare/accept and recovery | Immutable original, stale-revision rejection, review tied to content, crash-safe migration; no authority promotion |
+| R2b current | Reviewed capability revisions derived from saved snapshots, exact span coverage, compare/revise and local review | Source tests and independent review passed; macOS lifecycle passed. Windows/Linux GUI qualification remains pending. See the development ledger for immutable original, stale-revision rejection, content-bound local review and recovery evidence |
 | R3 | Real Decompose and Merge/Split over these revisions | Conflict and excluded-span accounting, version history, reversible edits; no silent policy weakening |
 | R4/R5 | Two pinned format compilers, compatibility report, deterministic bundle and explicit export | Golden/negative fixtures, meaningful loss report, selected destination, drift/collision handling on all three OSs |
 | A2 | Qualified engine transport and exact compatibility/readiness inspection | Accepted peer authentication, secret custody, no renderer credentials, explicit feature matrix, hostile-response/redirect/origin/version tests |

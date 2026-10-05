@@ -2,7 +2,7 @@
 # Specification: Explicit local source snapshots
 
 Status: accepted
-Intent: [Rangoon application intent](intent.md), October 5 R2a continuation
+Intent: [Rangoon application intent](intent.md), October 5 R2a continuation and [reviewed capabilities](reviewed-capabilities.md) R2b specification
 Owner: Jeff; implementation and release judgment remain with the primary controller
 Last updated: 2026-10-05
 
@@ -62,4 +62,6 @@ All three desktop operating systems remain initial release targets. The core and
 
 ## Non-goals and open questions
 
-No directory import, autosave, deletion, project model, source-file watching, reviewed assets, encrypted database, synchronization, providers, approval engine, managed enterprise store or installers. Subsequent work must define retention/export, project/revision ownership, migration backup/recovery and reviewed-skill semantics before presenting the illustrated larger lifecycle as implemented.
+R2b adds capability/revision/review tables to the same database at schema 2 only after explicit creation from a saved source section. Schema 1 remains source-only; reads and listing do not migrate or create stores. The first capability creation upgrades schema 1 lazily in the same immediate transaction, and older binaries reject schema 2. Limits are 128 capabilities, 32 revisions per capability and 1,024 total revisions. Local review is content inspection only and retains `authority: none`; original source bytes remain unchanged. See [reviewed-capabilities.md](reviewed-capabilities.md) for the complete contract and validation state.
+
+R2a itself does not include reviewed assets; the linked R2b specification adds that lifecycle. No directory import, autosave, deletion, project model, source-file watching, encrypted database, synchronization, providers, approval engine, managed enterprise store or installers. Semantic decomposition, merge/split, arbitrary multi-source spans and broader composition remain planned work. Retention/export, project ownership and backup/restore remain later release requirements.

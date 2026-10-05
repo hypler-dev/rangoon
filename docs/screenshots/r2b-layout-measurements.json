@@ -1,0 +1,29 @@
+{
+  "kind": "synthetic layout fixture only; no IPC",
+  "measurements": [
+    {
+      "clientWidth": 305,
+      "scrollWidth": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "clientWidth": 753,
+      "scrollWidth": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "clientWidth": 305,
+      "scrollWidth": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "clientWidth": 753,
+      "scrollWidth": 753,
+      "theme": "light",
+      "width": 768
+    }
+  ]
+}

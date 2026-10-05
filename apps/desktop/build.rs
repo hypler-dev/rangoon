@@ -7,6 +7,11 @@ fn main() {
             "open_snapshot",
             "clear_analysis",
             "get_engine_status",
+            "list_capabilities",
+            "open_capability",
+            "create_capability",
+            "revise_capability",
+            "review_capability",
         ]),
     ))
     .expect("desktop configuration must be valid");
