@@ -4,6 +4,8 @@
 
 mod backup;
 pub use backup::{MAX_BACKUP_FILE_BYTES, read_selected_backup, write_selected_backup};
+mod instructions;
+pub use instructions::{read_selected_instruction_bundle, write_selected_instruction_bundle};
 
 use std::fs::{self, File, Metadata, OpenOptions};
 use std::io::Read;

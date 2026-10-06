@@ -46,8 +46,8 @@ The intended users are developers managing agent configuration, platform teams m
 | Engine integration | Explicit unavailable LNSAT port, native status page, and CLI diagnostics | Qualified transport, authentication, typed operations, and evidence readback |
 | Workflows and agents | Synthetic visual concepts and architecture contracts | Real definitions, validation, execution-state model, scheduling, and qualified runners |
 | Connectors and harnesses | Synthetic catalog and extension direction | Versioned implementations, permissions, compatibility fixtures, and conformance suites |
-| Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, portable export, and destination protection |
-| Test Lab and export | Development tests and independent golden fixtures | User-facing static tests, deterministic portable export, target conformance and evidence bundles |
+| Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, native export, and destination protection |
+| Test Lab and export | Development tests, independent golden fixtures, and a portable instruction-bundle encoder/verifier with bounded file helpers | User-facing static tests, native Export/Inspect UI and IPC, target conformance and evidence bundles |
 | Distribution | Three-OS source/test/build CI; selected macOS development-bundle runtime evidence | Windows/Linux GUI checks, installers, signing, updates, rollback, and release qualification |
 | Team/cloud/enterprise | Architecture direction | Service implementation, tenancy, identity, operations, and deployment evidence |
 
@@ -84,10 +84,10 @@ Bundled native frontend                         Synthetic browser preview
 | --- | --- |
 | `crates/rangoon-domain/` | Source, span, capability, revision, and provenance record types; content identity helpers |
 | `crates/rangoon-import/` | Deterministic bounded Markdown section analysis |
-| `crates/rangoon-host/` | Selected-file reads and bounded native backup file handling |
+| `crates/rangoon-host/` | Selected-file reads, bounded native backup handling, and exclusive instruction-bundle file helpers |
 | `crates/rangoon-store/` | SQLite schema validation, snapshots, revisions, local reviews, composition storage, backup/restore, and deletion |
 | `crates/rangoon-compose/` | Pure transformation validation, coverage, materialization, destination application, and deterministic identities |
-| `crates/rangoon-compile/` | Pure AGENTS.md/CLAUDE.md instruction artifacts, static compatibility diagnostics and candidate-manifest identities |
+| `crates/rangoon-compile/` | Pure AGENTS.md/CLAUDE.md instruction artifacts, static diagnostics, candidate identities and strict portable-bundle verification |
 | `crates/rangoon-engine/` | Inert `GovernancePort` and LNSAT unavailable diagnostics |
 | `crates/rangoon-cli/` | Stdin source analysis and local engine diagnostics; no workspace editing CLI |
 | `apps/desktop/` | Separate Cargo workspace containing the Tauri host, scoped commands, native sessions, assets, and OS icons |
@@ -241,7 +241,9 @@ The pure compiler has no filesystem, process, environment, provider or engine ac
 
 The inspection workbench keeps Generated text, Diagnostics and Evidence separate. It supports historical revisions, preserves unsaved Skills drafts, rejects mismatched native responses, and marks retained reports stale after known workspace writes. Refresh resolves the selected revision again; compilation runs only on explicit action. Candidate manifest text comes from the host's canonical serializer, with renderer manifest/hash consistency checks. Browser-only use shows the unavailable native bridge. Displaying text is not export or target qualification; no Copy, Install, Run or authority action is exposed.
 
-The CLI remains an analyzer and inert engine-status tool, with no compilation command. SKILL metadata/support-file formats, portable bundle export, target drift/collision handling, native GUI qualification and all-three-OS target-loader evidence remain required R4/R5 work. See the [compiler contract](docs/compilation.md) and [native inspection contract](docs/compilation-ui.md) for exact schemas, identity framing, state handling and acceptance boundaries.
+The bundle foundation has a pure encoder and strict in-memory verifier plus bounded host helpers for an explicitly caller-selected path. It preserves exact artifact bytes and canonical manifest bytes, records component lengths, and appends a SHA-256 checksum of the preceding bytes; inspection separately reports the whole-file digest. Maximum total length is 295,016 bytes. Inspection reports `verification: internal_consistency_only` and `authority: none`. Digests detect inconsistency, not authentication, complete source-graph lineage, or target behavior. Native Export and bundle inspection UI/IPC integration remain unimplemented and unqualified.
+
+The CLI remains an analyzer and inert engine-status tool, with no compilation command. SKILL metadata/support-file formats, native Export/Inspect UI/IPC, target drift/collision handling, native GUI qualification and all-three-OS target-loader evidence remain required R4/R5 work. See the [compiler contract](docs/compilation.md), [bundle contract](docs/instruction-bundle.md) and [native inspection contract](docs/compilation-ui.md) for exact schemas, identity framing, state handling and acceptance boundaries.
 
 ## Backup, restore, and deletion
 
@@ -427,7 +429,7 @@ The accepted [intent](docs/intent.md), detailed [plan](docs/plan.md), [product e
 
 ### 3. Build versioned harness adapters and deterministic export
 
-**Foundation present:** pure `agents_md_v1` and `claude_md_v1` text-format profiles, exact stored-revision selection, static compatibility diagnostics and deterministic candidate manifests. These are library/store APIs; native UI, portable file export and actual target-loader qualification are not complete.
+**Foundation present:** pure `agents_md_v1` and `claude_md_v1` text-format profiles, exact stored-revision selection, static compatibility diagnostics, deterministic candidate manifests, and a pure exact-byte bundle encoder/strict verifier with bounded selected-file host helpers. These are library/host APIs; native Export/Inspect UI/IPC and actual target-loader qualification are not complete.
 
 **Deliver:** a shared capability representation plus at least two explicitly supported harness/format adapters. Choose initial targets from actual user projects and maintain a per-version support matrix.
 
@@ -497,7 +499,8 @@ Keep fixtures secret-free. Imported instruction text is data, including when it 
 | [Destinations](docs/composition-destinations.md) | New/append outputs, schema 3, and revision provenance |
 | [Recovery](docs/composition-recovery.md) | Archive format, additive restore, and dependency deletion |
 | [Native composition](docs/composition-native.md) | Raw IPC, retained previews, and confirmation semantics |
-| [Instruction compilation](docs/compilation.md) | Pinned format profiles, byte preservation, compatibility limits and candidate identities |
+| [Instruction compilation](docs/compilation.md) | Pinned format profiles, byte preservation, compatibility limits, candidate identities and bundle foundation |
+| [Instruction bundles](docs/instruction-bundle.md) | Exact portable format, strict verification and bounded host file boundary |
 | [Native Compile inspection](docs/compilation-ui.md) | Exact-ID command, workbench states, stale report handling and qualification gates |
 | [Workspace controls](docs/workspace-data-controls.md) | Inventory, export, restore, and deletion experience |
 | [Desktop setup](docs/desktop-spike.md) | Native prerequisites and runtime qualification limits |

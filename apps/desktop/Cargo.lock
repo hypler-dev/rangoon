@@ -2511,6 +2511,7 @@ name = "rangoon-host"
 version = "0.1.0-dev"
 dependencies = [
  "libc",
+ "rangoon-compile",
  "rangoon-domain",
  "rangoon-import",
  "serde",

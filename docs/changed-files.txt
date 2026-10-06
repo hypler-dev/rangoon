@@ -255,3 +255,10 @@ preview/compilation-view.mjs
 preview/compilation.css
 tests/compilation-model.test.mjs
 tests/compilation-view.test.mjs
+docs/instruction-bundle.md
+crates/rangoon-compile/src/bundle.rs
+crates/rangoon-compile/src/bundle_tests.rs
+crates/rangoon-host/src/instructions.rs
+crates/rangoon-host/src/instructions_tests.rs
+fixtures/compilation/instruction-bundle-v1.json
+scripts/generate-instruction-bundle-fixtures.py

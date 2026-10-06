@@ -8,7 +8,7 @@ Owner: Jeff. The primary controller owns architecture, storage integration and p
 
 The complete workflow is: choose a saved, locally reviewed skill revision; select a pinned target profile; inspect the exact file and compatibility report; export a verified portable bundle; separately decide whether to place instructions into an active project. The compiler never launches a harness. Writing instructions into a discovery path can affect a running or future harness even without launching it, so export and project installation have different contracts.
 
-R4a supplies the pure compiler and a read-only workspace service. The following [native inspection stage](compilation-ui.md) adds the Compile command and workbench. Portable file export, SKILL frontmatter and target-loader qualification follow through R4/R5. These are unfinished requirements, not silently removed scope. Multiple skills first pass through the existing composition and content-review lifecycle; this initial compiler accepts one exact revision and performs no implicit merge.
+R4a supplies the pure compiler and a read-only workspace service. The local [instruction-bundle contract](instruction-bundle.md) now adds a pure exact-byte encoder/strict verifier and bounded helpers for an explicitly caller-selected path. The following [native inspection stage](compilation-ui.md) adds the Compile command and workbench. Native Export/Inspect UI/IPC, SKILL frontmatter and target-loader qualification follow through R4/R5. These are unfinished requirements, not silently removed scope. Multiple skills first pass through the existing composition and content-review lifecycle; this initial compiler accepts one exact revision and performs no implicit merge.
 
 ## Supported profiles
 
@@ -102,6 +102,12 @@ Return `WorkspaceCompilation { observedCurrentHead, compilation }`. The current 
 Use a bounded `StoreError::CompilationInvalid` mapping for a compiler input/serialization failure, with no source content in public error text. The store wrapper owns the guarantee that content/review/provenance came from a validated workspace. It does not guarantee a malicious OS owner could not have coherently replaced that workspace.
 
 No native command or CLI accepts a revision body or review flag for compilation. The native inspection endpoint accepts only exact IDs and the closed profile; its host resolves all content and review facts. Do not retrofit reviewed-content semantics onto the current stdin-only analyzer.
+
+## Bundle foundation status
+
+The local bundle foundation encodes one reviewed candidate as exact bytes: 24-byte magic, two big-endian 64-bit lengths, canonical manifest bytes, exact artifact bytes, and a 64-byte lowercase SHA-256 checksum trailer. Manifest length is bounded to 32,768 bytes, artifact length to 262,144 bytes, and total length to 295,016 bytes. The strict verifier reconstructs and checks canonical manifest, profile, IDs, review, diagnostics and identities in memory, then reports `verification: internal_consistency_only` and `authority: none`. Checksum and identity matches do not authenticate a file, prove complete source-graph lineage, or qualify target behavior.
+
+Bounded host helpers require an explicit caller-selected path, verify bytes before exclusive creation, never overwrite, and do not automatically create parents or retry. A failed write or sync may leave a partial or complete file; the caller must treat the result as uncertain and choose a new name. Native Export and bundle inspection UI/IPC integration remain unimplemented; local source work is not native GUI qualification.
 
 ## Acceptance and remaining R4/R5 work
 
