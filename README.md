@@ -20,6 +20,7 @@ The first desktop release targets **macOS, Windows, and Linux together**. The in
 - [Workspace and revision model](#workspace-and-revision-model)
 - [Composition: Decompose, Merge, and Split](#composition-decompose-merge-and-split)
 - [Instruction compilation](#instruction-compilation)
+- [Model assistance](#model-assistance)
 - [Backup, restore, and deletion](#backup-restore-and-deletion)
 - [Native application boundary](#native-application-boundary)
 - [Local database security](#local-database-security)
@@ -44,7 +45,7 @@ The intended users are developers managing agent configuration, platform teams m
 | Decompose/Merge/Split | Real native editor routes over saved records, exact recipes/coverage, new/append destinations, retained previews, atomic storage, and schema 3 recovery | Complete advanced GUI/failure qualification and Windows/Linux interactive evidence |
 | Data controls | Inventory, plaintext portable backup, additive restore, dependency-aware logical deletion | Encryption, retention policy, recovery UX expansion, and additional platform evidence |
 | Engine integration | Explicit unavailable LNSAT port, native status page, and CLI diagnostics | Qualified transport, authentication, typed operations, and evidence readback |
-| Model assistance | Accepted [model assistance contract](docs/model-assistance.md); no implementation or connection is claimed | M1a context-pack/proposal contracts, then qualified local and cloud adapters required for V1; either is optional for an operator, with explicit payload consent and no live activation by default |
+| Model assistance | Pure M1a `rangoon-model-assistance` crate implements bounded `prepare_pack` and `validate_response`: exact selected/protected ranges, canonical provider-neutral payloads, whole-block deduplication with aliases/provenance, omission accounting, fixed task templates, and strict inert proposal validation | Native/CLI/UI connection, HTTP/provider adapters, tokenizer/accounting, credentials, consent integration, and model calls remain open; local and cloud adapters are separate V1 deliverables |
 | Workflows and agents | Synthetic visual concepts and architecture contracts | Real definitions, validation, execution-state model, scheduling, and qualified runners |
 | Connectors and harnesses | Synthetic catalog and extension direction | Versioned implementations, permissions, compatibility fixtures, and conformance suites |
 | Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, and target-loader compatibility |
@@ -90,6 +91,7 @@ Bundled native frontend                         Synthetic browser preview
 | `crates/rangoon-compose/` | Pure transformation validation, coverage, materialization, destination application, and deterministic identities |
 | `crates/rangoon-compile/` | Pure AGENTS.md/CLAUDE.md instruction artifacts, static diagnostics, candidate identities and strict portable-bundle verification |
 | `crates/rangoon-engine/` | Inert `GovernancePort` and LNSAT unavailable diagnostics |
+| `crates/rangoon-model-assistance/` | Pure bounded context packing and advisory-response validation; no transport, provider, credential, or authority behavior |
 | `crates/rangoon-cli/` | Stdin source analysis and local engine diagnostics; no workspace editing CLI |
 | `apps/desktop/` | Separate Cargo workspace containing the Tauri host, scoped commands, native sessions, assets, and OS icons |
 | `preview/` | Synthetic product preview, native workbench views/controllers, splash, icon system, and styles |
@@ -244,7 +246,20 @@ The inspection workbench keeps Generated text, Diagnostics and Evidence separate
 
 The bundle foundation has a pure encoder and strict in-memory verifier plus bounded host helpers for an explicitly caller-selected path. It preserves exact artifact bytes and canonical manifest bytes, records component lengths, and appends a SHA-256 checksum of the preceding bytes; inspection separately reports the whole-file digest. Maximum total length is 295,016 bytes. Inspection reports `verification: internal_consistency_only` and `authority: none`. Digests detect inconsistency, not authentication, complete source-graph lineage, or target behavior. Native Export and external bundle inspection commands/UI are implemented in this source: requests are ID-only raw UTF-8 JSON bounded to 4,096 bytes; export re-resolves and recompiles after the picker, binds the fresh candidate ID, and exclusively creates a new plaintext file without overwrite; write/sync uncertainty is distinct from known no-output failure. External inspection never opens the workspace, imports, reviews or executes; it returns internal-consistency evidence with `authority: none`. The isolated macOS QA bundle exercised AGENTS export cancellation, successful exports for both profiles, and external Inspect cancellation, golden success from no-workspace state, own-export success, and invalid-file failure. Native GUI qualification remains open for collision/write uncertainty, full keyboard coverage, Windows/Linux, and target loaders; publication evidence belongs in the [development ledger](docs/development.md).
 
-The CLI remains an analyzer and inert engine-status tool, with no compilation command. SKILL metadata/support-file formats, target drift/collision handling, native GUI qualification and all-three-OS target-loader evidence remain required R4/R5 work. See the [compiler contract](docs/compilation.md), [bundle contract](docs/instruction-bundle.md), [native inspection contract](docs/compilation-ui.md), [native bundle UI contract](docs/instruction-bundle-ui.md), and [model assistance contract](docs/model-assistance.md) for exact schemas, identity framing, state handling and acceptance boundaries. Model assistance is accepted V1 scope but is not implemented here; local and cloud capability are both required deliverables, and use remains optional and explicit.
+The CLI remains an analyzer and inert engine-status tool, with no compilation command. SKILL metadata/support-file formats, target drift/collision handling, native GUI qualification and all-three-OS target-loader evidence remain required R4/R5 work. See the [compiler contract](docs/compilation.md), [bundle contract](docs/instruction-bundle.md), [native inspection contract](docs/compilation-ui.md), [native bundle UI contract](docs/instruction-bundle-ui.md), and [model assistance contract](docs/model-assistance.md) for exact schemas, identity framing, state handling and acceptance boundaries. M1a model assistance is implemented as a pure crate; local and cloud capability remain separate V1 deliverables, and use remains optional and explicit.
+
+## Model assistance
+
+The implemented M1a core in [`rangoon-model-assistance`](crates/rangoon-model-assistance/) has two bounded entry points:
+
+```rust
+prepare_pack(raw_json: &[u8]) -> Result<ContextPack, Diagnostic>
+validate_response(pack: &ContextPack, raw_json: &[u8]) -> Result<ValidatedResponse, Diagnostic>
+```
+
+It supports three closed tasks: `classify_v1`, `decompose_v1`, and `compare_v1`. A request carries already resolved source or capability revisions, exact selected byte ranges, explicit protected ranges, task/profile limits, and a requested output bound. Packing preserves input order and exact bytes, reports selected/protected/omitted coverage, and reuses only byte-identical complete blocks. Every input/range keeps an alias to the transmitted block, so deduplication does not merge provenance, scope, or authority. `selectedBytes`, `uniqueTextBytes`, and `omittedBytes` are byte measurements; `tokenAccounting` remains `unknown`, with no claim about token savings or compression quality.
+
+The packer uses fixed checked-in task templates and bounded canonical JSON. The response decoder is closed and bounded before typed decoding; it requires the task-specific proposal kind, citations wholly inside selected ranges, and bounded uncertainty entries. `authoredText` remains inert model-authored text. Successful validation carries `authority: none`; it does not review, apply, execute, or mutate content. The pure core cannot authenticate database existence, revision ancestry, provider/profile identity, or operator consent, and it cannot authorize sending a payload. No native, CLI, UI, HTTP/provider adapter, credential store, tokenizer, consent integration, or live model call exists yet. The complete contract is [model-context-core.md](docs/model-context-core.md); product and adapter requirements remain in [model-assistance.md](docs/model-assistance.md).
 
 ## Backup, restore, and deletion
 
@@ -332,7 +347,7 @@ The current `GovernancePort` has five closed operations:
 
 The placeholder performs no discovery, launch, filesystem access, network transport, credential handling, mutation, or execution. Status reports `placeholder`, `not_attempted`, `not_checked`, null installed/observed versions, and no authority. `engine status` exits 0 for successful local diagnostics; `engine check` returns unavailable and exits 4.
 
-The [integration specification](docs/engine-integration.md) records an immutable public LNSAT research reference. Its source version, wire contract, product surface, storage schema, and eventual release support are distinct dimensions. A wire label containing `v1_0` does not establish a supported LNSAT product 1.0. Rangoon never opens the LNSAT database.
+The [integration specification](docs/engine-integration.md) records an immutable public LNSAT research reference. Its source version, wire contract, product surface, storage schema, and eventual release support are distinct dimensions. A wire label containing `v1_0` does not establish a supported LNSAT product 1.0. Rangoon never opens the LNSAT database. The model-assistance core is separate and advisory: it cannot authorize transport, execution, review, or mutation.
 
 Adapter work requires a supported artifact, exact typed request/result contracts, peer authentication, secret custody, compatibility tests, and explicit unknown-outcome handling. Read-only evidence qualification precedes consequential operations. Lost responses must not cause blind write retries.
 
@@ -453,6 +468,15 @@ Keep pure validation and simulated steps distinct from provider or connector run
 A connector transports requests; it does not become the source of authority. An authenticated credential proves access only within its actual scope. Approval must bind the exact operation, resources, constraints, and expiry where required by the qualified engine contract.
 
 **Acceptance:** compatibility failures remain explicit; authentication and authorization are independently tested; replay, expiry, revocation, cancellation, lost responses, and reconciliation have evidence; UI activity is not mislabeled as authoritative audit evidence. LNSAT 1.0 arrival triggers qualification, not automatic activation.
+
+### Model assistance gates (M1b–M1e)
+
+M1a is the pure context-pack and advisory-response core described above. Remaining gates stay separate from that implementation and require their own evidence:
+
+- **M1b:** native connection profiles, bounded local adapter, source-free connection check, cancellation/timeout/size handling, no startup traffic, no renderer credentials, and no automatic provider fallback.
+- **M1c:** qualified credential custody and cloud adapters, with explicit operator opt-in, origin/TLS/redirect/proxy controls, secret-free logs, and payload consent bound to exact bytes and configuration.
+- **M1d:** native payload preview, coverage/budget display, proposal inspection, stale/error/partial states, accessible controls, and explicit draft application. Proposals remain advisory and inert until existing local review rules accept a change.
+- **M1e:** task-quality and packing qualification on public or synthetic fixtures, with stated tokenizer/accounting assumptions, coverage and correctness measurements, latency/input/output measurements, regression limits, and honest failures. This gate does not follow from the M1a byte counters.
 
 ### 6. Release the free three-OS desktop product
 

@@ -10,7 +10,7 @@ git rev-parse HEAD
 git remote -v
 ```
 
-The continuation branch `codex/bundle-native-qualification` starts from PR19 merge `356df0caa547ec5a6113c9edbf2e3e42913ce254`, reviewed head `8927211655a7a1047f73fa121e8c1da562746967`, with exact base `309060254fa4e01526e94dbe5a34cf30fc4a821e`. The R3 editor, pure compiler, native Compile workbench, portable bundle foundation and native Export/Inspect source are published on `main`; use startup commands for current branch and working-tree truth, and the [development ledger](development.md) for receipts. The parent directory is a separate marketing site; do not mix its history, files or deployment workflow with this application repository.
+The continuation branch `codex/model-assistance-core` starts from PR20 merge `cfdc6ab6499d557aa808cadcc34a0c528e90015c`, reviewed head `5a98f2918bb926a28c5e32ee6e9ca66b4ca37050`, with exact base `356df0caa547ec5a6113c9edbf2e3e42913ce254`. The R3 editor, compiler, native bundle source, isolated macOS qualification evidence, failure-notice fix and model-assistance architecture are published on `main`. The current continuation adds the pure M1a context-pack/proposal core; it does not yet connect a model. Publication and validation state belong in the canonical ledger. Use startup commands for current branch and working-tree truth, and the [development ledger](development.md) for receipts. The parent directory is a separate marketing site; do not mix its history, files or deployment workflow with this application repository.
 
 ## Read first
 
@@ -25,7 +25,8 @@ Read the accepted objective and current evidence in this order:
 7. [Development ledger](development.md) — canonical publication and validation receipts.
 8. [Application architecture](application-architecture.md) — source/runtime ownership.
 9. [Engine integration](engine-integration.md) — inert diagnostics boundary.
-10. [Plan](plan.md) — future product shape and staged acceptance.
+10. [Model assistance](model-assistance.md) and [M1a core](model-context-core.md) — advisory boundary and exact pure contracts.
+11. [Plan](plan.md) — future product shape and staged acceptance.
 
 Use the ledger for historical receipts. Do not copy old status paragraphs into this guide. Read additional parser, native, visual, or claim documents only when the active packet requires them.
 
@@ -83,12 +84,12 @@ Run only the checks relevant to the packet, record exact outcomes in `docs/devel
 
 ## Next packet
 
-PR19 publication gates passed; its exact merged-head receipt is in the canonical ledger. Native macOS Compile/Export/Inspect qualification now has bounded evidence in the new isolated unsigned QA bundle. Continue with M1a from [model-assistance.md](model-assistance.md): freeze exact context-pack and advisory-proposal schemas, canonical serialization, digest framing, range rules, and golden/negative vectors before implementation. Keep local and cloud assistance as separate later V1 adapter deliverables; operator use stays optional. Preserve Windows/Linux GUI, target-loader, collision/write, composition-compile, and full keyboard gates.
+PR20 publication gates passed; its exact merged-head receipt is in the canonical ledger. The current M1a source implements a pure bounded packer, fixed task templates and strict advisory response validation, with independent canonical fixtures and negative tests. No native model command, provider HTTP transport, credential custody, consent UI, tokenizer or proposal-apply path exists yet. Finish exact-head review/CI/publication for this packet before extending it.
 
-1. Read [model-assistance.md](model-assistance.md), then freeze M1a wire fields, tagged identities, exact UTF-8 range/citation rules, canonical digest framing, ceilings, and independent golden/negative vectors.
-2. Keep deterministic/manual workflows usable without a model. Do not add private/paid calls, existing-credential use, automatic transfer, provider fallback, model installation/launch, or live activation.
-3. Preserve exact-byte output, plaintext disclosure, exclusive creation, the 295,016-byte bundle limit and uncertain partial-write recovery. Do not imply installation, authenticated review, complete provenance or target compatibility.
-4. Carry forward target-loader behavior, destination drift/collision behavior, composition compile, complete keyboard coverage and all-three-OS GUI failures as separate gates.
+1. Read [model-assistance.md](model-assistance.md) and [model-context-core.md](model-context-core.md), then the latest development-ledger entry. Preserve exact selected text, required protected intervals, per-input aliases, omitted-range accounting, closed schemas and `authority: none`.
+2. Next, freeze M1b connection profile, final request/response wire format, time/concurrency/byte bounds, cancellation and numeric-loopback rules before implementing a local adapter. Use disposable synthetic loopback fixtures. Integrate native ID-only resolution and an explicit exact-payload decision before any source request; do not treat the pure body or profile hash as consent or authenticated endpoint identity.
+3. Keep qualified cloud adapters, all-three-OS secret custody, payload/proposal UI and task-quality/token measurements as required M1c–M1e work. No private/paid calls, existing credentials, automatic transfer, silent fallback, model installation/launch or LNSAT activation.
+4. Preserve bundle exact bytes, plaintext disclosure, exclusive creation, the 295,016-byte limit and uncertain partial-write recovery. Keep target-loader behavior, collision/write GUI, composition compile, complete keyboard coverage and Windows/Linux GUI as separate open gates.
 5. Record local evidence in `docs/development.md`; publication receipts require exact head/base, independent review, hosted CI and fetched ancestry.
 
 Continue the broader V1 plan through adapters, compatibility/export, Workflows, Agents/templates, Connectors/Harnesses, local security design and later team/cloud work. Preserve separate decisions for engine activation, private or paid provider use, encryption, licensing, deployment and grants. Do not call this source packet complete V1 or full R3/R4/R5.
