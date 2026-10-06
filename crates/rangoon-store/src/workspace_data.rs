@@ -80,6 +80,9 @@ pub struct Backup {
     byte_length: usize,
 }
 impl Backup {
+    pub(super) fn records(&self) -> Result<composition_records::Records, StoreError> {
+        composition_records::Records::load(&image_database(&self.image)?)
+    }
     pub fn decode(bytes: &[u8]) -> Result<Self, StoreError> {
         decode(bytes).map_err(|_| StoreError::BackupInvalid)
     }
@@ -656,6 +659,13 @@ fn decode(bytes: &[u8]) -> Result<Backup, StoreError> {
     })
 }
 fn validate_image(image: &Image) -> Result<(), StoreError> {
+    let db = image_database(image)?;
+    if read_image(&db)? != *image {
+        return Err(StoreError::BackupInvalid);
+    }
+    Ok(())
+}
+fn image_database(image: &Image) -> Result<Connection, StoreError> {
     // Reuse the complete store validators against only application-owned tables.
     let mut db = Connection::open_in_memory()?;
     db.pragma_update(None, "trusted_schema", false)?;
@@ -681,10 +691,8 @@ fn validate_image(image: &Image) -> Result<(), StoreError> {
             insert_review(&tx, review)?;
         }
     }
-    if read_image(&tx)? != *image {
-        return Err(StoreError::BackupInvalid);
-    }
-    Ok(())
+    tx.commit()?;
+    Ok(db)
 }
 fn insert_capability(db: &Connection, c: &Capability) -> Result<(), StoreError> {
     db.execute(

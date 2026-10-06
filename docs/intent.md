@@ -52,6 +52,7 @@ Privileged execution, provider calls, operating-system installer publication, LN
 - PR #7 merged R2c reviewed head `32a5b446e0baedb04c07931636be01d47df828bd` into main as `538f319011b0611665de27ad32d6c528a8310d98` at `2026-10-05T23:06:42Z`; all 14 checks passed (push `37385850446`, PR `37385906609`). Independent native storage/UI/docs reviews passed. Windows/Linux GUI, installer/released-OS support, security claims and release evidence remain open.
 - PR #8 merged R3 pure-core reviewed head `667996816c4a6007889d5adb01b1ea9b36477293` into main as `3ea25bf83b3cc6cfdc258f60b9af7265b4878784` at `2026-10-05T23:47:41Z`; all 14 checks passed (push `37389805989`, PR `37389810744`), including Rust 1.85 and native tests/builds on all three OS runners. Fresh GitHub gate found no reviews, unresolved threads, comments, protection rules or rulesets. The first failed Clippy attempt remains historical; corrected core CI passed. Native GUI, installer/release, encryption and security qualification remain open.
 - PR #9 merged reviewed composition destination head `1a2e733779cf069cbf1f7bd865ceff74e07afa4c` into main as `716bfa58eb99d5ee230fc8dc87e739d90e03b8c6` at `2026-10-06T00:33:28Z`; all 14 checks passed (push `37392869138`, PR `37392914323`). Fresh GitHub gate found no reviews, comments, unresolved threads, protection rules or rulesets; fetched main ancestry passed. This publishes pure destination validation and identity generation only. The separate read-only storage foundation is not included in that merge; schema 3 writes, recovery, native/UI integration and encryption are incomplete.
+- PR #10 merged reviewed read-only storage head `658766b662063bf1b0467daeab3ae67e204654d4` as `783191becaccff54617f6642e5d0de899f86fb71` at `2026-10-06T01:02:29Z`; all 14 checks passed (push `37395833650`, PR `37395837975`). Fetched main contains the reviewed head. This publishes provenance DTOs, validated schema 3 readback and saved-input previews, with no composition writer, recovery mutations or native integration. The subsequent [composition recovery refinement](composition-recovery.md) implements versioned backup, additive restore and deletion under the existing V1 authority; its publication and qualification state is recorded in the development ledger.
 
 ## Risks
 
@@ -78,6 +79,7 @@ Largest risks are overclaiming enforcement, losing semantics during harness comp
 - [Workspace data-controls specification](workspace-data-controls.md)
 - [Composition and provenance specification](composition.md)
 - [Composition destination contract](composition-destinations.md)
+- [Composition recovery refinement](composition-recovery.md)
 - [Composition workbench design](composition-ui.md)
 - [Plan and architecture](plan.md)
 - [Source register and recovered features](sources-and-features.md)

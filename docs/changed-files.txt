@@ -44,8 +44,11 @@ crates/rangoon-import/tests/analyze.rs
 crates/rangoon-store/Cargo.toml
 crates/rangoon-store/src/capabilities.rs
 crates/rangoon-store/src/capability_tests.rs
+crates/rangoon-store/src/composition_backup.rs
 crates/rangoon-store/src/composition_records.rs
 crates/rangoon-store/src/composition_records_tests.rs
+crates/rangoon-store/src/composition_recovery.rs
+crates/rangoon-store/src/composition_recovery_tests.rs
 crates/rangoon-store/src/compositions.rs
 crates/rangoon-store/src/lib.rs
 crates/rangoon-store/src/tests.rs
@@ -57,6 +60,7 @@ docs/browser-checks.json
 docs/changed-files.txt
 docs/claims-and-evidence.md
 docs/composition-destinations.md
+docs/composition-recovery.md
 docs/composition-ui.md
 docs/composition.md
 docs/continue.md
@@ -135,6 +139,7 @@ docs/visual-browser-checks.json
 docs/visual-system.md
 docs/workspace-data-controls.md
 fixtures/composition/application-v0.json
+fixtures/composition/backup-v2.json
 fixtures/composition/decompose-v0.json
 fixtures/contracts/AGENTS.md
 fixtures/contracts/engine-status.json
@@ -173,6 +178,7 @@ preview/workspace-model.mjs
 preview/workspace-view.mjs
 preview/workspace.css
 scripts/serve.mjs
+scripts/generate-backup-v2-fixture.py
 scripts/validate-review.mjs
 scripts/validate-visuals.mjs
 tests/analysis.test.mjs
