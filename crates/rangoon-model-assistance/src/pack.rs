@@ -44,6 +44,7 @@ pub(super) struct PackContext {
     pub(super) task: Task,
     pub(super) inputs: Vec<ResolvedContext>,
     pub(super) pack_id: String,
+    target: Target,
 }
 
 #[derive(Clone)]
@@ -54,6 +55,31 @@ pub(super) struct ResolvedContext {
 }
 
 impl ContextPack {
+    /// Exact immutable provider-neutral body, before any transport wrapper.
+    pub fn body_json(&self) -> &str {
+        &self.body_json
+    }
+
+    pub fn pack_id(&self) -> &str {
+        &self.pack_id
+    }
+
+    pub fn profile_id(&self) -> &str {
+        &self.context.target.profile_id
+    }
+
+    pub fn profile_sha256(&self) -> &str {
+        &self.context.target.profile_sha256
+    }
+
+    pub fn model(&self) -> &str {
+        &self.context.target.model
+    }
+
+    pub fn max_output_tokens(&self) -> u64 {
+        self.context.target.max_output_tokens
+    }
+
     pub(super) fn context(&self) -> &PackContext {
         &self.context
     }
@@ -337,7 +363,7 @@ pub(super) fn prepare(raw_json: &[u8]) -> Result<ContextPack, Diagnostic> {
     let body = Body {
         schema_version: BODY_SCHEMA,
         task: request.task,
-        target: request.target,
+        target: request.target.clone(),
         max_body_bytes: request.max_body_bytes,
         template_version: "1",
         template_sha256: byte_digest(instructions.as_bytes()),
@@ -367,6 +393,7 @@ pub(super) fn prepare(raw_json: &[u8]) -> Result<ContextPack, Diagnostic> {
             task: request.task,
             inputs: contexts,
             pack_id,
+            target: request.target,
         },
     })
 }

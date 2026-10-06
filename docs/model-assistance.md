@@ -2,7 +2,7 @@
 
 Authority: Jeff's October 6, 2026 request recorded in [intent.md](intent.md). The feature is accepted product scope; the design below is the controller's implementation contract, not a claim of existing connectivity or security qualification. Evidence belongs in [development.md](development.md). This port is separate from the unavailable LNSAT authority port.
 
-The first pure stage, M1a, is implemented in `rangoon-model-assistance` under the frozen [context-pack and response specification](model-context-core.md). It supplies bounded context packing and inert proposal validation only. Native input resolution, connection profiles, final HTTP request binding, payload consent, transport, credential custody, proposal application and model-quality qualification remain subsequent stages. The provider-neutral pack body is not an authorized or complete provider request.
+The first pure stage, M1a, is implemented in `rangoon-model-assistance` under the frozen [context-pack and response specification](model-context-core.md). It supplies bounded context packing and inert proposal validation only. The source-only `rangoon-model-local` library adds immutable numeric-loopback profiles, final request binding, bounded explicit transport and strict outer-response validation under the [local adapter contract](model-local-adapter.md). Native input resolution, profile custody, exact-payload consent, narrow IPC and UI wiring, credential custody, proposal application and model-quality qualification remain subsequent stages; this does not complete M1b. The provider-neutral pack body is not an authorized or complete provider request.
 
 ## Product outcome
 
