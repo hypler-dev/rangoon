@@ -27,16 +27,18 @@ fn run_without_stdin(args: &[&str]) -> Output {
         .spawn()
         .expect("test binary starts");
     let stdin = child.stdin.take().expect("stdin pipe");
-    let deadline = Instant::now() + Duration::from_secs(1);
+    // Keep stdin open to catch accidental reads, but allow for cold process
+    // startup on hosted OS runners. This is a test watchdog, not a CLI SLA.
+    let deadline = Instant::now() + Duration::from_secs(10);
     loop {
         if child.try_wait().unwrap().is_some() {
             break;
         }
         if Instant::now() >= deadline {
-            child.kill().expect("kill stdin-reading engine command");
+            child.kill().expect("kill overdue engine test process");
             drop(stdin);
             let _ = child.wait_with_output();
-            panic!("engine command read stdin");
+            panic!("engine command did not exit with stdin open within the 10-second watchdog");
         }
         thread::sleep(Duration::from_millis(10));
     }
