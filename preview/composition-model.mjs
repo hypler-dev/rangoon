@@ -15,12 +15,15 @@ const overlap = (left, right) => left.inputIndex === right.inputIndex && left.st
 const failure = result => ({ code: typeof result?.error?.code === 'string' ? result.error.code : null, message: typeof result?.error?.message === 'string' ? result.error.message : 'The composition action did not return a confirmed result.' });
 const failed = () => ({ outcome: 'failed', error: { message: 'The composition action did not return a confirmed result.' } });
 const newTarget = () => ({ kind: 'new' });
+const HISTORY_MAX_ENTRIES = 32;
+const HISTORY_MAX_BYTES = 4 * 1024 * 1024;
 
 export const EMPTY_COMPOSITION_STATE = Object.freeze({
   operation: null, bridgeAvailable: false, status: 'idle', pending: null, error: null,
   message: 'Open Rangoon desktop to compose saved local content.', dirty: false,
   sources: [], capabilities: [], inputs: [], draft: null, targets: [], targetDetails: [],
   preview: null, previewStale: false, acknowledged: false, results: [], requestId: 0,
+  canUndo: false, canRedo: false, draftVersion: 0,
 });
 
 function pointBoundary(content, byte) {
@@ -158,12 +161,55 @@ export function createCompositionController({ operation, invoke, onChange = () =
   const bridgeAvailable = typeof invoke === 'function';
   let state = { ...EMPTY_COMPOSITION_STATE, operation, bridgeAvailable, status: bridgeAvailable ? 'idle' : 'unavailable', message: bridgeAvailable ? 'Load saved local content to begin composition.' : EMPTY_COMPOSITION_STATE.message };
   let epoch = 0;
+  let undoHistory = [];
+  let redoHistory = [];
   const publish = () => onChange(clone(state));
-  const set = changes => { state = { ...state, ...changes }; publish(); };
+  const set = changes => {
+    const next = { ...state, ...changes };
+    state = {
+      ...next,
+      canUndo: bridgeAvailable && !next.pending && undoHistory.length > 0,
+      canRedo: bridgeAvailable && !next.pending && redoHistory.length > 0,
+    };
+    publish();
+  };
   const mutationAllowed = () => bridgeAvailable && !state.pending && state.pending !== 'save';
   const call = async (command, args) => { try { return await invoke(command, args); } catch { return failed(); } };
   const fail = result => set({ status: state.sources.length || state.capabilities.length ? 'ready' : 'failed', pending: null, error: failure(result), message: failure(result).message });
-  const replaceDraft = (draft, message) => set(visibleMutation({ ...state, draft }, message));
+  const freeze = value => {
+    if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+      Object.freeze(value);
+      for (const item of Object.values(value)) freeze(item);
+    }
+    return value;
+  };
+  const snapshotFor = value => ({ draft: clone(value.draft), targets: clone(value.targets), targetDetails: clone(value.targetDetails) });
+  const draftSnapshot = () => freeze(snapshotFor(state));
+  const snapshotBytes = snapshot => {
+    try { return encoder.encode(JSON.stringify(snapshot)).length; } catch { return HISTORY_MAX_BYTES + 1; }
+  };
+  const historyBytes = () => [...undoHistory, ...redoHistory].reduce((total, entry) => total + entry.bytes, 0);
+  const trimHistory = () => {
+    while (undoHistory.length + redoHistory.length > HISTORY_MAX_ENTRIES || historyBytes() > HISTORY_MAX_BYTES) {
+      if (undoHistory.length) undoHistory.shift();
+      else redoHistory.shift();
+    }
+  };
+  const remember = (history, snapshot) => {
+    history.push({ snapshot, bytes: snapshotBytes(snapshot) });
+    trimHistory();
+  };
+  const clearHistory = () => { undoHistory = []; redoHistory = []; };
+  const applyDraftEdit = (changes, message = 'Draft changed. Prepare a new native preview before saving.') => {
+    const before = draftSnapshot();
+    const after = snapshotFor({ ...state, ...changes });
+    if (JSON.stringify(before) === JSON.stringify(after)) return false;
+    redoHistory = [];
+    remember(undoHistory, before);
+    set({ ...visibleMutation({ ...state, ...changes }, message), draftVersion: state.draftVersion + 1 });
+    return true;
+  };
+  const replaceDraft = (draft, message) => applyDraftEdit({ draft }, message);
   const resetPreview = message => ({ preview: state.preview, previewStale: Boolean(state.preview), acknowledged: false, results: state.results, message });
 
   const controller = {
@@ -225,39 +271,46 @@ export function createCompositionController({ operation, invoke, onChange = () =
     startDraft() {
       if (!mutationAllowed() || state.draft || (operation === 'decompose' && state.inputs.length !== 1) || (operation === 'merge' && state.inputs.length < 2) || (operation === 'split' && state.inputs.length !== 1)) return false;
       const draft = draftFor(operation, state.inputs);
-      set({ ...visibleMutation({ ...state, draft, targets: draft.outputs.map(newTarget), targetDetails: draft.outputs.map(() => null), preview: null, previewStale: false, acknowledged: false }, 'Draft started. Edit then prepare a native preview.'), dirty: true });
+      clearHistory();
+      set({ ...visibleMutation({ ...state, draft, targets: draft.outputs.map(newTarget), targetDetails: draft.outputs.map(() => null), preview: null, previewStale: false, acknowledged: false }, 'Draft started. Edit then prepare a native preview.'), dirty: true, draftVersion: state.draftVersion + 1 });
       return true;
     },
     resetDraft() {
       if (!mutationAllowed() || !state.draft) return false;
-      set({ ...state, draft: null, targets: [], targetDetails: [], preview: null, previewStale: false, acknowledged: false, results: [], dirty: false, error: null, message: 'Draft discarded. Selected inputs remain available.' }); return true;
+      clearHistory();
+      set({ ...state, draft: null, targets: [], targetDetails: [], preview: null, previewStale: false, acknowledged: false, results: [], dirty: false, error: null, message: 'Draft discarded. Selected inputs remain available.', draftVersion: state.draftVersion + 1 }); return true;
     },
     setOutputTitle(index, value) {
       if (!mutationAllowed() || !state.draft || !whole(index) || !validTitle(value) || !state.draft.outputs[index]) return false;
-      const draft = clone(state.draft); draft.outputs[index].title = value; replaceDraft(draft); return true;
+      const draft = clone(state.draft); draft.outputs[index].title = value; return replaceDraft(draft);
     },
     addOutput(value) {
       if (!mutationAllowed() || !state.draft || state.draft.outputs.length >= 16 || (operation === 'merge') || !validTitle(value)) return false;
-      const draft = clone(state.draft); draft.outputs.push({ title: value, pieces: [] }); set(visibleMutation({ ...state, draft, targets: [...state.targets, newTarget()], targetDetails: [...state.targetDetails, null] })); return true;
+      const draft = clone(state.draft); draft.outputs.push({ title: value, pieces: [] }); return applyDraftEdit({ draft, targets: [...state.targets, newTarget()], targetDetails: [...state.targetDetails, null] });
     },
     removeOutput(index) {
       const min = operation === 'split' ? 2 : 1;
       if (!mutationAllowed() || !state.draft || !whole(index) || state.draft.outputs.length <= min || !state.draft.outputs[index]) return false;
-      const draft = clone(state.draft); draft.outputs.splice(index, 1); const targets = state.targets.filter((_, item) => item !== index); const targetDetails = state.targetDetails.filter((_, item) => item !== index); set(visibleMutation({ ...state, draft, targets, targetDetails })); return true;
+      const draft = clone(state.draft); draft.outputs.splice(index, 1); const targets = state.targets.filter((_, item) => item !== index); const targetDetails = state.targetDetails.filter((_, item) => item !== index); return applyDraftEdit({ draft, targets, targetDetails });
     },
     moveOutput(index, delta) {
       if (!mutationAllowed() || !state.draft || !whole(index) || !Number.isInteger(delta) || !delta || index + delta < 0 || index + delta >= state.draft.outputs.length) return false;
-      const draft = clone(state.draft); const targets = clone(state.targets); const targetDetails = clone(state.targetDetails); for (const values of [draft.outputs, targets, targetDetails]) [values[index], values[index + delta]] = [values[index + delta], values[index]]; set(visibleMutation({ ...state, draft, targets, targetDetails })); return true;
+      const draft = clone(state.draft); const targets = clone(state.targets); const targetDetails = clone(state.targetDetails); for (const values of [draft.outputs, targets, targetDetails]) [values[index], values[index + delta]] = [values[index + delta], values[index]]; return applyDraftEdit({ draft, targets, targetDetails });
     },
     async setTarget(outputIndex, capabilityId = null) {
       if (!mutationAllowed() || !state.draft || !whole(outputIndex) || outputIndex >= state.draft.outputs.length || (capabilityId !== null && !validId(capabilityId, 'capability:'))) return false;
-      if (capabilityId === null) { const targets = clone(state.targets); const details = clone(state.targetDetails); targets[outputIndex] = newTarget(); details[outputIndex] = null; set(visibleMutation({ ...state, targets, targetDetails: details })); return true; }
+      if (capabilityId === null) {
+        if (state.targets[outputIndex]?.kind === 'new' && state.targetDetails[outputIndex] === null) return false;
+        const targets = clone(state.targets); const details = clone(state.targetDetails); targets[outputIndex] = newTarget(); details[outputIndex] = null; return applyDraftEdit({ targets, targetDetails: details });
+      }
       const request = ++epoch; set({ pending: 'target', error: null, message: 'Opening current target head…' });
       const result = await call('open_capability', { capabilityId, revisionId: null });
       if (request !== epoch) return false;
       const detail = result?.outcome === 'opened' ? validateCapabilityDetail(result.capability) : null;
       if (!detail || detail.id !== capabilityId || detail.revision.id !== detail.latestRevisionId || state.targets.some((target, index) => index !== outputIndex && target.kind === 'append' && target.capabilityId === capabilityId)) { fail(result); return false; }
-      const targets = clone(state.targets); const details = clone(state.targetDetails); targets[outputIndex] = { kind: 'append', capabilityId, expectedRevisionId: detail.latestRevisionId }; details[outputIndex] = detail; set(visibleMutation({ ...state, pending: null, targets, targetDetails: details })); return true;
+      const targets = clone(state.targets); const details = clone(state.targetDetails); targets[outputIndex] = { kind: 'append', capabilityId, expectedRevisionId: detail.latestRevisionId }; details[outputIndex] = detail;
+      if (JSON.stringify(targets[outputIndex]) === JSON.stringify(state.targets[outputIndex]) && JSON.stringify(details[outputIndex]) === JSON.stringify(state.targetDetails[outputIndex])) { set({ pending: null, error: null, message: 'Target already uses the current head.' }); return true; }
+      return applyDraftEdit({ pending: null, targets, targetDetails: details });
     },
     refreshTarget(outputIndex) {
       const target = state.targets[outputIndex]; return target?.kind === 'append' ? controller.setTarget(outputIndex, target.capabilityId) : Promise.resolve(false);
@@ -280,46 +333,75 @@ export function createCompositionController({ operation, invoke, onChange = () =
         if (kind === 'replace') draft.outputs[outputIndex].pieces.push({ kind: 'replace', range: clone(range), content, reason: reason.trim() });
         if (kind === 'exclude') draft.exclusions.push({ range: clone(range), reason: reason.trim() });
       }
-      replaceDraft(draft); return true;
+      return replaceDraft(draft);
     },
     addAuthored(outputIndex, content, reason) {
       if (!mutationAllowed() || !state.draft || !whole(outputIndex) || !state.draft.outputs[outputIndex] || typeof content !== 'string' || typeof reason !== 'string' || !reason.trim() || content.includes('\0')) return false;
-      const draft = clone(state.draft); draft.outputs[outputIndex].pieces.push(authored(content, reason.trim())); replaceDraft(draft); return true;
+      const draft = clone(state.draft); draft.outputs[outputIndex].pieces.push(authored(content, reason.trim())); return replaceDraft(draft);
     },
     updatePiece(outputIndex, pieceIndex, content, reason) {
       if (!mutationAllowed() || !state.draft || !whole(outputIndex) || !whole(pieceIndex) || typeof content !== 'string' || typeof reason !== 'string' || !reason.trim() || content.includes('\0')) return false;
       const piece = state.draft.outputs[outputIndex]?.pieces[pieceIndex]; if (!piece || piece.kind === 'copy') return false;
-      const draft = clone(state.draft); draft.outputs[outputIndex].pieces[pieceIndex] = { ...piece, content, reason: reason.trim() }; replaceDraft(draft); return true;
+      const draft = clone(state.draft); draft.outputs[outputIndex].pieces[pieceIndex] = { ...piece, content, reason: reason.trim() }; return replaceDraft(draft);
     },
     removePiece(outputIndex, pieceIndex) {
       if (!mutationAllowed() || !state.draft || !whole(outputIndex) || !whole(pieceIndex) || !state.draft.outputs[outputIndex]?.pieces[pieceIndex]) return false;
-      const draft = clone(state.draft); draft.outputs[outputIndex].pieces.splice(pieceIndex, 1); replaceDraft(draft); return true;
+      const draft = clone(state.draft); draft.outputs[outputIndex].pieces.splice(pieceIndex, 1); return replaceDraft(draft);
     },
     movePiece(outputIndex, pieceIndex, delta) {
       const pieces = state.draft?.outputs[outputIndex]?.pieces;
       if (!mutationAllowed() || !pieces || !whole(pieceIndex) || !Number.isInteger(delta) || !delta || pieceIndex + delta < 0 || pieceIndex + delta >= pieces.length) return false;
-      const draft = clone(state.draft); [draft.outputs[outputIndex].pieces[pieceIndex], draft.outputs[outputIndex].pieces[pieceIndex + delta]] = [draft.outputs[outputIndex].pieces[pieceIndex + delta], draft.outputs[outputIndex].pieces[pieceIndex]]; replaceDraft(draft); return true;
+      const draft = clone(state.draft); [draft.outputs[outputIndex].pieces[pieceIndex], draft.outputs[outputIndex].pieces[pieceIndex + delta]] = [draft.outputs[outputIndex].pieces[pieceIndex + delta], draft.outputs[outputIndex].pieces[pieceIndex]]; return replaceDraft(draft);
+    },
+    movePieceTo(fromOutputIndex, pieceIndex, toOutputIndex, beforeIndex = null, expectedVersion = state.draftVersion) {
+      const source = state.draft?.outputs[fromOutputIndex]?.pieces;
+      const target = state.draft?.outputs[toOutputIndex]?.pieces;
+      if (!mutationAllowed() || !source || !target || !whole(fromOutputIndex) || !whole(pieceIndex) || !whole(toOutputIndex) || !whole(expectedVersion) || expectedVersion !== state.draftVersion || pieceIndex >= source.length || (beforeIndex !== null && (!whole(beforeIndex) || beforeIndex > target.length))) return false;
+      let insertionIndex = beforeIndex === null ? target.length : beforeIndex;
+      if (fromOutputIndex === toOutputIndex && beforeIndex !== null && beforeIndex > pieceIndex) insertionIndex -= 1;
+      if (fromOutputIndex === toOutputIndex && (insertionIndex === pieceIndex || (beforeIndex === null && pieceIndex === source.length - 1))) return false;
+      const draft = clone(state.draft);
+      const [piece] = draft.outputs[fromOutputIndex].pieces.splice(pieceIndex, 1);
+      if (beforeIndex === null) insertionIndex = draft.outputs[toOutputIndex].pieces.length;
+      draft.outputs[toOutputIndex].pieces.splice(insertionIndex, 0, piece);
+      return applyDraftEdit({ draft }, 'Piece moved. Prepare a new native preview before saving.');
     },
     removeAnnotation(kind, index) {
       if (!mutationAllowed() || !state.draft || !['exclusions', 'duplications'].includes(kind) || !whole(index) || !state.draft[kind][index]) return false;
-      const draft = clone(state.draft); draft[kind].splice(index, 1); replaceDraft(draft); return true;
+      const draft = clone(state.draft); draft[kind].splice(index, 1); return replaceDraft(draft);
     },
     setAnnotationReason(kind, index, reason) {
       if (!mutationAllowed() || !state.draft || !['exclusions', 'duplications'].includes(kind) || !whole(index) || typeof reason !== 'string' || !reason.trim() || !state.draft[kind][index]) return false;
-      const draft = clone(state.draft); draft[kind][index].reason = reason.trim(); replaceDraft(draft); return true;
+      const draft = clone(state.draft); draft[kind][index].reason = reason.trim(); return replaceDraft(draft);
     },
     addConflict({ title, context, ranges, resolution = null } = {}) {
       if (!mutationAllowed() || !state.draft || !validTitle(title) || typeof context !== 'string' || !context.trim() || !Array.isArray(ranges) || ranges.length < 2 || ranges.length > 16 || !ranges.every(range => inputRange(state.inputs, range)) || (resolution !== null && (typeof resolution !== 'string' || !resolution.trim()))) return false;
       const keys = new Set(ranges.map(rangeKey)); if (keys.size !== ranges.length) return false;
-      const draft = clone(state.draft); const id = Math.max(0, ...draft.conflicts.map(conflict => conflict.id)) + 1; draft.conflicts.push({ id, title, ranges: clone(ranges), context: context.trim(), resolution: resolution === null ? null : resolution.trim() }); replaceDraft(draft); return true;
+      const draft = clone(state.draft); const id = Math.max(0, ...draft.conflicts.map(conflict => conflict.id)) + 1; draft.conflicts.push({ id, title, ranges: clone(ranges), context: context.trim(), resolution: resolution === null ? null : resolution.trim() }); return replaceDraft(draft);
     },
     resolveConflict(index, resolution) {
       if (!mutationAllowed() || !state.draft || !whole(index) || !state.draft.conflicts[index] || typeof resolution !== 'string' || !resolution.trim()) return false;
-      const draft = clone(state.draft); draft.conflicts[index].resolution = resolution.trim(); replaceDraft(draft); return true;
+      const draft = clone(state.draft); draft.conflicts[index].resolution = resolution.trim(); return replaceDraft(draft);
     },
     removeConflict(index) {
       if (!mutationAllowed() || !state.draft || !whole(index) || !state.draft.conflicts[index]) return false;
-      const draft = clone(state.draft); draft.conflicts.splice(index, 1); replaceDraft(draft); return true;
+      const draft = clone(state.draft); draft.conflicts.splice(index, 1); return replaceDraft(draft);
+    },
+    undo() {
+      if (!mutationAllowed() || !state.draft || !undoHistory.length) return false;
+      const prior = undoHistory.pop();
+      remember(redoHistory, draftSnapshot());
+      const snapshot = clone(prior.snapshot);
+      set({ ...visibleMutation({ ...state, ...snapshot }, 'Draft edit undone. Prepare a new native preview before saving.'), draftVersion: state.draftVersion + 1 });
+      return true;
+    },
+    redo() {
+      if (!mutationAllowed() || !state.draft || !redoHistory.length) return false;
+      const next = redoHistory.pop();
+      remember(undoHistory, draftSnapshot());
+      const snapshot = clone(next.snapshot);
+      set({ ...visibleMutation({ ...state, ...snapshot }, 'Draft edit redone. Prepare a new native preview before saving.'), draftVersion: state.draftVersion + 1 });
+      return true;
     },
     async requestPreview() {
       if (!mutationAllowed() || !state.draft || state.targets.length !== state.draft.outputs.length || !state.targets.every(validateTarget)) return false;
@@ -345,6 +427,7 @@ export function createCompositionController({ operation, invoke, onChange = () =
       let receipt = null;
       try { receipt = result?.outcome === 'committed' ? validateReceipt(result.receipt, preview.preview) : null; } catch { receipt = null; }
       if (!receipt) { set({ pending: null, error: failure(result), previewStale: true, acknowledged: false, message: 'Save outcome needs a new preview and readback. Draft retained. ' + failure(result).message }); return false; }
+      clearHistory();
       set({ pending: null, results: receipt.capabilities, dirty: false, acknowledged: false, previewStale: false, error: null, message: 'Composition saved locally. Returned skills remain unreviewed.' });
       try { await onCommitted(clone(receipt)); } catch { set({ message: 'Composition saved locally. Related view refresh failed.' }); }
       return true;

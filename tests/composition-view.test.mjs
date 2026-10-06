@@ -73,3 +73,22 @@ test('preview states show blocked, ready, saving, stale and actual saved skills'
   assert.match(saved, /Actual created skill/);
   assert.match(saved, /data-composition-open-skill/);
 });
+
+test('derived canvas exposes escaped source links, guarded ports and history controls', () => {
+  const canvasInput = { ...input, sections: [{ title: '<Setup & safety>', range: { inputIndex: 0, startByte: 0, endByte: byteLength } }] };
+  const canvasDraft = { ...draft, outputs: [...draft.outputs, { title: 'Second output', pieces: [{ kind: 'authored', content: 'Typed text', reason: 'Separate material' }] }] };
+  const html = renderCompositionView(initial({ inputs: [canvasInput], draft: canvasDraft, targets: [{ kind: 'new' }, { kind: 'new' }], canUndo: true, draftVersion: 7 }));
+  assert.match(html, /data-composition-graph-section="0:0"/);
+  assert.match(html, /composition-port--source/);
+  assert.match(html, /composition-port--piece/);
+  assert.match(html, /data-composition-wires/);
+  assert.match(html, /&lt;Setup &amp; safety&gt;/);
+  assert.match(html, /draggable="true"/);
+  assert.match(html, /data-composition-draft-version="7"/);
+  assert.match(html, /Input 1, bytes 0–/);
+  assert.match(html, /data-composition-undo/);
+  assert.match(html, /data-composition-redo[^>]*disabled/);
+  const pending = renderCompositionView(initial({ inputs: [canvasInput], draft: canvasDraft, targets: [{ kind: 'new' }, { kind: 'new' }], pending: 'preview' }));
+  assert.match(pending, /data-composition-graph-piece="0:0"[^>]*disabled/);
+  assert.match(pending, /draggable="false"/);
+});

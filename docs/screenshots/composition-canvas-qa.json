@@ -1,0 +1,88 @@
+{
+  "evidence": "Synthetic browser controller/binding and layout checks only; no native IPC, persistence, execution or OS release qualification.",
+  "checks": [
+    "Click-to-connect atomically moves exact source piece; undo/redo restores same draft without native calls.",
+    "Right-click and Shift+F10 share menu; End and Escape navigation restores origin focus.",
+    "Real browser drag/drop moves the piece; undo restores exact BOM/CRLF source range.",
+    "External drop has no effect.",
+    "Cancelled internal drag cannot authorize a later external file drop.",
+    "Blank-area, text-field activation and Tab dismiss contextual menu without losing focus.",
+    "Stale source connection rejected; source menu assignment and source actions restore meaningful focus.",
+    "Explicit remove exposes unassigned range; source port reassigns exact section.",
+    "Already assigned source cannot silently move, duplicate or replace through a port.",
+    "Unapplied fields block structural edits; Apply then move/undo preserves authored text and reason without positional cache corruption.",
+    "External single-field update and undo refresh committed A while preserving unrelated unsaved B through repeated tab renders.",
+    "Source assignment cannot remap unapplied B text onto A; after Cancel, range splitting keeps authored fields aligned.",
+    "Confirmed discard clears caches; whitespace-only new text also blocks destructive structural edits.",
+    "All graph editing, menus and history remain local; no preview/save/provider/native write invoked."
+  ],
+  "measurements": [
+    {
+      "theme": "dark",
+      "width": 320,
+      "wireCount": 0,
+      "reducedMotion": true,
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": [],
+      "clippedGraphControls": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "wireCount": 3,
+      "reducedMotion": true,
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": [],
+      "clippedGraphControls": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "wireCount": 3,
+      "reducedMotion": true,
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": [],
+      "clippedGraphControls": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "wireCount": 0,
+      "reducedMotion": true,
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": [],
+      "clippedGraphControls": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "wireCount": 3,
+      "reducedMotion": true,
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": [],
+      "clippedGraphControls": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "wireCount": 3,
+      "reducedMotion": true,
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": [],
+      "clippedGraphControls": []
+    }
+  ],
+  "errors": []
+}
