@@ -32,11 +32,12 @@ pub(super) const SCHEMAS: &[(&str, &str)] = &[
     ),
 ];
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(
     tag = "kind",
     rename_all = "snake_case",
-    rename_all_fields = "camelCase"
+    rename_all_fields = "camelCase",
+    deny_unknown_fields
 )]
 pub(super) enum Birth {
     Source {
@@ -56,25 +57,31 @@ pub(super) struct Owner {
     pub latest_revision_id: String,
 }
 
+#[derive(Clone, Debug)]
 pub(super) struct SourceRecord {
     pub metadata: SnapshotMetadata,
     pub report: AnalysisReport,
 }
+#[derive(Clone, Debug)]
 pub(super) struct RevisionRecord {
     pub capability_id: String,
     pub revision: v1::Revision,
 }
+#[derive(Clone, Debug)]
 pub(super) struct Recipe {
     pub draft: Draft,
     pub created_at_ms: i64,
 }
+#[derive(Clone, Debug)]
 pub(super) struct Application {
     pub composition_id: String,
     pub targets: Vec<application::Target>,
     pub created_at_ms: i64,
 }
 
-/// Constructed only after validating every retained row and dependency.
+/// Internal records loaded with complete row and dependency validation.
+/// Recovery candidates must be revalidated before using histories or committing.
+#[derive(Clone, Debug)]
 pub(super) struct Records {
     pub version: i64,
     pub sources: BTreeMap<String, SourceRecord>,
@@ -94,6 +101,18 @@ struct Validation {
 }
 
 impl Records {
+    pub fn empty() -> Self {
+        Self {
+            version: 1,
+            sources: BTreeMap::new(),
+            owners: BTreeMap::new(),
+            revisions: BTreeMap::new(),
+            recipes: BTreeMap::new(),
+            applications: BTreeMap::new(),
+            histories: BTreeMap::new(),
+        }
+    }
+
     pub fn load(db: &Connection) -> Result<Self, StoreError> {
         verify_schema(db)?;
         let version = db.pragma_query_value(None, "user_version", |r| r.get(0))?;

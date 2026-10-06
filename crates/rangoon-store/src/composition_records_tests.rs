@@ -13,19 +13,19 @@ use rangoon_domain::{
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 static NEXT: AtomicUsize = AtomicUsize::new(0);
-struct TestDir(PathBuf);
+pub(super) struct TestDir(pub(super) PathBuf);
 impl TestDir {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self(std::env::temp_dir().canonicalize().unwrap().join(format!(
             "rangoon-composition-records-{}-{}-{}", std::process::id(),
             SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
             NEXT.fetch_add(1, Ordering::Relaxed),
         )))
     }
-    fn store(&self) -> Workspace {
+    pub(super) fn store(&self) -> Workspace {
         Workspace::new(self.0.clone())
     }
-    fn db(&self) -> Connection {
+    pub(super) fn db(&self) -> Connection {
         Connection::open(self.store().path()).unwrap()
     }
 }
@@ -35,7 +35,7 @@ impl Drop for TestDir {
     }
 }
 
-fn source(dir: &TestDir) -> AnalysisReport {
+pub(super) fn source(dir: &TestDir) -> AnalysisReport {
     let source = analyze(
         "AGENTS.md",
         b"\xef\xbb\xbf# Rules\r\nKeep originals.\r\n# Tests\r\nCheck edits.\r\n",
@@ -44,13 +44,13 @@ fn source(dir: &TestDir) -> AnalysisReport {
     dir.store().save(&source).unwrap();
     source
 }
-fn legacy(dir: &TestDir, source: &AnalysisReport) -> LegacyDetail {
+pub(super) fn legacy(dir: &TestDir, source: &AnalysisReport) -> LegacyDetail {
     dir.store()
         .create_capability(&source.source.id, &source.fragments[0].id, "Legacy")
         .unwrap()
         .capability
 }
-fn fixture_request() -> Request {
+pub(super) fn fixture_request() -> Request {
     let value: serde_json::Value = serde_json::from_str(include_str!(
         "../../../fixtures/composition/decompose-v0.json"
     ))
@@ -61,14 +61,14 @@ fn fixture_request() -> Request {
         targets: vec![Target::New {}, Target::New {}],
     }
 }
-fn resolved_source(source: &AnalysisReport) -> Vec<ResolvedInput> {
+pub(super) fn resolved_source(source: &AnalysisReport) -> Vec<ResolvedInput> {
     vec![ResolvedInput::Source {
         source_id: source.source.id.clone(),
         sha256: source.source.sha256.clone(),
         content: source.source.content.clone(),
     }]
 }
-fn schema3(db: &Connection) {
+pub(super) fn schema3(db: &Connection) {
     let version: i64 = db
         .pragma_query_value(None, "user_version", |r| r.get(0))
         .unwrap();
@@ -83,8 +83,9 @@ fn schema3(db: &Connection) {
     db.pragma_update(None, "user_version", 3).unwrap();
 }
 
-/// Only tests insert schema 3 rows. Production has no composition write API.
-fn retain_outputs(
+/// Test-only composition fixture construction. Production restore validates archives;
+/// a production composition-application commit API is still pending.
+pub(super) fn retain_outputs(
     db: &Connection,
     request: &Request,
     inputs: &[ResolvedInput],
@@ -158,7 +159,7 @@ fn retain_outputs(
     }
     preview
 }
-fn assert_unchanged(dir: &TestDir, before: &[u8]) {
+pub(super) fn assert_unchanged(dir: &TestDir, before: &[u8]) {
     assert_eq!(fs::read(dir.store().path()).unwrap(), before);
 }
 
@@ -522,7 +523,10 @@ fn disconnected_history_and_owner_aliases_are_rejected() {
     }
 }
 
-fn split_request(detail: &CapabilityDetail, index: usize) -> (Request, Vec<ResolvedInput>) {
+pub(super) fn split_request(
+    detail: &CapabilityDetail,
+    index: usize,
+) -> (Request, Vec<ResolvedInput>) {
     let revision = &detail.revision;
     let draft = Draft {
         schema_version: rangoon_compose::DRAFT_SCHEMA.into(),

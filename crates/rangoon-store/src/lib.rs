@@ -2,14 +2,22 @@
 #![forbid(unsafe_code)]
 
 mod capabilities;
+mod composition_backup;
 mod composition_records;
 #[cfg(test)]
 mod composition_records_tests;
+mod composition_recovery;
+#[cfg(test)]
+mod composition_recovery_tests;
 mod compositions;
 mod workspace_data;
 #[cfg(test)]
 mod workspace_data_tests;
 pub use capabilities::{CapabilityReceipt, MAX_CAPABILITIES, MAX_REVISIONS, MAX_TOTAL_REVISIONS};
+pub use composition_backup::CompositionBackup;
+pub use composition_recovery::{
+    CompositionDeletionPlan, CompositionRestorePlan, CompositionWorkspaceData, RecoveryCounts,
+};
 pub use compositions::CompositionPreview;
 pub use workspace_data::{
     Backup, DeletionPlan, MAX_BACKUP_BYTES, RecordKind, RestorePlan, WorkspaceData, WorkspaceUsage,
@@ -65,10 +73,20 @@ pub enum StoreError {
     WorkspaceChanged,
     SourceInUse,
     CompositionInvalid,
+    CompositionDependencyMissing,
+    RecordInUse,
 }
 impl StoreError {
     pub fn public(self) -> (&'static str, &'static str) {
         match self {
+            Self::CompositionDependencyMissing => (
+                "composition_dependency_missing",
+                "This restore needs a pinned input revision that is absent from the final workspace. Existing skill histories were kept unchanged.",
+            ),
+            Self::RecordInUse => (
+                "record_in_use",
+                "Other saved skills still depend on this record. Keep it or remove those dependent skills first.",
+            ),
             Self::CompositionInvalid => (
                 "composition_invalid",
                 "This composition or its destinations failed validation. Refresh the preview and review the draft again.",
