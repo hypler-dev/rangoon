@@ -63,6 +63,24 @@ pub trait Store {
 pub fn inspect(store: &impl Store) -> Result<Option<Secret>, Error> {
     store.read()?.map(Secret::decode).transpose()
 }
+/// Re-read and compare the complete envelope, not just its public revision.
+/// The caller must hold native credential-use custody and fresh OS consent.
+/// No key getter or renderer serialization is exposed by this conversion.
+pub fn transport_credential(
+    store: &impl Store,
+    expected: &Secret,
+) -> Result<rangoon_model_cloud::Credential, Error> {
+    let actual = inspect(store)?.ok_or(Error::Changed)?;
+    if *actual.0 != *expected.0 {
+        return Err(Error::Changed);
+    }
+    rangoon_model_cloud::Credential::new(
+        &actual.revision(),
+        Zeroizing::new(actual.0[MARKER.len() + 32..].to_vec()),
+    )
+    .map_err(|_| Error::InvalidStoredCredential)
+}
+
 pub fn save(
     store: &impl Store,
     secret: &Secret,

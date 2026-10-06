@@ -21,8 +21,15 @@ mod instruction_bundles;
 use instruction_bundles::{export_instruction_bundle, inspect_instruction_bundle};
 mod cloud_credentials;
 mod cloud_custody;
+mod cloud_model_consent;
+mod cloud_models;
 mod cloud_store;
 use cloud_credentials::*;
+use cloud_models::{
+    NativeCloud, cancel_cloud_model, cancel_cloud_model_review, check_cloud_model,
+    clear_cloud_model, configure_cloud_model, confirm_cloud_model_review, get_cloud_model_profile,
+    get_cloud_model_review, prepare_cloud_model, send_cloud_model,
+};
 mod model_consent;
 mod model_flight;
 mod models;
@@ -316,10 +323,12 @@ fn main() {
         .manage(DeletionSession::default())
         .manage(CompositionSession::default())
         .manage(NativeModel::default())
+        .manage(NativeCloud::default())
         .manage(model_flight::ModelFlight::default())
         .manage(cloud_custody::Custody::default())
         .on_window_event(|window, event| {
             models::window_event(window, event);
+            cloud_models::window_event(window, event);
             cloud_credentials::window_event(window, event);
         })
         .invoke_handler(tauri::generate_handler![
@@ -352,6 +361,16 @@ fn main() {
             get_cloud_credential_edit,
             submit_cloud_credential,
             cancel_cloud_credential_edit,
+            get_cloud_model_profile,
+            configure_cloud_model,
+            clear_cloud_model,
+            prepare_cloud_model,
+            check_cloud_model,
+            send_cloud_model,
+            cancel_cloud_model,
+            get_cloud_model_review,
+            confirm_cloud_model_review,
+            cancel_cloud_model_review,
             get_local_model_profile,
             configure_local_model,
             clear_local_model,

@@ -38,6 +38,13 @@
     "allow-cancel-local-model",
     "allow-inspect-cloud-credential",
     "allow-edit-cloud-credential",
-    "allow-remove-cloud-credential"
+    "allow-remove-cloud-credential",
+    "allow-get-cloud-model-profile",
+    "allow-configure-cloud-model",
+    "allow-clear-cloud-model",
+    "allow-prepare-cloud-model",
+    "allow-check-cloud-model",
+    "allow-send-cloud-model",
+    "allow-cancel-cloud-model"
   ]
 }

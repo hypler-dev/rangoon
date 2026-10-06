@@ -124,6 +124,53 @@ macro_rules! assert_error {
 }
 
 #[test]
+fn retained_preparation_holds_slot_and_rechecks_exact_staged_identity() {
+    let dir = TestDir::new();
+    let source = save(&dir, "AGENTS.md", b"# Rules\nKeep exact evidence.\n");
+    let cloud = session();
+    let raw = selection("classify_v1", vec![source_selector(&source.source.id)]);
+    let prepare = || {
+        cloud
+            .begin_prepare(&raw, &revision('a'))
+            .unwrap()
+            .prepare_retained(&dir.workspace())
+            .unwrap()
+    };
+    let ready = prepare();
+    ready.ensure_current().unwrap();
+    assert!(cloud.inspect().unwrap().active.is_some());
+    assert_error!(cloud.begin_check(), Diagnostic::Busy);
+    ready.ensure_current().unwrap();
+    let view = ready.into_view();
+    assert!(cloud.inspect().unwrap().active.is_none());
+    drop(
+        cloud
+            .begin_send(&send(&view.prepared_id, &view.request_id))
+            .unwrap(),
+    );
+
+    let ready = prepare();
+    // A competing preparation invalidates the retained request even when its
+    // attempt fails busy without changing the generation or profile.
+    let generation = cloud.inspect().unwrap().generation;
+    assert_error!(cloud.begin_resolution(&raw), Diagnostic::Busy);
+    assert_eq!(cloud.inspect().unwrap().generation, generation);
+    assert_eq!(ready.ensure_current(), Err(Diagnostic::StalePrepared));
+    drop(ready);
+    assert!(cloud.inspect().unwrap().active.is_none());
+
+    let ready = prepare();
+    cloud.clear().unwrap();
+    assert_eq!(ready.ensure_current(), Err(Diagnostic::Cancelled));
+    assert_error!(
+        cloud.configure(&profile("gpt-fixture-v1")),
+        Diagnostic::Busy
+    );
+    drop(ready);
+    cloud.configure(&profile("gpt-fixture-v1")).unwrap();
+}
+
+#[test]
 fn prepared_view_binds_exact_saved_bytes_and_has_no_workspace_write() {
     let dir = TestDir::new();
     let bytes = b"\xef\xbb\xbf# \xce\x94elta\r\nKeep \xf0\x9f\x94\x92 exact.\r\n";

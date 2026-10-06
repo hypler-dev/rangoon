@@ -2,11 +2,11 @@
 
 Authority: the accepted October 6 model-assistance continuation in [intent.md](intent.md). This contract refines [model-cloud-adapter.md](model-cloud-adapter.md) and [model-cloud-custody.md](model-cloud-custody.md). Evidence belongs in [development.md](development.md).
 
-Status: the portable session is implemented and source-tested; exact evidence and publication state are in the development ledger. The behavior below does not establish native enforcement or cloud sending. Native integration remains pending.
+Status: portable session and native cloud orchestration are implemented in source; exact evidence and publication state are in the development ledger. Provider compatibility, GUI and release qualification remain pending. No execution, policy or LNSAT authority follows.
 
 ## Portable session boundary
 
-`rangoon-model-session::cloud` owns a memory-only cloud profile, one staged request and one active operation per shared session. It resolves saved source IDs and capability/revision pairs through the validated workspace reader. It performs no network requests, credential-store access, dialogs, database writes, proposal application or execution. A session lease is not consent. A cloud session and a local session are separate objects; the native host must serialize model operations across both routes using its shared model-operation gate. Cloud orchestration has not yet acquired that gate because native cloud commands remain unwired.
+`rangoon-model-session::cloud` owns a memory-only cloud profile, one staged request and one active operation per shared session. It resolves saved source IDs and capability/revision pairs through the validated workspace reader. It performs no network requests, credential-store access, dialogs, database writes, proposal application or execution. A session lease is not consent. A cloud session and a local session are separate objects; native host orchestration now serializes both routes with its shared model-operation gate and adds OS credential custody, consent and transport around this portable boundary.
 
 The closed selection input requires `schemaVersion: rangoon.cloud-selection.v1`, `task` and `inputs`, with the same 8,192-byte, 1–16 unique selector and compare-task constraints as the local session. The local selection schema is rejected on this route. The native caller separately supplies the current credential revision: exactly 64 lowercase hexadecimal characters, with no key material. Preparation preserves the full selected records as protected ranges. It never accepts renderer-supplied source text, request bytes, profile digests or endpoint overrides. A byte-budget failure cannot silently drop protected text.
 
@@ -22,13 +22,13 @@ The closed cancel input is at most 256 bytes and requires exactly `schemaVersion
 
 Session and prepared views expose session-only persistence, unknown processing location/retention and `authority: none`. They contain no OS-store credential material. Selected source text may itself contain secrets; preparation does not detect or redact them. `begin_check` reserves a cloud operation without accessing source, OS credentials or the network. The caller still requires a retained `CheckRequest`, full credential-envelope custody and independent native transfer consent.
 
-## Required native integration before sending
+## Native integration and remaining qualification
 
 The native host must retain the full OS credential envelope alongside the staged operation without serializing it to a renderer. It must hold the shared credential custody lease through final consent, full-envelope re-read/comparison and dispatch/completion so in-process save/remove cannot race the send. A revision match alone is insufficient: a same-revision key replacement must fail the full-envelope comparison. Out-of-process replacement after that comparison remains an explicitly disclosed race; dispatch cannot be recalled.
 
 The host must acquire one model-operation lease across local/cloud routes, resolve only saved IDs, display an isolated exact-payload review, and obtain a final native OS decision naming the fixed provider origin and selected model. Immediately before dispatch it must recheck session cancellation, selected-input freshness and the complete credential envelope. Stale/unavailable inputs, changed/missing credentials or failed consent prevent dispatch. After response it must recheck saved inputs and label freshness honestly. Closing/clearing/cancelling must cancel pending consent and transport while preserving native prompt parents until callbacks finish.
 
-Store consent is not transfer consent. `store: false` is not Zero Data Retention. Cancellation does not prove no transfer, no processing or zero cost. All outputs remain untrusted proposals with no approval, review, policy, execution or LNSAT authority. Current SQLite storage remains plaintext and its hashes establish consistency only. These host requirements remain pending until the native integration and its independent evidence are recorded; a passing portable session test does not establish them.
+Store consent is not transfer consent. `store: false` is not Zero Data Retention. Cancellation does not prove no transfer, no processing or zero cost. All outputs remain untrusted proposals with no approval, review, policy, execution or LNSAT authority. Current SQLite storage remains plaintext and its hashes establish consistency only. These host requirements are implemented in current native source; independent GUI, provider-compatibility and release evidence remain required. A passing portable session test does not establish those qualifications.
 
 ## Acceptance
 

@@ -4,7 +4,7 @@ Authority: the October 6 model-assistance continuation in [intent.md](intent.md)
 
 ## Ownership and scope
 
-The native process owns one session-only local profile, one prepared request and at most one active model operation. Restart forgets all three. No credentials, profiles, payloads or model results are written to disk by this feature. Durable profiles, cloud credential custody, proposal application and quality measurements remain required subsequent work. The saved source workspace retains its existing plaintext storage boundary. Memory-only custody does not promise secure heap erasure or protection from process inspection, swap or OS crash dumps.
+The native process owns one session-only local profile, one prepared request and at most one active model operation. Restart forgets all three. No credentials, profiles, payloads or model results are written to disk by this feature. Durable profiles, proposal application and quality measurements remain required subsequent work. The separate cloud path implements OS credential custody under [model-cloud-custody.md](model-cloud-custody.md); its runtime qualification remains open. The saved source workspace retains its existing plaintext storage boundary. Memory-only custody does not promise secure heap erasure or protection from process inspection, swap or OS crash dumps.
 
 Only the local `main` window receives narrow model commands. The renderer cannot supply a filesystem path, request URL, header, source text, digest, prompt, permission, approval boolean or transport options. Its CSP remains IPC-only. Native code uses `LocalProfile`, `prepare_pack`, `PreparedRequest` and `LocalClient`; it does not recreate their protocol or authority semantics. All results have authority `none`.
 

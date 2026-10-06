@@ -2944,6 +2944,7 @@ dependencies = [
  "rangoon-engine",
  "rangoon-host",
  "rangoon-import",
+ "rangoon-model-cloud",
  "rangoon-model-local",
  "rangoon-model-session",
  "rangoon-store",

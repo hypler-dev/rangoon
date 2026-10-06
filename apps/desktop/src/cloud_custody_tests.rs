@@ -1,5 +1,26 @@
 use super::*;
 #[test]
+fn model_use_blocks_editing_and_keeps_cancelled_lease_until_owner_drops() {
+    let custody = Custody::default();
+    let (lease, receiver) = custody.begin(Phase::Using).unwrap();
+    drop(receiver);
+    assert!(lease.is_current());
+    assert!(custody.edit_id().is_none());
+    assert!(!custody.cancel_edit(&lease.id));
+    assert!(lease.is_current());
+    for phase in [Phase::Reading, Phase::Editing, Phase::Storage, Phase::Using] {
+        assert!(matches!(custody.begin(phase), Err(Error::Busy)));
+    }
+    assert!(custody.cancel(None));
+    assert!(!lease.is_current());
+    assert!(matches!(custody.begin(Phase::Editing), Err(Error::Busy)));
+    let old_id = lease.id.clone();
+    drop(lease);
+    let (replacement, _) = custody.begin(Phase::Using).unwrap();
+    assert!(!custody.cancel(Some(&old_id)));
+    assert!(replacement.is_current());
+}
+#[test]
 fn submission_is_closed_bounded_and_single_use() {
     let custody = Custody::default();
     let (lease, mut receiver) = custody.begin(Phase::Editing).unwrap();

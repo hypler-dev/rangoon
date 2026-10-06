@@ -1,6 +1,6 @@
 # Native cloud model assistance
 
-Authority: the accepted October 6 model-assistance continuation in [intent.md](intent.md). This contract refines [cloud request custody](model-cloud-session.md), [credential custody](model-cloud-custody.md), and the [cloud adapter](model-cloud-adapter.md). Implementation is in progress; current publication and evidence belong in [development.md](development.md). No native cloud-send capability is claimed until that evidence exists.
+Authority: the accepted October 6 model-assistance continuation in [intent.md](intent.md). This contract refines [cloud request custody](model-cloud-session.md), [credential custody](model-cloud-custody.md), and the [cloud adapter](model-cloud-adapter.md). Native source implementation is present; current publication and qualification evidence belong in [development.md](development.md). No real-provider compatibility, GUI or release qualification claim follows until evidence exists.
 
 ## Operation ownership
 
@@ -63,4 +63,4 @@ Qualification requires shared-lock contention/drop tests, credential full-envelo
 
 ## Delivery split
 
-The first implementation portion supplies the immutable source-free check and strict transport decoder, pre-credential resolution leases, and shared native operation ownership with local dialog/drop hardening. Native cloud command registration, credential-use orchestration, the cloud review window, and route-selection UI remain subsequent work under this contract. Merely compiling the portable check does not enable cloud sending in the desktop. Each portion requires separate named validation and independent review in the development ledger.
+The current implementation supplies immutable source-free checking, strict transport decoding, pre-credential resolution leases, shared native operation ownership, cloud command registration, full-envelope credential-use orchestration, cloud review/consent flow and route-selection UI. Provider compatibility remains qualification work. Native GUI qualification is partial and currently blocked by an OS Keychain access prompt after rebuilding the isolated QA app; all-three-OS GUI and release evidence remain pending. Source implementation does not prove real provider compatibility or release readiness. Each portion requires separate named validation and independent review in the development ledger.

@@ -1,8 +1,31 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { renderModelAssistanceView } from '../preview/model-assistance-view.mjs';
+import { bindModelAssistanceView, renderModelAssistanceView } from '../preview/model-assistance-view.mjs';
 
 const id = 'a'.repeat(64);
+test('profile drafts survive same-route renders but never cross endpoint boundaries', () => {
+  let current = state({ endpoint: 'local', generation: null });
+  let inputs = [];
+  const root = {
+    ownerDocument: { activeElement: null },
+    set innerHTML(html) {
+      inputs = [...html.matchAll(/<input\b[^>]*name="([^"]+)"[^>]*value="([^"]*)"[^>]*>/g)]
+        .map(([, name, value]) => ({ name, value }));
+    },
+    querySelectorAll: selector => selector === '#model-profile-form input' ? inputs : [],
+    querySelector: selector => inputs.find(input => selector === `[name="${input.name}"]`) ?? null,
+    addEventListener() {}, removeEventListener() {},
+  };
+  const binding = bindModelAssistanceView(root, { getState: () => current });
+  inputs.find(input => input.name === 'model').value = 'unsaved:local';
+  binding.render();
+  assert.equal(inputs.find(input => input.name === 'model').value, 'unsaved:local');
+  current = state({ endpoint: 'cloud', generation: null, profile: { profileId: 'openai', model: 'synthetic-v1', maxOutputTokens: 1024 } });
+  binding.render();
+  assert.equal(inputs.find(input => input.name === 'profileId').value, 'openai');
+  assert.equal(inputs.find(input => input.name === 'model').value, 'synthetic-v1');
+  binding.dispose();
+});
 const state = (overrides = {}) => ({
   bridgeAvailable: true,
   tab: 'payload',
@@ -57,6 +80,17 @@ test('browser mode disables calls and says no endpoint call was made', () => {
   assert.match(html.match(/id="model-send"[^>]*>/)[0], /disabled/);
 });
 
+test('cloud route fixes origin and keeps credential custody separate', () => {
+  const html = renderModelAssistanceView(state({ endpoint: 'cloud', profile: { profileId: 'openai', model: 'gpt-test', maxOutputTokens: 1024 } }));
+  assert.match(html,/name="model-endpoint" value="cloud" checked/);
+  assert.match(html,/https:\/\/api\.openai\.com/);
+  assert.match(html,/id="cloud-model-profile"/);
+  assert.match(html,/id="cloud-model-model"/);
+  assert.match(html,/id="cloud-model-sourcefree-check"/);
+  assert.match(html,/Credential custody is separate/);
+  assert.doesNotMatch(html,/type="password"/);
+});
+
 test('css has three, two, and one-column responsive workbench plus reduced motion', async () => {
   const { readFile } = await import('node:fs/promises');
   const css = await readFile(new URL('../preview/model-assistance.css', import.meta.url), 'utf8');
@@ -73,4 +107,27 @@ test('renders nested native proposals and pack identity, with honest pending con
   assert.match(html.match(/id="model-cancel"[^>]*>/)[0],/disabled/);
   assert.match(html.match(/id="model-prepare"[^>]*>/)[0],/disabled/);
   assert.match(html,/Review or request active/);
+});
+
+
+test('cloud check receipt exposes metadata and uncertainty while escaping provider text', () => {
+  const hostile = '<img src=x onerror=alert(1)>';
+  const html = renderModelAssistanceView(state({ endpoint: 'cloud', check: {
+    requestId: id, profileSha256: id, credentialRevision: id, responseSha256: id,
+    observedModel: hostile, ownedBy: hostile, created: 0, shutdownDate: null,
+    observation: 'model_visibility_only', inferenceCompatibility: 'unknown',
+    processingLocation: 'unknown', retention: 'unknown', cost: 'unknown', authority: 'none'
+  }, prepared: { ...state().prepared, credentialRevision: id, bodySha256: id } }));
+  for (const label of ['Model visibility only', 'Provider-declared owner', 'Created (Unix seconds)', 'Shutdown date', 'Not reported', 'Inference compatibility', 'Profile SHA-256', 'Credential revision', 'POST /v1/responses', 'Body SHA-256']) assert.ok(html.includes(label));
+  assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/);
+  assert.doesNotMatch(html, /<img src=x/);
+  assert.match(html, /Created \(Unix seconds\)<\/dt><dd>0<\/dd>/);
+  assert.match(html, /Authority<\/dt><dd>none<\/dd>/);
+});
+
+test('local check receipt reports version without promoting trust', () => {
+  const html = renderModelAssistanceView(state({ check: { serverVersion: 'synthetic-version', profileSha256: id, processingLocation: 'unknown', authority: 'none' } }));
+  assert.match(html, /Local protocol observation/);
+  assert.match(html, /synthetic-version/);
+  assert.match(html, /does not establish model trust/);
 });

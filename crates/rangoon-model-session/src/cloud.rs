@@ -348,6 +348,12 @@ impl Preparation {
 
     /// Validated saved-record reads only; no network or database writes.
     pub fn prepare(self, store: &Workspace) -> Result<PreparedView, Diagnostic> {
+        Ok(self.prepare_retained(store)?.into_view())
+    }
+
+    /// Keep the operation alive while the native host pairs its secret envelope
+    /// with this exact staged identity under its own short coordination lock.
+    pub fn prepare_retained(self, store: &Workspace) -> Result<RetainedPreparation, Diagnostic> {
         self.operation.ensure_current()?;
         let profile = self.operation.profile();
         let (pack, inputs) = inputs::prepare_pack(
@@ -394,7 +400,34 @@ impl Preparation {
             id,
             packed: Arc::new(packed),
         });
-        Ok(result)
+        drop(state);
+        Ok(RetainedPreparation {
+            operation: self.operation,
+            view: result,
+        })
+    }
+}
+
+pub struct RetainedPreparation {
+    operation: Operation,
+    view: PreparedView,
+}
+impl RetainedPreparation {
+    pub fn view(&self) -> &PreparedView {
+        &self.view
+    }
+    pub fn ensure_current(&self) -> Result<(), Diagnostic> {
+        let state = self.operation.session.lock()?;
+        self.operation.check(&state)?;
+        if state.prepared.as_ref().is_none_or(|p| {
+            p.id != self.view.prepared_id || p.packed.request.request_id() != self.view.request_id
+        }) {
+            return Err(Diagnostic::StalePrepared);
+        }
+        Ok(())
+    }
+    pub fn into_view(self) -> PreparedView {
+        self.view
     }
 }
 
