@@ -602,3 +602,67 @@ Initial reviewed head `0f855a78c9df724ab1547b8697d080d97531d501` was held from m
 The test-only fault checkpoint now writes a sibling pending marker and renames the complete file into place. The parent still requires exact phase bytes, a live crash checkpoint and its existing deadline before killing the transaction; no production storage logic, schema or crash assertion is relaxed. Corrected independent review, pinned validation and exact-head CI remain required before merge.
 
 Corrected pinned Rust validation passed: rustc/cargo 1.85.0, Clippy 0.1.85, 221 source tests passed, zero failed, five intentional subprocess helpers ignored, formatting and warnings-denied Clippy passed. Fresh independent OpenAI GPT-5.6-Terra xhigh review passed the test-only atomic marker handoff and shared recovery/commit callers with no P1/P2/P3 findings. Review-artifact and diff validators passed. Corrected hosted checks remain required; no failed head was merged.
+
+
+## October 6, 2026 — PR24 publication receipt
+
+PR [#24](https://github.com/hypler-dev/rangoon/pull/24) merged corrected reviewed head `1b47b2db43fe679dfb02021a3d6e4c7d5dcc76cb` as `c05e7d048cc281511345062219f266ddfea3a6b4` at `2026-10-06T17:09:19Z`, against exact base `769e4e4f39091b8b1f6d85f2d5c240c0ac12ed66`. All fourteen corrected-head checks passed in push run `37500428738` and PR run `37500434945`, including source validation and native tests/builds on macOS, Windows and Linux. The initial Linux readiness-marker failure remains recorded above; it was corrected, independently reviewed and revalidated before merge.
+
+Final GitHub gates matched the exact head/base and 29 reviewed paths, with no reviews/comments/unresolved threads, no branch protection or rulesets, and a clean local tree. Independent OpenAI GPT-5.6-Terra xhigh native, UI, documentation and correction reviews passed. Sol retained integration and release judgment; Terra high and Luna medium produced their bounded implementation/documentation work. No GLM lane was contacted. The public repository description, nine topics and default branch `main` remained correct and unchanged.
+
+Fetched public main contains the reviewed head; reviewed and merged trees are identical. Continuation branch `codex/model-cloud-custody` starts from this verified merge. This receipt and the continuation guide are intentional carry-forward documentation for the next packet. The published source includes the real local-model workbench and native exact-payload consent; M1b/V1, cloud integration, credential custody, proposal application and complete three-OS GUI/release qualification remain open.
+
+Exact published paths:
+
+- `README.md`
+- `apps/desktop/Cargo.lock`
+- `apps/desktop/Cargo.toml`
+- `apps/desktop/build.rs`
+- `apps/desktop/capabilities/model-confirmation.json`
+- `apps/desktop/capabilities/source-analysis.json`
+- `apps/desktop/src/main.rs`
+- `apps/desktop/src/model_consent.rs`
+- `apps/desktop/src/models.rs`
+- `apps/desktop/src/models_tests.rs`
+- `apps/desktop/tauri.conf.json`
+- `crates/rangoon-store/src/composition_recovery_tests.rs`
+- `docs/application-architecture.md`
+- `docs/continue.md`
+- `docs/development.md`
+- `docs/model-assistance.md`
+- `docs/model-native-session.md`
+- `docs/model-native-workbench.md`
+- `package.json`
+- `preview/analyze.html`
+- `preview/analyze.mjs`
+- `preview/model-assistance-model.mjs`
+- `preview/model-assistance-view.mjs`
+- `preview/model-assistance.css`
+- `preview/model-confirmation.css`
+- `preview/model-confirmation.html`
+- `preview/model-confirmation.mjs`
+- `tests/model-assistance-model.test.mjs`
+- `tests/model-assistance-view.test.mjs`
+
+No deployment, released installer/tag, license adoption, private-source/model-provider call, existing credential use, LNSAT activation or government submission occurred. The disposable QA server/application were stopped; their synthetic evidence remains local. The parent marketing repository was unchanged. The broader V1 goal remains active and incomplete.
+
+
+## M1c native cloud credential custody — October 6, 2026
+
+Authority remains the accepted model-assistance continuation in [intent.md](intent.md). The [cloud custody contract](model-cloud-custody.md) freezes the first native M1c slice. The OpenAI credential panel has explicit inspection, isolated new-key entry and removal, with fixed app-owned OS-store namespace and no provider transport. Native storage uses explicit macOS User Keychain, Windows Local Credential Manager and Linux Secret Service backends, random credential revisions, zeroizing native envelope ownership, native OS decisions, expected-state comparison, verified write/removal, atomic cancellation and closed failure diagnostics. No global/default/mock production store, plaintext fallback, startup credential access or key readback is exposed. The isolated entry renderer necessarily holds newly typed text transiently; no full-memory-erasure guarantee is made.
+
+Root/Sol owned the contract, native auth/custody/storage, integration and corrections. OpenAI Terra-high `gpt_ui_design` supplied bounded UI direction; OpenAI Terra-high `gpt_worker` produced the UI/controller/tests. Fresh OpenAI Terra-xhigh `gpt_reviewer` reviewed the contract/native code and public claims; OpenAI Terra-xhigh `gpt_ui_review` independently reviewed UI/a11y/source states. Review corrections added expected-slot comparison on save, exact CSP documentation, bounded raw-IPC disclosure, atomic pre-storage cancellation through the command path, replay rejection, explicit inspection before UI retry, unavailable-entry input disabling, entry light mode and cloud-action focus recovery. Final native and UI reviews passed with no P1/P2/P3 after the EOF whitespace correction. Independent rendered review also passed the dark/light entry and removed-state screenshots within their stated macOS bounds. GLM was not contacted; native lanes were adequate. A Luna docs dispatch was unavailable because the agent-thread limit was reached; root retained documentation ownership.
+
+Validation in this slice:
+
+- `cargo test --manifest-path apps/desktop/Cargo.toml --locked`: 55 passed, 0 failed, 1 intentionally ignored opt-in OS test. Earlier test compilation caught a moved Drop-owned string; it was corrected before passing runs. A reviewer summary miscounted the log as 56 passing; the actual receipt is 55 passing plus one ignored.
+- The explicit `RANGOON_CREDENTIAL_QA=synthetic-only` ignored test passed separately: 1 passed, using a fresh random QA-only Keychain slot. Save, reopen, replacement, stale removal refusal, deletion and cleanup were exercised. It did not inspect a normal app credential or use a provider key.
+- Native formatting, warnings-denied Clippy, normal development build and isolated QA-identifier development build passed. The portable core was not changed; the native workspace retains separate Rust 1.98 dependencies.
+- `npm run check` passed. `npm test`: 126 passed, 0 failed after escalation for the disposable localhost server fixture. The first sandbox run passed 125 and failed only the existing server fixture's `listen EPERM: operation not permitted 127.0.0.1`; that failure is not counted as a code pass.
+- Visual asset validation passed 26 unique icons at four sizes and two asset hashes. Repository review validation checked original reference hashes and local documentation links. Final whitespace validation follows the EOF correction.
+
+An unsigned isolated `ai.rangoon.custody.qa` macOS app exercised actual native IPC and OS dialogs: initial unknown status, explicit missing inspection, blank password entry, OS Save cancellation followed by missing inspection, confirmed synthetic-key save, random-revision-only main display, blank replacement editor, light-theme toggle, replacement cancellation, confirmed removal and removed receipt. [The QA receipt](screenshots/model-cloud-custody-native-qa.json) and [light entry screenshot](screenshots/model-cloud-custody-entry-light.png) capture this bounded evidence; additional local artifacts are at `/private/tmp/rangoon-custody-qa/`. The synthetic GUI credential was removed at the end. This does not claim complete keyboard/screen-reader qualification, Windows/Linux runtime or GUI, native hostile-network attempts, GUI uncertain/changed-slot races, signing or release qualification.
+
+Cloud transport remains unavailable; no real credential, private source, paid/provider call, model installation, LNSAT activation, license adoption, installer release, deployment or grant submission occurred. SQLite remains plaintext with its existing consistency limits. Publication is pending the exact reviewed commit, hosted checks and fetched-main verification; M1c and V1 remain incomplete.
+
+Before merge, root found a test-only Linux portability error in the receipt confidentiality assertion: searching all serialized text for `secret` also rejected the legitimate `linux_secret_service` backend name. The correction checks absence of `secret`, `credential` and `key` fields while preserving the exact six-field receipt check and schema/provider/authority assertions. The focused native test and whitespace check passed; fresh independent Terra-xhigh review passed. Production code and GUI-tested behavior are unchanged. Initial PR25 head `89462343b04903d06d93a1458dbb6041f7e440d7` is superseded for publication by this correction; hosted checks must pass on the corrected head before merge.

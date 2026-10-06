@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "rangoon.native-qa.v1",
+  "scope": "M1c credential custody, synthetic macOS only",
+  "applicationIdentifier": "ai.rangoon.custody.qa",
+  "checks": {
+    "initialStatusUnknown": true,
+    "explicitInspectMissing": true,
+    "blankPasswordEditor": true,
+    "nativeOsSaveCancelled": true,
+    "inspectAfterCancelledSaveMissing": true,
+    "nativeOsSaveConfirmed": true,
+    "savedReceiptRandomRevisionOnly": true,
+    "replacementEditorBlank": true,
+    "entryLightToggle": true,
+    "replacementEntryCancel": true,
+    "nativeOsRemoveConfirmed": true,
+    "removedReceipt": true
+  },
+  "separateStoreTest": "opt-in unique random synthetic Keychain slot: save, reopen, replace, stale removal refusal, delete and cleanup passed",
+  "openGates": [
+    "Windows/Linux runtime and GUI",
+    "complete keyboard/screen-reader qualification",
+    "runtime hostile-network attempt matrix",
+    "GUI uncertain-write and changed-slot cases",
+    "GUI close while OS question active",
+    "cloud transport",
+    "real credentials and provider calls"
+  ],
+  "limits": "Unsigned local QA app; no existing credential was used. Source tests and this macOS evidence do not establish security certification, SQLite encryption, release readiness or all-three-OS support."
+}

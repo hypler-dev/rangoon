@@ -230,3 +230,7 @@ The current preview has no product database or external action. Stop its local s
 ## Evidence ledger
 
 Use [validation.md](validation.md) for current command results and review findings, [claims-and-evidence.md](claims-and-evidence.md) for LNSAT maturity, [sources-and-features.md](sources-and-features.md) for recovered intent, and [government-funding.md](government-funding.md) for funding preparation. These support this plan; only [intent.md](intent.md) records current task acceptance. Source/architecture audit coverage is targeted, not a line-by-line security audit or proof of complete historical retrieval.
+
+### M1c credential custody implementation boundary
+
+The first cloud slice implements explicit native credential inspect/add/replace/remove under [model-cloud-custody.md](model-cloud-custody.md). It uses OS-specific stores and an isolated new-key input window with final native consent, while preserving an unavailable cloud transport. Next gates are all-three-OS custody/GUI qualification and the fixed-origin cloud request adapter with exact credential-revision/payload consent binding. Secret custody is not SQLite encryption, source-transfer authorization or security certification. See the canonical [development ledger](development.md) for current evidence rather than treating dependency availability as runtime support.

@@ -1,5 +1,6 @@
 import { escapeText } from './analysis-model.mjs';
 import { icon } from './icons.mjs';
+import { cloudCredentialAction, renderCloudCredentialView } from './cloud-credential-view.mjs';
 
 const text = escapeText;
 const unknown = value => value === undefined || value === null || value === '' ? 'Unknown' : text(value);
@@ -64,27 +65,32 @@ function result(state) {
   return `<aside class="model-panel model-results" aria-labelledby="model-results-title"><header><div><p class="analysis-kicker">ADVISORY RESULT</p><h2 id="model-results-title" tabindex="-1">${icon('outcome', { size: 20 })} Review outcome</h2></div><span>${text(state.status ?? state.pending ?? 'Idle')}</span></header><div class="model-result-actions"><button id="model-send" class="analysis-button analysis-button--primary" type="button" ${canSend ? '' : 'disabled'}>${state.pending === 'send' ? 'Review or request active…' : 'Review & send'}</button><button id="model-cancel" class="analysis-button" type="button" ${enabled(state) && busy(state) && state.activeRunId ? '' : 'disabled'}>Cancel</button></div><p class="model-note">Review & send opens native confirmation for retained exact bytes. Cancel requests cancellation; it cannot recall text already accepted by a remote endpoint.</p><p class="model-note">Proposal application is unavailable. Model output has no review, approval or execution authority.</p>${!enabled(state) ? '<p class="model-alert" role="status">Native model assistance is unavailable in browser preview. No endpoint call was made.</p>' : ''}${message}${error}${completion && !current ? '<p class="model-stale">Completion remains advisory. Freshness is not current.</p>' : ''}${outputHtml}</aside>`;
 }
 
-export function renderModelAssistanceView(state = {}) {
-  return `<section class="model-assistance-page" aria-labelledby="model-assistance-title" aria-busy="${busy(state)}"><header class="model-assistance-hero"><p class="analysis-kicker">MODEL ASSISTANCE / OPTIONAL ADVISORY</p><h1 id="model-assistance-title" tabindex="-1">Keep source <em>in view.</em></h1><p>Prepare exact saved text for an optional, explicitly confirmed model request. Model output is untrusted advisory text with no application authority.</p></header><div class="model-workbench">${profile(state)}${selector(state)}${payload(state)}${result(state)}</div></section>`;
+export function renderModelAssistanceView(state = {}, cloudState = {}) {
+  return `<section class="model-assistance-page" aria-labelledby="model-assistance-title" aria-busy="${busy(state)}"><header class="model-assistance-hero"><p class="analysis-kicker">MODEL ASSISTANCE / OPTIONAL ADVISORY</p><h1 id="model-assistance-title" tabindex="-1">Keep source <em>in view.</em></h1><p>Prepare exact saved text for an optional, explicitly confirmed model request. Model output is untrusted advisory text with no application authority.</p></header><div class="model-workbench">${profile(state)}${selector(state)}${payload(state)}${result(state)}${renderCloudCredentialView(cloudState)}</div></section>`;
 }
 
-export function bindModelAssistanceView(root, controller) {
+export function bindModelAssistanceView(root, controller, cloudController = null) {
   let lastGeneration = null;
   let returnFocus = null;
   let wasBusy = false;
+  let cloudReturnFocus = null;
+  let cloudWasBusy = false;
   const render = () => {
     const state = controller.getState();
+    const cloudBusy = Boolean(cloudController?.getState().pending);
     const active = root.ownerDocument?.activeElement;
     const focus = active && root.contains(active) ? active.id ? { id: active.id } : active.dataset?.modelRecord ? { record: active.dataset.modelRecord } : active.dataset?.modelRevision ? { revision: active.dataset.modelRevision } : active.name ? { name: active.name } : null : null;
     const draft = lastGeneration === state.generation ? [...root.querySelectorAll('#model-profile-form input')].map(input => [input.name,input.value]) : [];
     const scroll = ['model-payload-body','model-records'].map(id => [id,root.querySelector(`#${id}`)?.scrollTop ?? 0,root.querySelector(`#${id}`)?.scrollLeft ?? 0]);
     if (busy(state) && !wasBusy && focus?.id) returnFocus = focus.id;
-    root.innerHTML = renderModelAssistanceView(state);
+    if (cloudBusy && !cloudWasBusy && focus?.id?.startsWith('cloud-credential-')) cloudReturnFocus = focus.id;
+    root.innerHTML = renderModelAssistanceView(state, cloudController?.getState());
     lastGeneration = state.generation;
     for (const [name,value] of draft) { const input = root.querySelector(`[name="${name}"]`); if (input) input.value = value; }
     for (const [id,top,left] of scroll) { const pane = root.querySelector(`#${id}`); if (pane) { pane.scrollTop = top; pane.scrollLeft = left; } }
     const target = focus?.id ? root.querySelector(`#${focus.id}`) : focus?.record ? root.querySelector(`[data-model-record="${focus.record}"]`) : focus?.revision ? root.querySelector(`[data-model-revision="${focus.revision}"]`) : focus?.name ? root.querySelector(`[name="${focus.name}"]`) : null;
     if (target && !target.disabled) target.focus({preventScroll:true});
+    else if (focus?.id?.startsWith('cloud-credential-') && cloudBusy) root.querySelector('#cloud-credential-title')?.focus({preventScroll:true});
     else if (focus && busy(state)) root.querySelector('#model-results-title')?.focus({preventScroll:true});
     if (wasBusy && !busy(state) && returnFocus) {
       const current = root.ownerDocument?.activeElement;
@@ -95,11 +101,22 @@ export function bindModelAssistanceView(root, controller) {
       }
       returnFocus = null;
     }
+    if (cloudWasBusy && !cloudBusy && cloudReturnFocus) {
+      const current = root.ownerDocument?.activeElement;
+      if (!current || current === root.ownerDocument?.body || current.id === 'cloud-credential-title') {
+        const prior = root.querySelector(`#${cloudReturnFocus}`);
+        const recovery = prior && !prior.disabled ? prior : root.querySelector('#cloud-credential-inspect');
+        recovery?.focus({preventScroll:true});
+      }
+      cloudReturnFocus = null;
+    }
+    cloudWasBusy = cloudBusy;
     wasBusy = busy(state);
   };
   const click = event => {
     const target = event.target.closest('button');
     if (!target || target.disabled) return;
+    if (cloudController && cloudCredentialAction(target, cloudController)) return;
     if (target.matches('#model-reload')) return action(controller, 'load');
     if (target.matches('#model-clear')) return action(controller, 'clear');
     if (target.matches('#model-sourcefree-check')) return action(controller, 'check');
