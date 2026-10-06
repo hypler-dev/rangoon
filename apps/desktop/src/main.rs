@@ -17,6 +17,8 @@ use data_controls::{
     get_workspace_data, inspect_workspace_deletion, prepare_workspace_restore,
     restore_workspace_backup,
 };
+mod instruction_bundles;
+use instruction_bundles::{export_instruction_bundle, inspect_instruction_bundle};
 mod session;
 use capabilities::{
     create_capability, list_capabilities, open_capability, review_capability, revise_capability,
@@ -319,6 +321,8 @@ fn main() {
             revise_capability,
             review_capability,
             compile_capability,
+            export_instruction_bundle,
+            inspect_instruction_bundle,
             get_workspace_data,
             export_workspace_backup,
             prepare_workspace_restore,
