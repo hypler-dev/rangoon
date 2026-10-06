@@ -593,3 +593,12 @@ Artifacts are retained locally at `/private/tmp/rangoon-model-native-qa/`; they 
 Open qualification includes Windows/Linux interactive GUI, complete native keyboard/screen-reader traversal, OS-prompt close/clear races, changed-head and unavailable post-read GUI cases, real model compatibility and task quality. No encryption, tamperproof storage, authentication, security certification, government compliance, all-OS release support or completed M1b/V1 claim follows. No real model/provider, private source, existing credentials, automatic fallback, model installation/launch, LNSAT activation, license adoption, installer/release, grant submission or deployment was used. The parent marketing repository remains outside scope.
 
 The disposable loopback server and QA application were stopped after validation. Their synthetic workspace and local receipts were retained. The parent marketing checkout remained on `website-local` with only its pre-existing `.codex/` and nested `app-review/` untracked paths.
+
+
+### PR24 hosted test-handshake correction
+
+Initial reviewed head `0f855a78c9df724ab1547b8697d080d97531d501` was held from merge. In PR run `37499670793`, Linux source job `112393129521` failed the existing `interrupted_public_recovery_preserves_schema_rows_reviews_and_heads` test at `composition_recovery_tests.rs:84`: the checkpoint file existed but its contents were still empty rather than `after_delete_rows`. The child used `fs::write` while the parent treated file existence as a complete ready signal; file creation precedes the data write. This failure is in the test-process handshake, not an observed recovery assertion or new model path.
+
+The test-only fault checkpoint now writes a sibling pending marker and renames the complete file into place. The parent still requires exact phase bytes, a live crash checkpoint and its existing deadline before killing the transaction; no production storage logic, schema or crash assertion is relaxed. Corrected independent review, pinned validation and exact-head CI remain required before merge.
+
+Corrected pinned Rust validation passed: rustc/cargo 1.85.0, Clippy 0.1.85, 221 source tests passed, zero failed, five intentional subprocess helpers ignored, formatting and warnings-denied Clippy passed. Fresh independent OpenAI GPT-5.6-Terra xhigh review passed the test-only atomic marker handoff and shared recovery/commit callers with no P1/P2/P3 findings. Review-artifact and diff validators passed. Corrected hosted checks remain required; no failed head was merged.

@@ -29,8 +29,11 @@ pub(super) fn fault_checkpoint(db: &Connection, phase: &str) -> Result<(), Store
         assert_eq!(actual, pages);
         return Ok(());
     }
-    let marker = std::env::var_os("RANGOON_RECOVERY_TEST_READY").unwrap();
-    fs::write(marker, phase).unwrap();
+    let marker = PathBuf::from(std::env::var_os("RANGOON_RECOVERY_TEST_READY").unwrap());
+    // Publish only a complete checkpoint; file creation precedes fs::write's data write.
+    let pending = marker.with_extension("pending");
+    fs::write(&pending, phase).unwrap();
+    fs::rename(pending, marker).unwrap();
     loop {
         thread::sleep(Duration::from_millis(100));
     }
