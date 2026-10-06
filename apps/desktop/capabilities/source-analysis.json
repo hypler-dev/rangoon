@@ -1,6 +1,6 @@
 {
   "identifier": "source-analysis",
-  "description": "The local main workbench can inspect and save sources, derive and review inert skills, manage local backups and record deletion, and inspect inert engine status. Paths, SQL and engine requests are never accepted.",
+  "description": "The local main workbench can inspect and save sources, derive and review inert skills, compose inert skills from saved inputs, manage local backups and record deletion, and inspect inert engine status. Paths, SQL and engine requests are never accepted.",
   "windows": [
     "main"
   ],
@@ -22,6 +22,8 @@
     "allow-prepare-workspace-restore",
     "allow-restore-workspace-backup",
     "allow-inspect-workspace-deletion",
-    "allow-delete-workspace-record"
+    "allow-delete-workspace-record",
+    "allow-preview-composition",
+    "allow-commit-composition"
   ]
 }

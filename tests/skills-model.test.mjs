@@ -6,10 +6,18 @@ const sourceId = `source:${'1'.repeat(64)}`;
 const fragmentId = `fragment:${'2'.repeat(64)}`;
 const capabilityId = `capability:${'3'.repeat(64)}`;
 const revisionId = `revision:${'4'.repeat(64)}`;
+const compositionId = `composition:${'5'.repeat(64)}`;
+const applicationId = `composition-application:${'6'.repeat(64)}`;
+const capabilityId2 = `capability:${'7'.repeat(64)}`;
+const revisionId2 = `revision:${'8'.repeat(64)}`;
 const content = 'Keep text inert.\n';
-const revision = (overrides = {}) => ({ id: revisionId, parentRevisionId: null, title: 'Rules', content, sha256: 'a'.repeat(64), createdAtMs: 1, review: null, ...overrides });
-const detail = (overrides = {}) => ({ schemaVersion: 'rangoon.capability.v0', id: capabilityId, sourceId, fragmentId, sourceName: 'rules.md', span: { startByte: 0, endByte: new TextEncoder().encode(content).length, startLine: 1, endLine: 1 }, originalText: content, latestRevisionId: revisionId, revision: revision(), history: [{ id: revisionId, parentRevisionId: null, title: 'Rules', sha256: 'a'.repeat(64), createdAtMs: 1, review: null }], authority: 'none', ...overrides });
-const listed = () => ({ outcome: 'listed', capabilities: [{ id: capabilityId, sourceId, fragmentId, latestRevisionId: revisionId, title: 'Rules', reviewed: false, revisionCount: 1 }] });
+const ordinary = { kind: 'ordinary' };
+const sourceOrigin = { kind: 'source', sourceId, fragmentId, sourceName: 'rules.md', span: { startByte: 0, endByte: new TextEncoder().encode(content).length, startLine: 1, endLine: 1 }, originalText: content };
+const sourceOriginSummary = { kind: 'source', sourceId, fragmentId };
+const revision = (overrides = {}) => ({ id: revisionId, parentRevisionId: null, title: 'Rules', content, sha256: 'a'.repeat(64), createdAtMs: 1, review: null, provenance: ordinary, ...overrides });
+const summary = value => ({ id: value.id, parentRevisionId: value.parentRevisionId, title: value.title, sha256: value.sha256, createdAtMs: value.createdAtMs, review: value.review, provenance: value.provenance });
+const detail = (overrides = {}) => ({ schemaVersion: 'rangoon.capability.v1', id: capabilityId, origin: sourceOrigin, latestRevisionId: revisionId, revision: revision(), history: [summary(revision())], authority: 'none', ...overrides });
+const listed = () => ({ outcome: 'listed', capabilities: [{ id: capabilityId, origin: sourceOriginSummary, latestRevisionId: revisionId, title: 'Rules', reviewed: false, revisionCount: 1 }] });
 
 test('browser mutations are unavailable no-ops and strict validation keeps authority closed', async () => {
   const controller = createSkillsController();
@@ -57,7 +65,7 @@ test('review gates dirty drafts and accepts only local_operator history', async 
 test('confirmed save replaces the old dirty base with the returned current revision', async () => {
   const nextRevisionId = `revision:${'6'.repeat(64)}`;
   const next = revision({ id: nextRevisionId, parentRevisionId: revisionId, content: 'Changed content\n', sha256: 'c'.repeat(64), createdAtMs: 2 });
-  const saved = detail({ latestRevisionId: nextRevisionId, revision: next, history: [detail().history[0], { id: nextRevisionId, parentRevisionId: revisionId, title: 'Rules', sha256: 'c'.repeat(64), createdAtMs: 2, review: null }] });
+  const saved = detail({ latestRevisionId: nextRevisionId, revision: next, history: [detail().history[0], summary(next)] });
   const controller = createSkillsController({ invoke: async command => {
     if (command === 'list_capabilities') return listed();
     if (command === 'open_capability') return { outcome: 'opened', capability: detail(), alreadyApplied: false };
@@ -99,7 +107,7 @@ test('conflict blocks retry until explicit reload preserves the draft on a new h
   const reopen = controller.reloadCurrent();
   const nextRevisionId = `revision:${'5'.repeat(64)}`;
   const next = revision({ id: nextRevisionId, parentRevisionId: revisionId, content: 'Server content\n', sha256: 'b'.repeat(64), createdAtMs: 2 });
-  const nextDetail = detail({ latestRevisionId: nextRevisionId, revision: next, history: [detail().history[0], { id: nextRevisionId, parentRevisionId: revisionId, title: 'Rules', sha256: 'b'.repeat(64), createdAtMs: 2, review: null }] });
+  const nextDetail = detail({ latestRevisionId: nextRevisionId, revision: next, history: [detail().history[0], summary(next)] });
   reload({ outcome: 'opened', capability: nextDetail, alreadyApplied: false });
   await reopen;
   assert.equal(controller.getState().needsReload, false);
@@ -169,7 +177,7 @@ test('historical display uses its saved content while retaining the current dirt
 test('missing span fields, invalid dates, forged review and broken history are rejected', async () => {
   const { validateCapabilityDetail } = await import('../preview/skills-model.mjs');
   const cases = [
-    detail({ span: { startByte: 0, endByte: content.length } }),
+    detail({ origin: { ...sourceOrigin, span: { startByte: 0, endByte: content.length } } }),
     detail({ revision: revision({ createdAtMs: 8_640_000_000_000_001 }) }),
     detail({ revision: revision({ review: { reviewer: 'admin', reviewedAtMs: 1 } }) }),
     detail({ id: 'capability:wrong' }),
@@ -188,6 +196,62 @@ test('coverage counts source sections once and browser unknown is never presente
   const state = { ...controller.getState(), listStatus: 'ready', capabilities: [...listed().capabilities, { ...listed().capabilities[0], id: `capability:${'8'.repeat(64)}` }], source: { sourceId, fragmentId, title: 'Rules', saved: false } };
   assert.match(renderSkillsView(state), /1 derived section/);
   assert.doesNotMatch(renderSkillsView(state), /2 derived sections/);
+});
+
+test('v1 composition origins allow only operation-specific unique pinned inputs', async () => {
+  const { validateCapabilityDetail, validateCapabilitySummary } = await import('../preview/skills-model.mjs');
+  const sourceInput = { kind: 'source', sourceId, sha256: 'b'.repeat(64) };
+  const revisionInput = { kind: 'revision', capabilityId, revisionId, sha256: 'c'.repeat(64) };
+  const revisionInput2 = { kind: 'revision', capabilityId: capabilityId2, revisionId: revisionId2, sha256: 'd'.repeat(64) };
+  const decompose = { kind: 'composition', compositionId, operation: 'decompose', outputIndex: 3, inputs: [sourceInput] };
+  const split = { kind: 'composition', compositionId, operation: 'split', outputIndex: 3, inputs: [revisionInput] };
+  const merge = { kind: 'composition', compositionId, operation: 'merge', outputIndex: 0, inputs: [revisionInput, revisionInput2] };
+  const composed = { kind: 'composition', applicationId, compositionId, outputIndex: 0 };
+  const composedDetail = origin => {
+    const provenance = { ...composed, outputIndex: origin.outputIndex };
+    const selected = revision({ provenance });
+    return detail({ origin, revision: selected, history: [summary(selected)] });
+  };
+  for (const origin of [decompose, split, merge]) {
+    assert.ok(validateCapabilityDetail(composedDetail(origin)));
+  }
+  assert.equal(validateCapabilityDetail(composedDetail({ ...decompose, inputs: [revisionInput] })), null);
+  assert.equal(validateCapabilityDetail(composedDetail({ ...split, inputs: [sourceInput] })), null);
+  assert.equal(validateCapabilityDetail(composedDetail({ ...merge, inputs: [sourceInput, revisionInput] })), null);
+  assert.equal(validateCapabilityDetail(composedDetail({ ...merge, outputIndex: 1 })), null);
+  assert.equal(validateCapabilityDetail(composedDetail({ ...merge, inputs: [revisionInput, { ...revisionInput, sha256: 'e'.repeat(64) }] })), null);
+  assert.equal(validateCapabilityDetail(composedDetail({ ...merge, input: [] })), null);
+  assert.equal(validateCapabilityDetail(detail({ revision: revision({ provenance: { kind: 'ordinary', extra: true } }) })), null);
+  assert.equal(validateCapabilitySummary({ ...listed().capabilities[0], origin: { kind: 'composition', compositionId, operation: 'merge', outputIndex: 1 } }), false);
+});
+
+test('v1 birth origin agrees with root provenance while ordinary successors remain valid', async () => {
+  const { validateCapabilityDetail } = await import('../preview/skills-model.mjs');
+  const origin = { kind: 'composition', compositionId, operation: 'split', outputIndex: 1, inputs: [{ kind: 'revision', capabilityId, revisionId, sha256: 'b'.repeat(64) }] };
+  const rootProvenance = { kind: 'composition', applicationId, compositionId, outputIndex: 1 };
+  const root = revision({ provenance: rootProvenance });
+  const successor = revision({ id: revisionId2, parentRevisionId: revisionId, content: 'Ordinary successor\n', sha256: 'e'.repeat(64), createdAtMs: 2, provenance: ordinary });
+  assert.ok(validateCapabilityDetail(detail({ origin, latestRevisionId: revisionId2, revision: successor, history: [summary(root), summary(successor)] })));
+  assert.equal(validateCapabilityDetail(detail({ revision: revision({ provenance: rootProvenance }), history: [summary(revision({ provenance: rootProvenance }))] })), null);
+  assert.equal(validateCapabilityDetail(detail({ origin, revision: revision(), history: [summary(revision())] })), null);
+  const wrongRoot = revision({ provenance: { ...rootProvenance, outputIndex: 0 } });
+  assert.equal(validateCapabilityDetail(detail({ origin, revision: wrongRoot, history: [summary(wrongRoot)] })), null);
+});
+
+test('mismatched selected history provenance fails closed and composed views never invent source text', async () => {
+  const { validateCapabilityDetail } = await import('../preview/skills-model.mjs');
+  const { renderSkillsView } = await import('../preview/skills-view.mjs');
+  const compositionOrigin = { kind: 'composition', compositionId, operation: 'split', outputIndex: 1, inputs: [{ kind: 'revision', capabilityId, revisionId, sha256: 'b'.repeat(64) }] };
+  const composed = { kind: 'composition', applicationId, compositionId, outputIndex: 1 };
+  const composedDetail = detail({ origin: compositionOrigin, revision: revision({ provenance: composed }), history: [summary(revision({ provenance: composed }))] });
+  assert.ok(validateCapabilityDetail(composedDetail));
+  assert.equal(validateCapabilityDetail({ ...composedDetail, history: [{ ...composedDetail.history[0], provenance: ordinary }] }), null);
+  const html = renderSkillsView({ ...createSkillsController().getState(), selected: composedDetail, viewedRevisionId: revisionId, draft: { capabilityId, baseRevisionId: revisionId, title: 'Rules', content, dirty: false } });
+  assert.match(html, /Birth origin/);
+  assert.match(html, /Composition birth/);
+  assert.match(html, /Selected revision provenance/);
+  assert.match(html, /Composed revision/);
+  assert.doesNotMatch(html, /Original saved section/);
 });
 
 test('confirmed deletion clears only that skill draft and prevents a late open from resurrecting it', async () => {

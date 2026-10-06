@@ -1,11 +1,10 @@
-import { validateCapabilitySummary } from './skills-model.mjs';
-
 const object = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const hasOnly = (value, keys) => object(value) && Object.keys(value).every(key => keys.has(key));
 const hex = value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
 const recordId = (value, prefix) => typeof value === 'string' && value.startsWith(prefix) && hex(value.slice(prefix.length));
 const whole = value => Number.isSafeInteger(value) && value >= 0;
 const text = value => typeof value === 'string' && value.length <= 512;
+const utf8 = value => new TextEncoder().encode(value).length;
 const failure = result => ({ code: typeof result?.error?.code === 'string' ? result.error.code : null, message: typeof result?.error?.message === 'string' ? result.error.message : 'The local workspace action could not finish.' });
 const failed = () => ({ outcome: 'failed', error: { message: 'The local workspace action could not finish.' } });
 const clone = value => value === null ? null : structuredClone(value);
@@ -16,45 +15,71 @@ function snapshot(value) {
     && whole(value.byteLength) && value.byteLength <= 256 * 1024 && whole(value.savedAtMs) && value.savedAtMs <= 8_640_000_000_000_000;
 }
 
-function usage(value) {
-  return hasOnly(value, new Set(['sources', 'capabilities', 'revisions', 'reviews', 'databaseBytes', 'reusableBytes']))
-    && ['sources', 'capabilities', 'revisions', 'reviews', 'databaseBytes', 'reusableBytes'].every(key => whole(value[key]))
-    && value.sources <= 128 && value.capabilities <= 128 && value.revisions <= 1024 && value.reviews <= value.revisions
-    && value.reusableBytes <= value.databaseBytes && value.databaseBytes <= 64 * 1024 * 1024;
+const COUNT_KEYS = Object.freeze(['sources', 'capabilities', 'revisions', 'reviews', 'recipes', 'applications', 'derivations']);
+
+function counts(value) {
+  return hasOnly(value, new Set(COUNT_KEYS))
+    && COUNT_KEYS.every(key => whole(value[key]))
+    && value.sources <= 128 && value.capabilities <= 128 && value.revisions <= 1024
+    && value.reviews <= value.revisions && value.recipes <= 128 && value.applications <= 128
+    && value.applications <= value.derivations && value.derivations <= value.revisions
+    && value.recipes <= value.applications;
+}
+
+function origin(value) {
+  if (!object(value) || typeof value.kind !== 'string') return false;
+  if (value.kind === 'source') {
+    return hasOnly(value, new Set(['kind', 'sourceId', 'fragmentId']))
+      && recordId(value.sourceId, 'source:') && recordId(value.fragmentId, 'fragment:');
+  }
+  return value.kind === 'composition'
+    && hasOnly(value, new Set(['kind', 'compositionId', 'operation', 'outputIndex']))
+    && recordId(value.compositionId, 'composition:')
+    && ['decompose', 'merge', 'split'].includes(value.operation)
+    && whole(value.outputIndex) && value.outputIndex < 16 && (value.operation !== 'merge' || value.outputIndex === 0);
+}
+
+function capabilitySummary(value) {
+  return hasOnly(value, new Set(['id', 'origin', 'latestRevisionId', 'title', 'reviewed', 'revisionCount']))
+    && recordId(value.id, 'capability:') && origin(value.origin) && recordId(value.latestRevisionId, 'revision:')
+    && text(value.title) && value.title.length > 0 && utf8(value.title) <= 160 && value.title.trim() === value.title && !/[\p{Cc}\u2028\u2029]/u.test(value.title)
+    && typeof value.reviewed === 'boolean' && Number.isInteger(value.revisionCount) && value.revisionCount > 0 && value.revisionCount <= 32;
 }
 
 export function validateWorkspaceData(value) {
-  if (!hasOnly(value, new Set(['schemaVersion', 'stateId', 'usage', 'sources', 'capabilities']))
-    || value.schemaVersion !== 'rangoon.workspace-data.v0' || !recordId(value.stateId, 'workspace:')
-    || !usage(value.usage) || !Array.isArray(value.sources) || !Array.isArray(value.capabilities)
-    || value.sources.length !== value.usage.sources || value.capabilities.length !== value.usage.capabilities
-    || !value.sources.every(snapshot) || !value.capabilities.every(validateCapabilitySummary)) return null;
+  if (!hasOnly(value, new Set(['schemaVersion', 'stateId', 'records', 'databaseBytes', 'reusableBytes', 'sources', 'capabilities']))
+    || value.schemaVersion !== 'rangoon.workspace-data.v1' || !recordId(value.stateId, 'workspace:')
+    || !counts(value.records) || !whole(value.databaseBytes) || !whole(value.reusableBytes)
+    || value.reusableBytes > value.databaseBytes || value.databaseBytes > 64 * 1024 * 1024
+    || !Array.isArray(value.sources) || !Array.isArray(value.capabilities)
+    || value.sources.length !== value.records.sources || value.capabilities.length !== value.records.capabilities
+    || !value.sources.every(snapshot) || !value.capabilities.every(capabilitySummary)) return null;
   const sourceIds = new Set(value.sources.map(item => item.sourceId));
   const capabilityIds = new Set(value.capabilities.map(item => item.id));
   const revisions = value.capabilities.reduce((sum, item) => sum + item.revisionCount, 0);
-  if (sourceIds.size !== value.sources.length || capabilityIds.size !== value.capabilities.length || revisions !== value.usage.revisions) return null;
-  if (!value.capabilities.every(item => sourceIds.has(item.sourceId))) return null;
+  if (sourceIds.size !== value.sources.length || capabilityIds.size !== value.capabilities.length || revisions !== value.records.revisions) return null;
+  if (!value.capabilities.every(item => item.origin.kind !== 'source' || sourceIds.has(item.origin.sourceId))) return null;
   return value;
 }
 
 function restorePlan(value) {
-  if (!hasOnly(value, new Set(['backupId', 'expectedStateId', 'byteLength', 'addSources', 'keptSources', 'addCapabilities', 'keptCapabilities', 'addRevisions', 'addReviews']))
-    || !recordId(value.backupId, 'backup:') || !recordId(value.expectedStateId, 'workspace:')) return null;
-  if (!['byteLength', 'addSources', 'keptSources', 'addCapabilities', 'keptCapabilities', 'addRevisions', 'addReviews'].every(key => whole(value[key]))) return null;
-  if (value.byteLength > 68 * 1024 * 1024 || value.addSources > 128 || value.addCapabilities > 128 || value.addRevisions > 1024 || value.addReviews > value.addRevisions) return null;
-  if (value.keptSources > 128 || value.keptCapabilities > 128 || value.addSources + value.keptSources > 128 || value.addCapabilities + value.keptCapabilities > 128) return null;
-  if ((value.addCapabilities === 0 && value.addRevisions !== 0) || value.addRevisions < value.addCapabilities || value.addRevisions > value.addCapabilities * 32) return null;
+  if (!hasOnly(value, new Set(['schemaVersion', 'backupId', 'expectedStateId', 'byteLength', 'add', 'keptSources', 'keptCapabilities']))
+    || value.schemaVersion !== 'rangoon.restore-plan.v1' || !recordId(value.backupId, 'backup:') || !recordId(value.expectedStateId, 'workspace:')) return null;
+  if (!whole(value.byteLength) || value.byteLength > 68 * 1024 * 1024 || !counts(value.add) || !whole(value.keptSources) || !whole(value.keptCapabilities)) return null;
+  if (value.keptSources > 128 || value.keptCapabilities > 128 || value.add.sources + value.keptSources > 128 || value.add.capabilities + value.keptCapabilities > 128) return null;
+  if ((value.add.capabilities === 0 && value.add.revisions !== 0) || value.add.revisions < value.add.capabilities || value.add.revisions > value.add.capabilities * 32) return null;
   return value;
 }
 
 function deletionPlan(value) {
-  if (!hasOnly(value, new Set(['kind', 'id', 'title', 'expectedStateId', 'revisions', 'reviews', 'dependencies']))
+  if (!hasOnly(value, new Set(['schemaVersion', 'kind', 'id', 'title', 'expectedStateId', 'remove', 'dependencies']))
     || !['source', 'capability'].includes(value.kind) || !recordId(value.id, `${value.kind}:`)
-    || !text(value.title) || !recordId(value.expectedStateId, 'workspace:') || !whole(value.revisions) || !whole(value.reviews)
-    || !Array.isArray(value.dependencies) || value.dependencies.length > 128 || !value.dependencies.every(validateCapabilitySummary)) return null;
+    || value.schemaVersion !== 'rangoon.deletion-plan.v1' || !text(value.title) || !recordId(value.expectedStateId, 'workspace:') || !counts(value.remove)
+    || !Array.isArray(value.dependencies) || value.dependencies.length > 128 || !value.dependencies.every(capabilitySummary)) return null;
   const ids = new Set(value.dependencies.map(item => item.id));
-  if (value.revisions > 32 || value.reviews > value.revisions || ids.size !== value.dependencies.length || (value.kind === 'capability' && (value.dependencies.length || value.revisions === 0))) return null;
-  if (value.kind === 'source' && (value.revisions || value.reviews || !value.dependencies.every(item => item.sourceId === value.id))) return null;
+  if (ids.size !== value.dependencies.length) return null;
+  if (value.kind === 'source' && (value.remove.sources !== 1 || COUNT_KEYS.slice(1).some(key => value.remove[key] !== 0))) return null;
+  if (value.kind === 'capability' && (value.remove.sources !== 0 || value.remove.capabilities !== 1 || value.remove.revisions === 0 || value.remove.revisions > 32)) return null;
   return value;
 }
 
@@ -78,7 +103,7 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
   };
   const freshWorkspace = result => result?.outcome === 'loaded' ? validateWorkspaceData(result.workspace) : null;
   const currentPlan = plan => state.restorePlan && plan?.backupId === state.restorePlan.backupId && plan?.expectedStateId === state.restorePlan.expectedStateId;
-  const sameRestorePlan = (left, right) => left && right && ['backupId', 'expectedStateId', 'byteLength', 'addSources', 'keptSources', 'addCapabilities', 'keptCapabilities', 'addRevisions', 'addReviews'].every(key => left[key] === right[key]);
+  const sameRestorePlan = (left, right) => left && right && ['schemaVersion', 'backupId', 'expectedStateId', 'byteLength', 'keptSources', 'keptCapabilities'].every(key => left[key] === right[key]) && COUNT_KEYS.every(key => left.add[key] === right.add[key]);
 
   const controller = {
     getState: () => ({ ...state, workspace: clone(state.workspace), restorePlan: clone(state.restorePlan), deletionPlan: clone(state.deletionPlan), dialog: clone(state.dialog), error: clone(state.error) }),
@@ -94,7 +119,7 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
         const error = failure(result);
         return set({ status: 'ready', pending: null, error, message: `${state.message} Inventory refresh failed. ${error.message}` });
       }
-      set({ status: 'ready', pending: null, workspace, error: null, message: preserveMessage ? state.message : (workspace.usage.sources || workspace.usage.capabilities ? 'Saved local data is ready to inspect.' : 'No local records have been saved yet.') });
+      set({ status: 'ready', pending: null, workspace, error: null, message: preserveMessage ? state.message : (workspace.records.sources || workspace.records.capabilities ? 'Saved local data is ready to inspect.' : 'No local records have been saved yet.') });
     },
     requestExport() {
       if (!begin('export') || !state.workspace) return;
@@ -128,7 +153,7 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
     },
     async confirmRestore() {
       const plan = state.restorePlan;
-      if (!begin('restore') || state.dialog?.kind !== 'restore' || !plan || (!plan.addSources && !plan.addCapabilities)) return;
+      if (!begin('restore') || state.dialog?.kind !== 'restore' || !plan || (!plan.add.sources && !plan.add.capabilities)) return;
       const requestId = state.requestId + 1;
       set({ pending: 'restore', error: null, requestId, message: 'Restoring missing local records…' });
       const result = await call('restore_workspace_backup', { backupId: plan.backupId, expectedStateId: plan.expectedStateId });

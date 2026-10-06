@@ -7,10 +7,13 @@ use std::sync::{
 };
 
 mod capabilities;
+mod composition;
+use composition::{CompositionSession, commit_composition, preview_composition};
 mod data_controls;
 use data_controls::{
-    BackupSession, delete_workspace_record, export_workspace_backup, get_workspace_data,
-    inspect_workspace_deletion, prepare_workspace_restore, restore_workspace_backup,
+    BackupSession, DeletionSession, delete_workspace_record, export_workspace_backup,
+    get_workspace_data, inspect_workspace_deletion, prepare_workspace_restore,
+    restore_workspace_backup,
 };
 mod session;
 use capabilities::{
@@ -175,7 +178,7 @@ async fn save_analysis(app: AppHandle, source_id: String) -> WorkspaceResult {
     // An explicit save owns this copy. Clear never cancels a disk commit.
     tauri::async_runtime::spawn_blocking(move || {
         let _pending = pending;
-        match workspace(&app).and_then(|store| store.save(&report)) {
+        match workspace(&app).and_then(|store| store.save_v1(&report)) {
             Ok(receipt) => WorkspaceResult::Saved {
                 snapshot: receipt.snapshot,
                 already_saved: receipt.already_saved,
@@ -252,6 +255,8 @@ fn main() {
         .manage(PickerState::default())
         .manage(Session::default())
         .manage(BackupSession::default())
+        .manage(DeletionSession::default())
+        .manage(CompositionSession::default())
         .invoke_handler(tauri::generate_handler![
             select_and_analyze,
             list_snapshots,
@@ -270,6 +275,8 @@ fn main() {
             restore_workspace_backup,
             inspect_workspace_deletion,
             delete_workspace_record,
+            preview_composition,
+            commit_composition,
         ])
         .setup(|app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("analyze.html".into()))

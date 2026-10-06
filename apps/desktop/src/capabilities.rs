@@ -1,7 +1,7 @@
 //! Local content operations only. Imported or edited instructions are inert data.
 use super::{AppHandle, PublicError, StoreError, Workspace, begin_operation, workspace};
-use rangoon_domain::capability::{CapabilityDetail, CapabilitySummary};
-use rangoon_store::CapabilityReceipt;
+use rangoon_domain::capability_v1::{CapabilityDetail, CapabilitySummary};
+use rangoon_store::CapabilityReceiptV1 as CapabilityReceipt;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -60,7 +60,7 @@ where
 #[tauri::command]
 pub async fn list_capabilities(app: AppHandle) -> CapabilityResult {
     tauri::async_runtime::spawn_blocking(move || {
-        match workspace(&app).and_then(|w| w.list_capabilities()) {
+        match workspace(&app).and_then(|w| w.list_capabilities_v1()) {
             Ok(capabilities) => CapabilityResult::Listed { capabilities },
             Err(error) => failure(error),
         }
@@ -76,7 +76,7 @@ pub async fn open_capability(
 ) -> CapabilityResult {
     tauri::async_runtime::spawn_blocking(move || {
         match workspace(&app)
-            .and_then(|w| w.open_capability(&capability_id, revision_id.as_deref()))
+            .and_then(|w| w.open_capability_v1(&capability_id, revision_id.as_deref()))
         {
             Ok(capability) => CapabilityResult::Opened {
                 capability: Box::new(capability),
@@ -96,7 +96,7 @@ pub async fn create_capability(
     title: String,
 ) -> CapabilityResult {
     mutate(app, move |w| {
-        w.create_capability(&source_id, &fragment_id, &title)
+        w.create_capability_v1(&source_id, &fragment_id, &title)
     })
     .await
 }
@@ -109,7 +109,7 @@ pub async fn revise_capability(
     content: String,
 ) -> CapabilityResult {
     mutate(app, move |w| {
-        w.revise_capability(&capability_id, &expected_revision_id, &title, &content)
+        w.revise_capability_v1(&capability_id, &expected_revision_id, &title, &content)
     })
     .await
 }
@@ -120,7 +120,7 @@ pub async fn review_capability(
     expected_revision_id: String,
 ) -> CapabilityResult {
     mutate(app, move |w| {
-        w.review_capability(&capability_id, &expected_revision_id)
+        w.review_capability_v1(&capability_id, &expected_revision_id)
     })
     .await
 }

@@ -1,8 +1,10 @@
 import { escapeText } from './analysis-model.mjs';
 
-export const CAPABILITY_SCHEMA = 'rangoon.capability.v0';
+export const CAPABILITY_SCHEMA = 'rangoon.capability.v1';
 const MAX_TITLE_BYTES = 160;
 const MAX_CONTENT_BYTES = 256 * 1024;
+const MAX_COMPOSITION_INPUTS = 16;
+const MAX_COMPOSITION_OUTPUTS = 16;
 const object = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const utf8 = value => new TextEncoder().encode(value).length;
 const hasOnly = (value, keys) => object(value) && Object.keys(value).every(key => keys.has(key));
@@ -26,35 +28,97 @@ function review(value) {
     && value.reviewer === 'local_operator' && time(value.reviewedAtMs));
 }
 
+function inputReference(value) {
+  if (!object(value) || typeof value.kind !== 'string') return false;
+  if (value.kind === 'source') return hasOnly(value, new Set(['kind', 'sourceId', 'sha256']))
+    && id(value.sourceId, 'source:') && hex(value.sha256);
+  if (value.kind === 'revision') return hasOnly(value, new Set(['kind', 'capabilityId', 'revisionId', 'sha256']))
+    && id(value.capabilityId, 'capability:') && id(value.revisionId, 'revision:') && hex(value.sha256);
+  return false;
+}
+
+function inputIdentity(value) {
+  return value.kind === 'source' ? `source/${value.sourceId}` : `revision/${value.capabilityId}/${value.revisionId}`;
+}
+
+function validCompositionInputs(operation, inputs) {
+  if (!Array.isArray(inputs) || inputs.length === 0 || inputs.length > MAX_COMPOSITION_INPUTS || !inputs.every(inputReference)) return false;
+  const identities = new Set(inputs.map(inputIdentity));
+  if (identities.size !== inputs.length) return false;
+  if (operation === 'decompose') return inputs.length === 1 && inputs[0].kind === 'source';
+  if (operation === 'split') return inputs.length === 1 && inputs[0].kind === 'revision';
+  return operation === 'merge' && inputs.length >= 2 && inputs.every(input => input.kind === 'revision');
+}
+
+function origin(value, summary = false) {
+  if (!object(value) || typeof value.kind !== 'string') return false;
+  if (value.kind === 'source') {
+    const keys = new Set(['kind', 'sourceId', 'fragmentId']);
+    if (!summary) ['sourceName', 'span', 'originalText'].forEach(key => keys.add(key));
+    if (!hasOnly(value, keys) || !id(value.sourceId, 'source:') || !id(value.fragmentId, 'fragment:')) return false;
+    if (summary) return true;
+    return typeof value.sourceName === 'string' && typeof value.originalText === 'string' && validSpan(value.span, value.originalText);
+  }
+  if (value.kind === 'composition') {
+    const keys = new Set(['kind', 'compositionId', 'operation', 'outputIndex']);
+    if (!summary) keys.add('inputs');
+    return hasOnly(value, keys) && id(value.compositionId, 'composition:')
+      && ['decompose', 'merge', 'split'].includes(value.operation)
+      && Number.isSafeInteger(value.outputIndex) && value.outputIndex >= 0 && value.outputIndex < MAX_COMPOSITION_OUTPUTS
+      && (value.operation !== 'merge' || value.outputIndex === 0)
+      && (summary || validCompositionInputs(value.operation, value.inputs));
+  }
+  return false;
+}
+
+function validSpan(value, originalText) {
+  return object(value) && hasOnly(value, new Set(['startByte', 'endByte', 'startLine', 'endLine']))
+    && ['startByte', 'endByte', 'startLine', 'endLine'].every(key => Number.isSafeInteger(value[key]))
+    && value.startByte >= 0 && value.endByte >= value.startByte && value.endByte <= MAX_CONTENT_BYTES
+    && value.startLine >= 1 && value.endLine >= value.startLine && value.endLine <= 10_000
+    && utf8(originalText) === value.endByte - value.startByte;
+}
+
+function provenance(value) {
+  if (!object(value) || typeof value.kind !== 'string') return false;
+  if (value.kind === 'ordinary') return hasOnly(value, new Set(['kind']));
+  return value.kind === 'composition' && hasOnly(value, new Set(['kind', 'applicationId', 'compositionId', 'outputIndex']))
+    && id(value.applicationId, 'composition-application:') && id(value.compositionId, 'composition:')
+    && Number.isSafeInteger(value.outputIndex) && value.outputIndex >= 0 && value.outputIndex < MAX_COMPOSITION_OUTPUTS;
+}
+
+function sameProvenance(left, right) {
+  return left.kind === right.kind && (left.kind === 'ordinary' || (left.applicationId === right.applicationId && left.compositionId === right.compositionId && left.outputIndex === right.outputIndex));
+}
+
 function revision(value, content = true) {
-  const keys = new Set(['id', 'parentRevisionId', 'title', 'sha256', 'createdAtMs', 'review']);
+  const keys = new Set(['id', 'parentRevisionId', 'title', 'sha256', 'createdAtMs', 'review', 'provenance']);
   if (content) keys.add('content');
   return hasOnly(value, keys) && id(value.id, 'revision:') && (value.parentRevisionId === null || id(value.parentRevisionId, 'revision:'))
     && validCapabilityTitle(value.title) && hex(value.sha256) && time(value.createdAtMs) && review(value.review)
-    && (!content || validCapabilityContent(value.content));
+    && provenance(value.provenance) && (!content || validCapabilityContent(value.content));
 }
 
 export function validateCapabilitySummary(value) {
-  return hasOnly(value, new Set(['id', 'sourceId', 'fragmentId', 'latestRevisionId', 'title', 'reviewed', 'revisionCount']))
-    && id(value.id, 'capability:') && id(value.sourceId, 'source:') && id(value.fragmentId, 'fragment:') && id(value.latestRevisionId, 'revision:')
+  return hasOnly(value, new Set(['id', 'origin', 'latestRevisionId', 'title', 'reviewed', 'revisionCount']))
+    && id(value.id, 'capability:') && origin(value.origin, true) && id(value.latestRevisionId, 'revision:')
     && validCapabilityTitle(value.title) && typeof value.reviewed === 'boolean'
     && Number.isInteger(value.revisionCount) && value.revisionCount > 0 && value.revisionCount <= 32;
 }
 
 export function validateCapabilityDetail(value) {
-  if (!hasOnly(value, new Set(['schemaVersion', 'id', 'sourceId', 'fragmentId', 'sourceName', 'span', 'originalText', 'latestRevisionId', 'revision', 'history', 'authority']))
-    || value.schemaVersion !== CAPABILITY_SCHEMA || !id(value.id, 'capability:') || !id(value.sourceId, 'source:') || !id(value.fragmentId, 'fragment:')
-    || typeof value.sourceName !== 'string' || typeof value.originalText !== 'string' || !id(value.latestRevisionId, 'revision:')
-    || value.authority !== 'none' || !object(value.span) || !Array.isArray(value.history) || !revision(value.revision)) return null;
-  if (!hasOnly(value.span, new Set(['startByte', 'endByte', 'startLine', 'endLine']))
-    || !['startByte', 'endByte', 'startLine', 'endLine'].every(key => Number.isSafeInteger(value.span[key])) || value.span.startByte < 0 || value.span.endByte < value.span.startByte
-    || value.span.endByte > MAX_CONTENT_BYTES || value.span.endLine > 10_000 || value.span.startLine < 1 || value.span.endLine < value.span.startLine || utf8(value.originalText) !== value.span.endByte - value.span.startByte) return null;
+  if (!hasOnly(value, new Set(['schemaVersion', 'id', 'origin', 'latestRevisionId', 'revision', 'history', 'authority']))
+    || value.schemaVersion !== CAPABILITY_SCHEMA || !id(value.id, 'capability:') || !origin(value.origin)
+    || !id(value.latestRevisionId, 'revision:') || value.authority !== 'none' || !Array.isArray(value.history) || !revision(value.revision)) return null;
   const seen = new Set();
   if (!value.history.length || value.history.length > 32 || !value.history.every(item => revision(item, false) && !seen.has(item.id) && (seen.add(item.id), true))) return null;
   if (!seen.has(value.revision.id) || value.history.at(-1)?.id !== value.latestRevisionId) return null;
   if (!value.history.every((item, index) => item.parentRevisionId === (index ? value.history[index - 1].id : null))) return null;
+  const root = value.history[0];
+  if ((value.origin.kind === 'source' && root.provenance.kind !== 'ordinary')
+    || (value.origin.kind === 'composition' && (root.provenance.kind !== 'composition' || root.provenance.compositionId !== value.origin.compositionId || root.provenance.outputIndex !== value.origin.outputIndex))) return null;
   const summary = value.history.find(item => item.id === value.revision.id);
-  if (!summary || ['id', 'parentRevisionId', 'title', 'sha256', 'createdAtMs'].some(key => summary[key] !== value.revision[key]) || (summary.review?.reviewer !== value.revision.review?.reviewer || summary.review?.reviewedAtMs !== value.revision.review?.reviewedAtMs)) return null;
+  if (!summary || ['id', 'parentRevisionId', 'title', 'sha256', 'createdAtMs'].some(key => summary[key] !== value.revision[key]) || !sameProvenance(summary.provenance, value.revision.provenance) || (summary.review?.reviewer !== value.revision.review?.reviewer || summary.review?.reviewedAtMs !== value.revision.review?.reviewedAtMs)) return null;
   return value;
 }
 
@@ -175,7 +239,7 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
       const result = await call('create_capability', { sourceId: source.sourceId, fragmentId: source.fragmentId, title });
       if (localRequest !== actionEpoch) return;
       const opened = acceptOpened(result, 'create');
-      if (!opened || opened.detail.sourceId !== source.sourceId || opened.detail.fragmentId !== source.fragmentId) { set({ pending: null, error: failure(result), message: failure(result).message }); return; }
+      if (!opened || opened.detail.origin.kind !== 'source' || opened.detail.origin.sourceId !== source.sourceId || opened.detail.origin.fragmentId !== source.fragmentId) { set({ pending: null, error: failure(result), message: failure(result).message }); return; }
       selectDraft(opened.detail);
       set({ selected: opened.detail, viewedRevisionId: opened.detail.latestRevisionId, pending: null, needsReload: false, error: null, message: opened.alreadyApplied ? 'Existing matching skill opened.' : 'Draft capability created from the saved source section.' });
       void controller.list();

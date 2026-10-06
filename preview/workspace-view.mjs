@@ -8,15 +8,23 @@ const stamp = value => Number.isSafeInteger(value) ? new Intl.DateTimeFormat(und
 const plural = (count, word) => `${count} ${word}${count === 1 ? '' : 's'}`;
 
 function usage(state) {
-  const value = state.workspace?.usage;
+  const value = state.workspace?.records;
   if (!value) return '';
   return `<section class="workspace-metrics" aria-label="Local workspace usage">
     <div><span>Sources</span><strong>${value.sources} <small>/ 128</small></strong></div>
     <div><span>Skills</span><strong>${value.capabilities} <small>/ 128</small></strong></div>
     <div><span>Revisions</span><strong>${value.revisions} <small>/ 1,024</small></strong></div>
     <div><span>Reviews</span><strong>${value.reviews}</strong></div>
-    <div><span>Database</span><strong>${bytes(value.databaseBytes)} <small>bytes</small></strong><em>${bytes(value.reusableBytes)} reusable</em></div>
+    <div><span>Recipes</span><strong>${value.recipes}</strong></div>
+    <div><span>Applications</span><strong>${value.applications}</strong></div>
+    <div><span>Derivations</span><strong>${value.derivations}</strong></div>
+    <div><span>Database</span><strong>${bytes(state.workspace.databaseBytes)} <small>bytes</small></strong><em>${bytes(state.workspace.reusableBytes)} reusable</em></div>
   </section>`;
+}
+
+function originLabel(origin) {
+  if (origin.kind === 'source') return `Source ${short(origin.sourceId)}`;
+  return `Composition ${origin.operation} · output ${origin.outputIndex + 1}`;
 }
 
 function sourceRows(state) {
@@ -28,11 +36,21 @@ function sourceRows(state) {
 function skillRows(state) {
   const records = state.workspace?.capabilities ?? [];
   if (!records.length) return '<p class="workspace-empty">No saved skills. Skills stay local until you make them from saved source sections.</p>';
-  return records.map(skill => `<article class="workspace-record"><span class="workspace-record__icon">${icon('skill', { size: 20 })}</span><div><strong>${text(skill.title)}</strong><small class="analysis-mono">${text(short(skill.id))} · ${plural(skill.revisionCount, 'revision')}</small><small>${skill.reviewed ? 'Latest revision locally reviewed' : 'No local review on latest revision'}</small></div><div class="workspace-record__actions"><button class="analysis-button analysis-button--small" type="button" data-workspace-inspect="capability" data-workspace-intent="inspect" data-workspace-id="${text(skill.id)}" aria-label="Inspect deletion impact for skill ${text(skill.title)}" ${state.pending ? 'disabled' : ''}>Inspect</button><button class="analysis-button analysis-button--small workspace-delete" type="button" data-workspace-inspect="capability" data-workspace-intent="delete" data-workspace-id="${text(skill.id)}" aria-label="Preview deletion for skill ${text(skill.title)}" ${state.pending ? 'disabled' : ''}>${icon('clear', { size: 16 })}<span>Delete</span></button></div></article>`).join('');
+  return records.map(skill => `<article class="workspace-record"><span class="workspace-record__icon">${icon('skill', { size: 20 })}</span><div><strong>${text(skill.title)}</strong><small class="analysis-mono">${text(short(skill.id))} · ${plural(skill.revisionCount, 'revision')}</small><small>${text(originLabel(skill.origin))}</small><small>${skill.reviewed ? 'Latest revision locally reviewed' : 'No local review on latest revision'}</small></div><div class="workspace-record__actions"><button class="analysis-button analysis-button--small" type="button" data-workspace-inspect="capability" data-workspace-intent="inspect" data-workspace-id="${text(skill.id)}" aria-label="Inspect deletion impact for skill ${text(skill.title)}" ${state.pending ? 'disabled' : ''}>Inspect</button><button class="analysis-button analysis-button--small workspace-delete" type="button" data-workspace-inspect="capability" data-workspace-intent="delete" data-workspace-id="${text(skill.id)}" aria-label="Preview deletion for skill ${text(skill.title)}" ${state.pending ? 'disabled' : ''}>${icon('clear', { size: 16 })}<span>Delete</span></button></div></article>`).join('');
+}
+
+function impactRows(label, value, verb) {
+  return `<div><dt>${label}</dt><dd>${verb} ${plural(value, label.toLowerCase())}</dd></div>`;
 }
 
 function restoreSummary(plan) {
-  return `<dl class="workspace-dialog__counts"><div><dt>Sources</dt><dd>Add ${plan.addSources} · keep ${plan.keptSources}</dd></div><div><dt>Skills</dt><dd>Add ${plan.addCapabilities} · keep ${plan.keptCapabilities}</dd></div><div><dt>History</dt><dd>Add ${plan.addRevisions} revisions · ${plan.addReviews} reviews</dd></div><div><dt>Archive</dt><dd>${bytes(plan.byteLength)} bytes</dd></div></dl>`;
+  const { add } = plan;
+  return `<dl class="workspace-dialog__counts"><div><dt>Sources</dt><dd>Add ${add.sources} · keep ${plan.keptSources}</dd></div><div><dt>Skills</dt><dd>Add ${add.capabilities} · keep ${plan.keptCapabilities}</dd></div>${impactRows('Revisions', add.revisions, 'Add')}${impactRows('Reviews', add.reviews, 'Add')}${impactRows('Recipes', add.recipes, 'Add')}${impactRows('Applications', add.applications, 'Add')}${impactRows('Derivations', add.derivations, 'Add')}<div><dt>Archive</dt><dd>${bytes(plan.byteLength)} bytes</dd></div></dl>`;
+}
+
+function deletionSummary(plan) {
+  const { remove } = plan;
+  return `<dl class="workspace-dialog__counts">${impactRows('Sources', remove.sources, 'Remove')}${impactRows('Skills', remove.capabilities, 'Remove')}${impactRows('Revisions', remove.revisions, 'Remove')}${impactRows('Reviews', remove.reviews, 'Remove')}${impactRows('Recipes', remove.recipes, 'Remove')}${impactRows('Applications', remove.applications, 'Remove')}${impactRows('Derivations', remove.derivations, 'Remove')}</dl>`;
 }
 
 function dialog(state) {
@@ -43,7 +61,7 @@ function dialog(state) {
   const button = (label, attributes, primary = false) => `<button class="analysis-button${primary ? ' analysis-button--primary' : ''}" type="button" ${attributes} ${pending ? 'disabled' : ''}>${label}</button>`;
   if (state.dialog.kind === 'export-warning') return `<dialog class="workspace-dialog" aria-labelledby="workspace-dialog-title" data-workspace-dialog tabindex="-1"><div class="workspace-dialog__icon">${icon('bundle', { size: 24 })}</div><p class="analysis-kicker">LOCAL BACKUP</p><h2 id="workspace-dialog-title">Export unencrypted backup?</h2><p>It includes saved source content, skills, revisions and local review records. Pick a new destination; existing files are never overwritten.</p><p class="workspace-dialog__note">Backups do not include unsaved editor drafts. No upload occurs.</p><div class="workspace-dialog__actions">${button('Cancel', 'data-workspace-cancel autofocus')}${button('Choose destination', 'data-workspace-confirm', true)}</div></dialog>`;
   if (state.dialog.kind === 'restore' && state.restorePlan) {
-    const noAdditions = !state.restorePlan.addSources && !state.restorePlan.addCapabilities;
+    const noAdditions = !state.restorePlan.add.sources && !state.restorePlan.add.capabilities;
     return `<dialog class="workspace-dialog" aria-labelledby="workspace-dialog-title" data-workspace-dialog tabindex="-1"><div class="workspace-dialog__icon">${icon('import', { size: 24 })}</div><p class="analysis-kicker">RESTORE PREVIEW</p><h2 id="workspace-dialog-title">${stale ? 'Restore preview stale' : noAdditions ? 'Nothing new to restore' : 'Restore missing records?'}</h2><p>Restore is additive. Existing source bytes and existing skills stay unchanged. Historical reviews remain unauthenticated records.</p>${restoreSummary(state.restorePlan)}${unavailable}<p class="workspace-dialog__note">If saved data changes, this preview becomes stale. Refresh and inspect a new preview; Rangoon does not retry writes.</p><div class="workspace-dialog__actions">${button(stale || noAdditions ? 'Close' : 'Cancel', 'data-workspace-cancel autofocus')}${!stale && !noAdditions ? button('Restore additions', 'data-workspace-confirm', true) : ''}</div></dialog>`;
   }
   const plan = state.deletionPlan;
@@ -51,10 +69,7 @@ function dialog(state) {
   const blocked = plan.dependencies.length > 0;
   const inspect = state.dialog.mode === 'inspect';
   const title = stale ? 'Deletion preview stale' : blocked ? 'Deletion blocked' : inspect ? `Impact for ${text(plan.title)}` : `Delete ${text(plan.title)}?`;
-  const counts = plan.kind === 'source'
-    ? '<dl class="workspace-dialog__counts"><div><dt>Sources to remove</dt><dd>1 source</dd></div><div><dt>Skills to remove</dt><dd>0 skills</dd></div><div><dt>Revisions to remove</dt><dd>0 revisions</dd></div><div><dt>Reviews to remove</dt><dd>0 reviews</dd></div></dl>'
-    : `<dl class="workspace-dialog__counts"><div><dt>Sources kept</dt><dd>1 source</dd></div><div><dt>Skills to remove</dt><dd>1 skill</dd></div><div><dt>Revisions to remove</dt><dd>${plural(plan.revisions, 'revision')}</dd></div><div><dt>Reviews to remove</dt><dd>${plural(plan.reviews, 'review')}</dd></div></dl>`;
-  const body = blocked ? `<p>This source is referenced by ${plural(plan.dependencies.length, 'saved skill')}. Delete the dependent skills first, or keep this source.</p><p>No records will be removed while dependent skills remain.</p><ul class="workspace-dependencies">${plan.dependencies.map(item => `<li>${text(item.title)} · ${text(short(item.id))}</li>`).join('')}</ul>` : `<p>${inspect ? 'This read-only inspection changes nothing. ' : ''}Removes ${text(plan.title)} from this local workspace. ${plan.kind === 'capability' ? `${plural(plan.revisions, 'revision')} and ${plural(plan.reviews, 'review')} are removed with it.` : 'Original selected files are never changed.'}</p>${counts}`;
+  const body = blocked ? `<p>This record is referenced by ${plural(plan.dependencies.length, 'saved skill')}. Delete the dependent skills first, or keep this record.</p><p>No records will be removed while dependent skills remain.</p><ul class="workspace-dependencies">${plan.dependencies.map(item => `<li>${text(item.title)} · ${text(originLabel(item.origin))} · ${text(short(item.id))}</li>`).join('')}</ul>` : `<p>${inspect ? 'This read-only inspection changes nothing. ' : ''}Removes ${text(plan.title)} from this local workspace. Original selected files are never changed.</p>${deletionSummary(plan)}`;
   return `<dialog class="workspace-dialog" aria-labelledby="workspace-dialog-title" data-workspace-dialog tabindex="-1"><div class="workspace-dialog__icon workspace-dialog__icon--danger">${icon('clear', { size: 24 })}</div><p class="analysis-kicker">${inspect ? 'DELETE IMPACT' : 'DELETE LOCAL'} ${text(plan.kind).toUpperCase()}</p><h2 id="workspace-dialog-title">${title}</h2>${body}${state.dialog.draftWarning && !inspect ? `<p class="workspace-dialog__warning">${text(state.dialog.draftWarning)} Deleting this skill clears that unsaved draft.</p>` : ''}${unavailable}<p class="workspace-dialog__note">Logical deletion is not secure erase. SQLite may retain reusable pages. Consider exporting a backup first.</p><div class="workspace-dialog__actions">${button(stale || blocked || inspect ? 'Close' : 'Cancel', 'data-workspace-cancel autofocus')}${!stale && !blocked && !inspect ? button('Delete local record', 'data-workspace-confirm', false) : ''}</div></dialog>`;
 }
 
