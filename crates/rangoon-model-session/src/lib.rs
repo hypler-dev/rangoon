@@ -292,14 +292,14 @@ impl Operation {
     fn check(&self, state: &State) -> Result<(), Diagnostic> {
         if self.cancellation.is_cancelled()
             || self.generation != state.generation
-            || !state
+            || state
                 .active
                 .as_ref()
-                .is_some_and(|a| a.view.run_id == self.id)
-            || !state
+                .is_none_or(|a| a.view.run_id != self.id)
+            || state
                 .profile
                 .as_ref()
-                .is_some_and(|p| p.profile_sha256() == self.profile.profile_sha256())
+                .is_none_or(|p| p.profile_sha256() != self.profile.profile_sha256())
         {
             return Err(Diagnostic::Cancelled);
         }

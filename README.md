@@ -402,6 +402,8 @@ Choose `fixtures/contracts/AGENTS.md` for a first run. Inspect the report, expli
 
 ## Validation and platform support
 
+For local minimum-toolchain source validation, install Rust 1.85.0 with rustfmt and Clippy, then run `node scripts/check-source-rust.mjs`. The script resolves the toolchain's Cargo path, pins compiler/documentation executables and subprocess PATH, prints and verifies Cargo/rustc/Clippy versions, then runs formatting, workspace tests and warnings-denied Clippy. It rejects environment compiler-wrapper overrides and disables file-configured compiler wrappers for its child processes without changing configuration files. This avoids a Homebrew `cargo-clippy` overriding the requested rustup toolchain. `CARGO_TARGET_DIR` may select an isolated build cache; the separate desktop workspace retains its own Rust requirement.
+
 | Evidence | What it establishes | What it does not establish |
 | --- | --- | --- |
 | Core tests and independent vectors | Contract, identity, transformation, storage, and recovery behavior under tested conditions | Native interaction, production readiness, or adversarial certification |
@@ -418,9 +420,7 @@ npm run check
 npm run validate:visuals
 npm test
 node scripts/validate-review.mjs
-cargo +1.85.0 fmt --all -- --check
-cargo +1.85.0 test --workspace --locked
-cargo +1.85.0 clippy --workspace --all-targets --locked -- -D warnings
+node scripts/check-source-rust.mjs
 cargo +1.98.0 fmt --manifest-path apps/desktop/Cargo.toml -- --check
 cargo +1.98.0 test --manifest-path apps/desktop/Cargo.toml --locked
 cargo +1.98.0 clippy --manifest-path apps/desktop/Cargo.toml --all-targets --locked -- -D warnings

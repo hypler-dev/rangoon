@@ -63,12 +63,10 @@ node scripts/validate-review.mjs
 git diff --check
 ```
 
-For core Rust source changes:
+For core Rust source changes, install Rust 1.85.0 with rustfmt and Clippy first, then use the validator that pins and prints Cargo, rustc and Clippy versions. A bare `rustup run` can still select Homebrew subcommands from PATH:
 
 ```sh
-rustup run 1.85.0 cargo fmt --all -- --check
-rustup run 1.85.0 cargo test --workspace --locked
-rustup run 1.85.0 cargo clippy --workspace --all-targets --locked -- -D warnings
+node scripts/check-source-rust.mjs
 ```
 
 For desktop changes:
