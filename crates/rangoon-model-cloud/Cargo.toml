@@ -1,0 +1,22 @@
+[package]
+name = "rangoon-model-cloud"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+repository.workspace = true
+
+[dependencies]
+rangoon-domain.workspace = true
+rangoon-model-assistance = { path = "../rangoon-model-assistance" }
+serde.workspace = true
+serde_json.workspace = true
+bytes = "=1.12.1"
+http-body-util = "=0.1.5"
+hyper = { version = "=1.11.1", default-features = false, features = ["client", "http1"] }
+hyper-util = { version = "=0.1.21", default-features = false, features = ["tokio"] }
+tokio = { version = "=1.53.2", default-features = false, features = ["rt", "macros", "sync", "time", "net", "io-util"] }
+rustls = { version = "=0.23.41", default-features = false, features = ["std", "ring", "tls12"] }
+tokio-rustls = { version = "=0.26.6", default-features = false, features = ["ring", "tls12"] }
+webpki-roots = "=1.0.9"
+zeroize = "=1.9.0"
