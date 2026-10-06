@@ -1,0 +1,107 @@
+Window: "Rangoon", App: Rangoon Bundle QA.
+0 standard window Rangoon, Secondary Actions: Raise
+	1 scroll area
+		2 HTML content Description: Rangoon — Import & Analyze, URL: tauri://localhost/analyze.html
+			3 link Skip to analysis workbench, Value: tauri://localhost/analyze.html#analysis-main
+			4 container
+				5 link Rangoon, Value: tauri://localhost/index.html
+				6 container Desktop areas
+					7 link Import & Analyze, Value: tauri://localhost/analyze.html#analysis
+					8 link Skills, Value: tauri://localhost/analyze.html#skills
+					9 link Decompose, Value: tauri://localhost/analyze.html#decompose
+					10 link Merge, Value: tauri://localhost/analyze.html#merge
+					11 link Split, Value: tauri://localhost/analyze.html#split
+					12 link Compile, Value: tauri://localhost/analyze.html#compile
+					13 link Workspace, Value: tauri://localhost/analyze.html#workspace
+					14 link Engine integration, Value: tauri://localhost/analyze.html#engine
+					15 link Sample design preview, Value: tauri://localhost/index.html
+				16 button Light mode
+			17 container
+				18 text DESKTOP / SOURCE ANALYSIS
+				19 heading Import & Analyze, Value: 1
+					20 text Import &
+					21 text Analyze
+				22 text Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.
+				23 button Choose Markdown file
+				24 button Clear analysis
+				25 text Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.
+				26 button Save locally
+				27 text Saved source opened. All sections remain unreviewed.
+				28 container Analysis boundaries
+					29 text Native picker only No scan or upload Local save available Sections are proposals, not semantic skills
+				30 container Open a saved source
+					31 text SAVED SOURCES
+					32 heading Open a saved source, Value: 2
+						33 text Open a saved source
+					34 text 1 / 128
+					35 text Saved sources stay on this computer. Opening one restores its original text to this window.
+					36 container Saved sources
+						37 container bundle-source.md
+							38 heading bundle-source.md, Value: 3
+								39 text bundle-source.md
+							40 text 6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb
+							41 text Oct 6, 2026 at 12:57 AM · 61 bytes
+							42 button Open saved source bundle-source.md, SHA-256 6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb
+				43 container Source sections
+					44 text SOURCE MAP
+					45 heading Read source sections, Value: 2
+						46 text Read source sections
+					47 text 1 sections
+					48 toggle button # Native bundle QA bytes 0–61 · lines 1–2, Value: on
+					49 text Review state:  unreviewed Authority:  none
+					50 text 1 / 1 sections linked to skills. Derivation does not prove meaning was preserved.
+					51 button Create skill from section
+				52 container Inspect original text
+					53 text ORIGINAL SOURCE
+					54 heading Inspect original text, Value: 2
+						55 text Inspect original text
+					56 text bundle-source.md
+					57 container Original source with line numbers
+						58 text 1
+						59 text ﻿# Native bundle QA
+
+						60 text 2
+						61 text Preserve café and exact CRLF bytes.
+
+				62 container Report digest
+					63 text INSPECTOR
+					64 heading Report digest, Value: 2
+						65 text Report digest
+					66 description list
+						67 text Schema
+						68 text rangoon.source-analysis.v0
+						69 text Analyzer
+						70 text 0.1.0
+						71 text Bytes
+						72 text 61
+						73 text Lines
+						74 text 2
+						75 text Format
+						76 text generic_markdown
+						77 text SHA-256
+						78 text 6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb
+						79 text Source ID
+						80 text source:33572b8f10e2ba7868d190331e1bf9b12103076ff451cea40efb85f5c32fff00
+						81 text Fragment
+						82 text fragment:8e37e383798c94071bf75fffe5ae3f87ccd370b8755eee3a385d30fb3ce3f72a
+						83 text Span
+						84 text bytes 0–61 · lines 1–2
+					85 heading Diagnostics, Value: 3
+						86 text Diagnostics
+					87 text markdown_subset
+					88 text ATX Markdown sections are unreviewed proposals only; this analysis does not establish semantic portability.
+			89 text Saved source opened. All sections remain unreviewed.
+		90 scroll bar (settable, float) 0
+	91 close button
+	92 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	93 minimize button
+	94 text Rangoon
+95 menu bar
+	96 Rangoon Bundle QA
+	97 File
+	98 Edit
+	99 View
+	100 Window
+	101 Help
+
+The focused UI element is 42 button Open saved source bundle-source.md, SHA-256 6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb

@@ -269,3 +269,17 @@ docs/screenshots/r4-bundle-browser-qa.json
 docs/screenshots/r4-bundle-external-success-dark-320.jpg
 docs/screenshots/r4-bundle-external-success-dark-1440.jpg
 docs/screenshots/r4-bundle-exported-light-768.jpg
+docs/model-assistance.md
+docs/screenshots/r4-bundle-native-qa.json
+docs/screenshots/r4-bundle-native-external-empty-workspace.txt
+docs/screenshots/r4-bundle-native-compile-unreviewed.txt
+docs/screenshots/r4-bundle-native-export-cancelled.txt
+docs/screenshots/r4-bundle-native-export-agents-success.txt
+docs/screenshots/r4-bundle-native-export-claude-success.txt
+docs/screenshots/r4-bundle-native-inspect-exported-claude.txt
+docs/screenshots/r4-bundle-native-restart-source-opened.txt
+docs/screenshots/r4-bundle-native-restart-compile-library.txt
+docs/screenshots/r4-bundle-native-fixed-invalid-generated-text.txt
+docs/screenshots/r4-bundle-native-fixed-invalid-external-tab.txt
+docs/screenshots/r4-bundle-native-export-agents-success.png
+docs/screenshots/r4-bundle-native-fixed-invalid-external-tab.png

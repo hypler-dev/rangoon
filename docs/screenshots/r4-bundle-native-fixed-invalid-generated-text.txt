@@ -1,0 +1,98 @@
+Window: "Rangoon", App: Rangoon Bundle QA.
+0 standard window Rangoon, Secondary Actions: Raise
+	1 scroll area
+		2 HTML content Description: Rangoon — Compile inspection, URL: tauri://localhost/analyze.html#compile
+			3 link Skip to analysis workbench, Value: tauri://localhost/analyze.html#analysis-main
+			4 container
+				5 link Rangoon, Value: tauri://localhost/index.html
+				6 container Desktop areas
+					7 link Import & Analyze, Value: tauri://localhost/analyze.html#analysis
+					8 link Skills, Value: tauri://localhost/analyze.html#skills
+					9 link Decompose, Value: tauri://localhost/analyze.html#decompose
+					10 link Merge, Value: tauri://localhost/analyze.html#merge
+					11 link Split, Value: tauri://localhost/analyze.html#split
+					12 link Compile, Value: tauri://localhost/analyze.html#compile
+					13 link Workspace, Value: tauri://localhost/analyze.html#workspace
+					14 link Engine integration, Value: tauri://localhost/analyze.html#engine
+					15 link Sample design preview, Value: tauri://localhost/index.html
+				16 button Light mode
+			17 container Compile saved text.
+				18 container
+					19 text  LOCAL COMPILATION INSPECTION
+					20 heading Compile saved text., Value: 1
+						21 text Compile
+						22 text saved text.
+					23 text Inspect one exact local skill revision under a closed text profile. No installation, provider, engine or runtime action occurs here.
+					24 container Compilation limits
+						25 text Runtime: untested Target budget: unknown Semantic equivalence: unverified Authority: none
+					26 text Instruction bundle failed consistency validation. Error code: bundle_invalid.
+				27 container Compilation selection
+					28 text SAVED SKILLS
+					29 heading Exact inputs, Value: 2
+						30 text Exact inputs
+					31 button Refresh
+					32 text Native reads resolve saved data for read-only compilation. Separate file actions can export or inspect; no instruction is installed or run.
+					33 toggle button Native bundle QA capability:…4073b7693 · 1 revision Head locally reviewed, Value: off
+					34 container Revision history
+						35 text REVISION HISTORY
+						36 heading Pin one revision, Value: 3
+							37 text Pin one revision
+						38 text Select saved skill. Exact revision required; current head never substitutes silently.
+					39 container Closed text profile
+						40 text Closed text profile
+						41 container
+							42 radio button AGENTS.md Exact UTF-8 content, Value: 0
+							43 text AGENTS.md Exact UTF-8 content
+						44 container
+							45 radio button CLAUDE.md Conservative include/comment checks, Value: 0
+							46 text CLAUDE.md Conservative include/comment checks
+					47 button (disabled) Compile selected revision
+					48 button (disabled) Open selected revision in Skills
+				49 container Compilation inspection
+					50 tab group (selectable) Compilation report tabs
+						51 tab (selected) Generated text
+						52 tab (selectable) Diagnostics
+						53 tab (selectable) Evidence
+						54 tab (selectable) External bundle
+					55 container Generated text
+						56 text Compile an exact saved revision to inspect host-generated text. Runtime remains untested.
+				57 container Compilation state
+					58 text STATE
+					59 heading No compilation yet, Value: 2
+						60 text No compilation yet
+					61 description list
+						62 text Selection
+						63 text None
+						64 text Profile
+						65 text Choose text profile
+						66 text Bridge
+						67 text Native bridge available
+						68 text Report
+						69 text No report
+					70 text Historical selection remains valid. Observed head records workspace state; it never replaces pinned revision.
+					71 container Portable bundle actions
+						72 text PORTABLE ACTION
+						73 heading Plaintext bundle, Value: 3
+							74 text Plaintext bundle
+						75 container
+							76 text Export writes a selected plaintext  .rangoon-instructions  file. It does not install or run instructions.
+						77 description list
+							78 text Expected candidate
+							79 text Compile first
+						80 button (disabled) Export candidate bundle
+						81 button Inspect external bundle
+						82 text Compile an exact saved revision first.
+		83 scroll bar (settable, float) 0
+	84 close button
+	85 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	86 minimize button
+	87 text Rangoon
+88 menu bar
+	89 Rangoon Bundle QA
+	90 File
+	91 Edit
+	92 View
+	93 Window
+	94 Help
+
+The focused UI element is 81 button Inspect external bundle
