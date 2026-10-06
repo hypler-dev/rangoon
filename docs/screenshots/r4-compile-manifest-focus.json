@@ -1,0 +1,8 @@
+{
+  "evidence": "Synthetic renderer only; keyboard disclosure focus and Enter toggle. No native IPC or database.",
+  "focused": true,
+  "focusVisible": true,
+  "outlineStyle": "solid",
+  "outlineWidth": "2px",
+  "outlineColor": "rgb(100, 215, 226)"
+}

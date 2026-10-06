@@ -31,7 +31,7 @@ The first desktop release targets **macOS, Windows, and Linux together**. The in
 
 ## Product and feature status
 
-The first useful experience is deliberately concrete: select a Markdown file, inspect its exact content and section inventory, save a snapshot, derive a skill, edit a new revision, record local review, and reopen that work after restart. Composition extends this into traceable transformations across saved records. A pure instruction compiler and read-only workspace service now turn exact revisions into inspectable AGENTS.md/CLAUDE.md artifacts and candidate manifests; the Compile UI, portable export and runtime compatibility qualification remain pending.
+The first useful experience is deliberately concrete: select a Markdown file, inspect its exact content and section inventory, save a snapshot, derive a skill, edit a new revision, record local review, and reopen that work after restart. Composition extends this into traceable transformations across saved records. The native Compile workbench turns exact saved revisions into inspectable AGENTS.md/CLAUDE.md artifacts and candidate manifests through a pure compiler and a read-only workspace service. Portable export and runtime compatibility qualification remain pending.
 
 The intended users are developers managing agent configuration, platform teams maintaining shared capabilities, and reviewers who need source lineage and explicit change plans. Cloud administration and government use are later qualification targets, not capabilities established by the current desktop prototype.
 
@@ -46,7 +46,7 @@ The intended users are developers managing agent configuration, platform teams m
 | Engine integration | Explicit unavailable LNSAT port, native status page, and CLI diagnostics | Qualified transport, authentication, typed operations, and evidence readback |
 | Workflows and agents | Synthetic visual concepts and architecture contracts | Real definitions, validation, execution-state model, scheduling, and qualified runners |
 | Connectors and harnesses | Synthetic catalog and extension direction | Versioned implementations, permissions, compatibility fixtures, and conformance suites |
-| Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, static diagnostics, deterministic candidate manifests, and read-only saved-revision compilation | Native Compile UI, SKILL/support-file profiles, qualified target versions, portable export, and destination protection |
+| Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, portable export, and destination protection |
 | Test Lab and export | Development tests and independent golden fixtures | User-facing static tests, deterministic portable export, target conformance and evidence bundles |
 | Distribution | Three-OS source/test/build CI; selected macOS development-bundle runtime evidence | Windows/Linux GUI checks, installers, signing, updates, rollback, and release qualification |
 | Team/cloud/enterprise | Architecture direction | Service implementation, tenancy, identity, operations, and deployment evidence |
@@ -237,7 +237,11 @@ The compiler preserves BOM, CRLF/LF, Unicode, whitespace and final-newline state
 
 Profile versions describe Rangoon's format contract. Both profiles explicitly report runtime qualification `untested`, target budget `unknown`, semantic equivalence `unverified`, and `authority: none`. A generated file may still be ignored, truncated, combined with other instructions, or interpreted differently by a real harness. No external CLI version is advertised as qualified. The 256 KiB content limit is Rangoon's input bound, not a guarantee about available target context.
 
-This layer has no filesystem, process, environment, provider or engine access. It is currently a Rust library/store API: no Compile command is exposed in the native frontend or CLI yet. Native inspection, SKILL metadata/support-file formats, portable bundle export, target drift/collision handling and all-three-OS target-loader evidence remain required R4/R5 work. See the [compilation contract](docs/compilation.md) for exact schemas, identity framing, conservative checks and acceptance boundaries.
+The pure compiler has no filesystem, process, environment, provider or engine access. The native Compile page calls a narrow `compile_capability` command with exact capability/revision IDs and a closed profile. Its raw UTF-8 JSON request is bounded to 4,096 bytes and rejects unknown/duplicate fields; source content, local review and provenance are resolved by the host. The command shares the workspace operation guard and never changes the Import session or saved records.
+
+The inspection workbench keeps Generated text, Diagnostics and Evidence separate. It supports historical revisions, preserves unsaved Skills drafts, rejects mismatched native responses, and marks retained reports stale after known workspace writes. Refresh resolves the selected revision again; compilation runs only on explicit action. Candidate manifest text comes from the host's canonical serializer, with renderer manifest/hash consistency checks. Browser-only use shows the unavailable native bridge. Displaying text is not export or target qualification; no Copy, Install, Run or authority action is exposed.
+
+The CLI remains an analyzer and inert engine-status tool, with no compilation command. SKILL metadata/support-file formats, portable bundle export, target drift/collision handling, native GUI qualification and all-three-OS target-loader evidence remain required R4/R5 work. See the [compiler contract](docs/compilation.md) and [native inspection contract](docs/compilation-ui.md) for exact schemas, identity framing, state handling and acceptance boundaries.
 
 ## Backup, restore, and deletion
 
@@ -275,6 +279,7 @@ Only the bundled main window receives the enumerated application commands. Nativ
 | Skills | `list_capabilities`, `open_capability`, `create_capability`, `revise_capability`, `review_capability` | Saved references, expected heads, immutable revisions, local review |
 | Workspace | `get_workspace_data`, `export_workspace_backup`, `prepare_workspace_restore`, `restore_workspace_backup`, `inspect_workspace_deletion`, `delete_workspace_record` | Native pickers, retained plans, exact confirmations |
 | Composition | `read_composition_source`, `preview_composition`, `commit_composition` | Saved input resolution without replacing Import selection, and one retained preparation |
+| Compilation | `compile_capability` | Closed raw request, exact saved revision/profile, read-only report and canonical manifest inspection |
 | Engine | `get_engine_status` | No-argument local unavailable diagnostic |
 
 Composition commands specifically use raw UTF-8 JSON IPC bytes. Preview is bounded to 8 MiB + 16 KiB; confirmation to 4,096 bytes before domain deserialization. Tauri has already allocated the transport buffer, so this is not a transport-level allocation guarantee. Closed DTOs reject unknown/duplicate fields and unsupported schemas.
@@ -493,6 +498,7 @@ Keep fixtures secret-free. Imported instruction text is data, including when it 
 | [Recovery](docs/composition-recovery.md) | Archive format, additive restore, and dependency deletion |
 | [Native composition](docs/composition-native.md) | Raw IPC, retained previews, and confirmation semantics |
 | [Instruction compilation](docs/compilation.md) | Pinned format profiles, byte preservation, compatibility limits and candidate identities |
+| [Native Compile inspection](docs/compilation-ui.md) | Exact-ID command, workbench states, stale report handling and qualification gates |
 | [Workspace controls](docs/workspace-data-controls.md) | Inventory, export, restore, and deletion experience |
 | [Desktop setup](docs/desktop-spike.md) | Native prerequisites and runtime qualification limits |
 | [Engine integration](docs/engine-integration.md) | Unavailable port and LNSAT qualification gates |

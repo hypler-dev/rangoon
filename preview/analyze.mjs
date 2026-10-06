@@ -7,6 +7,8 @@ import { createWorkspaceController } from './workspace-model.mjs';
 import { bindWorkspaceView } from './workspace-view.mjs';
 import { createCompositionController } from './composition-model.mjs';
 import { bindCompositionView } from './composition-view.mjs';
+import { createCompilationController } from './compilation-model.mjs';
+import { renderCompilationPage } from './compilation-view.mjs';
 import { icon } from './icons.mjs';
 import { createStartupSplash } from './launch.mjs';
 
@@ -17,6 +19,8 @@ const rawBridge = typeof window.__TAURI__?.core?.invoke === 'function'
   ? (command, args) => window.__TAURI__.core.invoke(command, args)
   : undefined;
 const compositionControllers = new Map();
+let compilationController = null;
+let nativeOperations = 0;
 const workspaceWrites = new Set(['save_analysis', 'create_capability', 'revise_capability', 'review_capability', 'restore_workspace_backup', 'delete_workspace_record']);
 function invalidateCompositions(message, except = null) {
   for (const [operation, composition] of compositionControllers) {
@@ -25,12 +29,19 @@ function invalidateCompositions(message, except = null) {
 }
 const bridge = rawBridge ? async (command, args) => {
   if (workspaceWrites.has(command)) invalidateCompositions('Workspace data may have changed. Preview this retained draft again before saving.');
-  return rawBridge(command, args);
+  if (workspaceWrites.has(command) || command === 'commit_composition') compilationController?.invalidate();
+  nativeOperations += 1;
+  if (compilationController && route === 'compile') renderCompilation();
+  try { return await rawBridge(command, args); }
+  finally {
+    nativeOperations -= 1;
+    if (compilationController && route === 'compile') renderCompilation();
+  }
 } : undefined;
 const compositionRoutes = new Set(['decompose', 'merge', 'split']);
 const routeFromHash = () => {
   const name = location.hash.slice(1);
-  return ['analysis', 'skills', 'workspace', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
+  return ['analysis', 'skills', 'compile', 'workspace', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
 };
 
 let theme = 'dark';
@@ -55,6 +66,7 @@ let analysisReady = false;
 let workspaceView = null;
 let compositionView = null;
 let compositionViewRoute = null;
+let compilationActionFocus = null;
 
 const text = value => escapeText(value);
 const formatBytes = value => new Intl.NumberFormat().format(value ?? 0);
@@ -69,7 +81,7 @@ const savedAt = snapshot => {
 };
 
 function renderRail() {
-  const links = [['analysis','import','Import &amp; Analyze'],['skills','skill','Skills'],['decompose','decompose','Decompose'],['merge','merge','Merge'],['split','decompose','Split'],['workspace','bundle','Workspace'],['engine','gate','Engine integration']];
+  const links = [['analysis','import','Import &amp; Analyze'],['skills','skill','Skills'],['decompose','decompose','Decompose'],['merge','merge','Merge'],['split','decompose','Split'],['compile','bundle','Compile'],['workspace','bundle','Workspace'],['engine','gate','Engine integration']];
   return `<aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas">${links.map(([name,symbol,label]) => `<a href="#${name}" ${route === name ? 'aria-current="page"' : ''}>${icon(symbol,{size:16})} ${label}</a>`).join('')}<a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>`;
 }
 
@@ -197,7 +209,7 @@ function revealSelectedLine() {
 }
 
 function render(state) {
-  document.title = compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
+  document.title = compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'compile' ? 'Rangoon — Compile inspection' : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
   if (!compositionRoutes.has(route)) {
     compositionView?.dispose();
     compositionView = null;
@@ -206,6 +218,7 @@ function render(state) {
   if (route === 'workspace') { renderWorkspace(); return; }
   workspaceView?.dispose();
   workspaceView = null;
+  if (route === 'compile') { renderCompilation(); return; }
   if (compositionRoutes.has(route)) { renderComposition(); return; }
   if (route === 'engine') {
     renderEngine();
@@ -326,11 +339,42 @@ function renderSkills() {
 
 function loadingEngineStatus(state) { return state.status === 'loading'; }
 
+function renderCompilation() {
+  if (!compilationController) return;
+  const state = compilationController.getState();
+  const active = document.activeElement;
+  const focus = active?.id ? `#${CSS.escape(active.id)}`
+    : ['compileCapability', 'compileRevision', 'compileProfile', 'compileTab'].map(key => {
+      const attribute = key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`);
+      return active?.dataset?.[key] ? `[data-${attribute}="${CSS.escape(active.dataset[key])}"]` : null;
+    }).find(Boolean);
+  const scroll = [...document.querySelectorAll('.compile-page pre[id], .compile-selection[id], .compile-capability-list[id], .compile-revisions[id]')].map(element => [element.id, element.scrollTop, element.scrollLeft]);
+  const openDetails = [...document.querySelectorAll('.compile-page details[open][id]')].map(element => element.id);
+  app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderCompilationPage(state, { busy: nativeOperations > 0, skillsBusy: Boolean(skillsController.getState().pending) })}</main></div>`;
+  routeEntry = false;
+  for (const [id, top, left] of scroll) {
+    const element = id && document.getElementById(id);
+    if (element) { element.scrollTop = top; element.scrollLeft = left; }
+  }
+  for (const id of openDetails) document.getElementById(id)?.setAttribute('open', '');
+  announcer.textContent = state.error || state.needsRefresh ? '' : state.message;
+  if (routeFocusPending === 'compile') {
+    document.querySelector('#compile-title')?.focus({ preventScroll: true });
+    routeFocusPending = null;
+  } else {
+    const target = !state.pending && nativeOperations === 0 && compilationActionFocus ? compilationActionFocus : focus;
+    const element = target ? document.querySelector(target) : null;
+    if (element && !element.disabled) element.focus({ preventScroll: true });
+    if (!state.pending && nativeOperations === 0) compilationActionFocus = null;
+  }
+}
+
 const engineController = createEngineController({ invoke: bridge, onChange: () => {
   if (route === 'engine') renderEngine();
 } });
 const skillsController = createSkillsController({ invoke: bridge, onChange: () => {
   if (route === 'skills') renderSkills();
+  else if (analysisReady && route === 'compile') renderCompilation();
   else if (analysisReady && route === 'analysis') {
     const active = document.activeElement;
     const selector = active?.id ? `#${CSS.escape(active.id)}`
@@ -341,6 +385,9 @@ const skillsController = createSkillsController({ invoke: bridge, onChange: () =
     // Passive library completion must not move focus to an earlier source action.
     if (selector) document.querySelector(selector)?.focus({ preventScroll: true });
   }
+} });
+compilationController = createCompilationController({ invoke: bridge, onChange: () => {
+  if (route === 'compile') renderCompilation();
 } });
 const workspaceController = createWorkspaceController({
   invoke: bridge,
@@ -383,8 +430,34 @@ analysisReady = true;
 startupSplash.setRetry(() => controller.listSnapshots());
 render(controller.getState());
 void skillsController.list();
+if (route === 'compile') void compilationController.refresh();
 
 app.addEventListener('click', event => {
+  const compileControl = event.target.closest('#compile-refresh, #compile-generate, #compile-open-skills, [data-compile-capability], [data-compile-revision], [data-compile-profile], [data-compile-tab]');
+  if (compileControl) {
+    if (compileControl.disabled) return;
+    const state = compilationController.getState();
+    if (compileControl.dataset.compileTab) return compilationController.setTab(compileControl.dataset.compileTab);
+    if (nativeOperations || state.pending) return;
+    if (compileControl.id === 'compile-refresh') { compilationActionFocus = '#compile-refresh'; return compilationController.refresh(); }
+    if (compileControl.dataset.compileCapability) { compilationActionFocus = `[data-compile-capability="${CSS.escape(compileControl.dataset.compileCapability)}"]`; return compilationController.open(compileControl.dataset.compileCapability); }
+    if (compileControl.dataset.compileRevision && state.selected) { compilationActionFocus = `[data-compile-revision="${CSS.escape(compileControl.dataset.compileRevision)}"]`; return compilationController.open(state.selected.id, compileControl.dataset.compileRevision); }
+    if (compileControl.dataset.compileProfile) return compilationController.selectProfile(compileControl.dataset.compileProfile);
+    if (compileControl.id === 'compile-generate') {
+      compilationActionFocus = '#compile-generate';
+      return compilationController.compile().then(() => {
+        if (route === 'compile' && compilationController.getState().report && !compilationController.getState().error) document.querySelector('#compile-artifact-title')?.focus({ preventScroll: true });
+      });
+    }
+    if (compileControl.id === 'compile-open-skills' && state.selected && !skillsController.getState().pending) {
+      const selected = state.selected;
+      location.hash = '#skills';
+      return skillsController.open(selected.id, selected.revision.id).then(() => {
+        if (route === 'skills') document.querySelector('#skills-editor-title')?.focus({ preventScroll: true });
+      });
+    }
+    return;
+  }
   if (event.target.closest('#engine-check')) { engineCheckFocusPending = true; return engineController.check(); }
   const capability = event.target.closest('[data-capability]');
   if (capability) { skillsActionFocus = '#skills-editor-title'; return skillsController.open(capability.dataset.capability); }
@@ -417,6 +490,18 @@ app.addEventListener('click', event => {
     render(controller.getState());
     document.querySelector('#analysis-theme')?.focus({ preventScroll: true });
   }
+});
+
+app.addEventListener('keydown', event => {
+  const tab = event.target.closest('[data-compile-tab]');
+  if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  const tabs = ['text', 'diagnostics', 'evidence'];
+  const index = tabs.indexOf(tab.dataset.compileTab);
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+  compilationActionFocus = `[data-compile-tab="${tabs[next]}"]`;
+  compilationController.setTab(tabs[next]);
+  document.querySelector(`[data-compile-tab="${tabs[next]}"]`)?.focus({ preventScroll: true });
 });
 
 app.addEventListener('input', event => {
@@ -453,8 +538,10 @@ window.addEventListener('hashchange', () => {
   requestedFocus = null;
   engineCheckFocusPending = false;
   skillsActionFocus = null;
+  compilationActionFocus = null;
   render(controller.getState());
   if (route === 'workspace') void workspaceController.load();
+  if (route === 'compile' && compilationController.getState().listStatus === 'idle') void compilationController.refresh();
   if (compositionRoutes.has(route) && compositionControllers.get(route).getState().status !== 'idle') void compositionControllers.get(route).load();
 });
 
