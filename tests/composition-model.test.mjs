@@ -261,3 +261,152 @@ test('successful save receipt clears when a later draft edit begins a new save l
   assert.equal(model.getState().results.length, 0);
   assert.ok(await model.requestPreview()); assert.ok(model.acknowledge(true));
 });
+
+test('moves complete pieces across outputs without changing BOM, Unicode, ranges, or reasons', async () => {
+  const { controller: model } = controller('split');
+  await model.load(); await model.addRevision(capabilityId); model.startDraft();
+  const range = { inputIndex: 0, startByte: 0, endByte: 5 };
+  assert.ok(model.applyRange(range, { kind: 'replace', outputIndex: 0, content: '\ufeff😀', reason: 'Preserve exact source replacement.' }));
+  assert.ok(model.addAuthored(0, 'notes', 'Keep authored context.'));
+  const replacementIndex = model.getState().draft.outputs[0].pieces.findIndex(piece => piece.kind === 'replace');
+  const replacement = structuredClone(model.getState().draft.outputs[0].pieces[replacementIndex]);
+  const beforeMove = model.getState().draft;
+  assert.ok(model.movePieceTo(0, replacementIndex, 1, 0));
+  const state = model.getState();
+  assert.deepEqual(state.draft.outputs[1].pieces[0], replacement);
+  assert.ok(state.draft.outputs[0].pieces.some(piece => piece.kind === 'authored'));
+  assert.equal(state.canUndo, true);
+  const moved = state.draft;
+  assert.ok(model.undo());
+  assert.deepEqual(model.getState().draft, beforeMove);
+  assert.ok(model.redo());
+  assert.deepEqual(model.getState().draft, moved);
+});
+
+test('piece transfer rejects invalid positions and same-output no-ops without creating history', async () => {
+  const { controller: model } = controller('split');
+  await model.load(); await model.addRevision(capabilityId); model.startDraft();
+  const initial = model.getState();
+  assert.equal(model.movePieceTo(0, 0, 0, 0), false);
+  assert.equal(model.movePieceTo(0, 0, 0, 1), false);
+  assert.equal(model.movePieceTo(0, 1, 1), false);
+  assert.equal(model.movePieceTo(0, 0, 1, 2), false);
+  assert.equal(model.movePieceTo(-1, 0, 1), false);
+  const state = model.getState();
+  assert.deepEqual(state.draft, initial.draft);
+  assert.equal(state.draftVersion, initial.draftVersion);
+  assert.equal(state.canUndo, false);
+});
+
+test('same-output piece transfer respects pre-move before positions and append order', async () => {
+  const { controller: model } = controller('split');
+  await model.load(); await model.addRevision(capabilityId); model.startDraft();
+  assert.ok(model.addAuthored(0, 'A', 'Order A.'));
+  assert.ok(model.addAuthored(0, 'B', 'Order B.'));
+  assert.ok(model.addAuthored(0, 'C', 'Order C.'));
+  const contents = () => model.getState().draft.outputs[0].pieces.map(piece => piece.kind === 'copy' ? 'copy' : piece.content);
+  assert.deepEqual(contents(), ['copy', 'A', 'B', 'C']);
+  assert.ok(model.movePieceTo(0, 1, 0, 3));
+  assert.deepEqual(contents(), ['copy', 'B', 'A', 'C']);
+  assert.ok(model.movePieceTo(0, 2, 0, 0));
+  assert.deepEqual(contents(), ['A', 'copy', 'B', 'C']);
+  assert.ok(model.movePieceTo(0, 0, 0));
+  assert.deepEqual(contents(), ['copy', 'B', 'C', 'A']);
+});
+
+test('stale drag versions reject after edit, undo, reset, and new draft', async () => {
+  const { controller: model } = controller('split');
+  await model.load(); await model.addRevision(capabilityId); model.startDraft();
+  const initialVersion = model.getState().draftVersion;
+  assert.ok(model.addAuthored(0, 'one', 'First edit.'));
+  assert.equal(model.movePieceTo(0, 0, 1, null, initialVersion), false);
+  const editedVersion = model.getState().draftVersion;
+  assert.ok(model.undo());
+  assert.equal(model.movePieceTo(0, 0, 1, null, editedVersion), false);
+  const beforeReset = model.getState().draftVersion;
+  assert.ok(model.resetDraft());
+  assert.ok(model.startDraft());
+  assert.equal(model.movePieceTo(0, 0, 1, null, beforeReset), false);
+  assert.ok(model.movePieceTo(0, 0, 1, null, model.getState().draftVersion));
+});
+
+test('piece transfer, undo, and redo invalidate acknowledged previews while restoring exact targets', async () => {
+  const { controller: model } = controller('split');
+  await model.load(); await model.addRevision(capabilityId); model.startDraft();
+  await model.requestPreview(); assert.ok(model.acknowledge(true));
+  assert.ok(await model.setTarget(0, capabilityId));
+  const targeted = model.getState();
+  assert.deepEqual(targeted.targets[0], { kind: 'append', capabilityId, expectedRevisionId: revisionId });
+  assert.ok(targeted.targetDetails[0]);
+  assert.equal(targeted.acknowledged, false);
+  assert.ok(model.undo());
+  const undone = model.getState();
+  assert.deepEqual(undone.targets[0], { kind: 'new' });
+  assert.equal(undone.targetDetails[0], null);
+  assert.equal(undone.acknowledged, false);
+  assert.equal(undone.previewStale, true);
+  assert.deepEqual(undone.results, []);
+  assert.ok(model.redo());
+  const redone = model.getState();
+  assert.deepEqual(redone.targets[0], targeted.targets[0]);
+  assert.deepEqual(redone.targetDetails[0], targeted.targetDetails[0]);
+  assert.equal(redone.acknowledged, false);
+});
+
+test('pending native preview and save reject undo and piece transfer', async () => {
+  let resolvePreview;
+  let resolveSave;
+  const { controller: model } = controller('split', { invoke: async (command, args) => {
+    if (command === 'get_workspace_data') return { outcome: 'loaded', workspace: workspace() };
+    if (command === 'open_capability') return { outcome: 'opened', capability: detail() };
+    if (command === 'preview_composition') return new Promise(resolve => { resolvePreview = () => { const request = JSON.parse(new TextDecoder().decode(args)); resolve(ready(request.draft, request.targets)); }; });
+    if (command === 'commit_composition') return new Promise(resolve => { resolveSave = () => resolve({ outcome: 'failed', error: { code: 'unavailable', message: 'Save did not complete.' } }); });
+    return { outcome: 'failed' };
+  } });
+  await model.load(); await model.addRevision(capabilityId); model.startDraft();
+  assert.ok(model.addAuthored(0, 'first', 'First edit.'));
+  const preview = model.requestPreview();
+  assert.equal(model.getState().canUndo, false);
+  assert.equal(model.undo(), false);
+  assert.equal(model.movePieceTo(0, 0, 1), false);
+  resolvePreview(); assert.ok(await preview); assert.ok(model.acknowledge(true));
+  const saving = model.save();
+  assert.equal(model.getState().canUndo, false);
+  assert.equal(model.undo(), false);
+  resolveSave(); assert.equal(await saving, false);
+  assert.equal(model.getState().canUndo, true);
+});
+
+test('new edits clear redo and history retains only the latest 32 reversible edits', async () => {
+  const { controller: model } = controller('split');
+  await model.load(); await model.addRevision(capabilityId); model.startDraft();
+  assert.ok(model.addAuthored(0, 'first', 'First edit.'));
+  assert.ok(model.addAuthored(0, 'second', 'Second edit.'));
+  assert.ok(model.undo());
+  assert.equal(model.getState().canRedo, true);
+  assert.equal(model.setOutputTitle(0, model.getState().draft.outputs[0].title), false);
+  assert.equal(model.getState().canRedo, true);
+  assert.ok(model.addAuthored(0, 'branch', 'Branch edit.'));
+  assert.equal(model.redo(), false);
+  for (let index = 0; index < 33; index += 1) assert.ok(model.addAuthored(0, `entry-${index}`, `Entry ${index}.`));
+  let undos = 0;
+  while (model.undo()) undos += 1;
+  assert.equal(undos, 32);
+  assert.equal(model.getState().canUndo, false);
+});
+
+test('serialized history budget keeps only independent recent snapshots', async () => {
+  const { controller: model } = controller('split');
+  await model.load(); await model.addRevision(capabilityId); model.startDraft();
+  const large = 'x'.repeat(2_200_000);
+  assert.ok(model.addAuthored(0, `${large}1`, 'Large draft text.'));
+  assert.ok(model.updatePiece(0, 1, `${large}2`, 'Large draft text.'));
+  assert.ok(model.updatePiece(0, 1, `${large}3`, 'Large draft text.'));
+  const exposed = model.getState();
+  exposed.draft.outputs[0].pieces[1].content = 'mutated outside state';
+  assert.ok(model.undo());
+  assert.equal(model.getState().draft.outputs[0].pieces[1].content.at(-1), '2');
+  assert.equal(model.undo(), false);
+  assert.ok(model.redo());
+  assert.equal(model.getState().draft.outputs[0].pieces[1].content.at(-1), '3');
+});
