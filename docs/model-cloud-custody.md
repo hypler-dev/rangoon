@@ -1,10 +1,10 @@
 # Native cloud credential custody
 
-Authority: the accepted October 6 model-assistance continuation in [intent.md](intent.md). This is the implementation contract for the first M1c slice, not a claim that cloud model transport or OS qualification is complete. Evidence belongs in [development.md](development.md).
+Authority: the accepted October 6 model-assistance continuation in [intent.md](intent.md). This is the implementation contract for the M1c credential-custody slice. The slice itself makes no provider request; separate native cloud orchestration now consumes its custody under explicit consent. OS and provider qualification remain incomplete. Evidence belongs in [development.md](development.md).
 
 ## Outcome and scope
 
-The operator can explicitly inspect, create/replace, and remove Rangoon's single OpenAI credential slot. This slice makes no provider requests and neither tests key validity nor grants permission to transmit source. The local model workbench remains independent. Later cloud transport must bind a credential revision, a fixed HTTPS origin, exact selected payload, model and native send consent; saved credentials alone grant no transfer authority.
+The operator can explicitly inspect, create/replace, and remove Rangoon's single OpenAI credential slot. This slice makes no provider requests and neither tests key validity nor grants permission to transmit source. The local model workbench remains independent. Separate native cloud orchestration binds credential revision, fixed HTTPS origin, exact selected payload, model and final native send consent; saved credentials alone grant no transfer authority.
 
 No secret store is accessed at startup or by passive polling. Inspection is an explicit action and returns only provider, custody backend, state and a random revision reference. No key, key fragment, key hash or arbitrary OS-store attribute is returned to a renderer. Only the application identifier plus a fixed versioned OpenAI service/account determine the slot. Renderer input cannot select a service, account, path, backend, origin or provider. No credential enumeration, shell command, environment-variable discovery, existing-account import, plaintext fallback or session fallback exists.
 

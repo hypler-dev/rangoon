@@ -125,14 +125,15 @@ function packedBody(value, profile, profileSha256, task, dependencies) {
 }
 const requestUsage = value => value === null || (object(value)
   && only(value, ['inputTokens', 'outputTokens', 'totalTokens', 'cachedInputTokens', 'cacheWriteInputTokens', 'reasoningOutputTokens'])
-  && Object.values(value).every(item => item === null || unsigned(item))
+  && unsigned(value.inputTokens) && unsigned(value.outputTokens) && unsigned(value.totalTokens)
+  && [value.cachedInputTokens, value.cacheWriteInputTokens, value.reasoningOutputTokens].every(item => item === null || unsigned(item))
   && value.totalTokens === value.inputTokens + value.outputTokens
   && (value.cachedInputTokens === null || value.cachedInputTokens <= value.inputTokens)
   && (value.cacheWriteInputTokens === null || value.cacheWriteInputTokens <= value.inputTokens)
   && (value.reasoningOutputTokens === null || value.reasoningOutputTokens <= value.outputTokens));
 const validatedProposal = (value, task) => object(value) && only(value, ['kind', 'title', 'authoredText', 'explanation', 'citations'])
   && value.kind === ({ classify_v1: 'classification', decompose_v1: 'capability', compare_v1: 'difference' }[task])
-  && nonblank(value.title, 120) && encoder.encode(value.authoredText).length <= 16384 && nonblank(value.explanation, 1024)
+  && nonblank(value.title, 120) && typeof value.authoredText === 'string' && encoder.encode(value.authoredText).length <= 16384 && nonblank(value.explanation, 1024)
   && Array.isArray(value.citations) && value.citations.length >= 1 && value.citations.length <= 64
   && value.citations.every(item => object(item) && only(item, ['input', 'startByte', 'endByte']) && inputReference(item.input) && unsigned(item.startByte) && unsigned(item.endByte) && item.endByte > item.startByte);
 const validatedProposals = value => object(value) && only(value, ['schemaVersion', 'packId', 'responseSha256', 'task', 'proposals', 'uncertainties', 'contentKind', 'authority'])

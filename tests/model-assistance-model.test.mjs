@@ -32,6 +32,8 @@ const cloudWireBody = JSON.stringify({ model: cloudProfile.model, instructions: 
 const cloudPrepared = (overrides = {}) => ({ schemaVersion: 'rangoon.cloud-prepared.v1', generation: '1', preparedId: cloudPreparedId, requestId: cloudRequestId, origin: 'https://api.openai.com', model: cloudProfile.model, bodyJson: cloudWireBody, bodyBytes: new TextEncoder().encode(cloudWireBody).length, bodySha256: 'a'.repeat(64), credentialRevision: 'b'.repeat(64), inputs: [{ input: { kind: 'source', sourceId, sha256: 'a'.repeat(64) }, observedHead: null, byteLength: 8 }], pack: { schemaVersion: 'rangoon.context-pack.v1', packId: `pack:${'c'.repeat(64)}`, bodyJson: cloudPackBody, bodySha256: 'd'.repeat(64), bodyBytes: new TextEncoder().encode(cloudPackBody).length, selectedBytes: 8, uniqueTextBytes: 8, omittedBytes: 0, tokenAccounting: 'unknown', authority: 'none' }, processingLocation: 'unknown', retention: 'unknown', authority: 'none', ...overrides });
 const cloudCheck = (overrides = {}) => ({ schemaVersion: 'rangoon.cloud-check.v1', requestId: cloudRequestId, profileSha256: cloudProfileSha256, credentialRevision: 'b'.repeat(64), responseSha256: 'c'.repeat(64), observedModel: cloudProfile.model, ownedBy: 'synthetic-owner', created: 1, shutdownDate: null, observation: 'model_visibility_only', inferenceCompatibility: 'unknown', processingLocation: 'unknown', retention: 'unknown', cost: 'unknown', authority: 'none', ...overrides });
 const cloudCompletion = (overrides = {}) => { const prepared = cloudPrepared(); const responseSha256 = 'd'.repeat(64); return { schemaVersion: 'rangoon.cloud-completion.v1', requestId: prepared.requestId, profileSha256: cloudProfileSha256, packId: prepared.pack.packId, responseSha256, observedModel: cloudProfile.model, providerResponseId: 'resp_fixture', usageSource: 'provider_reported', usage: null, proposals: { schemaVersion: 'rangoon.validated-analysis.v1', packId: prepared.pack.packId, responseSha256, task: 'classify_v1', proposals: [], uncertainties: [], contentKind: 'model_authored', authority: 'none' }, processingLocation: 'unknown', authority: 'none', cost: 'unknown', retention: 'unknown', ...overrides }; };
+const cloudProposal = (overrides = {}) => ({ kind: 'classification', title: 'Fixture', authoredText: 'Advisory', explanation: 'Synthetic fixture proposal.', citations: [{ input: { kind: 'source', sourceId, sha256: 'a'.repeat(64) }, startByte: 0, endByte: 8 }], ...overrides });
+const cloudProposals = proposals => ({ schemaVersion: 'rangoon.validated-analysis.v1', packId: `pack:${'c'.repeat(64)}`, responseSha256: 'd'.repeat(64), task: 'classify_v1', proposals, uncertainties: [], contentKind: 'model_authored', authority: 'none' });
 
 test('load enters explicitly through profile, saved snapshots, and capability lists', async () => {
   const calls = [];
@@ -331,7 +333,7 @@ test('cloud check controller accepts only the exact native DTO', async () => {
   }
 });
 
-test('cloud completion controller rejects non-native model and response identities', async () => {
+test('cloud completion controller rejects non-native identifiers and malformed DTO fields', async () => {
   const controllerFor = completion => createModelAssistanceController({ invoke: async command => {
     if (command === 'get_cloud_model_profile' || command === 'configure_cloud_model') return cloudCommon('configured', { session: cloudSession(null, true) });
     if (command === 'prepare_cloud_model') return cloudCommon('prepared', { runId: cloudRunId, prepared: cloudPrepared() });
@@ -339,7 +341,14 @@ test('cloud completion controller rejects non-native model and response identiti
     if (command === 'list_snapshots') return { outcome: 'listed', snapshots: [{ sourceId, displayName: 'rules.md', sha256: 'a'.repeat(64), byteLength: 8 }] };
     return { outcome: 'listed', capabilities: [] };
   } });
-  for (const hostileCompletion of [cloudCompletion({ observedModel: 'gpt-5.3\n' }), cloudCompletion({ providerResponseId: 'response_fixture' }), cloudCompletion({ providerResponseId: 'resp_\n' })]) {
+  for (const hostileCompletion of [
+    cloudCompletion({ observedModel: 'gpt-5.3\n' }),
+    cloudCompletion({ providerResponseId: 'response_fixture' }),
+    cloudCompletion({ providerResponseId: 'resp_\n' }),
+    cloudCompletion({ usage: { inputTokens: null, outputTokens: 0, totalTokens: 0, cachedInputTokens: null, cacheWriteInputTokens: null, reasoningOutputTokens: null } }),
+    cloudCompletion({ proposals: cloudProposals([cloudProposal({ authoredText: null })]) }),
+    cloudCompletion({ proposals: cloudProposals([cloudProposal({ authoredText: 7 })]) }),
+  ]) {
     const controller = controllerFor(hostileCompletion);
     controller.setEndpoint('cloud');
     await controller.load();
