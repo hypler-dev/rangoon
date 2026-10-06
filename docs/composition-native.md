@@ -1,20 +1,22 @@
 # Native composition and versioned workspace integration
 
-Status: locally implemented and independently reviewed; exact-commit CI/publication, complete composition editor and native GUI qualification remain pending
+Status: preview/commit and versioned surfaces published through PR #13; this editor packet adds an independent saved-source read; complete GUI qualification remains pending
 Authority: [accepted intent](intent.md), [composition specification](composition.md), and [recovery contract](composition-recovery.md)
 
-This stage connects the validated store to the native desktop boundary. It also updates the existing Skills and Workspace interfaces together so composed records can be opened, edited, reviewed, backed up, restored and logically deleted without fabricating single-source provenance. It does not complete the Decompose, Merge or Split editor.
+This stage connects the validated store to the native desktop boundary. It also updates the existing Skills and Workspace interfaces together so composed records can be opened, edited, reviewed, backed up, restored and logically deleted without fabricating single-source provenance. The current editor packet adds Decompose, Merge and Split routes; its source and partial native GUI evidence are recorded in the development ledger.
 
 ## Commands and byte limits
 
-Only the bundled local main window receives the two new commands. Neither command accepts paths, SQL, original input bytes, keys, engine requests or a renderer-computed preview result. The existing native busy guard serializes them with source selection, source saving and other local mutations.
+Only the bundled local main window receives the two composition-session commands and the saved-source reader described below. None accepts paths, SQL, original input bytes, keys, engine requests or a renderer-computed preview result. The existing native busy guard serializes them with source selection, source saving and other local mutations.
 
-Both commands use a raw Tauri IPC body containing UTF-8 JSON. The renderer must encode JSON with `TextEncoder` and invoke with the resulting `Uint8Array`; ordinary JSON-object IPC is rejected. The host checks raw byte length before composition or confirmation deserialization. Tauri has already allocated the transport buffer at this point: this is a domain parsing bound, not a transport-level allocation guarantee.
+The two composition-session commands use a raw Tauri IPC body containing UTF-8 JSON. The renderer must encode JSON with `TextEncoder` and invoke with the resulting `Uint8Array`; ordinary JSON-object IPC is rejected for these commands. The host checks raw byte length before composition or confirmation deserialization. Tauri has already allocated the transport buffer at this point: this is a domain parsing bound, not a transport-level allocation guarantee.
 
 | Command | Request | Bound | Success |
 | --- | --- | --- | --- |
 | `preview_composition` | Closed `rangoon.composition-application-request.v0` from the destination contract, including exact saved input references and destinations | 8 MiB + 16 KiB UTF-8 JSON | `outcome: ready`, `schemaVersion: rangoon.composition-session.v0`, `previewId`, `expectedStateId`, `preview` |
 | `commit_composition` | Closed `rangoon.composition-confirmation.v0` with exactly `schemaVersion`, `previewId`, `expectedStateId`, and boolean `acknowledged` | 4,096 bytes UTF-8 JSON | `outcome: committed`, `receipt` |
+
+The editor adds `read_composition_source({sourceId})`, a read-only saved-source lookup. It returns the existing `outcome: analyzed` report after store validation and reanalysis, without replacing the Import workbench's selected report or changing its save eligibility. It accepts no path or original bytes and uses the shared native operation guard. Its implementation and qualification state are recorded in the development ledger.
 
 `preview` is the store's exact `rangoon.composition-application-preview.v0`, including coverage, diagnostics, materialized output text and destination identities. An incomplete preview can be returned for editing, but its `saveable: false` prevents persistence. `receipt` is `rangoon.composition-receipt.v0`, with the actual output-order capability details, composition/application IDs, committed state ID, and `authority: none`. Unknown fields, duplicate fields, unsupported schemas, malformed UTF-8 and unsupported body types are rejected with fixed public errors.
 
@@ -42,4 +44,4 @@ These records remain unencrypted and unauthenticated. Random preview handles, co
 
 Native tests exercise bounded raw decoding, unknown/duplicate/missing confirmation fields, missing/replaced/unacknowledged handles, random-source failure, stale workspace rejection, consumption after commit and schema 3 editing/review/source-save/backup/restore/deletion. Separate session tests bind restore and deletion to exact retained plans. Renderer tests cover closed v1 contracts, malformed provenance, history consistency and existing confirmation/draft behavior. Named command results and publication state belong in the [development ledger](development.md).
 
-The complete composition editor, all three native GUI workflows, raw IPC round-trip qualification on macOS/Windows/Linux, responsive rendered evidence, restart/reopen and installer/release gates remain outstanding. Unit tests of the host command helpers do not establish those GUI or release properties.
+The editor packet records synthetic responsive/binding checks and real raw-IPC new-output saves for Decompose, Merge and Split in an isolated unsigned macOS bundle, followed by restart/reopen. Native append/mixed-destination GUI, complete failure/keyboard coverage, Windows/Linux interactive qualification and installer/release gates remain outstanding. Unit tests of host command helpers do not substitute for those GUI or release properties.

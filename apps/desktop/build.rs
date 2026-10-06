@@ -5,6 +5,7 @@ fn main() {
             "list_snapshots",
             "save_analysis",
             "open_snapshot",
+            "read_composition_source",
             "clear_analysis",
             "get_engine_status",
             "list_capabilities",

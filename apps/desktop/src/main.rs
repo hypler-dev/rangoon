@@ -227,6 +227,52 @@ async fn open_snapshot(app: AppHandle, source_id: String) -> SelectionResult {
         )
     })
 }
+
+/// Read a saved composition input without replacing the Import workbench's
+/// selected report. The renderer supplies only a content-addressed source ID.
+#[tauri::command]
+async fn read_composition_source(app: AppHandle, source_id: String) -> SelectionResult {
+    if rangoon_store::validate_id(&source_id).is_err() {
+        let (code, message) = StoreError::InvalidId.public();
+        return SelectionResult::failed(code, message);
+    }
+    let Some(pending) = begin_operation(&app) else {
+        return SelectionResult::failed(
+            "analysis_busy",
+            "Finish the current source operation first.",
+        );
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let _pending = pending;
+        match workspace(&app) {
+            Ok(store) => read_saved_composition_source(&store, &source_id),
+            Err(error) => {
+                let (code, message) = error.public();
+                SelectionResult::failed(code, message)
+            }
+        }
+    })
+    .await
+    .unwrap_or_else(|_| {
+        SelectionResult::failed(
+            "workspace_unavailable",
+            "The saved composition source could not be opened. Retry.",
+        )
+    })
+}
+
+fn read_saved_composition_source(store: &Workspace, source_id: &str) -> SelectionResult {
+    match store.open(source_id) {
+        Ok(report) => SelectionResult::Analyzed {
+            report: Box::new(report),
+        },
+        Err(error) => {
+            let (code, message) = error.public();
+            SelectionResult::failed(code, message)
+        }
+    }
+}
+
 #[tauri::command]
 fn clear_analysis(app: AppHandle) -> WorkspaceResult {
     if app.state::<Session>().clear() {
@@ -262,6 +308,7 @@ fn main() {
             list_snapshots,
             save_analysis,
             open_snapshot,
+            read_composition_source,
             clear_analysis,
             get_engine_status,
             list_capabilities,
@@ -318,5 +365,42 @@ mod tests {
             let _guard = PendingPicker(Arc::clone(&busy));
         }
         assert!(!busy.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn composition_source_read_preserves_import_selection_and_exact_bytes() {
+        let root = std::env::temp_dir().canonicalize().unwrap().join(format!(
+            "rangoon-composition-source-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let store = Workspace::new(root.clone());
+        let imported = rangoon_import::analyze("current.md", b"# Current\nUnsaved.").unwrap();
+        let saved =
+            rangoon_import::analyze("saved.md", "\u{feff}# Saved\r\nExact 🦀\r\n".as_bytes())
+                .unwrap();
+        let session = Session::default();
+        assert!(session.accept(session.generation().unwrap(), &imported));
+        store.save_v1(&saved).unwrap();
+        let before = store.list().unwrap();
+        match read_saved_composition_source(&store, &saved.source.id) {
+            SelectionResult::Analyzed { report } => assert_eq!(*report, saved),
+            _ => panic!("expected saved source analysis"),
+        }
+        assert_eq!(
+            session.snapshot(&imported.source.id),
+            Some(imported.clone())
+        );
+        assert!(session.snapshot(&saved.source.id).is_none());
+        assert_eq!(store.list().unwrap(), before);
+        assert!(matches!(
+            read_saved_composition_source(&store, "../../outside"),
+            SelectionResult::Failed { .. }
+        ));
+        assert_eq!(session.snapshot(&imported.source.id), Some(imported));
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

@@ -5,15 +5,33 @@ import { createSkillsController, validCapabilityContent, validCapabilityTitle } 
 import { renderSkillsView } from './skills-view.mjs';
 import { createWorkspaceController } from './workspace-model.mjs';
 import { bindWorkspaceView } from './workspace-view.mjs';
+import { createCompositionController } from './composition-model.mjs';
+import { bindCompositionView } from './composition-view.mjs';
 import { icon } from './icons.mjs';
 import { createStartupSplash } from './launch.mjs';
 
 const app = document.querySelector('#analysis-app');
 const announcer = document.querySelector('#analysis-announcer');
 const startupSplash = createStartupSplash({ container: document.querySelector('#startup-splash'), app });
-const bridge = typeof window.__TAURI__?.core?.invoke === 'function'
+const rawBridge = typeof window.__TAURI__?.core?.invoke === 'function'
   ? (command, args) => window.__TAURI__.core.invoke(command, args)
   : undefined;
+const compositionControllers = new Map();
+const workspaceWrites = new Set(['save_analysis', 'create_capability', 'revise_capability', 'review_capability', 'restore_workspace_backup', 'delete_workspace_record']);
+function invalidateCompositions(message, except = null) {
+  for (const [operation, composition] of compositionControllers) {
+    if (operation !== except) composition.invalidatePreview(message);
+  }
+}
+const bridge = rawBridge ? async (command, args) => {
+  if (workspaceWrites.has(command)) invalidateCompositions('Workspace data may have changed. Preview this retained draft again before saving.');
+  return rawBridge(command, args);
+} : undefined;
+const compositionRoutes = new Set(['decompose', 'merge', 'split']);
+const routeFromHash = () => {
+  const name = location.hash.slice(1);
+  return ['analysis', 'skills', 'workspace', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
+};
 
 let theme = 'dark';
 try {
@@ -23,7 +41,7 @@ try {
 document.documentElement.dataset.theme = theme;
 let requestedFocus = null;
 let renderedSourceId = null;
-let route = location.hash === '#engine' ? 'engine' : location.hash === '#skills' ? 'skills' : location.hash === '#workspace' ? 'workspace' : 'analysis';
+let route = routeFromHash();
 let retainedSourceScroll = null;
 let routeFocusPending = route;
 let engineCheckFocusPending = false;
@@ -35,6 +53,8 @@ let skillsSavedOpen = false;
 let skillsCreateFocusPending = false;
 let analysisReady = false;
 let workspaceView = null;
+let compositionView = null;
+let compositionViewRoute = null;
 
 const text = value => escapeText(value);
 const formatBytes = value => new Intl.NumberFormat().format(value ?? 0);
@@ -49,8 +69,30 @@ const savedAt = snapshot => {
 };
 
 function renderRail() {
-  const links = [['analysis','import','Import &amp; Analyze'],['skills','skill','Skills'],['workspace','bundle','Workspace'],['engine','gate','Engine integration']];
+  const links = [['analysis','import','Import &amp; Analyze'],['skills','skill','Skills'],['decompose','decompose','Decompose'],['merge','merge','Merge'],['split','decompose','Split'],['workspace','bundle','Workspace'],['engine','gate','Engine integration']];
   return `<aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas">${links.map(([name,symbol,label]) => `<a href="#${name}" ${route === name ? 'aria-current="page"' : ''}>${icon(symbol,{size:16})} ${label}</a>`).join('')}<a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>`;
+}
+
+function renderComposition() {
+  const composition = compositionControllers.get(route);
+  if (!composition) return;
+  if (!document.querySelector('#composition-root') || compositionViewRoute !== route) {
+    compositionView?.dispose();
+    app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="composition-root"></div></main></div>`;
+    compositionViewRoute = route;
+    compositionView = bindCompositionView(document.querySelector('#composition-root'), composition, {
+      onOpenSkill: id => { location.hash = '#skills'; void skillsController.open(id); },
+    });
+  } else compositionView.render();
+  routeEntry = false;
+  document.querySelector('#analysis-theme').innerHTML = `${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}`;
+  const state = composition.getState();
+  announcer.textContent = state.message;
+  if (routeFocusPending === route) {
+    document.querySelector('#composition-root h1')?.focus({ preventScroll: true });
+    routeFocusPending = null;
+  }
+  if (state.status === 'idle') void composition.load();
 }
 
 function renderWorkspace() {
@@ -155,10 +197,16 @@ function revealSelectedLine() {
 }
 
 function render(state) {
-  document.title = route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
+  document.title = compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
+  if (!compositionRoutes.has(route)) {
+    compositionView?.dispose();
+    compositionView = null;
+    compositionViewRoute = null;
+  }
   if (route === 'workspace') { renderWorkspace(); return; }
   workspaceView?.dispose();
   workspaceView = null;
+  if (compositionRoutes.has(route)) { renderComposition(); return; }
   if (route === 'engine') {
     renderEngine();
     return;
@@ -315,6 +363,22 @@ const controller = createAnalysisController({ invoke: bridge, onChange: state =>
   render(state);
   startupSplash.sync(state);
 } });
+for (const operation of compositionRoutes) {
+  compositionControllers.set(operation, createCompositionController({
+    operation,
+    invoke: bridge ? async (command, args) => {
+      if (command === 'preview_composition' || command === 'commit_composition') {
+        invalidateCompositions('Another composition used the native preview session. Preview this retained draft again before saving.', operation);
+      }
+      return bridge(command, args);
+    } : undefined,
+    onChange: () => { if (route === operation) renderComposition(); },
+    onCommitted: async () => {
+      invalidateCompositions('Composition saved. Preview other retained drafts against the current workspace before saving.', operation);
+      await skillsController.list();
+    },
+  }));
+}
 analysisReady = true;
 startupSplash.setRetry(() => controller.listSnapshots());
 render(controller.getState());
@@ -382,7 +446,7 @@ app.addEventListener('input', event => {
 
 window.addEventListener('hashchange', () => {
   retainSourceScroll();
-  const nextRoute = location.hash === '#engine' ? 'engine' : location.hash === '#skills' ? 'skills' : location.hash === '#workspace' ? 'workspace' : 'analysis';
+  const nextRoute = routeFromHash();
   routeEntry = route !== nextRoute;
   route = nextRoute;
   routeFocusPending = route;
@@ -391,4 +455,11 @@ window.addEventListener('hashchange', () => {
   skillsActionFocus = null;
   render(controller.getState());
   if (route === 'workspace') void workspaceController.load();
+  if (compositionRoutes.has(route) && compositionControllers.get(route).getState().status !== 'idle') void compositionControllers.get(route).load();
+});
+
+window.addEventListener('beforeunload', event => {
+  if (![...compositionControllers.values()].some(composition => composition.getState().dirty)) return;
+  event.preventDefault();
+  event.returnValue = '';
 });

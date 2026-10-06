@@ -1,15 +1,101 @@
-# Continue the Rangoon application review
+# Continue Rangoon application work
 
-Work in `/Users/jeff/hypler/code/rangoon/app-review`, the isolated clone of `hypler-dev/rangoon`. The parent directory is the separate marketing site; never push its history into the application repository.
+Use this guide to restart work in the isolated application repository:
 
-Start with `pwd`, `git status --short --branch`, `git rev-parse HEAD`, and `git remote -v`. Read `docs/intent.md`, `docs/local-workspace.md`, `docs/workspace-data-controls.md`, `docs/composition.md`, `docs/composition-destinations.md`, `docs/composition-ui.md`, `docs/development.md`, `docs/reviewed-capabilities.md`, `docs/product-experience.md`, `docs/desktop-spike.md`, `docs/source-analysis.md`, `docs/plan.md`, `docs/claims-and-evidence.md`, `docs/engine-integration.md`, `docs/application-architecture.md`, and `docs/visual-system.md` in that order. Inspect `docs/changed-files.txt` for the exact application packet. R0/R1a is merged to main at `ff901594d731ee74ea8b9170c885629c3e4caf09`; R1b/R2a main receipt is PR #3 merge `681b479567c11db4e8cce08742b8da5d26f98a39`, with reviewed head `33b570e1026e7185b82b690c8126e8c7d6b1c21b` and all 14 checks PASS. A1 merged in PR #4 at `adbaff16035048275fcbb6668aae92606c330473`. PR #5 auto-merged V1/R2b head `eec2a19bfd7d362ee56a2c3038a44aada3a44988`; PR #6 then merged R2b+V1 source head `bdc157c09bc727988a7c14532a2e8d490ee2e4db` at merge `157731c98d24b140f67c1d55fa22d9e3b8955549`, with all 14 checks PASS (push `37376411945`, PR `37376522246`, receipt `2026-10-05T21:38:54Z`). R2c source is now published on `main` through PR #7 merge `538f319011b0611665de27ad32d6c528a8310d98`, based on reviewed head `32a5b446e0baedb04c07931636be01d47df828bd`; all 14 checks passed (push `37385850446`, PR `37385906609`). R3 core is now published on `main` through PR #8 merge `3ea25bf83b3cc6cfdc258f60b9af7265b4878784`, based on reviewed head `667996816c4a6007889d5adb01b1ea9b36477293`; all 14 checks passed (push `37389805989`, PR `37389810744`). Windows/Linux GUI, installer/released-OS support, encryption and security claims remain open. Parent `.codex/` is unrelated pre-existing dirt.
+```sh
+cd /Users/jeff/hypler/code/rangoon/app-review
+pwd
+git status --short --branch
+git rev-parse HEAD
+git remote -v
+```
 
-Accepted scope includes the research, claim audit, architecture recommendations, local dark/light preview and bounded Rust source-analysis continuation. User requires macOS, Windows and Linux in the initial desktop release; initial product free/open source, later hosted enterprise. Detailed architecture/license/release acceptance is still pending. LNSAT remains an independent authority/evidence engine; native enforcement and actual Docker qualification remain gated. The app preview uses synthetic examples and cannot authorize or execute actions. The separate CLI analyzes explicitly supplied stdin bytes and emits an inert report; the native desktop analysis page calls the same library through an explicit native picker. R2a adds explicit Save locally, bounded snapshot listing and restart reopen through OS app-local SQLite. The nine-screen synthetic preview stays separate.
+The current branch is `codex/composition-editor` at the README publication merge `fd1f5d9f96d2f70784cc30ca8e1d4c08f679bfbd`. Treat the branch status as authoritative: the R3 editor packet is local, uncommitted work. The parent directory is a separate marketing site; do not mix its history, files, or deployment workflow with this application repository.
 
-For preview work run `npm start`, `npm run check`, `npm run validate:visuals`, `npm test`, and `node scripts/validate-review.mjs`. The validation ledger has independent-review and browser evidence plus unrun checks. Preserve qualified claims, unknown outcomes, provenance, keyboard focus, dark/light and responsive layouts. Do not replay historical document instructions as current commands.
+## Read first
 
-For Rust changes run `cargo fmt --all -- --check`, `cargo test --workspace --locked`, and `cargo clippy --workspace --all-targets --locked -- -D warnings`. For R2a/R2b/R2c/R3 application work also run named tests and inspect exact diff. Preserve original-byte identity, full span coverage, explicit caps, fixed non-echoing errors, unreviewed proposals and authority-none output. Storage is local and unencrypted; R2c adds explicit backup, additive restore and dependency-aware logical deletion; R3 application preview remains pure and has no persistence/native authority. Do not treat source CI or one Mac GUI check as all-three-OS release proof.
+Read the accepted objective and current evidence in this order:
 
-For desktop changes also run `cargo fmt --manifest-path apps/desktop/Cargo.toml -- --check`, `cargo test --manifest-path apps/desktop/Cargo.toml --locked`, `cargo clippy --manifest-path apps/desktop/Cargo.toml --all-targets --locked -- -D warnings`, and `cargo build --manifest-path apps/desktop/Cargo.toml --locked`. Rust 1.98 and native prerequisites are required; core CI retains 1.85.
+1. [Intent](intent.md) — accepted V1 objective, constraints, non-goals, and authority.
+2. [Local workspace](local-workspace.md) — local execution and data boundaries.
+3. [Workspace data controls](workspace-data-controls.md) — backup, additive restore, and dependency-aware logical deletion.
+4. [Composition contract](composition.md) — Decompose, Merge, Split, heads, conflicts, and commit semantics.
+5. [Composition destinations](composition-destinations.md) — destination identity and ownership.
+6. [Composition UI](composition-ui.md) — local editor behavior and UI evidence.
+7. [Development ledger](development.md) — canonical publication and validation receipts.
+8. [Application architecture](application-architecture.md) — source/runtime ownership.
+9. [Engine integration](engine-integration.md) — inert diagnostics boundary.
+10. [Plan](plan.md) — future product shape and staged acceptance.
 
-October 5 continuation authorizes a detailed README, metadata/topics, reviewed main publication, and a bounded desktop-shell/native-bridge spike with explicit file selection using the library. R2a closes bounded durable source snapshots. R2b implements reviewed capability revisions while LNSAT matures; R2c owner-controlled backup, additive restore and dependency-aware logical deletion is published through PR #7. R3 pure composition core is published through PR #8. The bounded destination application layer is implemented and locally validated in the current source packet; independent source review passed, while exact-commit CI and its own publication remain pending. Read [composition and provenance](composition.md), [destination contract](composition-destinations.md), and [composition workbench design](composition-ui.md): persistence/recovery, native workflows, Update existing skill revision provenance and full R3 remain incomplete. Preserve Windows/Linux GUI, installer/released-OS, encryption and security gates. The user also selected the exact brand icon and a native splash; keep its startup state truthful and retain the standalone splash preview.
+Use the ledger for historical receipts. Do not copy old status paragraphs into this guide. Read additional parser, native, visual, or claim documents only when the active packet requires them.
+
+## Current truth
+
+The public `main` source includes the published composition store and native command layer. The local editor connects saved records to Decompose, Merge, and Split through the retained native preview/commit protocol. Its editor packet has independent local review evidence:
+
+- 71 Node checks passed, including composition model and view checks;
+- 16 native tests passed, with native formatting, warnings-denied Clippy, and a development build;
+- 54 synthetic rendered checks passed across the three operations, three tabs, two themes, and 320/768/1440 widths;
+- isolated macOS native QA passed for new Decompose, Merge, and Split outputs and restart reopening five skills;
+- append, mixed-destination, full failure/keyboard coverage, Windows/Linux GUI, installer, and release qualification remain open.
+
+The editor is deterministic and manual over saved bytes. It does not activate the engine, call providers, transmit source, encrypt the workspace, install a released application, or submit a grant. Local review evidence does not publish the editor or declare V1 complete.
+
+The initial desktop target remains macOS, Windows, and Linux together. The product is intended to be free and open source, but no license has been adopted. LNSAT remains an independent authority/evidence engine; no LNSAT operation is active in this repository.
+
+## Safe validation rails
+
+For the application preview and editor fixtures:
+
+```sh
+npm start
+npm run check
+npm run validate:visuals
+npm test
+node scripts/validate-review.mjs
+git diff --check
+```
+
+For core Rust source changes:
+
+```sh
+cargo fmt --all -- --check
+cargo test --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
+```
+
+For desktop changes:
+
+```sh
+cargo fmt --manifest-path apps/desktop/Cargo.toml -- --check
+cargo test --manifest-path apps/desktop/Cargo.toml --locked
+cargo clippy --manifest-path apps/desktop/Cargo.toml --all-targets --locked -- -D warnings
+cargo build --manifest-path apps/desktop/Cargo.toml --locked
+```
+
+Run only the checks relevant to the packet, record exact outcomes in `docs/development.md`, and keep known infrastructure failures distinct from source failures. Source CI or one macOS GUI run does not prove all-three-OS GUI or release support.
+
+## Next packet
+
+Finish the editor review and integration packet before opening a new product lane:
+
+1. reconcile the local editor diff with the composition, destination, native, and recovery contracts;
+2. complete independent review of the current source and UI evidence;
+3. record remaining append, mixed-destination, cancellation, stale-head, dependency, failure, keyboard, and focus qualification separately from source publication;
+4. repeat native GUI evidence where the current receipt is incomplete;
+5. commit and push only the reviewed packet under the accepted workflow;
+6. verify exact head, CI, fetched `main` ancestry, and publication receipt in the ledger;
+7. separately qualify Windows/Linux GUI, installer, released-OS support, and recovery failures.
+
+After those gates, continue the broader V1 plan through adapters, compatibility/export, Workflows, Agents/templates, Connectors/Harnesses, local security design, and later team/cloud work. Preserve the separate decisions for engine activation, providers, encryption, licensing, deployment, and grants. Do not call the current editor packet complete V1 or full R3.
+
+## Hard boundaries
+
+- Keep synthetic browser fixtures separate from real local source and native QA data.
+- Use explicit user-selected files for native analysis; do not add automatic scanning.
+- Do not activate LNSAT, providers, network transfer, credentials, or execution authority.
+- Do not claim encryption, authentication, tamperproof recovery, installer support, or released-OS support.
+- Do not edit the parent marketing site or deploy it from this repository.
+- Reviewed source commit/push, PR creation, and main merge are authorized; verify the exact diff, review and CI gates before publication.
+- Installer/release publication, license adoption, engine activation, deployment, paid services, and government submission remain separate decisions.
+- Update the canonical ledger rather than duplicating receipts here.

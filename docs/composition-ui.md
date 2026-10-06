@@ -1,8 +1,10 @@
 # Composition workbench design
 
-Status: reviewed product direction translated into an implementation design; native R3 interface not implemented
+Status: local composition editor implemented and independently reviewed; synthetic layout/binding checks and an isolated macOS new-output save/restart loop passed; publication and remaining GUI qualification pending
 Authority: [composition contract](composition.md), under the accepted [version 1.0 intent](intent.md)
 Design: primary controller direction and native OpenAI GPT-5.6-Terra high UI design; implementation receives separate fresh review
+
+Current evidence includes [layout measurements](screenshots/r3-editor-layout-measurements.json) and Decompose, Merge and Split dark/light captures at 320, 768 and 1440 pixels. These are synthetic layout evidence. Independent source review passed. The [isolated macOS native receipt](screenshots/r3-editor-native-qa.json) records Decompose, Merge and Split saves followed by restart and reopen. Native append/mixed-destination GUI, the complete failure matrix, Windows/Linux GUI and release qualification remain open.
 
 ## Layout and navigation
 

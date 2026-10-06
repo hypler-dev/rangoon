@@ -10,6 +10,7 @@
     "allow-list-snapshots",
     "allow-save-analysis",
     "allow-open-snapshot",
+    "allow-read-composition-source",
     "allow-clear-analysis",
     "allow-get-engine-status",
     "allow-list-capabilities",
