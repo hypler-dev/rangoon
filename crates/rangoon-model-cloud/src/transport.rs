@@ -1,4 +1,4 @@
-use crate::{Diagnostic, PreparedRequest, wire};
+use crate::{CheckRequest, CheckResult, Diagnostic, PreparedRequest, check_wire, wire};
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::{Request, StatusCode, client::conn::http1, header};
@@ -71,12 +71,14 @@ pub struct CloudClient {
 struct Timeouts {
     connect: Duration,
     analysis: Duration,
+    check: Duration,
 }
 impl Default for Timeouts {
     fn default() -> Self {
         Self {
             connect: Duration::from_secs(10),
             analysis: Duration::from_secs(120),
+            check: Duration::from_secs(30),
         }
     }
 }
@@ -153,7 +155,11 @@ impl CloudClient {
         }
         self.run(cancellation, self.timeouts.analysis, async {
             let bytes = self
-                .exchange(prepared.body_json(), credential, 1_048_576)
+                .exchange(
+                    Outgoing::Analysis(prepared.body_json()),
+                    credential,
+                    1_048_576,
+                )
                 .await?;
             let chat = wire::response(&bytes, prepared.profile.max_output_tokens())?;
             let proposals = validate_response(&prepared.pack, chat.content.as_bytes())
@@ -173,6 +179,43 @@ impl CloudClient {
                 authority: "none",
                 cost: "unknown",
                 retention: "unknown",
+            })
+        })
+        .await
+    }
+
+    /// Checks only model metadata visibility. Native credential-transfer consent
+    /// is required even though no saved source is included in this request.
+    pub async fn check(
+        &self,
+        prepared: &CheckRequest,
+        credential: &Credential,
+        cancellation: &Cancellation,
+    ) -> Result<CheckResult, Diagnostic> {
+        if prepared.credential_revision() != credential.revision {
+            return Err(Diagnostic::CredentialChanged);
+        }
+        self.run(cancellation, self.timeouts.check, async {
+            let bytes = self
+                .exchange(Outgoing::Check(prepared.path()), credential, 65_536)
+                .await?;
+            let metadata = check_wire::response(&bytes, prepared.profile.model())?;
+            Ok(CheckResult {
+                schema_version: "rangoon.cloud-check.v1",
+                request_id: prepared.request_id().to_owned(),
+                profile_sha256: prepared.profile.profile_sha256().to_owned(),
+                credential_revision: prepared.credential_revision().to_owned(),
+                response_sha256: byte_digest(&bytes),
+                observed_model: metadata.id,
+                owned_by: metadata.owned_by,
+                created: metadata.created,
+                shutdown_date: metadata.shutdown_date,
+                observation: "model_visibility_only",
+                inference_compatibility: "unknown",
+                processing_location: "unknown",
+                retention: "unknown",
+                cost: "unknown",
+                authority: "none",
             })
         })
         .await
@@ -235,7 +278,7 @@ impl CloudClient {
 
     async fn exchange(
         &self,
-        body: &str,
+        outgoing: Outgoing<'_>,
         credential: &Credential,
         cap: usize,
     ) -> Result<Vec<u8>, Diagnostic> {
@@ -260,9 +303,13 @@ impl CloudClient {
         let mut authorization =
             header::HeaderValue::from_bytes(&bearer).map_err(|_| Diagnostic::InvalidCredential)?;
         authorization.set_sensitive(true);
+        let (method, path, body) = match outgoing {
+            Outgoing::Analysis(body) => ("POST", "/v1/responses", body),
+            Outgoing::Check(path) => ("GET", path, ""),
+        };
         let request = Request::builder()
-            .method("POST")
-            .uri("/v1/responses")
+            .method(method)
+            .uri(path)
             .header(header::HOST, "api.openai.com")
             .header(header::AUTHORIZATION, authorization)
             .header(header::ACCEPT, "application/json")
@@ -306,6 +353,12 @@ impl CloudClient {
             }
         }
     }
+}
+
+// Only validated request constructors reach this private transport selector.
+enum Outgoing<'a> {
+    Analysis(&'a str),
+    Check(&'a str),
 }
 
 fn http_error(error: hyper::Error) -> Diagnostic {

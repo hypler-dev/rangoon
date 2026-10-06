@@ -1,5 +1,5 @@
 use super::*;
-use crate::CloudProfile;
+use crate::{CheckRequest, CloudProfile};
 use rangoon_model_assistance::prepare_pack;
 use rustls::{
     ServerConfig,
@@ -75,6 +75,13 @@ fn credential() -> Credential {
     )
     .unwrap()
 }
+fn check_request() -> CheckRequest {
+    let profile = CloudProfile::parse(
+        br#"{"schemaVersion":"rangoon.cloud-profile-request.v1","profileId":"cloud-test","model":"synthetic-model-v1","maxOutputTokens":512}"#,
+    )
+    .unwrap();
+    CheckRequest::new(&profile, &"a".repeat(64)).unwrap()
+}
 fn response_body() -> Vec<u8> {
     let v: Value = serde_json::from_str(include_str!(
         "../../../fixtures/model-assistance/context-v1.json"
@@ -132,6 +139,17 @@ fn assert_request(r: &[u8], p: &PreparedRequest) {
     assert!(!h.contains("proxy-authorization"));
     assert_eq!(&r[i + 4..], p.body_json().as_bytes());
 }
+fn assert_check_request(r: &[u8], check: &CheckRequest) {
+    let i = r.windows(4).position(|b| b == b"\r\n\r\n").unwrap();
+    let headers = std::str::from_utf8(&r[..i]).unwrap().to_ascii_lowercase();
+    assert!(headers.starts_with("get /v1/models/synthetic-model-v1 http/1.1\r\n"));
+    assert!(headers.contains("host: api.openai.com\r\n"));
+    assert!(headers.contains("authorization: bearer synthetic-cloud-test-key\r\n"));
+    assert!(!headers.contains("proxy-authorization"));
+    assert!(!headers.contains(check.credential_revision()));
+    assert!(!headers.contains("source"));
+    assert_eq!(&r[i + 4..], b"");
+}
 async fn roundtrip(
     p: &PreparedRequest,
     bytes: Vec<u8>,
@@ -166,6 +184,35 @@ async fn roundtrip(
     let key = credential();
     let cancel = Cancellation::new();
     let (_, result) = tokio::join!(server, client.analyze(p, &key, &cancel));
+    result
+}
+async fn check_roundtrip(
+    check: &CheckRequest,
+    bytes: Vec<u8>,
+    trusted: bool,
+    wrong: bool,
+) -> Result<CheckResult, Diagnostic> {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let client = CloudClient {
+        fixture: Some((listener.local_addr().unwrap(), client_config(trusted))),
+        ..Default::default()
+    };
+    let server = async {
+        let (socket, _) = timeout(IO, listener.accept()).await.unwrap().unwrap();
+        let handshake = TlsAcceptor::from(server_config(wrong)).accept(socket).await;
+        if !trusted || wrong {
+            assert!(handshake.is_err());
+            return;
+        }
+        let mut socket = handshake.unwrap();
+        let request = read_request(&mut socket).await;
+        assert_check_request(&request, check);
+        let _ = socket.write_all(&bytes).await;
+        let _ = socket.shutdown().await;
+    };
+    let key = credential();
+    let cancellation = Cancellation::new();
+    let (_, result) = tokio::join!(server, client.check(check, &key, &cancellation));
     result
 }
 
@@ -215,6 +262,7 @@ fn tls_contract_with_hostile_proxy_environment() {
 async fn tls_cases() {
     let p = prepared();
     let body = response_body();
+    check_cases().await;
     let completion = roundtrip(&p, ok(&body), true, false).await.unwrap();
     let receipt = serde_json::to_value(completion).unwrap();
     assert_eq!(receipt["responseSha256"], byte_digest(&body));
@@ -353,6 +401,7 @@ async fn tls_cases() {
     let client = CloudClient {
         fixture: Some((listener.local_addr().unwrap(), client_config(true))),
         timeouts: Timeouts {
+            check: Duration::from_millis(100),
             connect: Duration::from_millis(100),
             analysis: IO,
         },
@@ -373,11 +422,134 @@ async fn tls_cases() {
     assert_eq!(result.err(), Some(Diagnostic::TimedOut));
     assert!(Flight::acquire().is_ok());
 }
+
+async fn check_cases() {
+    let check = check_request();
+    let metadata = serde_json::to_vec(&json!({
+        "object": "model",
+        "id": "synthetic-model-v1",
+        "owned_by": "synthetic-owner",
+        "created": 1_700_000_000u64,
+        "shutdown_date": null,
+    }))
+    .unwrap();
+    let result = check_roundtrip(&check, ok(&metadata), true, false)
+        .await
+        .unwrap();
+    let receipt = serde_json::to_value(result).unwrap();
+    assert_eq!(receipt["schemaVersion"], "rangoon.cloud-check.v1");
+    assert_eq!(receipt["requestId"], check.request_id());
+    assert_eq!(receipt["responseSha256"], byte_digest(&metadata));
+    assert_eq!(receipt["observedModel"], "synthetic-model-v1");
+    assert_eq!(receipt["ownedBy"], "synthetic-owner");
+    assert_eq!(receipt["observation"], "model_visibility_only");
+    assert_eq!(receipt["authority"], "none");
+    assert!(!receipt.to_string().contains("synthetic-cloud-test-key"));
+
+    let wrong =
+        Credential::new(&"b".repeat(64), Zeroizing::new(b"synthetic-other".to_vec())).unwrap();
+    assert_eq!(
+        CloudClient::new()
+            .check(&check, &wrong, &Cancellation::new())
+            .await
+            .err(),
+        Some(Diagnostic::CredentialChanged)
+    );
+    let cancelled = Cancellation::new();
+    cancelled.cancel();
+    assert_eq!(
+        CloudClient::new()
+            .check(&check, &credential(), &cancelled)
+            .await
+            .err(),
+        Some(Diagnostic::Cancelled)
+    );
+
+    let mismatched = serde_json::to_vec(&json!({
+        "object": "model",
+        "id": "other-model",
+        "owned_by": "synthetic-owner",
+        "created": 1,
+    }))
+    .unwrap();
+    assert_eq!(
+        check_roundtrip(&check, ok(&mismatched), true, false)
+            .await
+            .err(),
+        Some(Diagnostic::ResponseInvalid)
+    );
+    for (bytes, expected) in [
+        (
+            raw(
+                "302 Found",
+                "Location: https://wrong.example\r\nContent-Length: 0",
+                b"",
+            ),
+            Diagnostic::RedirectRejected,
+        ),
+        (
+            raw(
+                "404 Not Found",
+                "Content-Type: application/json\r\nContent-Length: 2",
+                b"{}",
+            ),
+            Diagnostic::RemoteRejected,
+        ),
+    ] {
+        assert_eq!(
+            check_roundtrip(&check, bytes, true, false).await.err(),
+            Some(expected)
+        );
+    }
+    stalled_check(&check).await;
+}
+
+async fn stalled_check(check: &CheckRequest) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let client = CloudClient {
+        fixture: Some((listener.local_addr().unwrap(), client_config(true))),
+        timeouts: Timeouts {
+            check: Duration::from_millis(200),
+            connect: IO,
+            analysis: IO,
+        },
+    };
+    let key = credential();
+    let server = async {
+        let (socket, _) = listener.accept().await.unwrap();
+        let mut socket = TlsAcceptor::from(server_config(false))
+            .accept(socket)
+            .await
+            .unwrap();
+        assert_check_request(&read_request(&mut socket).await, check);
+        assert_eq!(
+            CloudClient::new()
+                .check(check, &key, &Cancellation::new())
+                .await
+                .err(),
+            Some(Diagnostic::Busy)
+        );
+        let mut byte = [0; 1];
+        match timeout(IO, socket.read(&mut byte)).await.unwrap() {
+            Ok(read) => assert_eq!(read, 0),
+            Err(error) => assert!(matches!(
+                error.kind(),
+                std::io::ErrorKind::UnexpectedEof | std::io::ErrorKind::ConnectionReset
+            )),
+        }
+    };
+    let cancellation = Cancellation::new();
+    let (_, result) = tokio::join!(server, client.check(check, &key, &cancellation));
+    assert_eq!(result.err(), Some(Diagnostic::TimedOut));
+    assert!(Flight::acquire().is_ok());
+}
+
 async fn stalled(p: &PreparedRequest, cancel: bool) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let client = CloudClient {
         fixture: Some((listener.local_addr().unwrap(), client_config(true))),
         timeouts: Timeouts {
+            check: Duration::from_millis(100),
             connect: IO,
             analysis: Duration::from_millis(200),
         },

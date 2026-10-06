@@ -127,16 +127,24 @@ impl CloudSession {
         raw: &[u8],
         credential_revision: &str,
     ) -> Result<Preparation, Diagnostic> {
+        self.begin_resolution(raw)?
+            .with_credential_revision(credential_revision)
+    }
+
+    /// Acquire and validate before the native caller reads its fixed OS slot.
+    /// No credential lookup is performed by the portable session.
+    pub fn begin_resolution(&self, raw: &[u8]) -> Result<Resolution, Diagnostic> {
         let operation = self.start(OperationKind::Prepare)?;
-        if !valid_digest(credential_revision) {
-            return Err(Diagnostic::InvalidRequest);
-        }
         let selection = Selection::parse_cloud(raw)?;
-        Ok(Preparation {
+        Ok(Resolution {
             operation,
             selection,
-            credential_revision: credential_revision.to_owned(),
         })
+    }
+
+    /// The caller still needs credential custody and independent native consent.
+    pub fn begin_check(&self) -> Result<Operation, Diagnostic> {
+        self.start(OperationKind::Check)
     }
 
     /// Claim consumes the exact handle. The caller must still obtain native consent.
@@ -301,6 +309,30 @@ impl Drop for Operation {
                 state.active = None;
             }
         }
+    }
+}
+
+pub struct Resolution {
+    operation: Operation,
+    selection: Selection,
+}
+impl Resolution {
+    pub fn operation(&self) -> &Operation {
+        &self.operation
+    }
+
+    /// Bind only the revision obtained by the native host. Clear/cancel while
+    /// the OS callback was running must not revive this resolution.
+    pub fn with_credential_revision(self, revision: &str) -> Result<Preparation, Diagnostic> {
+        self.operation.ensure_current()?;
+        if !valid_digest(revision) {
+            return Err(Diagnostic::InvalidRequest);
+        }
+        Ok(Preparation {
+            operation: self.operation,
+            selection: self.selection,
+            credential_revision: revision.to_owned(),
+        })
     }
 }
 

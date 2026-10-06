@@ -595,3 +595,53 @@ fn foreign_send_cancel_namespaces_and_unknown_fields_cannot_claim_or_cancel() {
         Err(Diagnostic::Cancelled)
     );
 }
+
+#[test]
+fn resolution_reserves_before_credential_read_and_cannot_revive_after_clear() {
+    let dir = TestDir::new();
+    let report = save(&dir, "AGENTS.md", b"# Rules\nKeep evidence.\n");
+    let session = session();
+    let raw = selection("classify_v1", vec![source_selector(&report.source.id)]);
+    let prior = prepare_source(
+        &session,
+        &dir.workspace(),
+        &report.source.id,
+        &revision('a'),
+    );
+    let resolution = session.begin_resolution(&raw).unwrap();
+    assert_eq!(
+        session.inspect().unwrap().active.unwrap().kind,
+        OperationKind::Prepare
+    );
+    assert!(matches!(session.begin_check(), Err(Diagnostic::Busy)));
+    session.clear().unwrap();
+    assert_eq!(
+        resolution.operation().ensure_current(),
+        Err(Diagnostic::Cancelled)
+    );
+    assert!(matches!(
+        resolution.with_credential_revision(&revision('a')),
+        Err(Diagnostic::Cancelled)
+    ));
+    session.configure(&profile("gpt-fixture-v1")).unwrap();
+    assert!(matches!(
+        session.begin_send(&send(&prior.prepared_id, &prior.request_id)),
+        Err(Diagnostic::StalePrepared)
+    ));
+    let resolution = session.begin_resolution(&raw).unwrap();
+    assert!(matches!(
+        resolution.with_credential_revision("invalid"),
+        Err(Diagnostic::InvalidRequest)
+    ));
+    assert!(session.inspect().unwrap().active.is_none());
+    let check = session.begin_check().unwrap();
+    assert_eq!(
+        session.inspect().unwrap().active.unwrap().kind,
+        OperationKind::Check
+    );
+    session.cancel(&cancel(check.run_id())).unwrap();
+    assert_eq!(check.ensure_current(), Err(Diagnostic::Cancelled));
+    assert!(matches!(session.begin_check(), Err(Diagnostic::Busy)));
+    drop(check);
+    assert!(session.begin_check().is_ok());
+}

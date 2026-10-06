@@ -594,6 +594,21 @@ and usage from unknown cost, region and retention. Cancellation can stop local
 waiting and close the socket; it cannot recall a dispatched request or guarantee
 no billing. `store: false` is not a Zero Data Retention claim.
 
+`CheckRequest::new` and `CloudClient::check` provide an explicit authenticated
+`GET /v1/models/{model}` with an empty body. The immutable request binds the
+profile, credential revision, method/path and empty-body digest. It shares the
+TLS and single-flight protections above, with a 30-second total deadline and
+64 KiB response cap. Strict metadata decoding requires the requested model ID;
+a successful receipt means model visibility only, not inference compatibility,
+zero cost, local processing, or retention guarantees.
+
+The portable cloud session reserves a resolution lease before native credential
+reads and rejects continuation after cancellation or profile changes. Native
+local operations now hold a shared model gate through workspace callbacks and
+pending OS consent. Dropping an IPC waiter cancels retained work; the OS dialog
+callback completes its own cleanup. The cloud controller must acquire that same
+gate and the credential-use lease when it is wired in.
+
 This library does not establish native consent, OS credential freshness, saved
 record freshness or application availability. Those checks remain mandatory in
 the next native cloud integration. The desktop cloud-send controls stay
