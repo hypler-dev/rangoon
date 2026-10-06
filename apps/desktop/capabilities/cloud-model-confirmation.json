@@ -1,0 +1,13 @@
+{
+  "identifier": "cloud-model-confirmation",
+  "description": "Only the isolated cloud review may read its retained request and request the final native OS decision. No transport authority is supplied by this renderer.",
+  "windows": [
+    "cloud-model-confirmation"
+  ],
+  "local": true,
+  "permissions": [
+    "allow-get-cloud-model-review",
+    "allow-confirm-cloud-model-review",
+    "allow-cancel-cloud-model-review"
+  ]
+}

@@ -13,6 +13,7 @@ pub enum Phase {
     Submitted,
     Prompting,
     Storage,
+    Using,
 }
 struct Pending {
     id: String,
@@ -25,6 +26,14 @@ pub struct Custody(Arc<Mutex<Option<Pending>>>);
 pub struct Lease {
     owner: Custody,
     pub id: String,
+}
+impl Lease {
+    pub fn is_current(&self) -> bool {
+        self.owner.0.lock().ok().is_some_and(|slot| {
+            slot.as_ref()
+                .is_some_and(|p| p.id == self.id && !p.cancelled)
+        })
+    }
 }
 impl Drop for Lease {
     fn drop(&mut self) {
@@ -79,10 +88,9 @@ impl Custody {
         let Ok(mut slot) = self.0.lock() else {
             return false;
         };
-        let Some(p) = slot
-            .as_mut()
-            .filter(|p| p.id == id && p.phase != Phase::Storage && !p.cancelled)
-        else {
+        let Some(p) = slot.as_mut().filter(|p| {
+            p.id == id && !matches!(p.phase, Phase::Storage | Phase::Using) && !p.cancelled
+        }) else {
             return false;
         };
         p.cancelled = true;

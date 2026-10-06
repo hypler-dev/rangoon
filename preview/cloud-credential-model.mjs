@@ -40,7 +40,7 @@ export function createCloudCredentialController({ invoke, onChange = () => {} } 
   });
   const apply = (result, pending) => {
     if (result.outcome === 'stored' || result.outcome === 'saved') {
-      publish({ ...state, status: 'stored', needsInspection: pending === 'inspect' ? false : state.needsInspection, backend: result.backend, revision: result.revision, pending: null, outcome: result.outcome, error: null, message: pending === 'inspect' ? 'OpenAI credential is stored in native OS custody.' : 'Credential operation completed. Cloud transport remains unavailable.' });
+      publish({ ...state, status: 'stored', needsInspection: pending === 'inspect' ? false : state.needsInspection, backend: result.backend, revision: result.revision, pending: null, outcome: result.outcome, error: null, message: pending === 'inspect' ? 'OpenAI credential is stored in native OS custody.' : 'Credential operation completed. Every model transfer requires separate native request review and OS confirmation.' });
     } else if (result.outcome === 'missing' || result.outcome === 'removed') {
       publish({ ...state, status: 'missing', needsInspection: pending === 'inspect' ? false : state.needsInspection, backend: result.backend, revision: null, pending: null, outcome: result.outcome, error: null, message: result.outcome === 'removed' ? 'OpenAI credential removed from native OS custody.' : 'No OpenAI credential is stored.' });
     } else if (result.outcome === 'cancelled') {

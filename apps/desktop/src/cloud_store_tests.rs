@@ -169,3 +169,40 @@ fn save_rejects_intervening_create_replace_or_delete() {
     assert_eq!(save(&fake, &first, Some(&next)), Err(Error::Changed));
     assert_eq!(fake.writes.get(), 2);
 }
+
+#[test]
+fn transport_conversion_requires_full_envelope_equality_and_never_mutates() {
+    let store = Fake::default();
+    let expected = Secret::new(b"synthetic-transfer-key").unwrap();
+    save(&store, &expected, None).unwrap();
+    assert!(transport_credential(&store, &expected).is_ok());
+    let writes = store.writes.get();
+    let mut tampered = expected.0.to_vec();
+    *tampered.last_mut().unwrap() = b'X';
+    *store.value.borrow_mut() = Some(tampered);
+    assert_eq!(
+        inspect(&store).unwrap().unwrap().revision(),
+        expected.revision()
+    );
+    assert!(matches!(
+        transport_credential(&store, &expected),
+        Err(Error::Changed)
+    ));
+    *store.value.borrow_mut() = None;
+    assert!(matches!(
+        transport_credential(&store, &expected),
+        Err(Error::Changed)
+    ));
+    *store.value.borrow_mut() = Some(b"corrupt envelope".to_vec());
+    assert!(matches!(
+        transport_credential(&store, &expected),
+        Err(Error::InvalidStoredCredential)
+    ));
+    store.fail_read.set(true);
+    assert!(matches!(
+        transport_credential(&store, &expected),
+        Err(Error::Unavailable)
+    ));
+    assert_eq!(store.writes.get(), writes);
+    assert_eq!(store.deletes.get(), 0);
+}

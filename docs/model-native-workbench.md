@@ -1,6 +1,6 @@
 # Native model workbench and consent integration
 
-Authority: the accepted October 6 model-assistance continuation in [intent.md](intent.md). This controller specification refines [model-native-session.md](model-native-session.md) for actual desktop integration. The published session/transport contracts remain unchanged unless explicitly refined below. Evidence and publication state belong in [development.md](development.md). This is implementation direction, not a claim of qualified GUI support.
+Authority: the accepted October 6 model-assistance continuation in [intent.md](intent.md). This controller specification refines [model-native-session.md](model-native-session.md) for actual desktop integration. The published session/transport contracts remain unchanged unless explicitly refined below. Evidence and publication state belong in [development.md](development.md). Current source includes the native workbench/consent path; this is not a claim of qualified GUI or release support.
 
 ## Native-owned review surface
 
@@ -49,7 +49,7 @@ Only one review window/pending decision exists at a time. No model profile, payl
 
 ## Orchestration and cleanup
 
-Prepare reserves its session lease, then the shared native model-operation gate, before entering the guarded workspace read. Configure takes that shared gate briefly; check/send retain it through completion. Clear/cancel stay available. This gate is separate from the workspace guard and is required for the upcoming cloud route as well. It runs store work off the UI thread. Blocking callbacks own their leases, while an outer drop guard cancels work if its IPC waiter disappears. The existing workspace-operation guard is held only for bounded reads/packing, never dialogs or network. Failure consumes prior preparation according to the published session contract.
+Prepare reserves its session lease, then the shared native model-operation gate, before entering the guarded workspace read. Configure takes that shared gate briefly; check/send retain it through completion. Clear/cancel stay available. This gate is separate from the workspace guard and also serializes the implemented native cloud route. It runs store work off the UI thread. Blocking callbacks own their leases, while an outer drop guard cancels work if its IPC waiter disappears. The existing workspace-operation guard is held only for bounded reads/packing, never dialogs or network. Failure consumes prior preparation according to the published session contract.
 
 Check acquires a check lease, invokes the bounded `LocalClient::check`, and checks lease validity before returning. It neither discovers nor launches a model server.
 

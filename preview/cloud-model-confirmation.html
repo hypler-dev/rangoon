@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rangoon — Review OpenAI request</title>
+  <link rel="icon" href="assets/brand-symbol.png">
+  <link rel="stylesheet" href="cloud-model-confirmation.css">
+  <script type="module" src="cloud-model-confirmation.mjs"></script>
+</head>
+<body>
+  <main aria-labelledby="cloud-review-title">
+    <header class="cloud-review-header">
+      <button id="cloud-review-theme" type="button">Light mode</button>
+      <img src="assets/brand-symbol.png" alt="Rangoon">
+      <p class="eyebrow">RANGOON · ISOLATED CLOUD REVIEW</p>
+      <h1 id="cloud-review-title">Review OpenAI request</h1>
+      <p id="cloud-review-status" role="status" aria-live="polite">Loading retained cloud request…</p>
+    </header>
+    <section id="cloud-review-content" hidden aria-label="Retained cloud request">
+      <p id="cloud-review-disclosure">Review the retained request before continuing to OS confirmation. Cost, retention, and region are unknown. <code>store: false</code> is not Zero Data Retention.</p>
+      <section aria-labelledby="cloud-review-facts-title">
+        <h2 id="cloud-review-facts-title">Request facts</h2>
+        <dl id="cloud-review-facts"></dl>
+      </section>
+      <section aria-labelledby="cloud-review-inputs-title">
+        <h2 id="cloud-review-inputs-title">Selected dependencies</h2>
+        <ol id="cloud-review-inputs"></ol>
+      </section>
+      <section aria-labelledby="cloud-review-body-title">
+        <h2 id="cloud-review-body-title">Exact request body</h2>
+        <pre id="cloud-review-body" tabindex="0" aria-label="Exact retained request body"></pre>
+      </section>
+    </section>
+  </main>
+  <footer>
+    <p>Continue opens the final operating-system confirmation. This review cannot retry or authorize a transfer itself.</p>
+    <div>
+      <button id="cloud-review-cancel" type="button" disabled>Cancel</button>
+      <button id="cloud-review-send" type="button" disabled>Continue to OS confirmation</button>
+    </div>
+  </footer>
+</body>
+</html>

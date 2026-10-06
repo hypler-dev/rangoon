@@ -8,7 +8,7 @@ test('custody panel stays unknown by default and disables removal', () => {
   assert.match(html, /OpenAI credential/);
   assert.match(html, /Authority<\/dt><dd>None/);
   assert.match(html.match(/id="cloud-credential-remove"[^>]*>/)[0], /disabled/);
-  assert.match(html, /Cloud transport remains unavailable/);
+  assert.match(html, /Every model transfer requires separate native request review and OS confirmation/);
 });
 
 test('custody panel enables remove only for stored state and names no provider traffic', () => {
