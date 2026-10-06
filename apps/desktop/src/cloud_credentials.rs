@@ -395,7 +395,9 @@ mod tests {
         assert_eq!(json["authority"], "none");
         assert_eq!(json["provider"], "openai");
         assert_eq!(json["schemaVersion"], "rangoon.cloud-custody.v1");
-        assert!(!json.to_string().contains("secret"));
+        assert!(json.get("secret").is_none());
+        assert!(json.get("credential").is_none());
+        assert!(json.get("key").is_none());
     }
 }
 
