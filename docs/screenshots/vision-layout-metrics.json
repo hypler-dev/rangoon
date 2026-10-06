@@ -1,0 +1,717 @@
+{
+  "scope": "Browser fallback and explicitly synthetic layout fixtures. No native GUI or provider qualification.",
+  "routes": [
+    {
+      "area": "analysis",
+      "client": 1425,
+      "scroll": 1425,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "area": "decompose",
+      "client": 1425,
+      "scroll": 1425,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "area": "merge",
+      "client": 1425,
+      "scroll": 1425,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "area": "split",
+      "client": 1425,
+      "scroll": 1425,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "area": "skills",
+      "client": 1425,
+      "scroll": 1425,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "area": "compile",
+      "client": 1425,
+      "scroll": 1425,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "area": "model-assistance",
+      "client": 1425,
+      "scroll": 1425,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "area": "workspace",
+      "client": 1425,
+      "scroll": 1425,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "area": "engine",
+      "client": 1425,
+      "scroll": 1425,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "area": "analysis",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "area": "decompose",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "area": "merge",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "area": "split",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "area": "skills",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "area": "compile",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "area": "model-assistance",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "area": "workspace",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "area": "engine",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "area": "analysis",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "area": "decompose",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "area": "merge",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "area": "split",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "area": "skills",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "area": "compile",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "area": "model-assistance",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "area": "workspace",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "area": "engine",
+      "client": 753,
+      "drawer": true,
+      "scroll": 753,
+      "theme": "dark",
+      "width": 768
+    },
+    {
+      "area": "analysis",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "area": "decompose",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "area": "merge",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "area": "split",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "area": "skills",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "area": "compile",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "area": "model-assistance",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "area": "workspace",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "area": "engine",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "area": "analysis",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "area": "decompose",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "area": "merge",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "area": "split",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "area": "skills",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "area": "compile",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "area": "model-assistance",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "area": "workspace",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "area": "engine",
+      "client": 305,
+      "drawer": false,
+      "scroll": 305,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "area": "analysis",
+      "art": "0% 0%",
+      "client": 1425,
+      "opacity": "1",
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    },
+    {
+      "area": "decompose",
+      "art": "50% 0%",
+      "client": 1425,
+      "opacity": "1",
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    },
+    {
+      "area": "merge",
+      "art": "100% 0%",
+      "client": 1425,
+      "opacity": "0.984103",
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    },
+    {
+      "area": "split",
+      "art": "0% 50%",
+      "client": 1425,
+      "opacity": "0.999976",
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    },
+    {
+      "area": "skills",
+      "art": "50% 50%",
+      "client": 1425,
+      "opacity": "1",
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    },
+    {
+      "area": "compile",
+      "art": "100% 50%",
+      "client": 1425,
+      "opacity": "1",
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    },
+    {
+      "area": "model-assistance",
+      "art": "0% 100%",
+      "client": 1425,
+      "opacity": "1",
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    },
+    {
+      "area": "workspace",
+      "art": "50% 100%",
+      "client": 1425,
+      "opacity": "1",
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    },
+    {
+      "area": "engine",
+      "art": "100% 100%",
+      "client": 1425,
+      "opacity": "1",
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    }
+  ],
+  "fixtureMetrics": [
+    {
+      "client": 320,
+      "controls": [
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        },
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        },
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        },
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        },
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        }
+      ],
+      "panels": 4,
+      "scroll": 320,
+      "theme": "light",
+      "width": 320
+    },
+    {
+      "client": 320,
+      "controls": [
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        },
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        },
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        },
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        },
+        {
+          "client": 252,
+          "panelRight": 304,
+          "right": 287,
+          "scroll": 252
+        }
+      ],
+      "panels": 4,
+      "scroll": 320,
+      "theme": "dark",
+      "width": 320
+    },
+    {
+      "client": 1425,
+      "controls": [
+        {
+          "client": 286,
+          "panelRight": 1401,
+          "right": 547.15625,
+          "scroll": 286
+        },
+        {
+          "client": 286,
+          "panelRight": 1401,
+          "right": 845.3125,
+          "scroll": 286
+        },
+        {
+          "client": 286,
+          "panelRight": 1401,
+          "right": 1143.46875,
+          "scroll": 286
+        },
+        {
+          "client": 229,
+          "panelRight": 1401,
+          "right": 1384,
+          "scroll": 229
+        },
+        {
+          "client": 229,
+          "panelRight": 1401,
+          "right": 1384,
+          "scroll": 229
+        }
+      ],
+      "panels": 4,
+      "scroll": 1425,
+      "theme": "dark",
+      "width": 1440
+    },
+    {
+      "client": 1440,
+      "controls": [
+        {
+          "client": 290,
+          "panelRight": 1415.9921875,
+          "right": 551.1015625,
+          "scroll": 290
+        },
+        {
+          "client": 290,
+          "panelRight": 1415.9921875,
+          "right": 853.203125,
+          "scroll": 290
+        },
+        {
+          "client": 290,
+          "panelRight": 1415.9921875,
+          "right": 1155.3046875,
+          "scroll": 290
+        },
+        {
+          "client": 232,
+          "panelRight": 1415.9921875,
+          "right": 1398.9921875,
+          "scroll": 232
+        },
+        {
+          "client": 232,
+          "panelRight": 1415.9921875,
+          "right": 1398.9921875,
+          "scroll": 232
+        }
+      ],
+      "panels": 4,
+      "scroll": 1440,
+      "theme": "light",
+      "width": 1440
+    },
+    {
+      "client": 753,
+      "controls": [
+        {
+          "client": 220,
+          "panelRight": 729,
+          "right": 480.5,
+          "scroll": 220
+        },
+        {
+          "client": 220,
+          "panelRight": 729,
+          "right": 712,
+          "scroll": 220
+        },
+        {
+          "client": 220,
+          "panelRight": 729,
+          "right": 480.5,
+          "scroll": 220
+        },
+        {
+          "client": 451,
+          "panelRight": 729,
+          "right": 712,
+          "scroll": 451
+        },
+        {
+          "client": 451,
+          "panelRight": 729,
+          "right": 712,
+          "scroll": 451
+        }
+      ],
+      "panels": 4,
+      "scroll": 753,
+      "theme": "light",
+      "width": 768
+    },
+    {
+      "client": 768,
+      "controls": [
+        {
+          "client": 227,
+          "panelRight": 744,
+          "right": 488,
+          "scroll": 227
+        },
+        {
+          "client": 227,
+          "panelRight": 744,
+          "right": 727,
+          "scroll": 227
+        },
+        {
+          "client": 227,
+          "panelRight": 744,
+          "right": 488,
+          "scroll": 227
+        },
+        {
+          "client": 466,
+          "panelRight": 744,
+          "right": 727,
+          "scroll": 466
+        },
+        {
+          "client": 466,
+          "panelRight": 744,
+          "right": 727,
+          "scroll": 466
+        }
+      ],
+      "panels": 4,
+      "scroll": 768,
+      "theme": "dark",
+      "width": 768
+    }
+  ],
+  "splashMetrics": [
+    {
+      "client": 1440,
+      "scroll": 1440,
+      "theme": "dark",
+      "width": 1440,
+      "requested": 1440
+    },
+    {
+      "client": 1440,
+      "scroll": 1440,
+      "theme": "light",
+      "width": 1440,
+      "requested": 1440
+    },
+    {
+      "client": 768,
+      "scroll": 768,
+      "theme": "dark",
+      "width": 768,
+      "requested": 768
+    },
+    {
+      "client": 768,
+      "scroll": 768,
+      "theme": "light",
+      "width": 768,
+      "requested": 768
+    },
+    {
+      "client": 320,
+      "scroll": 320,
+      "theme": "dark",
+      "width": 320,
+      "requested": 320
+    },
+    {
+      "client": 320,
+      "scroll": 320,
+      "theme": "light",
+      "width": 320,
+      "requested": 320
+    }
+  ]
+}

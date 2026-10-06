@@ -34,9 +34,9 @@ for (const asset of manifest.assets) {
     assert.equal(bytes.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
     assert.equal(bytes.readUInt32BE(16), asset.width);
     assert.equal(bytes.readUInt32BE(20), asset.height);
-    assert.equal(bytes[25], 6, 'Hero artwork must retain RGBA transparency.');
+    if (asset.transparent) assert.equal(bytes[25], 6, 'Transparent artwork must retain RGBA.');
     assert.equal(bytes.length, asset.bytes);
-    assert.ok(bytes.length < 1_200_000, 'Keep the single decorative raster within its reviewed budget.');
+    assert.ok(bytes.length < (asset.transparent ? 1_200_000 : 1_900_000), 'Decorative artwork exceeds its reviewed byte budget.');
   }
 }
 console.log(`PASS: ${catalogKeys.length} unique icons × ${sizes.length} sizes, invalid inputs, and ${manifest.assets.length} asset hashes.`);

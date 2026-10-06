@@ -1,0 +1,234 @@
+{
+  "schemaVersion": "rangoon.vision-contract.v1",
+  "authority": "docs/intent.md",
+  "referenceManifest": "docs/reference-manifest.json",
+  "sharedStylesheet": "preview/workbench-shell.css",
+  "themes": [
+    "dark",
+    "light"
+  ],
+  "reviewWidths": [
+    320,
+    768,
+    1440
+  ],
+  "surfaces": [
+    {
+      "id": "import",
+      "references": [
+        "S02"
+      ],
+      "tests": [
+        "tests/analysis.test.mjs"
+      ],
+      "status": "implemented-source",
+      "next": "Qualify richer explicit source intake and parser coverage; folder and repository intake remain future work.",
+      "viewSource": "preview/analyze.mjs",
+      "technicalSources": [
+        "apps/desktop/src/main.rs",
+        "crates/rangoon-import/src/lib.rs",
+        "crates/rangoon-store/src/lib.rs"
+      ]
+    },
+    {
+      "id": "decompose",
+      "references": [
+        "S08"
+      ],
+      "tests": [
+        "tests/composition-model.test.mjs",
+        "tests/composition-view.test.mjs"
+      ],
+      "status": "implemented-source",
+      "next": "Complete native composition failure and keyboard qualification across all three desktop OSs.",
+      "viewSource": "preview/composition-view.mjs",
+      "technicalSources": [
+        "apps/desktop/src/composition.rs",
+        "crates/rangoon-compose/src/lib.rs"
+      ]
+    },
+    {
+      "id": "merge-split",
+      "references": [
+        "S01"
+      ],
+      "tests": [
+        "tests/composition-model.test.mjs",
+        "tests/composition-view.test.mjs"
+      ],
+      "status": "implemented-source",
+      "next": "Qualify append and mixed destinations, conflict recovery and cross-platform GUI behavior.",
+      "viewSource": "preview/composition-view.mjs",
+      "technicalSources": [
+        "apps/desktop/src/composition.rs",
+        "crates/rangoon-compose/src/lib.rs"
+      ]
+    },
+    {
+      "id": "skills",
+      "references": [
+        "S07"
+      ],
+      "tests": [
+        "tests/skills-model.test.mjs"
+      ],
+      "status": "implemented-source",
+      "next": "Add searchable library and qualified compatibility evidence without implying publication or execution.",
+      "viewSource": "preview/skills-view.mjs",
+      "technicalSources": [
+        "apps/desktop/src/capabilities.rs",
+        "crates/rangoon-store/src/capabilities.rs"
+      ]
+    },
+    {
+      "id": "workflows",
+      "references": [
+        "S04"
+      ],
+      "tests": [
+        "tests/preview.test.mjs"
+      ],
+      "status": "sample-only",
+      "next": "Build versioned workflow definitions and static validation before separately authorized runners.",
+      "viewSource": "preview/app.mjs",
+      "technicalSources": []
+    },
+    {
+      "id": "connectors",
+      "references": [
+        "S03"
+      ],
+      "tests": [
+        "tests/preview.test.mjs"
+      ],
+      "status": "sample-only",
+      "next": "Implement adapter inventory with explicit credential scope and separate action authority.",
+      "viewSource": "preview/app.mjs",
+      "technicalSources": []
+    },
+    {
+      "id": "command-center",
+      "references": [
+        "S05",
+        "S06"
+      ],
+      "tests": [
+        "tests/preview.test.mjs"
+      ],
+      "status": "sample-only",
+      "next": "Replace synthetic fleet metrics with actual local inventory and useful next actions in a native route.",
+      "viewSource": "preview/app.mjs",
+      "technicalSources": []
+    },
+    {
+      "id": "compile",
+      "references": [
+        "S01",
+        "S07"
+      ],
+      "tests": [
+        "tests/compilation-model.test.mjs",
+        "tests/compilation-view.test.mjs"
+      ],
+      "status": "implemented-source",
+      "next": "Qualify target loader compatibility and remaining native export failure states.",
+      "viewSource": "preview/compilation-view.mjs",
+      "technicalSources": [
+        "apps/desktop/src/compilation.rs",
+        "crates/rangoon-compile/src/lib.rs"
+      ]
+    },
+    {
+      "id": "model-assistance",
+      "references": [
+        "S02",
+        "S08"
+      ],
+      "tests": [
+        "tests/model-assistance-model.test.mjs",
+        "tests/model-assistance-view.test.mjs",
+        "tests/cloud-credential-model.test.mjs",
+        "tests/cloud-model-confirmation.test.mjs"
+      ],
+      "status": "implemented-source",
+      "next": "Add inert proposal inspection with durable model attribution before any explicit draft application; cloud GUI qualification remains partial.",
+      "viewSource": "preview/model-assistance-view.mjs",
+      "technicalSources": [
+        "apps/desktop/src/models.rs",
+        "apps/desktop/src/cloud_models.rs",
+        "crates/rangoon-model-assistance/src/lib.rs"
+      ]
+    },
+    {
+      "id": "workspace",
+      "references": [
+        "S02",
+        "S07"
+      ],
+      "tests": [
+        "tests/workspace-model.test.mjs"
+      ],
+      "status": "implemented-source",
+      "next": "Qualify cross-platform backup, restore and deletion; encryption and tamper resistance remain separate technical work.",
+      "viewSource": "preview/workspace-view.mjs",
+      "technicalSources": [
+        "apps/desktop/src/main.rs",
+        "crates/rangoon-store/src/lib.rs"
+      ]
+    },
+    {
+      "id": "engine",
+      "references": [
+        "S03",
+        "S06"
+      ],
+      "tests": [
+        "tests/engine.test.mjs"
+      ],
+      "status": "unavailable",
+      "next": "Integrate a qualified LNSAT 1.0 wire adapter after its independent contract is accepted.",
+      "viewSource": "preview/engine-view.mjs",
+      "technicalSources": [
+        "crates/rangoon-engine/src/lib.rs"
+      ]
+    }
+  ],
+  "routeArtwork": {
+    "analysis": [
+      0,
+      0
+    ],
+    "decompose": [
+      50,
+      0
+    ],
+    "merge": [
+      100,
+      0
+    ],
+    "split": [
+      0,
+      50
+    ],
+    "skills": [
+      50,
+      50
+    ],
+    "compile": [
+      100,
+      50
+    ],
+    "model-assistance": [
+      0,
+      100
+    ],
+    "workspace": [
+      50,
+      100
+    ],
+    "engine": [
+      100,
+      100
+    ]
+  }
+}

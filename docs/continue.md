@@ -10,7 +10,7 @@ git rev-parse HEAD
 git remote -v
 ```
 
-The continuation branch `codex/model-cloud-dispatch` starts from verified PR28 merge `920368f418ac15cada46b3f90e4dc2cea4dfaf64`, reviewed final head `c3b4c44b085fb3b926b65f11945e8afdde0e809b` and base `6b552204579aa678623e1885c04483b5cadfcf89`. Public source includes the authenticated source-free cloud check, pre-credential resolution leases, and native shared-operation/dialog-lifetime hardening. All fourteen final-head hosted checks passed. The current source continuation implements native cloud consent/dispatch and the route-selection workbench; runtime qualification remains partial. Read the [development ledger](development.md) for exact review, failure/fix, publication receipts and next integration constraint. This receipt and guide are intentional carry-forward documentation; the parent directory remains a separate marketing repository outside scope.
+The current UI-only continuation branch `codex/vision-alignment` starts from verified PR29 merge `ad58c3995843a66f4467cf8b3f957cf5d99e86ee`, reviewed final head `2d3c6faec40e73db511c4387593dbb01cdca21c8` and base `920368f418ac15cada46b3f90e4dc2cea4dfaf64`. Public source includes native cloud request/credential custody, isolated review, final OS consent, fixed-origin transport and the Local/OpenAI workbench. All fourteen final-head hosted checks passed. Runtime/provider qualification remains partial. Read the [development ledger](development.md) for exact evidence, publication receipts and the next proposal-attribution constraint. This receipt and guide are intentional carry-forward documentation; the parent directory remains a separate marketing repository outside scope.
 
 ## Read first
 
@@ -56,9 +56,7 @@ For the application preview and editor fixtures:
 
 ```sh
 npm start
-npm run check
-npm run validate:visuals
-npm test
+npm run build:check
 node scripts/validate-review.mjs
 git diff --check
 ```
@@ -80,15 +78,20 @@ cargo build --manifest-path apps/desktop/Cargo.toml --locked
 
 Run only the checks relevant to the packet, record exact outcomes in `docs/development.md`, and keep known infrastructure failures distinct from source failures. Source CI or one macOS GUI run does not prove all-three-OS GUI or release support.
 
+## Current vision packet
+
+The accepted UI-only alignment packet restores grouped navigation, distinct artwork for each of nine functional areas, coordinated dark/light splash art, and the mascot at the sidebar foot and Import empty state. `npm run build:check` enforces the reference/source map and existing behavior tests. This changes presentation and build review discipline; it does not complete any new engine, model, storage or execution capability. See the latest canonical ledger entry for validation and publication state. Preserve this experience while progressing the M1d contract below.
+
 ## Next packet
 
 The native local Model Assistance workbench is implemented under [model-native-workbench.md](model-native-workbench.md). It uses saved IDs, full protected record text, session-only profile custody, exact retained requests, an isolated native review window and final OS consent. A synthetic macOS GUI run exercised the real commands, consent, approved transport, malformed response, cancellation and missing-input refusal. Use the latest ledger entry for exact tests, reviews, known QA limitations and publication state. M1b and V1 remain incomplete.
 
 1. Preserve the reviewed model boundary: advisory output, no proposal application or authority; no startup traffic; numeric loopback only; single-use request handles; exact payload consent; bounded direct transport and cancellation. The inner context-pack body and outer wire body are different DTOs and must be validated separately. Do not rerender unchanged active polls.
 2. Close remaining native qualification: Windows/Linux interactive confirmation, complete keyboard/screen-reader coverage, close/clear while an OS prompt is active, changed-head freshness and unavailable post-read GUI cases. Existing source tests do not substitute for those GUI receipts.
-3. Native cloud credential management is published through PR25; the portable adapter/session/check and ownership foundations are published through PR26–PR28. The current continuation implements native cloud prepare/check/send/cancel, retained full-envelope comparison, shared model/credential ownership, isolated review, final OS decisions, freshness and the Local/OpenAI workbench selector. Read [model-cloud-native.md](model-cloud-native.md) and the latest ledger before changing this boundary. Source checks pass; rebuilt isolated macOS profile configuration passed, but its Keychain read remains pending behind an OS prompt that automation cannot access. Cancellation invalidates the run while callback ownership remains held. Do not treat this as approved native cloud transfer proof. A synthetic fake credential remains only in the isolated `ai.rangoon.cloud.dispatch.qa` test slot pending cleanup. Continue native cancellation/prepare/review qualification after the OS prompt is resolved; do not use real credentials or call a provider. Windows/Linux interactive custody, proposal-to-draft inspection/application and task-quality/token measurements remain required M1c–M1e work.
+3. Native cloud credential management is published through PR25; the portable adapter/session/check and ownership foundations are published through PR26–PR28. The current continuation implements native cloud prepare/check/send/cancel, retained full-envelope comparison, shared model/credential ownership, isolated review, final OS decisions, freshness and the Local/OpenAI workbench selector. Read [model-cloud-native.md](model-cloud-native.md) and the latest ledger before changing this boundary. Source checks pass; rebuilt isolated macOS profile configuration passed, but OS Keychain access delayed its read behind a prompt automation cannot access. A cancelled check eventually returned with controls restored; the cause of the OS return was not observed. A later local Prepare was cancelled while pending, and the QA app was shut down. Cancellation invalidates the run while callback ownership remains held. Do not treat this as approved native cloud transfer proof. A synthetic fake credential remains only in the isolated `ai.rangoon.cloud.dispatch.qa` test slot pending cleanup. Native prepare/review qualification and fake-slot cleanup remain open; do not use real credentials or call a provider. Windows/Linux interactive custody, proposal-to-draft inspection/application and task-quality/token measurements remain required M1c–M1e work.
 4. Preserve bundle exact bytes, plaintext disclosure, exclusive creation, the 295,016-byte limit and uncertain partial-write recovery. Keep target-loader behavior, collision/write GUI, composition compile, complete keyboard coverage and Windows/Linux GUI as separate open gates.
-5. Record evidence in the canonical ledger; publication requires exact head/base, fresh independent review, hosted CI and fetched ancestry.
+5. Next define the M1d proposal-inspection contract before application. Existing capability origins/revisions cannot retain model/task/pack/response/citation attribution. Do not route model output into an ordinary Skills save and silently discard that provenance. Retain only bounded secret-free result metadata, re-resolve exact dependencies and target state, preserve unsaved drafts, and keep application/review authority closed until the durable provenance and recovery contract exists. Planning inputs are `/private/tmp/rangoon-model-draft-next.md`; those recommendations require controller refinement and independent review, not automatic acceptance.
+6. Record evidence in the canonical ledger; publication requires exact head/base, fresh independent review, hosted CI and fetched ancestry.
 
 Continue the broader V1 plan through adapters, compatibility/export, Workflows, Agents/templates, Connectors/Harnesses, local security design and later team/cloud work. Preserve separate decisions for engine activation, private or paid provider use, encryption, licensing, deployment and grants. Do not call this source packet complete V1 or full R3/R4/R5.
 

@@ -18,6 +18,60 @@
       "method": "User supplied original, unchanged",
       "sha256": "7dfcf1dddf5a8df85dd373c147ad182d716c4b0d747868d9ced4518102fbc8e2",
       "usage": "Chosen Rangoon brand symbol; source for OS icons."
+    },
+    {
+      "path": "preview/assets/rangoon-terrain-light-v1.png",
+      "method": "OpenAI built-in image generation; user-supplied visual reference",
+      "created": "2026-10-06",
+      "width": 1774,
+      "height": 887,
+      "transparent": false,
+      "bytes": 1658131,
+      "sha256": "57a07c9e668d8bf5b3bd170b3d5153a890dd662357835b856e5adf1ca35f54d1",
+      "prompt": "Create a polished wide 3D decorative banner background for Rangoon desktop software, no UI and absolutely no text. Inspired by supplied Rangoon screenshot identity only: warm orange folded origami rangoon form and layered mountain landscape. Abstract technical interpretation, not a screenshot. Wide landscape composition approximately 1536x768: left 60% mostly empty warm ivory with very subtle soft mountain silhouettes, all main artwork in rightmost 38%. Right: three precision interlocking triangular orange ceramic/anodized metal folds creating an elegant Rangoon-like origami sculpture, a few small pearl ceramic and amber-glass modular blocks with delicate graphite connector rods, resting on quiet pale geometric mountain terrain. Beautiful premium product photography, refined physical materials, controlled studio lighting, subtle depth of field, crisp orange silhouette, editorial restraint. No face, lettering, logos, labels, padlocks, shields, checkmarks, cables, neon glow, fake status indicators or charts. Low contrast left negative space for independently rendered readable UI text. This is a new decorative artwork, not replacing the user's actual app logo. LIGHT theme variant. Keep everything calm and airy.",
+      "usage": "Decorative light native workbench banner and splash landscape. Not a status or replacement app icon."
+    },
+    {
+      "path": "preview/assets/rangoon-terrain-dark-v1.png",
+      "method": "OpenAI built-in image generation; user-supplied visual reference",
+      "created": "2026-10-06",
+      "width": 1774,
+      "height": 887,
+      "transparent": false,
+      "bytes": 1759749,
+      "sha256": "0a458302f3a45440916113d197190e708e1aa620e3707b93b3831f192d4e04eb",
+      "prompt": "Edit this supplied Rangoon decorative banner into a matching DARK theme version. Preserve exactly the overall wide composition, orange origami sculpture on right, geometric mountains and connector blocks, left 60% negative space. Change ivory background and terrain to luxurious deep blue-black graphite charcoal, dark ceramic landscape, subtle cool slate mountain silhouettes. Preserve vibrant physical amber-orange folds with realistic warm edge light, amber glass and quiet pearl nodes. Left side nearly uniform #111820, not pitch black, extremely low contrast for independently rendered light text. Premium sophisticated tactile 3D product render. No words, lettering, UI, faces, status signs, shields, checkmarks, logos or neon cyberpunk effects. Match positions closely for calm theme switching.",
+      "usage": "Decorative dark native workbench banner and splash landscape. Not a status or replacement app icon."
+    },
+    {
+      "path": "preview/assets/rangoon-scenes-dark-v1.png",
+      "method": "OpenAI built-in image generation; generated terrain style reference and matched theme edit",
+      "created": "2026-10-06",
+      "width": 1254,
+      "height": 1254,
+      "transparent": false,
+      "bytes": 1732830,
+      "sha256": "c57fdd5fcf3f53ee318cb7594216f963529519875c32c244fd001813bb5c4094",
+      "prompt": "Create ONE square 3-by-3 illustration sprite atlas for Rangoon desktop app, exactly nine equally sized square cells edge-to-edge in a perfectly regular 3x3 grid, no gutters, no visible borders, NO TEXT anywhere. All nine cells have identical flat dark graphite #11161c background and plenty of empty margins around one centered distinct small 3D still life. Premium stylized product renders in orange folded ceramic, amber glass and restrained pearl/graphite details; strongly echo orange origami shapes and technical mountain sculpture in reference. Every cell must be visually DIFFERENT, but same art direction, lighting, scale and isometric viewpoint. Top row left to right: (1) IMPORT: open orange origami tray receiving three floating ivory paper cards; (2) DECOMPOSE: orange triangular folded sculpture exploded into five neatly separated geometric pieces; (3) MERGE: three colored orange/ivory/amber folded parts converging into one interlocking form. Middle row left to right: (4) SPLIT: one large orange folded form branching into two smaller orange forms on a fine graphite rail; (5) SKILLS: tidy three-tier modular shelf of orange and ivory folded capability blocks; (6) COMPILE: orange geometric prism with flat ivory cards entering one side and one amber framed layered card leaving the other. Bottom row left to right: (7) MODEL ASSISTANCE: orange origami core with three small amber-glass spheres on elegant orbit rails, no brain; (8) WORKSPACE: precise orange archive cube with visible layered ivory sheets and small dark drawer; (9) ENGINE: orange hexagonal hub and separated graphite coupling pieces with a clear physical gap, no implication of activity. Controlled studio light, crisp clean shadows close to objects, calm charcoal, tactile detailed surfaces, beautiful minimal modern 3D graphics. No words, lettering, labels, numbers, mascots, faces, logos, padlocks, shields, checkmarks, fake UI, flashing lights, neon cyberpunk effects or starbursts. Keep all sculpture within central 65% of each cell so each is independently cropped cleanly in the app. Nine exact grid cells, square overall. Dark theme atlas.",
+      "usage": "Nine decorative menu illustrations in a 3x3 CSS atlas. No status or authority meaning."
+    },
+    {
+      "path": "preview/assets/rangoon-scenes-light-v1.png",
+      "method": "OpenAI built-in image generation; generated terrain style reference and matched theme edit",
+      "created": "2026-10-06",
+      "width": 1254,
+      "height": 1254,
+      "transparent": false,
+      "bytes": 1467050,
+      "sha256": "e214cba88ef3cafb986e5278c08570541bc264f60069727f12517c44a5ecba5f",
+      "prompt": "Make the exact supplied 3x3 Rangoon illustration atlas into a matching LIGHT theme atlas. Preserve every shape, object, position, scale, grid boundaries, nine subjects and empty margins identically. All cells warm white #fffaf4 / soft ivory backgrounds with refined soft studio shadows. Orange ceramic folds stay saturated warm amber orange, pearl nodes, graphite connector details. Elegant premium product renders for a software dashboard. No words, no visible grid borders, no gutter, no captions, no UI or new objects. Exact 3x3 square atlas, nine equally sized square cells. Must crop independently in same cell coordinates as dark image.",
+      "usage": "Nine decorative menu illustrations in a 3x3 CSS atlas. No status or authority meaning."
+    },
+    {
+      "path": "preview/assets/mascot.webp",
+      "method": "Existing repository mascot reused unchanged",
+      "sha256": "57dc99ed1e5aa727552ea10d615b0de973f0403890d9e4092cdf88bbd8ad8478",
+      "usage": "Decorative sidebar companion and Import empty state, per user direction. Not the OS icon."
     }
   ],
   "icons": {

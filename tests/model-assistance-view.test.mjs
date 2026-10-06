@@ -94,7 +94,7 @@ test('cloud route fixes origin and keeps credential custody separate', () => {
 test('css has three, two, and one-column responsive workbench plus reduced motion', async () => {
   const { readFile } = await import('node:fs/promises');
   const css = await readFile(new URL('../preview/model-assistance.css', import.meta.url), 'utf8');
-  assert.match(css, /model-workbench\{display:grid;grid-template-columns:minmax\(230px,.68fr\) minmax\(0,1.5fr\) minmax\(250px,.75fr\)/);
+  assert.match(css, /model-workbench\{display:grid;grid-template-columns:minmax\(220px,.75fr\) minmax\(0,1.32fr\) minmax\(240px,.85fr\)/);
   assert.match(css, /@media \(max-width:1120px\)[\s\S]*model-workbench\{grid-template-columns:minmax\(230px,.7fr\) minmax\(0,1.3fr\)/);
   assert.match(css, /@media \(max-width:760px\)[\s\S]*model-workbench\{grid-template-columns:minmax\(0,1fr\)/);
   assert.match(css, /prefers-reduced-motion:reduce/);

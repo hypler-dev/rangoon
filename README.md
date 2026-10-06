@@ -425,10 +425,10 @@ For local minimum-toolchain source validation, install Rust 1.85.0 with rustfmt 
 
 The current workflow runs Rust checks on Ubuntu 24.04, Windows 2022, and macOS 14; frontend checks on Ubuntu; and native format/tests/Clippy/build on all three OS runners. It builds executables without publishing installers. Windows/Linux interactive qualification remains pending.
 
+The [vision build rule](AGENTS.md) keeps the original eight screens as the structural baseline while requiring technical evidence for each feature. `npm run build:check` runs syntax, asset integrity, [vision contracts](docs/vision-contract.json), and the complete Node behavioral suite. Implemented surfaces must name native/core source separately from their UI; sample-only and unavailable surfaces keep explicit next technical outcomes. Visual-only work cannot count as capability completion. Rendered dark/light review at 320/768/1440 and fresh independent review complement these narrow source checks.
+
 ```sh
-npm run check
-npm run validate:visuals
-npm test
+npm run build:check
 node scripts/validate-review.mjs
 node scripts/check-source-rust.mjs
 cargo +1.98.0 fmt --manifest-path apps/desktop/Cargo.toml -- --check

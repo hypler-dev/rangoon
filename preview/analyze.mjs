@@ -50,6 +50,13 @@ const routeFromHash = () => {
   return ['analysis', 'skills', 'compile', 'workspace', 'model-assistance', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
 };
 
+const compactNavigation = window.matchMedia('(max-width:760px)');
+compactNavigation.addEventListener('change', event => {
+  const drawer = document.querySelector('.analysis-nav-drawer');
+  if (!drawer) return;
+  if (event.matches && drawer.contains(document.activeElement)) drawer.querySelector('summary')?.focus();
+  drawer.open = !event.matches;
+});
 let theme = 'dark';
 try {
   const savedTheme = localStorage.getItem('rangoon-theme');
@@ -87,15 +94,23 @@ const savedAt = snapshot => {
 };
 
 function renderRail() {
-  const links = [['analysis','import','Import &amp; Analyze'],['skills','skill','Skills'],['decompose','decompose','Decompose'],['merge','merge','Merge'],['split','decompose','Split'],['compile','bundle','Compile'],['workspace','bundle','Workspace'],['model-assistance','research','Model assistance'],['engine','gate','Engine integration']];
-  return `<aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas">${links.map(([name,symbol,label]) => `<a href="#${name}" ${route === name ? 'aria-current="page"' : ''}>${icon(symbol,{size:16})} ${label}</a>`).join('')}<a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>`;
+  const sameRoute = document.querySelector('.analysis-shell')?.dataset.area === route;
+  const drawerOpen = !compactNavigation.matches || (sameRoute && document.querySelector('.analysis-nav-drawer')?.open === true);
+  const groups = [
+    ['Discover', [['analysis','import','Import &amp; Analyze'],['decompose','decompose','Decompose'],['merge','merge','Merge'],['split','decompose','Split']]],
+    ['Build', [['skills','skill','Skills'],['compile','bundle','Compile']]],
+    ['Connect', [['model-assistance','research','Model assistance'],['engine','gate','Engine integration']]],
+    ['Workspace', [['workspace','bundle','Data']]],
+  ];
+  const item = ([name, symbol, label]) => `<a href="#${name}" ${route === name ? 'aria-current="page"' : ''}>${icon(symbol,{size:16})}<span>${label}</span></a>`;
+  return `<aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><details class="analysis-nav-drawer" ${drawerOpen ? 'open' : ''}><summary>Navigate areas</summary><div class="analysis-nav-groups">${groups.map(([label, links]) => `<section class="analysis-nav-group" aria-label="${label}"><p>${label}</p>${links.map(item).join('')}</section>`).join('')}<section class="analysis-nav-group analysis-nav-group--sample" aria-label="Preview"><p>Preview</p><a href="index.html">${icon('command',{size:16})}<span>Sample design preview</span></a></section></div></details></nav><div class="analysis-companion"><img src="assets/mascot.webp" width="90" height="60" alt=""><p>Small pieces.<br>Greater possibilities.</p></div><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>`;
 }
 
 function renderModelAssistance() {
   if (!modelController) return;
   if (!document.querySelector('#model-assistance-root')) {
     modelView?.dispose();
-    app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="model-assistance-root"></div></main></div>`;
+    app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="model-assistance-root"></div></main></div>`;
     modelView = bindModelAssistanceView(document.querySelector('#model-assistance-root'),modelController,cloudCredentialController);
   } else modelView.render();
   routeEntry = false;
@@ -113,7 +128,7 @@ function renderComposition() {
   if (!composition) return;
   if (!document.querySelector('#composition-root') || compositionViewRoute !== route) {
     compositionView?.dispose();
-    app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="composition-root"></div></main></div>`;
+    app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="composition-root"></div></main></div>`;
     compositionViewRoute = route;
     compositionView = bindCompositionView(document.querySelector('#composition-root'), composition, {
       onOpenSkill: id => { location.hash = '#skills'; void skillsController.open(id); },
@@ -133,7 +148,7 @@ function renderComposition() {
 function renderWorkspace() {
   if (!document.querySelector('#workspace-root')) {
     workspaceView?.dispose();
-    app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="workspace-root"></div></main></div>`;
+    app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="workspace-root"></div></main></div>`;
     workspaceView = bindWorkspaceView(document.querySelector('#workspace-root'), workspaceController);
   } else workspaceView.render();
   routeEntry = false;
@@ -161,7 +176,7 @@ function sourceLines(report, active) {
 
 function reportView(state) {
   const report = state.report;
-  if (!report) return `<section class="analysis-empty" aria-label="No analysis loaded" aria-busy="${state.status === 'pending'}"><p class="analysis-kicker">LOCAL ONLY</p><h2>Pick one Markdown file.</h2><p>Choose a file, then read its sections and inspect the original text here.</p></section>`;
+  if (!report) return `<section class="analysis-empty" aria-label="No analysis loaded" aria-busy="${state.status === 'pending'}"><img class="analysis-empty-mascot" src="assets/mascot.webp" width="120" height="80" alt=""><p class="analysis-kicker">LOCAL ONLY</p><h2>Pick one Markdown file.</h2><p>Choose a file, then read its sections and inspect the original text here.</p></section>`;
   const fragments = report.fragments ?? [];
   const diagnostics = report.diagnostics ?? [];
   const active = fragments.find(fragment => fragment.id === state.selectedFragmentId) ?? fragments[0];
@@ -269,7 +284,7 @@ function render(state) {
   const clearDisabled = !hasReport || saveOrOpen || state.busyAction === 'clear';
   const chooseDisabled = unavailable || pending;
   const saveDisabled = !hasReport || pending;
-  app.innerHTML = `<div class="analysis-shell">
+  app.innerHTML = `<div class="analysis-shell" data-area="${route}">
     ${renderRail()}
     <main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">
       <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1 id="analysis-title" tabindex="-1">Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${icon('import',{size:16})}${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${icon('clear',{size:16})}${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${icon('save',{size:16})}${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
@@ -313,7 +328,7 @@ function renderEngine() {
   const existingDetails = document.querySelectorAll('.engine-capabilities details[open]');
   openEngineDetails = new Set([...existingDetails].map(detail => detail.dataset.operation).filter(Boolean));
   const state = engineController.getState();
-  app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderEngineView(state)}</main></div>`;
+  app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderEngineView(state)}</main></div>`;
   routeEntry = false;
   for (const operation of openEngineDetails) document.querySelector(`[data-operation="${operation}"]`)?.setAttribute('open', '');
   announcer.textContent = state.message;
@@ -339,7 +354,7 @@ function renderSkills() {
   const saved = document.querySelector('.skills-saved');
   if (saved) skillsSavedOpen = saved.open;
   const state = skillsController.getState();
-  app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderSkillsView(state)}</main></div>`;
+  app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderSkillsView(state)}</main></div>`;
   routeEntry = false;
   announcer.textContent = state.message;
   if (skillsOriginalOpen) document.querySelector('.skills-original')?.setAttribute('open', '');
@@ -376,7 +391,7 @@ function renderCompilation() {
     }).find(Boolean);
   const scroll = [...document.querySelectorAll('.compile-page pre[id], .compile-selection[id], .compile-capability-list[id], .compile-revisions[id]')].map(element => [element.id, element.scrollTop, element.scrollLeft]);
   const openDetails = [...document.querySelectorAll('.compile-page details[open][id]')].map(element => element.id);
-  app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderCompilationPage(state, { busy: nativeOperations > 0, skillsBusy: Boolean(skillsController.getState().pending) })}</main></div>`;
+  app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderCompilationPage(state, { busy: nativeOperations > 0, skillsBusy: Boolean(skillsController.getState().pending) })}</main></div>`;
   routeEntry = false;
   for (const [id, top, left] of scroll) {
     const element = id && document.getElementById(id);
