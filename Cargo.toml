@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/rangoon-domain", "crates/rangoon-import", "crates/rangoon-cli", "crates/rangoon-host", "crates/rangoon-store", "crates/rangoon-engine", "crates/rangoon-compose"]
+members = ["crates/rangoon-domain", "crates/rangoon-import", "crates/rangoon-cli", "crates/rangoon-host", "crates/rangoon-store", "crates/rangoon-engine", "crates/rangoon-compose", "crates/rangoon-compile"]
 exclude = ["apps/desktop"]
 resolver = "3"
 
@@ -17,3 +17,4 @@ sha2 = "=0.11.0"
 rangoon-domain = { path = "crates/rangoon-domain" }
 rangoon-import = { path = "crates/rangoon-import" }
 rangoon-compose = { path = "crates/rangoon-compose" }
+rangoon-compile = { path = "crates/rangoon-compile" }

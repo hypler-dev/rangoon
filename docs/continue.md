@@ -10,7 +10,7 @@ git rev-parse HEAD
 git remote -v
 ```
 
-The current branch is `codex/composition-editor` at the README publication merge `fd1f5d9f96d2f70784cc30ca8e1d4c08f679bfbd`. Treat the branch status as authoritative: the R3 editor packet is local, uncommitted work. The parent directory is a separate marketing site; do not mix its history, files, or deployment workflow with this application repository.
+The compiler-contract branch starts from PR15 merge `e2cc62d66234c0bb8f4d9272c6dfb5542fa1d7d7`. The R3 editor packet is published on `main`; use the startup commands for current branch and working-tree truth, and the [development ledger](development.md) for publication receipts. The parent directory is a separate marketing site; do not mix its history, files, or deployment workflow with this application repository.
 
 ## Read first
 
@@ -31,15 +31,17 @@ Use the ledger for historical receipts. Do not copy old status paragraphs into t
 
 ## Current truth
 
-The public `main` source includes the published composition store and native command layer. The local editor connects saved records to Decompose, Merge, and Split through the retained native preview/commit protocol. Its editor packet has independent local review evidence:
+The public `main` source includes the published composition store, native command layer, and native Decompose, Merge, and Split editor packet. Its exact publication checks and ancestry are recorded in the development ledger. The packet's evidence includes:
 
 - 71 Node checks passed, including composition model and view checks;
 - 16 native tests passed, with native formatting, warnings-denied Clippy, and a development build;
 - 54 synthetic rendered checks passed across the three operations, three tabs, two themes, and 320/768/1440 widths;
 - isolated macOS native QA passed for new Decompose, Merge, and Split outputs and restart reopening five skills;
-- append, mixed-destination, full failure/keyboard coverage, Windows/Linux GUI, installer, and release qualification remain open.
+- append, mixed-destination, complete failure/keyboard coverage, Windows/Linux GUI, installer, and release qualification remain open.
 
-The editor is deterministic and manual over saved bytes. It does not activate the engine, call providers, transmit source, encrypt the workspace, install a released application, or submit a grant. Local review evidence does not publish the editor or declare V1 complete.
+The editor is deterministic and manual over saved bytes. It does not activate the engine, call providers, transmit source, encrypt the workspace, install a released application, or submit a grant. PR15 publication does not declare R3 or V1 complete.
+
+Local R4a now has a pure `rangoon-compile` implementation for two frozen text profiles plus an ID-only read service over validated stored revisions. Exact-byte preservation, static diagnostics, content/candidate identity separation, 10 compiler tests, six store integration tests, 142 workspace tests, native checks, and independent byte vectors passed locally. Hosted CI/publication remain pending. This does not implement native Compile inspection/UI, portable export, target-loader qualification, or full R4/R5.
 
 The initial desktop target remains macOS, Windows, and Linux together. The product is intended to be free and open source, but no license has been adopted. LNSAT remains an independent authority/evidence engine; no LNSAT operation is active in this repository.
 
@@ -77,15 +79,14 @@ Run only the checks relevant to the packet, record exact outcomes in `docs/devel
 
 ## Next packet
 
-Finish the editor review and integration packet before opening a new product lane:
+The next bounded slice is native Compile inspection/UI over the local R4a contract, followed by portable export and the broader R4/R5 gates. Keep the editor's remaining qualification visible in the ledger. Do not treat the pure compiler as native export or a published adapter.
 
-1. reconcile the local editor diff with the composition, destination, native, and recovery contracts;
-2. complete independent review of the current source and UI evidence;
-3. record remaining append, mixed-destination, cancellation, stale-head, dependency, failure, keyboard, and focus qualification separately from source publication;
-4. repeat native GUI evidence where the current receipt is incomplete;
-5. commit and push only the reviewed packet under the accepted workflow;
-6. verify exact head, CI, fetched `main` ancestry, and publication receipt in the ledger;
-7. separately qualify Windows/Linux GUI, installer, released-OS support, and recovery failures.
+1. Read [compilation.md](compilation.md), then the R4/R5 rows in [plan.md](plan.md), compiler/harness sections in [application-architecture.md](application-architecture.md), and recovered requirements in [sources-and-features.md](sources-and-features.md).
+2. Build native Compile inspection/UI around exact revision/profile IDs and host-resolved records; preserve blocked, review-required, and unqualified states.
+3. Keep adapter output deterministic, loss-reporting, version-pinned, and export-only; do not imply install, activation, provider, or engine authority.
+4. Define portable bundle/export, target-loader, drift/collision, and all-three-OS failure evidence as separate R4/R5 gates.
+5. Preserve the remaining editor gates: append/mixed destinations, complete failure/keyboard coverage, Windows/Linux GUI, installers, and release support.
+6. Record local evidence in `docs/development.md`; add an exact publication receipt only after independent review, hosted CI, fetched ancestry, and gate verification.
 
 After those gates, continue the broader V1 plan through adapters, compatibility/export, Workflows, Agents/templates, Connectors/Harnesses, local security design, and later team/cloud work. Preserve the separate decisions for engine activation, providers, encryption, licensing, deployment, and grants. Do not call the current editor packet complete V1 or full R3.
 

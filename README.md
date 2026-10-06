@@ -19,6 +19,7 @@ The first desktop release targets **macOS, Windows, and Linux together**. The in
 - [Import and source analysis](#import-and-source-analysis)
 - [Workspace and revision model](#workspace-and-revision-model)
 - [Composition: Decompose, Merge, and Split](#composition-decompose-merge-and-split)
+- [Instruction compilation](#instruction-compilation)
 - [Backup, restore, and deletion](#backup-restore-and-deletion)
 - [Native application boundary](#native-application-boundary)
 - [Local database security](#local-database-security)
@@ -30,7 +31,7 @@ The first desktop release targets **macOS, Windows, and Linux together**. The in
 
 ## Product and feature status
 
-The first useful experience is deliberately concrete: select a Markdown file, inspect its exact content and section inventory, save a snapshot, derive a skill, edit a new revision, record local review, and reopen that work after restart. Composition extends this into traceable transformations across saved records. Future adapters will turn those records into target-specific exports with visible compatibility limits.
+The first useful experience is deliberately concrete: select a Markdown file, inspect its exact content and section inventory, save a snapshot, derive a skill, edit a new revision, record local review, and reopen that work after restart. Composition extends this into traceable transformations across saved records. A pure instruction compiler and read-only workspace service now turn exact revisions into inspectable AGENTS.md/CLAUDE.md artifacts and candidate manifests; the Compile UI, portable export and runtime compatibility qualification remain pending.
 
 The intended users are developers managing agent configuration, platform teams maintaining shared capabilities, and reviewers who need source lineage and explicit change plans. Cloud administration and government use are later qualification targets, not capabilities established by the current desktop prototype.
 
@@ -45,11 +46,12 @@ The intended users are developers managing agent configuration, platform teams m
 | Engine integration | Explicit unavailable LNSAT port, native status page, and CLI diagnostics | Qualified transport, authentication, typed operations, and evidence readback |
 | Workflows and agents | Synthetic visual concepts and architecture contracts | Real definitions, validation, execution-state model, scheduling, and qualified runners |
 | Connectors and harnesses | Synthetic catalog and extension direction | Versioned implementations, permissions, compatibility fixtures, and conformance suites |
-| Test Lab and export | Development tests and golden fixtures | User-facing tests, deterministic export, adapter compatibility reports, and evidence bundles |
+| Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, static diagnostics, deterministic candidate manifests, and read-only saved-revision compilation | Native Compile UI, SKILL/support-file profiles, qualified target versions, portable export, and destination protection |
+| Test Lab and export | Development tests and independent golden fixtures | User-facing static tests, deterministic portable export, target conformance and evidence bundles |
 | Distribution | Three-OS source/test/build CI; selected macOS development-bundle runtime evidence | Windows/Linux GUI checks, installers, signing, updates, rollback, and release qualification |
 | Team/cloud/enterprise | Architecture direction | Service implementation, tenancy, identity, operations, and deployment evidence |
 
-The atomic composition store and native integration reached public source through [PR #12](https://github.com/hypler-dev/rangoon/pull/12) and [PR #13](https://github.com/hypler-dev/rangoon/pull/13). This revision adds the interactive native composition editor. An isolated macOS development bundle completed Decompose, Merge, and Split with new outputs, then restart/reopen of five saved skills. Native append/mixed-destination GUI, the full failure/keyboard matrix, Windows/Linux GUI, and release qualification remain open. Exact implementation, test, and publication receipts belong in the [development ledger](docs/development.md).
+The atomic composition store and native integration reached public source through [PR #12](https://github.com/hypler-dev/rangoon/pull/12) and [PR #13](https://github.com/hypler-dev/rangoon/pull/13); [PR #15](https://github.com/hypler-dev/rangoon/pull/15) added the interactive native composition editor. An isolated macOS development bundle completed Decompose, Merge, and Split with new outputs, then restart/reopen of five saved skills. Native append/mixed-destination GUI, the full failure/keyboard matrix, Windows/Linux GUI, and release qualification remain open. Exact implementation, test, and publication receipts belong in the [development ledger](docs/development.md).
 
 ## Architecture
 
@@ -69,8 +71,8 @@ Bundled native frontend                         Synthetic browser preview
    rangoon-host         rangoon-store  ------ SQLite workspace
  bounded file reads    validated records / transactions
           |                  |
-   rangoon-import      rangoon-compose
- deterministic spans   pure recipes / coverage / destinations
+   rangoon-import      rangoon-compose / rangoon-compile
+ deterministic spans   recipes / instruction artifacts / identities
             \              /
              rangoon-domain
           typed records / identities
@@ -85,6 +87,7 @@ Bundled native frontend                         Synthetic browser preview
 | `crates/rangoon-host/` | Selected-file reads and bounded native backup file handling |
 | `crates/rangoon-store/` | SQLite schema validation, snapshots, revisions, local reviews, composition storage, backup/restore, and deletion |
 | `crates/rangoon-compose/` | Pure transformation validation, coverage, materialization, destination application, and deterministic identities |
+| `crates/rangoon-compile/` | Pure AGENTS.md/CLAUDE.md instruction artifacts, static compatibility diagnostics and candidate-manifest identities |
 | `crates/rangoon-engine/` | Inert `GovernancePort` and LNSAT unavailable diagnostics |
 | `crates/rangoon-cli/` | Stdin source analysis and local engine diagnostics; no workspace editing CLI |
 | `apps/desktop/` | Separate Cargo workspace containing the Tauri host, scoped commands, native sessions, assets, and OS icons |
@@ -212,6 +215,29 @@ Within an immediate transaction, the store rechecks saved inputs, destination he
 The receipt contains actual saved capability details in output order. A changed workspace or target requires a fresh preview and acknowledgment. An uncertain response does not trigger automatic mutation retry. Transformation acknowledgment is distinct from later per-revision content review and grants no execution authority.
 
 See the [composition specification](docs/composition.md), [destination contract](docs/composition-destinations.md), and [native session contract](docs/composition-native.md).
+
+## Instruction compilation
+
+The R4a library compiles one exact capability revision into an inspectable instruction artifact. `Workspace::compile_capability(capability_id, revision_id, profile)` resolves the content, local review and composition lineage through the existing validated store; it accepts IDs rather than renderer-supplied content or a review flag. A reviewed historical revision remains selectable, with the observed current head reported separately. Reads do not create a workspace, migrate its schema, mark a revision reviewed or write an artifact.
+
+| Profile | Fixed output name | Behavior |
+| --- | --- | --- |
+| `agents_md_v1` | `AGENTS.md` | Preserve the selected revision's exact UTF-8 bytes |
+| `claude_md_v1` | `CLAUDE.md` | Preserve exact bytes; conservatively block candidate readiness for ASCII `@` or `<!--` anywhere |
+
+The Claude checks deliberately include false positives such as email addresses and code examples. They prevent presenting possibly imported or omitted content as a ready candidate under this narrow profile. They never follow includes, rewrite content, remove comments or authorize an execution. Structured requirements supplied to the pure API are retained as unsupported diagnostics and block candidates. Stored capabilities currently contain opaque Markdown rather than structured requirements, so compilation always warns that semantic equivalence, dependency closure and enforcement are unverified.
+
+Every report carries the exact artifact text, byte digest/length, selected revision/provenance references, immutable profile descriptor/digest and ordered diagnostics. Artifact text remains inspectable when readiness is blocked. Readiness has three values:
+
+- `blocked`: a static compatibility error exists; there is no candidate manifest.
+- `review_required`: static checks have no blocking error but the selected revision lacks local content review.
+- `candidate`: the selected revision has local review and the narrow static checks allow an in-memory candidate manifest. This grants no execution or installation authority.
+
+The compiler preserves BOM, CRLF/LF, Unicode, whitespace and final-newline state. Its domain-separated compilation identity binds profile, revision, artifact metadata and diagnostics. Review is separate: adding or changing a valid review observation leaves compilation identity unchanged, while the candidate manifest and identity bind that exact observation. The manifest uses a versioned compact JSON encoding; its SHA-256 covers its canonical bytes without a recursive self-hash. Digests establish consistency, not authentication or tamperproof local storage.
+
+Profile versions describe Rangoon's format contract. Both profiles explicitly report runtime qualification `untested`, target budget `unknown`, semantic equivalence `unverified`, and `authority: none`. A generated file may still be ignored, truncated, combined with other instructions, or interpreted differently by a real harness. No external CLI version is advertised as qualified. The 256 KiB content limit is Rangoon's input bound, not a guarantee about available target context.
+
+This layer has no filesystem, process, environment, provider or engine access. It is currently a Rust library/store API: no Compile command is exposed in the native frontend or CLI yet. Native inspection, SKILL metadata/support-file formats, portable bundle export, target drift/collision handling and all-three-OS target-loader evidence remain required R4/R5 work. See the [compilation contract](docs/compilation.md) for exact schemas, identity framing, conservative checks and acceptance boundaries.
 
 ## Backup, restore, and deletion
 
@@ -396,6 +422,8 @@ The accepted [intent](docs/intent.md), detailed [plan](docs/plan.md), [product e
 
 ### 3. Build versioned harness adapters and deterministic export
 
+**Foundation present:** pure `agents_md_v1` and `claude_md_v1` text-format profiles, exact stored-revision selection, static compatibility diagnostics and deterministic candidate manifests. These are library/store APIs; native UI, portable file export and actual target-loader qualification are not complete.
+
 **Deliver:** a shared capability representation plus at least two explicitly supported harness/format adapters. Choose initial targets from actual user projects and maintain a per-version support matrix.
 
 Each adapter declares accepted input fields, target syntax, preserved semantics, unsupported fields, loss diagnostics, and required permissions. Export plans show destinations and exact changes before writing. Bundle identity includes source/revision digests, transformation and adapter versions, diagnostics, and test results.
@@ -464,6 +492,7 @@ Keep fixtures secret-free. Imported instruction text is data, including when it 
 | [Destinations](docs/composition-destinations.md) | New/append outputs, schema 3, and revision provenance |
 | [Recovery](docs/composition-recovery.md) | Archive format, additive restore, and dependency deletion |
 | [Native composition](docs/composition-native.md) | Raw IPC, retained previews, and confirmation semantics |
+| [Instruction compilation](docs/compilation.md) | Pinned format profiles, byte preservation, compatibility limits and candidate identities |
 | [Workspace controls](docs/workspace-data-controls.md) | Inventory, export, restore, and deletion experience |
 | [Desktop setup](docs/desktop-spike.md) | Native prerequisites and runtime qualification limits |
 | [Engine integration](docs/engine-integration.md) | Unavailable port and LNSAT qualification gates |

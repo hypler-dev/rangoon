@@ -3,6 +3,9 @@
 
 mod capabilities;
 mod capabilities_v1;
+mod compilation;
+#[cfg(test)]
+mod compilation_tests;
 mod composition_backup;
 #[cfg(test)]
 mod composition_commit_tests;
@@ -18,6 +21,7 @@ mod workspace_data;
 mod workspace_data_tests;
 pub use capabilities::{CapabilityReceipt, MAX_CAPABILITIES, MAX_REVISIONS, MAX_TOTAL_REVISIONS};
 pub use capabilities_v1::CapabilityReceiptV1;
+pub use compilation::WorkspaceCompilation;
 pub use composition_backup::CompositionBackup;
 pub use composition_recovery::{
     CompositionDeletionPlan, CompositionRestorePlan, CompositionWorkspaceData, RecoveryCounts,
@@ -79,11 +83,16 @@ pub enum StoreError {
     CompositionInvalid,
     CompositionAcknowledgmentRequired,
     CompositionDependencyMissing,
+    CompilationInvalid,
     RecordInUse,
 }
 impl StoreError {
     pub fn public(self) -> (&'static str, &'static str) {
         match self {
+            Self::CompilationInvalid => (
+                "compilation_invalid",
+                "This saved revision could not be compiled. Its stored content was not changed.",
+            ),
             Self::CompositionAcknowledgmentRequired => (
                 "composition_acknowledgment_required",
                 "Review and acknowledge this exact composition preview before saving its outputs.",

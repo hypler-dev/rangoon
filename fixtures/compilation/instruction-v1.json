@@ -1,0 +1,1035 @@
+{
+  "schemaVersion": "rangoon.compilation-vectors.v1",
+  "cases": [
+    {
+      "name": "agents_exact_bom_crlf_unicode",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+        "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+        "createdAtMs": 10,
+        "review": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "provenance": {
+          "kind": "ordinary"
+        }
+      },
+      "profile": "agents_md_v1",
+      "requirements": [],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125",
+        "profile": {
+          "id": "agents_md_v1",
+          "version": 1,
+          "artifactPath": "AGENTS.md",
+          "documentationUrl": "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "provenance": {
+            "kind": "ordinary"
+          }
+        },
+        "artifact": {
+          "path": "AGENTS.md",
+          "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "byteLength": 51
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          }
+        ],
+        "reviewObservation": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "readiness": "candidate",
+        "candidate": {
+          "manifest": {
+            "schemaVersion": "rangoon.instruction-candidate.v1",
+            "compilationId": "compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125",
+            "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+            "selectedRevision": {
+              "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "revisionId": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+              "parentRevisionId": null,
+              "title": "Review instructions",
+              "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+              "provenance": {
+                "kind": "ordinary"
+              }
+            },
+            "artifact": {
+              "path": "AGENTS.md",
+              "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+              "byteLength": 51
+            },
+            "reviewObservation": {
+              "reviewer": "local_operator",
+              "reviewedAtMs": 20
+            },
+            "diagnostics": [
+              {
+                "code": "instruction_semantics_unverified",
+                "severity": "warning",
+                "detail": null
+              },
+              {
+                "code": "target_environment_unqualified",
+                "severity": "warning",
+                "detail": null
+              }
+            ],
+            "authority": "none"
+          },
+          "manifestSha256": "57c0f514193f5aa9c86d097249d0cc189c755637a637900dea3a243396300008",
+          "candidateId": "candidate:f1f3a33b8303b8a17eafd62a68839ad6e738a2a5a1999a420058ee2dc4e14a28"
+        },
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125\",\"profile\":{\"id\":\"agents_md_v1\",\"version\":1,\"artifactPath\":\"AGENTS.md\",\"documentationUrl\":\"https://learn.chatgpt.com/docs/agent-configuration/agents-md\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"content\":\"﻿# Review\\r\\nKeep originals 🦀.\\r\\nNo final newline\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"byteLength\":51},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"readiness\":\"candidate\",\"candidate\":{\"manifest\":{\"schemaVersion\":\"rangoon.instruction-candidate.v1\",\"compilationId\":\"compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125\",\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"byteLength\":51},\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"authority\":\"none\"},\"manifestSha256\":\"57c0f514193f5aa9c86d097249d0cc189c755637a637900dea3a243396300008\",\"candidateId\":\"candidate:f1f3a33b8303b8a17eafd62a68839ad6e738a2a5a1999a420058ee2dc4e14a28\"},\"authority\":\"none\"}"
+    },
+    {
+      "name": "claude_exact_bom_crlf_unicode",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+        "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+        "createdAtMs": 10,
+        "review": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "provenance": {
+          "kind": "ordinary"
+        }
+      },
+      "profile": "claude_md_v1",
+      "requirements": [],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:21ae0e48d38dcc4641203e842340ff1c33852cfc744904edb477a3b5682239ff",
+        "profile": {
+          "id": "claude_md_v1",
+          "version": 1,
+          "artifactPath": "CLAUDE.md",
+          "documentationUrl": "https://code.claude.com/docs/en/memory",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "f9f8cc107e092ad8c62f4cbee0bdd1ea041002674d44a152bf600a7c9b5753a3",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "provenance": {
+            "kind": "ordinary"
+          }
+        },
+        "artifact": {
+          "path": "CLAUDE.md",
+          "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "byteLength": 51
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          }
+        ],
+        "reviewObservation": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "readiness": "candidate",
+        "candidate": {
+          "manifest": {
+            "schemaVersion": "rangoon.instruction-candidate.v1",
+            "compilationId": "compilation:21ae0e48d38dcc4641203e842340ff1c33852cfc744904edb477a3b5682239ff",
+            "profileDigest": "f9f8cc107e092ad8c62f4cbee0bdd1ea041002674d44a152bf600a7c9b5753a3",
+            "selectedRevision": {
+              "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "revisionId": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+              "parentRevisionId": null,
+              "title": "Review instructions",
+              "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+              "provenance": {
+                "kind": "ordinary"
+              }
+            },
+            "artifact": {
+              "path": "CLAUDE.md",
+              "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+              "byteLength": 51
+            },
+            "reviewObservation": {
+              "reviewer": "local_operator",
+              "reviewedAtMs": 20
+            },
+            "diagnostics": [
+              {
+                "code": "instruction_semantics_unverified",
+                "severity": "warning",
+                "detail": null
+              },
+              {
+                "code": "target_environment_unqualified",
+                "severity": "warning",
+                "detail": null
+              }
+            ],
+            "authority": "none"
+          },
+          "manifestSha256": "c7c24ee14e116380b4216770a489adc6c227a7ba0d6969e5ea3f836d20788d8c",
+          "candidateId": "candidate:6bea2d6744a75d5c471a4b01ffd748d361385ffe08aa9c744a942b9a1256752d"
+        },
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:21ae0e48d38dcc4641203e842340ff1c33852cfc744904edb477a3b5682239ff\",\"profile\":{\"id\":\"claude_md_v1\",\"version\":1,\"artifactPath\":\"CLAUDE.md\",\"documentationUrl\":\"https://code.claude.com/docs/en/memory\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"f9f8cc107e092ad8c62f4cbee0bdd1ea041002674d44a152bf600a7c9b5753a3\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"CLAUDE.md\",\"content\":\"﻿# Review\\r\\nKeep originals 🦀.\\r\\nNo final newline\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"byteLength\":51},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"readiness\":\"candidate\",\"candidate\":{\"manifest\":{\"schemaVersion\":\"rangoon.instruction-candidate.v1\",\"compilationId\":\"compilation:21ae0e48d38dcc4641203e842340ff1c33852cfc744904edb477a3b5682239ff\",\"profileDigest\":\"f9f8cc107e092ad8c62f4cbee0bdd1ea041002674d44a152bf600a7c9b5753a3\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"CLAUDE.md\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"byteLength\":51},\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"authority\":\"none\"},\"manifestSha256\":\"c7c24ee14e116380b4216770a489adc6c227a7ba0d6969e5ea3f836d20788d8c\",\"candidateId\":\"candidate:6bea2d6744a75d5c471a4b01ffd748d361385ffe08aa9c744a942b9a1256752d\"},\"authority\":\"none\"}"
+    },
+    {
+      "name": "unreviewed_same_compilation",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+        "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+        "createdAtMs": 10,
+        "review": null,
+        "provenance": {
+          "kind": "ordinary"
+        }
+      },
+      "profile": "agents_md_v1",
+      "requirements": [],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125",
+        "profile": {
+          "id": "agents_md_v1",
+          "version": 1,
+          "artifactPath": "AGENTS.md",
+          "documentationUrl": "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "provenance": {
+            "kind": "ordinary"
+          }
+        },
+        "artifact": {
+          "path": "AGENTS.md",
+          "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "byteLength": 51
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          }
+        ],
+        "reviewObservation": null,
+        "readiness": "review_required",
+        "candidate": null,
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125\",\"profile\":{\"id\":\"agents_md_v1\",\"version\":1,\"artifactPath\":\"AGENTS.md\",\"documentationUrl\":\"https://learn.chatgpt.com/docs/agent-configuration/agents-md\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"content\":\"﻿# Review\\r\\nKeep originals 🦀.\\r\\nNo final newline\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"byteLength\":51},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"reviewObservation\":null,\"readiness\":\"review_required\",\"candidate\":null,\"authority\":\"none\"}"
+    },
+    {
+      "name": "different_review_same_compilation",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+        "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+        "createdAtMs": 10,
+        "review": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 30
+        },
+        "provenance": {
+          "kind": "ordinary"
+        }
+      },
+      "profile": "agents_md_v1",
+      "requirements": [],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125",
+        "profile": {
+          "id": "agents_md_v1",
+          "version": 1,
+          "artifactPath": "AGENTS.md",
+          "documentationUrl": "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "provenance": {
+            "kind": "ordinary"
+          }
+        },
+        "artifact": {
+          "path": "AGENTS.md",
+          "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "byteLength": 51
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          }
+        ],
+        "reviewObservation": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 30
+        },
+        "readiness": "candidate",
+        "candidate": {
+          "manifest": {
+            "schemaVersion": "rangoon.instruction-candidate.v1",
+            "compilationId": "compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125",
+            "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+            "selectedRevision": {
+              "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "revisionId": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+              "parentRevisionId": null,
+              "title": "Review instructions",
+              "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+              "provenance": {
+                "kind": "ordinary"
+              }
+            },
+            "artifact": {
+              "path": "AGENTS.md",
+              "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+              "byteLength": 51
+            },
+            "reviewObservation": {
+              "reviewer": "local_operator",
+              "reviewedAtMs": 30
+            },
+            "diagnostics": [
+              {
+                "code": "instruction_semantics_unverified",
+                "severity": "warning",
+                "detail": null
+              },
+              {
+                "code": "target_environment_unqualified",
+                "severity": "warning",
+                "detail": null
+              }
+            ],
+            "authority": "none"
+          },
+          "manifestSha256": "bc1be920bd292ba7d152e43584d0d05b62d46eaa27a5d393eb1a0de80b593923",
+          "candidateId": "candidate:2c8386cf5a91ea5e2c63454016fc7afbdbd32ea315f64ac58c713db6dc9fab33"
+        },
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125\",\"profile\":{\"id\":\"agents_md_v1\",\"version\":1,\"artifactPath\":\"AGENTS.md\",\"documentationUrl\":\"https://learn.chatgpt.com/docs/agent-configuration/agents-md\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"content\":\"﻿# Review\\r\\nKeep originals 🦀.\\r\\nNo final newline\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"byteLength\":51},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":30},\"readiness\":\"candidate\",\"candidate\":{\"manifest\":{\"schemaVersion\":\"rangoon.instruction-candidate.v1\",\"compilationId\":\"compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125\",\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"byteLength\":51},\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":30},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"authority\":\"none\"},\"manifestSha256\":\"bc1be920bd292ba7d152e43584d0d05b62d46eaa27a5d393eb1a0de80b593923\",\"candidateId\":\"candidate:2c8386cf5a91ea5e2c63454016fc7afbdbd32ea315f64ac58c713db6dc9fab33\"},\"authority\":\"none\"}"
+    },
+    {
+      "name": "clock_rollback_is_not_identity",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+        "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+        "createdAtMs": 10,
+        "review": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 5
+        },
+        "provenance": {
+          "kind": "ordinary"
+        }
+      },
+      "profile": "agents_md_v1",
+      "requirements": [],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125",
+        "profile": {
+          "id": "agents_md_v1",
+          "version": 1,
+          "artifactPath": "AGENTS.md",
+          "documentationUrl": "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "provenance": {
+            "kind": "ordinary"
+          }
+        },
+        "artifact": {
+          "path": "AGENTS.md",
+          "content": "﻿# Review\r\nKeep originals 🦀.\r\nNo final newline",
+          "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+          "byteLength": 51
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          }
+        ],
+        "reviewObservation": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 5
+        },
+        "readiness": "candidate",
+        "candidate": {
+          "manifest": {
+            "schemaVersion": "rangoon.instruction-candidate.v1",
+            "compilationId": "compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125",
+            "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+            "selectedRevision": {
+              "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "revisionId": "revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396",
+              "parentRevisionId": null,
+              "title": "Review instructions",
+              "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+              "provenance": {
+                "kind": "ordinary"
+              }
+            },
+            "artifact": {
+              "path": "AGENTS.md",
+              "sha256": "541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d",
+              "byteLength": 51
+            },
+            "reviewObservation": {
+              "reviewer": "local_operator",
+              "reviewedAtMs": 5
+            },
+            "diagnostics": [
+              {
+                "code": "instruction_semantics_unverified",
+                "severity": "warning",
+                "detail": null
+              },
+              {
+                "code": "target_environment_unqualified",
+                "severity": "warning",
+                "detail": null
+              }
+            ],
+            "authority": "none"
+          },
+          "manifestSha256": "f93ccd1472eef3088b1719fea60bded02488152ee92dd7b6e38606d0ea707712",
+          "candidateId": "candidate:caaaa7a0dc6dbab2a7054594596cb0f2e9926c4b7c589d0445d91377dccb1277"
+        },
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125\",\"profile\":{\"id\":\"agents_md_v1\",\"version\":1,\"artifactPath\":\"AGENTS.md\",\"documentationUrl\":\"https://learn.chatgpt.com/docs/agent-configuration/agents-md\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"content\":\"﻿# Review\\r\\nKeep originals 🦀.\\r\\nNo final newline\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"byteLength\":51},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":5},\"readiness\":\"candidate\",\"candidate\":{\"manifest\":{\"schemaVersion\":\"rangoon.instruction-candidate.v1\",\"compilationId\":\"compilation:2e6047184525661debc20c6237192695871f998e6e9beaa8454905b266b5a125\",\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:e5d3f04b1c4ab1f0ee2d0cdf2b7734b9c32ce52377dab0fd84f880e3d1683396\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"sha256\":\"541dd5daf5ffcee36d78f2784a6a655aa874fff2d538c20680562898a431c43d\",\"byteLength\":51},\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":5},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"authority\":\"none\"},\"manifestSha256\":\"f93ccd1472eef3088b1719fea60bded02488152ee92dd7b6e38606d0ea707712\",\"candidateId\":\"candidate:caaaa7a0dc6dbab2a7054594596cb0f2e9926c4b7c589d0445d91377dccb1277\"},\"authority\":\"none\"}"
+    },
+    {
+      "name": "claude_conservative_blocks",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "# Review\nContact team@example.test.\n<!-- Keep this constraint. -->\n",
+        "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+        "createdAtMs": 10,
+        "review": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "provenance": {
+          "kind": "ordinary"
+        }
+      },
+      "profile": "claude_md_v1",
+      "requirements": [
+        "tool_permissions",
+        "future_requirement"
+      ],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:94c082b677279d3c7c29b11cc11068822ce182dda55d2f180b3f48588a5934cb",
+        "profile": {
+          "id": "claude_md_v1",
+          "version": 1,
+          "artifactPath": "CLAUDE.md",
+          "documentationUrl": "https://code.claude.com/docs/en/memory",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "f9f8cc107e092ad8c62f4cbee0bdd1ea041002674d44a152bf600a7c9b5753a3",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+          "provenance": {
+            "kind": "ordinary"
+          }
+        },
+        "artifact": {
+          "path": "CLAUDE.md",
+          "content": "# Review\nContact team@example.test.\n<!-- Keep this constraint. -->\n",
+          "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+          "byteLength": 67
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "unsupported_requirement",
+            "severity": "error",
+            "detail": "tool_permissions"
+          },
+          {
+            "code": "unsupported_requirement",
+            "severity": "error",
+            "detail": "future_requirement"
+          },
+          {
+            "code": "possible_include_syntax",
+            "severity": "error",
+            "detail": null
+          },
+          {
+            "code": "possible_comment_elision",
+            "severity": "error",
+            "detail": null
+          }
+        ],
+        "reviewObservation": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "readiness": "blocked",
+        "candidate": null,
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:94c082b677279d3c7c29b11cc11068822ce182dda55d2f180b3f48588a5934cb\",\"profile\":{\"id\":\"claude_md_v1\",\"version\":1,\"artifactPath\":\"CLAUDE.md\",\"documentationUrl\":\"https://code.claude.com/docs/en/memory\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"f9f8cc107e092ad8c62f4cbee0bdd1ea041002674d44a152bf600a7c9b5753a3\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"CLAUDE.md\",\"content\":\"# Review\\nContact team@example.test.\\n<!-- Keep this constraint. -->\\n\",\"sha256\":\"c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5\",\"byteLength\":67},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"unsupported_requirement\",\"severity\":\"error\",\"detail\":\"tool_permissions\"},{\"code\":\"unsupported_requirement\",\"severity\":\"error\",\"detail\":\"future_requirement\"},{\"code\":\"possible_include_syntax\",\"severity\":\"error\",\"detail\":null},{\"code\":\"possible_comment_elision\",\"severity\":\"error\",\"detail\":null}],\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"readiness\":\"blocked\",\"candidate\":null,\"authority\":\"none\"}"
+    },
+    {
+      "name": "blocked_wins_over_missing_review",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "# Review\nContact team@example.test.\n<!-- Keep this constraint. -->\n",
+        "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+        "createdAtMs": 10,
+        "review": null,
+        "provenance": {
+          "kind": "ordinary"
+        }
+      },
+      "profile": "claude_md_v1",
+      "requirements": [],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:2c48ce936f096834e71dd9b9ab1479d0267dc9506bc93b06581a29fc705250a2",
+        "profile": {
+          "id": "claude_md_v1",
+          "version": 1,
+          "artifactPath": "CLAUDE.md",
+          "documentationUrl": "https://code.claude.com/docs/en/memory",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "f9f8cc107e092ad8c62f4cbee0bdd1ea041002674d44a152bf600a7c9b5753a3",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+          "provenance": {
+            "kind": "ordinary"
+          }
+        },
+        "artifact": {
+          "path": "CLAUDE.md",
+          "content": "# Review\nContact team@example.test.\n<!-- Keep this constraint. -->\n",
+          "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+          "byteLength": 67
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "possible_include_syntax",
+            "severity": "error",
+            "detail": null
+          },
+          {
+            "code": "possible_comment_elision",
+            "severity": "error",
+            "detail": null
+          }
+        ],
+        "reviewObservation": null,
+        "readiness": "blocked",
+        "candidate": null,
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:2c48ce936f096834e71dd9b9ab1479d0267dc9506bc93b06581a29fc705250a2\",\"profile\":{\"id\":\"claude_md_v1\",\"version\":1,\"artifactPath\":\"CLAUDE.md\",\"documentationUrl\":\"https://code.claude.com/docs/en/memory\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"f9f8cc107e092ad8c62f4cbee0bdd1ea041002674d44a152bf600a7c9b5753a3\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"CLAUDE.md\",\"content\":\"# Review\\nContact team@example.test.\\n<!-- Keep this constraint. -->\\n\",\"sha256\":\"c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5\",\"byteLength\":67},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"possible_include_syntax\",\"severity\":\"error\",\"detail\":null},{\"code\":\"possible_comment_elision\",\"severity\":\"error\",\"detail\":null}],\"reviewObservation\":null,\"readiness\":\"blocked\",\"candidate\":null,\"authority\":\"none\"}"
+    },
+    {
+      "name": "agents_preserves_marker_bytes",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "# Review\nContact team@example.test.\n<!-- Keep this constraint. -->\n",
+        "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+        "createdAtMs": 10,
+        "review": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "provenance": {
+          "kind": "ordinary"
+        }
+      },
+      "profile": "agents_md_v1",
+      "requirements": [],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:c6b1dfb5a563e920ff7dccdfee12957dbc43e7ed856dd44b99ba3e03f1b51fd2",
+        "profile": {
+          "id": "agents_md_v1",
+          "version": 1,
+          "artifactPath": "AGENTS.md",
+          "documentationUrl": "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+          "provenance": {
+            "kind": "ordinary"
+          }
+        },
+        "artifact": {
+          "path": "AGENTS.md",
+          "content": "# Review\nContact team@example.test.\n<!-- Keep this constraint. -->\n",
+          "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+          "byteLength": 67
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          }
+        ],
+        "reviewObservation": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "readiness": "candidate",
+        "candidate": {
+          "manifest": {
+            "schemaVersion": "rangoon.instruction-candidate.v1",
+            "compilationId": "compilation:c6b1dfb5a563e920ff7dccdfee12957dbc43e7ed856dd44b99ba3e03f1b51fd2",
+            "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+            "selectedRevision": {
+              "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "revisionId": "revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6",
+              "parentRevisionId": null,
+              "title": "Review instructions",
+              "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+              "provenance": {
+                "kind": "ordinary"
+              }
+            },
+            "artifact": {
+              "path": "AGENTS.md",
+              "sha256": "c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5",
+              "byteLength": 67
+            },
+            "reviewObservation": {
+              "reviewer": "local_operator",
+              "reviewedAtMs": 20
+            },
+            "diagnostics": [
+              {
+                "code": "instruction_semantics_unverified",
+                "severity": "warning",
+                "detail": null
+              },
+              {
+                "code": "target_environment_unqualified",
+                "severity": "warning",
+                "detail": null
+              }
+            ],
+            "authority": "none"
+          },
+          "manifestSha256": "59e56c1271837b0418fc3e34ab7ece931621314ded791cba9f20400e3ddb9c89",
+          "candidateId": "candidate:4ab2d07f614f5b0fb7f6bd6c73b03f150041582e41ae8e655e555876f76b649e"
+        },
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:c6b1dfb5a563e920ff7dccdfee12957dbc43e7ed856dd44b99ba3e03f1b51fd2\",\"profile\":{\"id\":\"agents_md_v1\",\"version\":1,\"artifactPath\":\"AGENTS.md\",\"documentationUrl\":\"https://learn.chatgpt.com/docs/agent-configuration/agents-md\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"content\":\"# Review\\nContact team@example.test.\\n<!-- Keep this constraint. -->\\n\",\"sha256\":\"c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5\",\"byteLength\":67},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"readiness\":\"candidate\",\"candidate\":{\"manifest\":{\"schemaVersion\":\"rangoon.instruction-candidate.v1\",\"compilationId\":\"compilation:c6b1dfb5a563e920ff7dccdfee12957dbc43e7ed856dd44b99ba3e03f1b51fd2\",\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:b816525db8064ed0bcf4c3b0526e94869109f4545229a6578b3ceae556735fe6\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"sha256\":\"c53c6287779a57cb590b9670bccf07002ad6795583c07ebd95ead514ed431bf5\",\"byteLength\":67},\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"authority\":\"none\"},\"manifestSha256\":\"59e56c1271837b0418fc3e34ab7ece931621314ded791cba9f20400e3ddb9c89\",\"candidateId\":\"candidate:4ab2d07f614f5b0fb7f6bd6c73b03f150041582e41ae8e655e555876f76b649e\"},\"authority\":\"none\"}"
+    },
+    {
+      "name": "synthetic_composition_reference_shape_only",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "# Composed\nKeep both constraints.\n",
+        "sha256": "d69292c65b2b9b3f6504d644fdbf2d226ea2ee26cec018b4010477321f5c5224",
+        "createdAtMs": 10,
+        "review": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "provenance": {
+          "kind": "composition",
+          "applicationId": "composition-application:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "compositionId": "composition:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "outputIndex": 15
+        }
+      },
+      "profile": "agents_md_v1",
+      "requirements": [],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:50433a6fb6a3568ab1ae7e75f1c0c9fab090b730dc5e44731f3bdbec1a475abd",
+        "profile": {
+          "id": "agents_md_v1",
+          "version": 1,
+          "artifactPath": "AGENTS.md",
+          "documentationUrl": "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "d69292c65b2b9b3f6504d644fdbf2d226ea2ee26cec018b4010477321f5c5224",
+          "provenance": {
+            "kind": "composition",
+            "applicationId": "composition-application:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "compositionId": "composition:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "outputIndex": 15
+          }
+        },
+        "artifact": {
+          "path": "AGENTS.md",
+          "content": "# Composed\nKeep both constraints.\n",
+          "sha256": "d69292c65b2b9b3f6504d644fdbf2d226ea2ee26cec018b4010477321f5c5224",
+          "byteLength": 34
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          }
+        ],
+        "reviewObservation": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "readiness": "candidate",
+        "candidate": {
+          "manifest": {
+            "schemaVersion": "rangoon.instruction-candidate.v1",
+            "compilationId": "compilation:50433a6fb6a3568ab1ae7e75f1c0c9fab090b730dc5e44731f3bdbec1a475abd",
+            "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+            "selectedRevision": {
+              "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "revisionId": "revision:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "parentRevisionId": null,
+              "title": "Review instructions",
+              "sha256": "d69292c65b2b9b3f6504d644fdbf2d226ea2ee26cec018b4010477321f5c5224",
+              "provenance": {
+                "kind": "composition",
+                "applicationId": "composition-application:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "compositionId": "composition:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "outputIndex": 15
+              }
+            },
+            "artifact": {
+              "path": "AGENTS.md",
+              "sha256": "d69292c65b2b9b3f6504d644fdbf2d226ea2ee26cec018b4010477321f5c5224",
+              "byteLength": 34
+            },
+            "reviewObservation": {
+              "reviewer": "local_operator",
+              "reviewedAtMs": 20
+            },
+            "diagnostics": [
+              {
+                "code": "instruction_semantics_unverified",
+                "severity": "warning",
+                "detail": null
+              },
+              {
+                "code": "target_environment_unqualified",
+                "severity": "warning",
+                "detail": null
+              }
+            ],
+            "authority": "none"
+          },
+          "manifestSha256": "72f7a9d018c9aa802dbd1727112c1f72d2155e19a828b68e76752dc0d178baae",
+          "candidateId": "candidate:92768c0949811417c1413e1843b7edfa748573567cc42c98722f5e5e9991bde0"
+        },
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:50433a6fb6a3568ab1ae7e75f1c0c9fab090b730dc5e44731f3bdbec1a475abd\",\"profile\":{\"id\":\"agents_md_v1\",\"version\":1,\"artifactPath\":\"AGENTS.md\",\"documentationUrl\":\"https://learn.chatgpt.com/docs/agent-configuration/agents-md\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"d69292c65b2b9b3f6504d644fdbf2d226ea2ee26cec018b4010477321f5c5224\",\"provenance\":{\"kind\":\"composition\",\"applicationId\":\"composition-application:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"compositionId\":\"composition:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"outputIndex\":15}},\"artifact\":{\"path\":\"AGENTS.md\",\"content\":\"# Composed\\nKeep both constraints.\\n\",\"sha256\":\"d69292c65b2b9b3f6504d644fdbf2d226ea2ee26cec018b4010477321f5c5224\",\"byteLength\":34},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"readiness\":\"candidate\",\"candidate\":{\"manifest\":{\"schemaVersion\":\"rangoon.instruction-candidate.v1\",\"compilationId\":\"compilation:50433a6fb6a3568ab1ae7e75f1c0c9fab090b730dc5e44731f3bdbec1a475abd\",\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"d69292c65b2b9b3f6504d644fdbf2d226ea2ee26cec018b4010477321f5c5224\",\"provenance\":{\"kind\":\"composition\",\"applicationId\":\"composition-application:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"compositionId\":\"composition:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"outputIndex\":15}},\"artifact\":{\"path\":\"AGENTS.md\",\"sha256\":\"d69292c65b2b9b3f6504d644fdbf2d226ea2ee26cec018b4010477321f5c5224\",\"byteLength\":34},\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"authority\":\"none\"},\"manifestSha256\":\"72f7a9d018c9aa802dbd1727112c1f72d2155e19a828b68e76752dc0d178baae\",\"candidateId\":\"candidate:92768c0949811417c1413e1843b7edfa748573567cc42c98722f5e5e9991bde0\"},\"authority\":\"none\"}"
+    },
+    {
+      "name": "json_escaping",
+      "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "revision": {
+        "id": "revision:dff9ebbbdc3955a95c6e8d6a0e269a3b16cf4873a67e976e221ba8ba1f74916e",
+        "parentRevisionId": null,
+        "title": "Review instructions",
+        "content": "# Quote\n\"path\\name\"\t\u0001\n",
+        "sha256": "1e66d2976f791871c908626b40578e13f5f12673d041bcc36e6446d60b50620e",
+        "createdAtMs": 10,
+        "review": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "provenance": {
+          "kind": "ordinary"
+        }
+      },
+      "profile": "agents_md_v1",
+      "requirements": [],
+      "expected": {
+        "schemaVersion": "rangoon.compilation.v1",
+        "compilationId": "compilation:0b1ebd9cee0410fb6e31aea4cbef7c251979f094d1f2214ff5e9014cc6bd9d46",
+        "profile": {
+          "id": "agents_md_v1",
+          "version": 1,
+          "artifactPath": "AGENTS.md",
+          "documentationUrl": "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+          "documentationRetrievedOn": "2026-10-06",
+          "runtimeQualification": "untested",
+          "targetBudget": "unknown",
+          "semanticEquivalence": "unverified"
+        },
+        "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+        "selectedRevision": {
+          "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "revision:dff9ebbbdc3955a95c6e8d6a0e269a3b16cf4873a67e976e221ba8ba1f74916e",
+          "parentRevisionId": null,
+          "title": "Review instructions",
+          "sha256": "1e66d2976f791871c908626b40578e13f5f12673d041bcc36e6446d60b50620e",
+          "provenance": {
+            "kind": "ordinary"
+          }
+        },
+        "artifact": {
+          "path": "AGENTS.md",
+          "content": "# Quote\n\"path\\name\"\t\u0001\n",
+          "sha256": "1e66d2976f791871c908626b40578e13f5f12673d041bcc36e6446d60b50620e",
+          "byteLength": 22
+        },
+        "diagnostics": [
+          {
+            "code": "instruction_semantics_unverified",
+            "severity": "warning",
+            "detail": null
+          },
+          {
+            "code": "target_environment_unqualified",
+            "severity": "warning",
+            "detail": null
+          }
+        ],
+        "reviewObservation": {
+          "reviewer": "local_operator",
+          "reviewedAtMs": 20
+        },
+        "readiness": "candidate",
+        "candidate": {
+          "manifest": {
+            "schemaVersion": "rangoon.instruction-candidate.v1",
+            "compilationId": "compilation:0b1ebd9cee0410fb6e31aea4cbef7c251979f094d1f2214ff5e9014cc6bd9d46",
+            "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+            "selectedRevision": {
+              "capabilityId": "capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "revisionId": "revision:dff9ebbbdc3955a95c6e8d6a0e269a3b16cf4873a67e976e221ba8ba1f74916e",
+              "parentRevisionId": null,
+              "title": "Review instructions",
+              "sha256": "1e66d2976f791871c908626b40578e13f5f12673d041bcc36e6446d60b50620e",
+              "provenance": {
+                "kind": "ordinary"
+              }
+            },
+            "artifact": {
+              "path": "AGENTS.md",
+              "sha256": "1e66d2976f791871c908626b40578e13f5f12673d041bcc36e6446d60b50620e",
+              "byteLength": 22
+            },
+            "reviewObservation": {
+              "reviewer": "local_operator",
+              "reviewedAtMs": 20
+            },
+            "diagnostics": [
+              {
+                "code": "instruction_semantics_unverified",
+                "severity": "warning",
+                "detail": null
+              },
+              {
+                "code": "target_environment_unqualified",
+                "severity": "warning",
+                "detail": null
+              }
+            ],
+            "authority": "none"
+          },
+          "manifestSha256": "5718f1018a8931ac0801234e998ea90b5a4537542e75c961385f176d7a2ef2ba",
+          "candidateId": "candidate:605e6d027b403b78384443cd59325d3933505425ff24efbbcf43408826ac9d04"
+        },
+        "authority": "none"
+      },
+      "expectedCanonicalJson": "{\"schemaVersion\":\"rangoon.compilation.v1\",\"compilationId\":\"compilation:0b1ebd9cee0410fb6e31aea4cbef7c251979f094d1f2214ff5e9014cc6bd9d46\",\"profile\":{\"id\":\"agents_md_v1\",\"version\":1,\"artifactPath\":\"AGENTS.md\",\"documentationUrl\":\"https://learn.chatgpt.com/docs/agent-configuration/agents-md\",\"documentationRetrievedOn\":\"2026-10-06\",\"runtimeQualification\":\"untested\",\"targetBudget\":\"unknown\",\"semanticEquivalence\":\"unverified\"},\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:dff9ebbbdc3955a95c6e8d6a0e269a3b16cf4873a67e976e221ba8ba1f74916e\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"1e66d2976f791871c908626b40578e13f5f12673d041bcc36e6446d60b50620e\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"content\":\"# Quote\\n\\\"path\\\\name\\\"\\t\\u0001\\n\",\"sha256\":\"1e66d2976f791871c908626b40578e13f5f12673d041bcc36e6446d60b50620e\",\"byteLength\":22},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"readiness\":\"candidate\",\"candidate\":{\"manifest\":{\"schemaVersion\":\"rangoon.instruction-candidate.v1\",\"compilationId\":\"compilation:0b1ebd9cee0410fb6e31aea4cbef7c251979f094d1f2214ff5e9014cc6bd9d46\",\"profileDigest\":\"e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2\",\"selectedRevision\":{\"capabilityId\":\"capability:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"revisionId\":\"revision:dff9ebbbdc3955a95c6e8d6a0e269a3b16cf4873a67e976e221ba8ba1f74916e\",\"parentRevisionId\":null,\"title\":\"Review instructions\",\"sha256\":\"1e66d2976f791871c908626b40578e13f5f12673d041bcc36e6446d60b50620e\",\"provenance\":{\"kind\":\"ordinary\"}},\"artifact\":{\"path\":\"AGENTS.md\",\"sha256\":\"1e66d2976f791871c908626b40578e13f5f12673d041bcc36e6446d60b50620e\",\"byteLength\":22},\"reviewObservation\":{\"reviewer\":\"local_operator\",\"reviewedAtMs\":20},\"diagnostics\":[{\"code\":\"instruction_semantics_unverified\",\"severity\":\"warning\",\"detail\":null},{\"code\":\"target_environment_unqualified\",\"severity\":\"warning\",\"detail\":null}],\"authority\":\"none\"},\"manifestSha256\":\"5718f1018a8931ac0801234e998ea90b5a4537542e75c961385f176d7a2ef2ba\",\"candidateId\":\"candidate:605e6d027b403b78384443cd59325d3933505425ff24efbbcf43408826ac9d04\"},\"authority\":\"none\"}"
+    }
+  ]
+}

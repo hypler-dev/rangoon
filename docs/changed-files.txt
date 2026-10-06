@@ -231,3 +231,10 @@ docs/screenshots/r3-v1-workspace-fixture-light-1440.jpg
 docs/screenshots/r3-v1-workspace-fixture-light-320.jpg
 docs/screenshots/r3-v1-workspace-fixture-light-768.jpg
 docs/screenshots/r3-editor-native-qa.json
+crates/rangoon-compile/Cargo.toml
+crates/rangoon-compile/src/lib.rs
+crates/rangoon-store/src/compilation.rs
+crates/rangoon-store/src/compilation_tests.rs
+docs/compilation.md
+fixtures/compilation/instruction-v1.json
+scripts/generate-compilation-fixtures.py
