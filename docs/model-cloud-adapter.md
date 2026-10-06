@@ -1,6 +1,6 @@
 # Fixed-origin cloud model adapter
 
-Authority: the accepted model-assistance continuation in [intent.md](intent.md), refined by [model-assistance.md](model-assistance.md). This implementation contract covers the portable cloud transport library. The native credential store and consent workbench must be integrated separately before the application can send cloud requests. Evidence belongs in [development.md](development.md).
+Authority: the accepted model-assistance continuation in [intent.md](intent.md), refined by [model-assistance.md](model-assistance.md). This implementation contract covers the portable cloud transport library. The [portable cloud session](model-cloud-session.md) adds saved-record and single-use request custody. The native credential store and consent workbench must be integrated separately before the application can send cloud requests. Evidence belongs in [development.md](development.md).
 
 ## Request ownership
 

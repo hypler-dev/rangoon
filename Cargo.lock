@@ -417,6 +417,7 @@ dependencies = [
  "rangoon-domain",
  "rangoon-import",
  "rangoon-model-assistance",
+ "rangoon-model-cloud",
  "rangoon-model-local",
  "rangoon-store",
  "serde",

@@ -10,6 +10,7 @@ repository.workspace = true
 rangoon-domain.workspace = true
 rangoon-model-assistance = { path = "../rangoon-model-assistance" }
 rangoon-model-local = { path = "../rangoon-model-local" }
+rangoon-model-cloud = { path = "../rangoon-model-cloud" }
 rangoon-store = { path = "../rangoon-store" }
 serde.workspace = true
 serde_json.workspace = true
