@@ -4,6 +4,7 @@
 pub mod application;
 
 use rangoon_domain::capability::{revision_id, valid_content, valid_title};
+pub use rangoon_domain::composition::{InputReference, Operation};
 use rangoon_domain::{Authority, byte_digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashSet};
@@ -24,33 +25,6 @@ pub const MAX_TOTAL_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_EXPLANATION_BYTES: usize = 1024;
 const MAX_JSON_ARRAY_ITEMS: usize = 4096;
 const MAX_JSON_DEPTH: usize = 64;
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Operation {
-    Decompose,
-    Merge,
-    Split,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(
-    tag = "kind",
-    rename_all = "snake_case",
-    rename_all_fields = "camelCase",
-    deny_unknown_fields
-)]
-pub enum InputReference {
-    Source {
-        source_id: String,
-        sha256: String,
-    },
-    Revision {
-        capability_id: String,
-        revision_id: String,
-        sha256: String,
-    },
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -397,6 +371,13 @@ pub fn identity_envelope_bytes(draft: &Draft) -> Result<Vec<u8>, ComposeError> {
         draft: &normalized,
     })
     .map_err(|_| ComposeError::InvalidDraft("encode"))
+}
+
+/// Compact normalized draft bytes for persistence consistency checks only.
+/// This proves neither record existence nor saveability or authority.
+pub fn canonical_draft_bytes(draft: &Draft) -> Result<Vec<u8>, ComposeError> {
+    validate_draft_shape(draft)?;
+    serde_json::to_vec(&normalized_draft(draft)?).map_err(|_| ComposeError::InvalidDraft("encode"))
 }
 
 pub fn composed_capability_id(composition_id: &str, output_index: u32) -> String {
@@ -1754,5 +1735,45 @@ mod tests {
                 .any(|d| d.code == DiagnosticCode::InvalidOutput)
         );
         assert_eq!(result.authority, Authority::None);
+    }
+
+    #[test]
+    fn canonical_draft_bytes_normalize_lists_and_reject_resource_excess() {
+        let (mut draft, _) = decompose("abcd", vec![copy("Result", 0, 4)]);
+        draft.exclusions = vec![
+            Annotation {
+                range: range(2, 3),
+                reason: "later".into(),
+            },
+            Annotation {
+                range: range(0, 1),
+                reason: "first".into(),
+            },
+        ];
+        draft.conflicts = vec![Conflict {
+            id: 2,
+            title: "Order".into(),
+            ranges: vec![range(2, 3), range(1, 2)],
+            context: "Needs a record".into(),
+            resolution: Some("Preserve input order".into()),
+        }];
+        let first = canonical_draft_bytes(&draft).unwrap();
+        let decoded = decode_draft_json(&first).unwrap();
+        assert_eq!(first, canonical_draft_bytes(&decoded).unwrap());
+        assert_eq!(
+            composition_id(&draft).unwrap(),
+            composition_id(&decoded).unwrap()
+        );
+
+        draft.outputs[0].pieces = (0..=MAX_PIECES)
+            .map(|_| Piece::Authored {
+                content: String::new(),
+                reason: "editing".into(),
+            })
+            .collect();
+        assert!(matches!(
+            canonical_draft_bytes(&draft),
+            Err(ComposeError::Limit("pieces"))
+        ));
     }
 }

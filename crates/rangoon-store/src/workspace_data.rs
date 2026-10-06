@@ -471,6 +471,11 @@ fn read_image(db: &Connection) -> Result<Image, StoreError> {
         return Ok(Image::default());
     }
     verify_schema(db)?;
+    if version == 3 {
+        // A legacy archive cannot represent composed revisions. Fail explicitly
+        // instead of silently exporting or restoring a source-only projection.
+        return Err(StoreError::UnsupportedSchema);
+    }
     let mut image = Image::default();
     for metadata in list_metadata(db)? {
         let report = read_report(db, &metadata.source_id)?;

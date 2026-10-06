@@ -9,6 +9,7 @@ repository.workspace = true
 [dependencies]
 rangoon-domain.workspace = true
 rangoon-import.workspace = true
+rangoon-compose.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "limits"] }
