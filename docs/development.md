@@ -466,6 +466,57 @@ The controller replaced per-byte `format!` collection with the existing `rangoon
 
 The next hosted head `a5d1669a7d4777e6cd6f02e26d07deba365cd127` exposed the same Rust 1.85 `format_collect` lint in the synthetic many-header test after library Clippy progressed. Push run `37474569015` and PR run `37474575137` failed that source check; no failed head was merged. The test now appends the same numbered CRLF header lines directly to one string. The controller installed the pinned Rust 1.85.0 minimal toolchain locally to run the actual CI lint set before the next push; installer execution used the existing x86_64 Rustup under emulation and did not change the repository's toolchain or application targets. Rust 1.85.0 formatting and full-workspace/all-target warnings-denied Clippy passed locally. All 20 adapter tests also passed under Rust 1.85.0 using disposable loopback servers. Fresh OpenAI GPT-5.6-Terra xhigh re-review passed, confirming the same 33 ordered header bytes and unchanged test purpose. Corrected exact-head hosted checks remain required.
 
+### M1b transport source publication receipt
+
+PR [#22](https://github.com/hypler-dev/rangoon/pull/22) merged corrected reviewed head `cbed9fbc7f40fc3c036eaa936269a3dcb5db8087` as `31a082f4d97aad6d95ca9610544e3d90686dbbbf` at `2026-10-06T14:09:49Z`, against exact base `4da737ab67dfb54c60eada103e41f6869093c727`. All fourteen final-head checks passed in runs `37475678835` and `37475686813`, including minimum-toolchain source checks and native tests/builds on macOS, Windows and Linux. The two earlier minimum-toolchain lint failures remain recorded above; neither failed head was merged. Fresh GitHub gates verified exact head/base and all 19 paths, zero reviews/comments/unresolved threads, and no protection rules or rulesets. Independent OpenAI GPT-5.6-Terra xhigh contract, final code, documentation and CI-correction reviews passed. Sol retained integration/release judgment; Terra high workers implemented bounded decoder/fixtures/tests and Luna medium updated documentation. No GLM call occurred.
+
+Fetched `main` contains the reviewed head; reviewed and merged trees are identical. Public readback verified public visibility, the `main` default branch, unchanged description and nine topics, and the 543-line README at SHA-256 `288d7fd5eca0bc649442405a23dfb8efb4ef0ab4d23af2e016e2716bbbeec5b8`. The checkout was clean before starting continuation branch `codex/model-native-consent` from the verified merge. This receipt and the continuation update are intentional carry-forward documentation, not another published source change.
+
+Exact published paths:
+
+- `Cargo.lock`
+- `Cargo.toml`
+- `README.md`
+- `crates/rangoon-model-assistance/src/pack.rs`
+- `crates/rangoon-model-local/Cargo.toml`
+- `crates/rangoon-model-local/src/lib.rs`
+- `crates/rangoon-model-local/src/profile.rs`
+- `crates/rangoon-model-local/src/request.rs`
+- `crates/rangoon-model-local/src/transport.rs`
+- `crates/rangoon-model-local/src/wire.rs`
+- `crates/rangoon-model-local/tests/identity.rs`
+- `crates/rangoon-model-local/tests/transport.rs`
+- `docs/application-architecture.md`
+- `docs/continue.md`
+- `docs/development.md`
+- `docs/model-assistance.md`
+- `docs/model-local-adapter.md`
+- `fixtures/model-assistance/local-v1.json`
+- `scripts/generate-model-local-fixtures.py`
+
+The next packet freezes the native profile, saved-ID resolution, retained request, exact-payload decision and cancellation lifecycle before adding commands or UI. The library source does not complete M1b or V1 and does not establish native GUI, model compatibility, security certification or government compliance. No release tag, installer, license adoption, deployment, workspace migration, private-source transfer, existing model-provider credential use, real model call or LNSAT activation occurred. Parent marketing work remained outside scope.
+
 ## External action boundaries
 
 Commit and push of reviewed app work, review PR creation, repository metadata updates and main merge are authorized by the October 5 request. Deployment, production data changes, LNSAT mutations, license adoption, installer/release publication, paid infrastructure and government application submission remain closed.
+
+## October 6, 2026 — M1 native-session foundation (local source validation)
+
+Authority remains the accepted October 6 model-assistance continuation in [intent.md](intent.md). This packet starts from verified PR22 merge `31a082f4d97aad6d95ca9610544e3d90686dbbbf` on `codex/model-native-consent`; the previous goal turn was progress, publishing the independently reviewed local transport. The new [native session contract](model-native-session.md) defines saved-input custody and the remaining native consent lifecycle. The command/outcome schema, native dialog, IPC allowlist and renderer workflow are deliberately not registered by the foundation packet and remain required next implementation work.
+
+The application-owned `rangoon-model-session` service holds session-only profiles and exact prepared requests, resolves saved source/explicit capability revisions through validated store reads, protects all selected text, rejects empty records and over-budget requests, issues random single-use handles, checks dependency freshness, and manages cancellation/clear through generation-bound RAII operation leases. It performs no network, dialog, workspace write or migration. A service operation lease is not operator consent. Native orchestration must still enforce the reviewed OS-confirmation and workspace-guard sequence before sending.
+
+Controller produced the contract and production source. A native OpenAI Terra-xhigh read-only reviewer identified the empty-input/M1a mismatch and insufficient selected-record metadata in the planned confirmation. The contract now rejects empty inputs explicitly and requires the native confirmation to expose every retained identity/digest/head/byte count plus pack/request identities, without truncation; future sending stays disabled if that surface cannot be qualified. Per-outcome IPC fields require separate review before integration. OpenAI Terra-high owns bounded synthetic lifecycle tests; OpenAI Luna-medium owns README/architecture/model-status updates. Native GPT lanes are available; GLM was not contacted and no other-provider source transfer occurred. The reviewer also found that a busy preparation attempt retained an older sendable request. The service now discards previous preparation before the busy check, and a regression covers the exact sequence. Fresh independent OpenAI GPT-5.6-Terra xhigh staged review passed all 12 paths with no remaining P1/P2/P3 findings. Local validation below applies to the frozen production source and final tests; hosted CI and publication still require their own exact-head gates.
+
+Local dependency resolution added pinned `getrandom 0.3.4` (already used by the isolated desktop workspace) and its target-specific dependencies to the portable workspace lockfile; no existing registry version changed. The source workspace remains Rust 1.85, and the actual pinned compiler is used for validation. An initial source compile found two temporary `MutexGuard` coercion errors, corrected before validation. No native GUI/OS support follows from source checks.
+
+Local validation on the final source/test packet:
+
+- `rustup run 1.85.0 cargo fmt --all -- --check`: passed.
+- `rustup run 1.85.0 cargo clippy --workspace --all-targets --locked --target-dir /private/tmp/rangoon-minimum-rust-target -- -D warnings`: passed.
+- `rustup run 1.85.0 cargo test --workspace --locked --target-dir /private/tmp/rangoon-minimum-rust-target`: 221 passed, zero failed, five intentionally ignored subprocess helpers exercised by their parent tests; final command exited zero.
+- The new service contributes two unit and fourteen integration tests covering raw JSON/limits/duplicates, exact BOM/CRLF/Unicode, empty inputs, full-text budget rejection, wrong revision ownership, observed head freshness, missing/corrupt data, profile replacement, replay, busy preparation, cancellation/clear/drop and stale-run isolation. The over-budget fixture is a valid 262,144-byte multiline source; the initially requested one-line variant correctly hit the existing importer's `LineTooLong` bound and was corrected without relaxing production limits.
+- Both independent M1a/M1b Python fixture generators with `--check`: passed unchanged. Intent and plan artifact validators: passed.
+- `node scripts/validate-review.mjs`: eight image hashes, historical brief, local Markdown targets and 200 authored text files passed. `git diff --check`: passed.
+
+The portable service uses OS entropy for random handles and existing validated store reads, with no network or persistence writes; real native commands/dialogs and GUI were not exercised because none were added. No native workspace schema, renderer, capability allowlist or desktop lockfile changed. The parent marketing checkout remains `website-local` at `83aba9be3f90b288d8d2eb05b1c5c9d7ba3c5449`, with only its pre-existing untracked `.codex/` and nested `app-review/`. No real model call, source transmission, existing credential use, model installation/launch, LNSAT activation, license adoption, installer/release, grant submission or deployment occurred.
