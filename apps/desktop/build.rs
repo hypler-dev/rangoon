@@ -14,6 +14,8 @@ fn main() {
             "revise_capability",
             "review_capability",
             "compile_capability",
+            "export_instruction_bundle",
+            "inspect_instruction_bundle",
             "get_workspace_data",
             "export_workspace_backup",
             "prepare_workspace_restore",

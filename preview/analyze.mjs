@@ -357,7 +357,7 @@ function renderCompilation() {
     if (element) { element.scrollTop = top; element.scrollLeft = left; }
   }
   for (const id of openDetails) document.getElementById(id)?.setAttribute('open', '');
-  announcer.textContent = state.error || state.needsRefresh ? '' : state.message;
+  announcer.textContent = state.error || state.needsRefresh || state.bundleExport?.error || state.externalBundle?.error ? '' : state.message;
   if (routeFocusPending === 'compile') {
     document.querySelector('#compile-title')?.focus({ preventScroll: true });
     routeFocusPending = null;
@@ -433,12 +433,27 @@ void skillsController.list();
 if (route === 'compile') void compilationController.refresh();
 
 app.addEventListener('click', event => {
-  const compileControl = event.target.closest('#compile-refresh, #compile-generate, #compile-open-skills, [data-compile-capability], [data-compile-revision], [data-compile-profile], [data-compile-tab]');
+  const compileControl = event.target.closest('#compile-refresh, #compile-generate, #compile-open-skills, #compile-export, #compile-inspect, #compile-inspect-external, [data-compile-capability], [data-compile-revision], [data-compile-profile], [data-compile-tab]');
   if (compileControl) {
     if (compileControl.disabled) return;
     const state = compilationController.getState();
     if (compileControl.dataset.compileTab) return compilationController.setTab(compileControl.dataset.compileTab);
     if (nativeOperations || state.pending) return;
+    if (compileControl.id === 'compile-export') {
+      compilationActionFocus = '#compile-export';
+      return compilationController.exportBundle().then(exported => {
+        if (route !== 'compile') return;
+        const target = document.querySelector(exported ? '#compile-export-title' : '#compile-export');
+        (target?.disabled ? document.querySelector('#compile-refresh') : target)?.focus({ preventScroll: true });
+      });
+    }
+    if (compileControl.id === 'compile-inspect' || compileControl.id === 'compile-inspect-external') {
+      const launcher = `#${compileControl.id}`;
+      compilationActionFocus = launcher;
+      return compilationController.inspectBundle().then(inspected => {
+        if (route === 'compile') document.querySelector(inspected ? '#compile-external-title' : launcher)?.focus({ preventScroll: true });
+      });
+    }
     if (compileControl.id === 'compile-refresh') { compilationActionFocus = '#compile-refresh'; return compilationController.refresh(); }
     if (compileControl.dataset.compileCapability) { compilationActionFocus = `[data-compile-capability="${CSS.escape(compileControl.dataset.compileCapability)}"]`; return compilationController.open(compileControl.dataset.compileCapability); }
     if (compileControl.dataset.compileRevision && state.selected) { compilationActionFocus = `[data-compile-revision="${CSS.escape(compileControl.dataset.compileRevision)}"]`; return compilationController.open(state.selected.id, compileControl.dataset.compileRevision); }
@@ -496,7 +511,7 @@ app.addEventListener('keydown', event => {
   const tab = event.target.closest('[data-compile-tab]');
   if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault();
-  const tabs = ['text', 'diagnostics', 'evidence'];
+  const tabs = ['text', 'diagnostics', 'evidence', 'external'];
   const index = tabs.indexOf(tab.dataset.compileTab);
   const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
   compilationActionFocus = `[data-compile-tab="${tabs[next]}"]`;

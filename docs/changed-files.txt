@@ -262,3 +262,10 @@ crates/rangoon-host/src/instructions.rs
 crates/rangoon-host/src/instructions_tests.rs
 fixtures/compilation/instruction-bundle-v1.json
 scripts/generate-instruction-bundle-fixtures.py
+docs/instruction-bundle-ui.md
+apps/desktop/src/instruction_bundles.rs
+apps/desktop/src/instruction_bundles_tests.rs
+docs/screenshots/r4-bundle-browser-qa.json
+docs/screenshots/r4-bundle-external-success-dark-320.jpg
+docs/screenshots/r4-bundle-external-success-dark-1440.jpg
+docs/screenshots/r4-bundle-exported-light-768.jpg

@@ -31,11 +31,11 @@ The first desktop release targets **macOS, Windows, and Linux together**. The in
 
 ## Product and feature status
 
-The first useful experience is deliberately concrete: select a Markdown file, inspect its exact content and section inventory, save a snapshot, derive a skill, edit a new revision, record local review, and reopen that work after restart. Composition extends this into traceable transformations across saved records. The native Compile workbench turns exact saved revisions into inspectable AGENTS.md/CLAUDE.md artifacts and candidate manifests through a pure compiler and a read-only workspace service. Portable export and runtime compatibility qualification remain pending.
+The first useful experience is deliberately concrete: select a Markdown file, inspect its exact content and section inventory, save a snapshot, derive a skill, edit a new revision, record local review, and reopen that work after restart. Composition extends this into traceable transformations across saved records. The native Compile workbench turns exact saved revisions into inspectable AGENTS.md/CLAUDE.md artifacts and candidate manifests through a pure compiler and a read-only workspace service. Native Export and external bundle inspection are implemented in this source through the native command/UI path described in [instruction-bundle-ui.md](docs/instruction-bundle-ui.md); native GUI qualification remains pending, and publication evidence belongs in the [development ledger](docs/development.md).
 
 The intended users are developers managing agent configuration, platform teams maintaining shared capabilities, and reviewers who need source lineage and explicit change plans. Cloud administration and government use are later qualification targets, not capabilities established by the current desktop prototype.
 
-| Area | Implemented in public source | Remaining work |
+| Area | Implemented in this source | Remaining work |
 | --- | --- | --- |
 | Design preview | Nine synthetic views: Command Center, Import, Decompose, Merge/Split, Skills, Workflows, Connectors, Evidence, and release planning; dark/light themes and responsive layouts | Replace each sample workflow with a real, qualified application service |
 | Import & Analyze | Bounded Rust Markdown scanner, stdin CLI, and one explicitly selected native file; exact text, digest, spans, and diagnostics | Explicit directory/repository import, additional formats, optional semantic proposals |
@@ -46,8 +46,8 @@ The intended users are developers managing agent configuration, platform teams m
 | Engine integration | Explicit unavailable LNSAT port, native status page, and CLI diagnostics | Qualified transport, authentication, typed operations, and evidence readback |
 | Workflows and agents | Synthetic visual concepts and architecture contracts | Real definitions, validation, execution-state model, scheduling, and qualified runners |
 | Connectors and harnesses | Synthetic catalog and extension direction | Versioned implementations, permissions, compatibility fixtures, and conformance suites |
-| Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, native export, and destination protection |
-| Test Lab and export | Development tests, independent golden fixtures, and a portable instruction-bundle encoder/verifier with bounded file helpers | User-facing static tests, native Export/Inspect UI and IPC, target conformance and evidence bundles |
+| Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, and target-loader compatibility |
+| Test Lab and export | Development tests, independent golden fixtures, portable instruction-bundle encoder/verifier, and native Export/Inspect commands/UI implemented in this source | User-facing static tests, native GUI qualification, target conformance and evidence bundles |
 | Distribution | Three-OS source/test/build CI; selected macOS development-bundle runtime evidence | Windows/Linux GUI checks, installers, signing, updates, rollback, and release qualification |
 | Team/cloud/enterprise | Architecture direction | Service implementation, tenancy, identity, operations, and deployment evidence |
 
@@ -241,9 +241,9 @@ The pure compiler has no filesystem, process, environment, provider or engine ac
 
 The inspection workbench keeps Generated text, Diagnostics and Evidence separate. It supports historical revisions, preserves unsaved Skills drafts, rejects mismatched native responses, and marks retained reports stale after known workspace writes. Refresh resolves the selected revision again; compilation runs only on explicit action. Candidate manifest text comes from the host's canonical serializer, with renderer manifest/hash consistency checks. Browser-only use shows the unavailable native bridge. Displaying text is not export or target qualification; no Copy, Install, Run or authority action is exposed.
 
-The bundle foundation has a pure encoder and strict in-memory verifier plus bounded host helpers for an explicitly caller-selected path. It preserves exact artifact bytes and canonical manifest bytes, records component lengths, and appends a SHA-256 checksum of the preceding bytes; inspection separately reports the whole-file digest. Maximum total length is 295,016 bytes. Inspection reports `verification: internal_consistency_only` and `authority: none`. Digests detect inconsistency, not authentication, complete source-graph lineage, or target behavior. Native Export and bundle inspection UI/IPC integration remain unimplemented and unqualified.
+The bundle foundation has a pure encoder and strict in-memory verifier plus bounded host helpers for an explicitly caller-selected path. It preserves exact artifact bytes and canonical manifest bytes, records component lengths, and appends a SHA-256 checksum of the preceding bytes; inspection separately reports the whole-file digest. Maximum total length is 295,016 bytes. Inspection reports `verification: internal_consistency_only` and `authority: none`. Digests detect inconsistency, not authentication, complete source-graph lineage, or target behavior. Native Export and external bundle inspection commands/UI are implemented in this source: requests are ID-only raw UTF-8 JSON bounded to 4,096 bytes; export re-resolves and recompiles after the picker, binds the fresh candidate ID, and exclusively creates a new plaintext file without overwrite; write/sync uncertainty is distinct from known no-output failure. External inspection never opens the workspace, imports, reviews or executes; it returns internal-consistency evidence with `authority: none`. Native GUI qualification remains pending; publication evidence belongs in the [development ledger](docs/development.md).
 
-The CLI remains an analyzer and inert engine-status tool, with no compilation command. SKILL metadata/support-file formats, native Export/Inspect UI/IPC, target drift/collision handling, native GUI qualification and all-three-OS target-loader evidence remain required R4/R5 work. See the [compiler contract](docs/compilation.md), [bundle contract](docs/instruction-bundle.md) and [native inspection contract](docs/compilation-ui.md) for exact schemas, identity framing, state handling and acceptance boundaries.
+The CLI remains an analyzer and inert engine-status tool, with no compilation command. SKILL metadata/support-file formats, target drift/collision handling, native GUI qualification and all-three-OS target-loader evidence remain required R4/R5 work. See the [compiler contract](docs/compilation.md), [bundle contract](docs/instruction-bundle.md), [native inspection contract](docs/compilation-ui.md) and [native bundle UI contract](docs/instruction-bundle-ui.md) for exact schemas, identity framing, state handling and acceptance boundaries.
 
 ## Backup, restore, and deletion
 
@@ -429,7 +429,7 @@ The accepted [intent](docs/intent.md), detailed [plan](docs/plan.md), [product e
 
 ### 3. Build versioned harness adapters and deterministic export
 
-**Foundation present:** pure `agents_md_v1` and `claude_md_v1` text-format profiles, exact stored-revision selection, static compatibility diagnostics, deterministic candidate manifests, and a pure exact-byte bundle encoder/strict verifier with bounded selected-file host helpers. These are library/host APIs; native Export/Inspect UI/IPC and actual target-loader qualification are not complete.
+**Foundation present:** pure `agents_md_v1` and `claude_md_v1` text-format profiles, exact stored-revision selection, static compatibility diagnostics, deterministic candidate manifests, a pure exact-byte bundle encoder/strict verifier, bounded selected-file host helpers, and native Export/Inspect UI/IPC implemented in this source. Native GUI qualification and actual target-loader qualification are not complete.
 
 **Deliver:** a shared capability representation plus at least two explicitly supported harness/format adapters. Choose initial targets from actual user projects and maintain a per-version support matrix.
 
@@ -502,6 +502,7 @@ Keep fixtures secret-free. Imported instruction text is data, including when it 
 | [Instruction compilation](docs/compilation.md) | Pinned format profiles, byte preservation, compatibility limits, candidate identities and bundle foundation |
 | [Instruction bundles](docs/instruction-bundle.md) | Exact portable format, strict verification and bounded host file boundary |
 | [Native Compile inspection](docs/compilation-ui.md) | Exact-ID command, workbench states, stale report handling and qualification gates |
+| [Native bundle export and inspection](docs/instruction-bundle-ui.md) | Export/Inspect commands/UI in this source, picker custody, receipts, uncertainty and external-file limits |
 | [Workspace controls](docs/workspace-data-controls.md) | Inventory, export, restore, and deletion experience |
 | [Desktop setup](docs/desktop-spike.md) | Native prerequisites and runtime qualification limits |
 | [Engine integration](docs/engine-integration.md) | Unavailable port and LNSAT qualification gates |

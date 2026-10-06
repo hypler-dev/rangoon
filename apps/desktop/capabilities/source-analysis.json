@@ -1,6 +1,6 @@
 {
   "identifier": "source-analysis",
-  "description": "The local main workbench can inspect and save sources, derive and review inert skills, compose inert skills from saved inputs, inspect compiled instruction text, manage local backups and record deletion, and inspect inert engine status. Paths, SQL and engine requests are never accepted.",
+  "description": "The local main workbench can inspect and save sources, derive and review inert skills, compose inert skills from saved inputs, inspect compiled instruction text, explicitly export or inspect plaintext instruction bundles, manage local backups and record deletion, and inspect inert engine status. Paths, SQL and engine requests are never accepted.",
   "windows": [
     "main"
   ],
@@ -19,6 +19,8 @@
     "allow-revise-capability",
     "allow-review-capability",
     "allow-compile-capability",
+    "allow-export-instruction-bundle",
+    "allow-inspect-instruction-bundle",
     "allow-get-workspace-data",
     "allow-export-workspace-backup",
     "allow-prepare-workspace-restore",
