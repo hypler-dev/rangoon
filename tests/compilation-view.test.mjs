@@ -145,6 +145,20 @@ test('keeps file-action messages in their own surface and announces cancellation
   assert.doesNotMatch(inspectionCancelled, /role="alert">Inspection cancelled/);
 });
 
+test('shows a native external failure once when controller message and error match', () => {
+  const issue = { code: 'bundle_invalid', message: 'Instruction bundle failed consistency validation.' };
+  const externalBundle = { status: 'failed', report: null, previous: null, error: issue };
+  const textTab = renderCompilationPage(state({ tab: 'text', message: issue.message, error: issue, externalBundle }));
+  assert.equal((textTab.match(/Instruction bundle failed consistency validation\./g) ?? []).length, 1);
+  assert.match(textTab, /Error code: bundle_invalid/);
+  assert.equal((textTab.match(/role="alert"/g) ?? []).length, 1);
+  const externalTab = renderCompilationPage(state({ tab: 'external', message: issue.message, error: issue, externalBundle }));
+  assert.equal((externalTab.match(/Instruction bundle failed consistency validation\./g) ?? []).length, 1);
+  assert.match(externalTab, /Error code: bundle_invalid/);
+  assert.equal((externalTab.match(/role="alert"/g) ?? []).length, 1);
+  assert.doesNotMatch(externalTab.slice(0, externalTab.indexOf('compile-workbench')), /Instruction bundle failed consistency validation/);
+});
+
 test('disables unavailable, busy, stale and skills-busy actions without inventing workspace records', () => {
   const unavailable = renderCompilationPage(state({ bridgeAvailable: false, listStatus: 'unavailable', selected: null, capabilities: [], profile: null }));
   assert.match(unavailable, /Browser preview has no native workspace bridge/);

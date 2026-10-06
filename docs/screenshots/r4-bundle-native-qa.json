@@ -1,0 +1,234 @@
+{
+  "schemaVersion": "rangoon.native-qa-receipt.v1",
+  "recordedDate": "2026-10-06",
+  "platform": "x86_64-apple-darwin",
+  "applicationIdentifier": "ai.rangoon.bundle.qa",
+  "build": "unsigned isolated development bundle; baseline PR19 plus compilation-view duplicate-error fix",
+  "baseCommit": "356df0caa547ec5a6113c9edbf2e3e42913ce254",
+  "runtime": "actual native file pickers, Tauri IPC and app-owned disposable SQLite workspace; not synthetic browser bridge",
+  "fixture": {
+    "displayName": "bundle-source.md",
+    "content": "﻿# Native bundle QA\r\nPreserve café and exact CRLF bytes.\r\n",
+    "bytes": 61,
+    "sha256": "6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb",
+    "origin": "controller-authored synthetic QA text"
+  },
+  "checks": [
+    "External inspection cancellation returned focus to launcher without a report.",
+    "Independent golden bundle inspected before any source save; QA application data directory remained absent.",
+    "Native file selection, analysis, explicit save, section derivation and draft creation preserved exact source bytes.",
+    "Unreviewed native compilation produced review-required evidence and kept export disabled.",
+    "Explicit local review invalidated old compilation; refresh and new compile produced reviewed AGENTS candidate.",
+    "Export cancellation retained the candidate and returned focus to launcher.",
+    "Both AGENTS and CLAUDE profiles compiled and exported through actual native dialogs to fresh filenames.",
+    "External inspection of the exported CLAUDE bundle returned its matching candidate without changing the saved candidate.",
+    "Invalid file rejection retained prior external evidence and saved candidate before restart.",
+    "Quit, absence in app inventory, relaunch and native reopen preserved the source snapshot and locally reviewed skill.",
+    "Rebuilt app showed the invalid-bundle message exactly once on Generated text and External bundle tabs; launcher focus returned on failure."
+  ],
+  "independentFileVerification": {
+    "exports": [
+      {
+        "file": "Agents-QA.rangoon-instructions",
+        "bytes": 1152,
+        "manifestBytes": 987,
+        "artifactBytes": 61,
+        "sha256": "312d690d20df6ddf49c46d3cba142be3499eb7ecbd1c2e11effd5a7ca0313a90",
+        "mode": "0o600",
+        "manifest": {
+          "schemaVersion": "rangoon.instruction-candidate.v1",
+          "compilationId": "compilation:0a9a92d09c806f8ba757a2ff9e860b7eb1b16c236dcdf7fce4471d523642621e",
+          "profileDigest": "e6485c07fa7134403582747e4930c6330b9db94aee094195c26621791475b8e2",
+          "selectedRevision": {
+            "capabilityId": "capability:e6db38ec905295c799c1c627f1bf6516fb86c93022c08ca6e5a90864073b7693",
+            "revisionId": "revision:080e9496ba66a0743e16238bfc0fbc4058eea1b2e25b795ef07cc21b7c07119d",
+            "parentRevisionId": null,
+            "title": "Native bundle QA",
+            "sha256": "6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb",
+            "provenance": {
+              "kind": "ordinary"
+            }
+          },
+          "artifact": {
+            "path": "AGENTS.md",
+            "sha256": "6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb",
+            "byteLength": 61
+          },
+          "reviewObservation": {
+            "reviewer": "local_operator",
+            "reviewedAtMs": 1791273638163
+          },
+          "diagnostics": [
+            {
+              "code": "instruction_semantics_unverified",
+              "severity": "warning",
+              "detail": null
+            },
+            {
+              "code": "target_environment_unqualified",
+              "severity": "warning",
+              "detail": null
+            }
+          ],
+          "authority": "none"
+        }
+      },
+      {
+        "file": "Claude-QA.rangoon-instructions",
+        "bytes": 1152,
+        "manifestBytes": 987,
+        "artifactBytes": 61,
+        "sha256": "3332656377f22e1985f83e9d4e1c2fbc6e7707b6191de35934ed5571e7259325",
+        "mode": "0o600",
+        "manifest": {
+          "schemaVersion": "rangoon.instruction-candidate.v1",
+          "compilationId": "compilation:370ffba1fad794c33bb8028f6e2923f5407b9cde557717a08f6df91c9e546a2f",
+          "profileDigest": "f9f8cc107e092ad8c62f4cbee0bdd1ea041002674d44a152bf600a7c9b5753a3",
+          "selectedRevision": {
+            "capabilityId": "capability:e6db38ec905295c799c1c627f1bf6516fb86c93022c08ca6e5a90864073b7693",
+            "revisionId": "revision:080e9496ba66a0743e16238bfc0fbc4058eea1b2e25b795ef07cc21b7c07119d",
+            "parentRevisionId": null,
+            "title": "Native bundle QA",
+            "sha256": "6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb",
+            "provenance": {
+              "kind": "ordinary"
+            }
+          },
+          "artifact": {
+            "path": "CLAUDE.md",
+            "sha256": "6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb",
+            "byteLength": 61
+          },
+          "reviewObservation": {
+            "reviewer": "local_operator",
+            "reviewedAtMs": 1791273638163
+          },
+          "diagnostics": [
+            {
+              "code": "instruction_semantics_unverified",
+              "severity": "warning",
+              "detail": null
+            },
+            {
+              "code": "target_environment_unqualified",
+              "severity": "warning",
+              "detail": null
+            }
+          ],
+          "authority": "none"
+        }
+      }
+    ],
+    "workspaceBefore": {
+      "source-workspace/workspace.sqlite3": "56f9d4d3a4217a7591b708cb7ba31e6be093bfee494f0b34c52b63f5c5881c6b"
+    },
+    "workspaceAfter": {
+      "source-workspace/workspace.sqlite3": "56f9d4d3a4217a7591b708cb7ba31e6be093bfee494f0b34c52b63f5c5881c6b"
+    },
+    "workspaceUnchanged": true
+  },
+  "readOnlyBoundary": "After explicit Save/Create/Review, both exports, inspections and restart readback left the complete QA app-local file map and database digest unchanged. Initial comparison used different relative roots; normalized same-root comparison passed.",
+  "artifacts": [
+    {
+      "path": "r4-bundle-native-external-empty-workspace.txt",
+      "sha256": "d4dc85d81c072e05b67f68d86ec037b86fbc4d4b260ed957d3fb9951aa450699",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "54b78fcfa24706218db53affc6e015667027888b590a77a79163d1c6a5a4f274",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-compile-unreviewed.txt",
+      "sha256": "47770fc8107d9a20cc926d3eff387b8289d9362c5896a10770ad25abf5212ea9",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "2d11c1c64766a52b21db6bcf9a91d9d97a260d17a565b35719b64b7a9bb07fca",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-export-cancelled.txt",
+      "sha256": "c401663a2b2ddea7eaf705e29acc5863cd4fb762e34a4e1fa456d841b0a6874d",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "8292a3115f44873869fa95302557f16ced41fdd1e0d2881527c3512bb54fa3fe",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-export-agents-success.txt",
+      "sha256": "b1915d2cc464f762e000a858f90a9bf4ff9e993a057a5057aa03b04f44b84543",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "7a7453a37a0812f1fceaebeec30d12d0f09bf0be7e42196d6cc2cc31cf3c426d",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-export-claude-success.txt",
+      "sha256": "c859e3a2be5ce2833c32dd622b509006c1e78bda4e6f19b9c65d5ec7f073df8b",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "3bdb88380a241c13d5b474b15ed06b23c772ff993882d6d7e85a162d0dc04c5f",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-inspect-exported-claude.txt",
+      "sha256": "54d7232088313d70c4b7e6a19c4a85f8af12a8c4dd16ba78f10e510852779b81",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "076c1357b4f67212d7464dc7837a471e3966735cbbb972872967a53ac773cf90",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-restart-source-opened.txt",
+      "sha256": "94d313c6222340a95de4435c1b999b4f8022d864d1526e54b4ef2f3cf2fe7a5c",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "0f3d274aa7a7b96ab999ffab277bb7cf475d39913a0f97a02012007a3d81668d",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-restart-compile-library.txt",
+      "sha256": "f0102164746296b8b73b77cfd13498761787b03bcc36c3b050f32c565e9c972d",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "4b960230ed5aa08f7ce95632705cbf263d8fa6e2aaf2f45e3658ccc31e66fab5",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-fixed-invalid-generated-text.txt",
+      "sha256": "8bd71b38317c646d9e1bb04752eccc33b7b65684d87f673d00c6fbef7748a4f4",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "aa08c12391c0af218972094af1162c09c1186b4fc3cf0c26e64b10a43e06e1ad",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-fixed-invalid-external-tab.txt",
+      "sha256": "d6a6ff2db7c499c888a23c8139dd3515f32bc7bde00e327564bec5c4463780d4",
+      "kind": "native accessibility observation",
+      "rawObservationSha256": "cb83f401d77e226f7ba5390d5ef36bf93a5310085bb1a68d35f0cb4a3d89722a",
+      "normalization": "Trailing spaces and tabs removed from each accessibility-text line for repository whitespace checks; native labels and structure otherwise preserved."
+    },
+    {
+      "path": "r4-bundle-native-export-agents-success.png",
+      "sha256": "8e971e409575fb706b7fa92ba33c8807bf06e9fa59b8266359b5150f974b5719",
+      "kind": "native screenshot"
+    },
+    {
+      "path": "r4-bundle-native-fixed-invalid-external-tab.png",
+      "sha256": "64e39db5a706ed7464bc53a3333d7caec262c7a8e32a696d41d45cad4ec3f8f8",
+      "kind": "native screenshot"
+    }
+  ],
+  "notQualified": [
+    "Windows GUI",
+    "Linux GUI",
+    "native export collision GUI",
+    "native partial-write uncertainty GUI",
+    "historical revision compilation GUI",
+    "composition-provenance compilation GUI",
+    "complete keyboard/failure matrix",
+    "target-loader behavior",
+    "signed installers",
+    "released support",
+    "encryption or authentication",
+    "tamperproof storage",
+    "provider or LNSAT integration"
+  ],
+  "limitations": [
+    "One unsigned macOS development application and synthetic fixture only.",
+    "Internal consistency checks do not authenticate files or reviews.",
+    "Normal identifier build restoration is recorded separately in development.md.",
+    "Earlier QA applications and actual user workspace were not touched."
+  ]
+}

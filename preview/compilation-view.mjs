@@ -48,6 +48,15 @@ const fileActionMessage = (action, state) => {
   return '';
 };
 const fileActionRole = (action, state) => (action === 'export' ? exportState(state).status : externalState(state).status) === 'cancelled' ? 'status' : 'alert';
+const fileActionErrorCode = (action, state) => {
+  const value = action === 'export' ? exportState(state) : externalState(state);
+  return ['failed', 'uncertain'].includes(value.status) ? value.error?.code : null;
+};
+const fileActionNotice = (action, state) => {
+  const message = fileActionMessage(action, state);
+  const code = fileActionErrorCode(action, state);
+  return code ? `${message} Error code: ${code}.` : message;
+};
 const isOwnedFileError = state => {
   const error = state.error;
   if (!error) return false;
@@ -55,6 +64,7 @@ const isOwnedFileError = state => {
     && item.error && (item.error === error || (item.error.code === error.code && item.error.message === error.message));
   return matches(exportState(state)) || (state.tab === 'external' && matches(externalState(state)));
 };
+const isDuplicateErrorStatusMessage = state => Boolean(state.error && state.message === state.error.message);
 const diagnosticExplanation = diagnostic => {
   switch (diagnostic?.code) {
     case 'instruction_semantics_unverified': return 'Exact bytes remain inspectable. Meaning, dependency closure and enforcement remain unverified.';
@@ -141,7 +151,7 @@ function externalPanel(state, active, busy) {
   const rendered = current ?? previous;
   const hasPrevious = Boolean(rendered) && external.status !== 'inspected';
   const pending = busyState(state, busy) || external.status === 'pending';
-  const status = fileActionMessage('inspect', state);
+  const status = fileActionNotice('inspect', state);
   return `<section id="compile-panel-external" class="compile-report-panel compile-external-panel" role="tabpanel" aria-labelledby="compile-tab-external" ${active ? '' : 'hidden'}><header><div><p class="analysis-kicker">SELECTED EXTERNAL FILE</p><h2 id="compile-external-title" tabindex="-1">External bundle</h2></div><button id="compile-inspect-external" class="analysis-button analysis-button--small" type="button" ${pending || !state.bridgeAvailable ? 'disabled' : ''}>${external.status === 'pending' ? 'Inspecting…' : 'Inspect bundle'}</button></header><p class="compile-inspection-note">Inspect a selected plaintext bundle. It stays separate from saved workspace evidence.</p>${active && status ? `<p class="${fileActionRole('inspect', state) === 'alert' ? 'compile-alert' : 'compile-note'}" role="${fileActionRole('inspect', state)}">${text(status)}</p>` : ''}${hasPrevious ? '<p class="compile-previous-label">Previous external inspection</p>' : ''}${rendered ? externalEvidenceFacts(rendered) : '<p class="compile-empty">Select a bundle file to inspect its internal consistency. No saved skill or compilation is required.</p>'}</section>`;
 }
 
@@ -156,7 +166,7 @@ function portableAction(state, busy) {
   const bundle = exportState(state);
   const blocker = exportBlocker(state, busy);
   const receipt = bundle.status === 'exported' ? bundle.receipt : null;
-  const status = fileActionMessage('export', state);
+  const status = fileActionNotice('export', state);
   return `<section class="compile-portable-action" aria-label="Portable bundle actions"><p class="analysis-kicker">PORTABLE ACTION</p><h3>Plaintext bundle</h3><p>Export writes a selected plaintext <span class="analysis-mono">.rangoon-instructions</span> file. It does not install or run instructions.</p><dl><div><dt>Expected candidate</dt><dd class="analysis-mono">${text(value?.candidate?.candidateId ?? 'Compile first')}</dd></div></dl><button id="compile-export" class="analysis-button analysis-button--primary" type="button" ${blocker ? 'disabled' : ''}>${bundle.status === 'pending' ? 'Exporting…' : 'Export candidate bundle'}</button><button id="compile-inspect" class="analysis-button" type="button" ${busyState(state, busy) || !state.bridgeAvailable ? 'disabled' : ''}>${externalState(state).status === 'pending' ? 'Inspecting…' : 'Inspect external bundle'}</button>${blocker ? `<p class="compile-note">${text(blocker)}</p>` : ''}${status ? `<p class="${fileActionRole('export', state) === 'alert' ? 'compile-alert' : 'compile-note'}" role="${fileActionRole('export', state)}">${text(status)}</p>` : ''}${receipt ? `<section class="compile-export-receipt"><p class="analysis-kicker">EXPORT RECEIPT</p><h3 id="compile-export-title" tabindex="-1">Write completed</h3><p>Completion covers this write and file sync only. It does not establish future integrity, directory durability, or authentication.</p><dl><div><dt>Bundle ID</dt><dd class="analysis-mono">${text(receipt.bundleId ?? 'Unavailable')}</dd></div><div><dt>Candidate ID</dt><dd class="analysis-mono">${text(receipt.candidateId ?? 'Unavailable')}</dd></div><div><dt>SHA-256</dt><dd class="analysis-mono">${text(receipt.sha256 ?? 'Unavailable')}</dd></div><div><dt>Bytes</dt><dd>${number(receipt.byteLength)}</dd></div><div><dt>Authority</dt><dd>${text(receipt.authority ?? 'none')}</dd></div></dl></section>` : ''}</section>`;
 }
 
@@ -169,5 +179,5 @@ export function renderCompilationPage(state, { busy = false, skillsBusy = false 
   const error = state.error;
   const message = state.message ?? '';
   const value = compilation(state);
-  return `<section class="compile-page" aria-labelledby="compile-title" aria-busy="${busyState(state, busy)}"><header class="compile-hero"><p class="analysis-kicker">${icon('bundle', { size: 16 })} LOCAL COMPILATION INSPECTION</p><h1 id="compile-title" tabindex="-1">Compile <em>saved text.</em></h1><p>Inspect one exact local skill revision under a closed text profile. No installation, provider, engine or runtime action occurs here.</p><div class="compile-truth" aria-label="Compilation limits"><span>Runtime: untested</span><span>Target budget: unknown</span><span>Semantic equivalence: unverified</span><span>Authority: none</span></div><p class="compile-status">${text(message)}</p>${error && !isOwnedFileError(state) ? `<p class="compile-alert" role="alert">${text(error.message ?? 'Local compilation could not finish.')}${error.code ? ` Error code: ${text(error.code)}.` : ''}</p>` : ''}${state.reportStale ? '<p class="compile-stale">Retained report may not match current workspace state. Refresh before another compile.</p>' : ''}${value?.readiness === 'blocked' ? '<p class="compile-blocked">Static diagnostics block candidate creation. Exact text stays available for inspection.</p>' : ''}</header><div class="compile-workbench">${selectionPanel(state, busy, skillsBusy)}${inspectionPanel(state, busy)}${evidenceRail(state, busy)}</div></section>`;
+  return `<section class="compile-page" aria-labelledby="compile-title" aria-busy="${busyState(state, busy)}"><header class="compile-hero"><p class="analysis-kicker">${icon('bundle', { size: 16 })} LOCAL COMPILATION INSPECTION</p><h1 id="compile-title" tabindex="-1">Compile <em>saved text.</em></h1><p>Inspect one exact local skill revision under a closed text profile. No installation, provider, engine or runtime action occurs here.</p><div class="compile-truth" aria-label="Compilation limits"><span>Runtime: untested</span><span>Target budget: unknown</span><span>Semantic equivalence: unverified</span><span>Authority: none</span></div><p class="compile-status">${text(isDuplicateErrorStatusMessage(state) ? '' : message)}</p>${error && !isOwnedFileError(state) ? `<p class="compile-alert" role="alert">${text(error.message ?? 'Local compilation could not finish.')}${error.code ? ` Error code: ${text(error.code)}.` : ''}</p>` : ''}${state.reportStale ? '<p class="compile-stale">Retained report may not match current workspace state. Refresh before another compile.</p>' : ''}${value?.readiness === 'blocked' ? '<p class="compile-blocked">Static diagnostics block candidate creation. Exact text stays available for inspection.</p>' : ''}</header><div class="compile-workbench">${selectionPanel(state, busy, skillsBusy)}${inspectionPanel(state, busy)}${evidenceRail(state, busy)}</div></section>`;
 }
