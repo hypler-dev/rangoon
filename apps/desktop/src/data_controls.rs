@@ -1,7 +1,10 @@
 //! Explicit owner-managed backup, restore and deletion. No renderer file paths.
 use super::{AppHandle, PublicError, StoreError, begin_operation, workspace};
 use rangoon_host::{read_selected_backup, write_selected_backup};
-use rangoon_store::{Backup, DeletionPlan, RecordKind, RestorePlan, WorkspaceData};
+use rangoon_store::{
+    CompositionBackup as Backup, CompositionDeletionPlan as DeletionPlan,
+    CompositionRestorePlan as RestorePlan, CompositionWorkspaceData as WorkspaceData, RecordKind,
+};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use tauri::Manager;
@@ -14,13 +17,41 @@ impl BackupSession {
         *self.0.lock().map_err(|_| StoreError::Unavailable)? = Some((Arc::new(backup), plan));
         Ok(())
     }
-    fn selected(&self, id: &str, expected: &str) -> Result<Arc<Backup>, StoreError> {
+    fn selected(&self, id: &str, expected: &str) -> Result<(Arc<Backup>, RestorePlan), StoreError> {
         let guard = self.0.lock().map_err(|_| StoreError::Unavailable)?;
         let (backup, plan) = guard.as_ref().ok_or(StoreError::BackupInvalid)?;
         if backup.id() != id || plan.expected_state_id != expected {
             return Err(StoreError::WorkspaceChanged);
         }
-        Ok(Arc::clone(backup))
+        Ok((Arc::clone(backup), plan.clone()))
+    }
+    fn consumed(&self) {
+        if let Ok(mut guard) = self.0.lock() {
+            *guard = None;
+        }
+    }
+}
+
+/// Retain the exact dependency and removal preview; confirmation cannot replace it.
+#[derive(Default)]
+pub struct DeletionSession(Mutex<Option<DeletionPlan>>);
+impl DeletionSession {
+    fn stage(&self, plan: DeletionPlan) -> Result<(), StoreError> {
+        *self.0.lock().map_err(|_| StoreError::Unavailable)? = Some(plan);
+        Ok(())
+    }
+    fn selected(
+        &self,
+        kind: RecordKind,
+        id: &str,
+        expected: &str,
+    ) -> Result<DeletionPlan, StoreError> {
+        let guard = self.0.lock().map_err(|_| StoreError::Unavailable)?;
+        let plan = guard.as_ref().ok_or(StoreError::WorkspaceChanged)?;
+        if plan.kind != kind || plan.id != id || plan.expected_state_id != expected {
+            return Err(StoreError::WorkspaceChanged);
+        }
+        Ok(plan.clone())
     }
     fn consumed(&self) {
         if let Ok(mut guard) = self.0.lock() {
@@ -98,9 +129,11 @@ where
 
 #[tauri::command]
 pub async fn get_workspace_data(app: AppHandle) -> DataResult {
-    tauri::async_runtime::spawn_blocking(move || match workspace(&app).and_then(|w| w.data()) {
-        Ok(workspace) => DataResult::Loaded { workspace },
-        Err(error) => failure(error),
+    tauri::async_runtime::spawn_blocking(move || {
+        match workspace(&app).and_then(|w| w.composition_data()) {
+            Ok(workspace) => DataResult::Loaded { workspace },
+            Err(error) => failure(error),
+        }
     })
     .await
     .unwrap_or_else(|_| failure(StoreError::Unavailable))
@@ -126,7 +159,7 @@ pub async fn export_workspace_backup(app: AppHandle) -> DataResult {
         let Ok(path) = selected.into_path() else {
             return failure(StoreError::Unavailable);
         };
-        let bytes = match workspace(&app).and_then(|w| w.export_backup()) {
+        let bytes = match workspace(&app).and_then(|w| w.export_composition_backup()) {
             Ok(bytes) => bytes,
             Err(error) => return failure(error),
         };
@@ -169,7 +202,7 @@ pub async fn prepare_workspace_restore(app: AppHandle) -> DataResult {
             Err(error) => return failure(error),
         };
         drop(bytes);
-        let plan = match workspace(&app).and_then(|w| w.prepare_restore(&backup)) {
+        let plan = match workspace(&app).and_then(|w| w.prepare_composition_restore(&backup)) {
             Ok(plan) => plan,
             Err(error) => return failure(error),
         };
@@ -188,14 +221,14 @@ pub async fn restore_workspace_backup(
     expected_state_id: String,
 ) -> DataResult {
     guarded(app, move |app| {
-        let backup = match app
+        let (backup, plan) = match app
             .state::<BackupSession>()
             .selected(&backup_id, &expected_state_id)
         {
             Ok(backup) => backup,
             Err(error) => return failure(error),
         };
-        match workspace(&app).and_then(|w| w.restore_backup(&backup, &expected_state_id)) {
+        match workspace(&app).and_then(|w| w.restore_composition_backup(&backup, &plan)) {
             Ok(plan) => {
                 app.state::<BackupSession>().consumed();
                 DataResult::Restored { plan }
@@ -212,14 +245,18 @@ pub async fn inspect_workspace_deletion(
     kind: RecordKind,
     id: String,
 ) -> DataResult {
-    tauri::async_runtime::spawn_blocking(move || {
-        match workspace(&app).and_then(|w| w.inspect_deletion(kind, &id)) {
-            Ok(plan) => DataResult::DeletionReady { plan },
+    guarded(app, move |app| {
+        match workspace(&app).and_then(|w| w.inspect_composition_deletion(kind, &id)) {
+            Ok(plan) => {
+                if let Err(error) = app.state::<DeletionSession>().stage(plan.clone()) {
+                    return failure(error);
+                }
+                DataResult::DeletionReady { plan }
+            }
             Err(error) => failure(error),
         }
     })
     .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable))
 }
 
 #[tauri::command]
@@ -230,8 +267,18 @@ pub async fn delete_workspace_record(
     expected_state_id: String,
 ) -> DataResult {
     guarded(app, move |app| {
-        match workspace(&app).and_then(|w| w.delete_record(kind, &id, &expected_state_id)) {
-            Ok(()) => DataResult::Deleted { kind, id },
+        let plan = match app
+            .state::<DeletionSession>()
+            .selected(kind, &id, &expected_state_id)
+        {
+            Ok(plan) => plan,
+            Err(error) => return failure(error),
+        };
+        match workspace(&app).and_then(|w| w.delete_composition_record(&plan)) {
+            Ok(()) => {
+                app.state::<DeletionSession>().consumed();
+                DataResult::Deleted { kind, id }
+            }
             Err(error) => failure(error),
         }
     })
@@ -248,9 +295,9 @@ mod tests {
             std::process::id()
         ));
         let workspace = rangoon_store::Workspace::new(path);
-        let bytes = workspace.export_backup().unwrap();
+        let bytes = workspace.export_composition_backup().unwrap();
         let backup = Backup::decode(&bytes).unwrap();
-        let plan = workspace.prepare_restore(&backup).unwrap();
+        let plan = workspace.prepare_composition_restore(&backup).unwrap();
         let session = BackupSession::default();
         assert!(
             session
@@ -268,6 +315,14 @@ mod tests {
             session
                 .selected(&plan.backup_id, &plan.expected_state_id)
                 .unwrap()
+                .1,
+            plan
+        );
+        assert_eq!(
+            session
+                .selected(&plan.backup_id, &plan.expected_state_id)
+                .unwrap()
+                .0
                 .byte_length(),
             bytes.len()
         );
@@ -275,6 +330,77 @@ mod tests {
         assert!(
             session
                 .selected(&plan.backup_id, &plan.expected_state_id)
+                .is_err()
+        );
+    }
+    #[test]
+    fn deletion_session_retains_exact_plan_and_rejects_replaced_or_consumed_selection() {
+        let session = DeletionSession::default();
+        let plan = DeletionPlan {
+            schema_version: "rangoon.deletion-plan.v1",
+            kind: RecordKind::Capability,
+            id: "capability:one".into(),
+            title: "Derived skill".into(),
+            expected_state_id: "workspace:current".into(),
+            remove: rangoon_store::RecoveryCounts {
+                capabilities: 1,
+                revisions: 2,
+                reviews: 1,
+                recipes: 1,
+                applications: 1,
+                derivations: 1,
+                ..Default::default()
+            },
+            dependencies: Vec::new(),
+        };
+        assert!(
+            session
+                .selected(plan.kind, &plan.id, &plan.expected_state_id)
+                .is_err()
+        );
+        session.stage(plan.clone()).unwrap();
+        assert_eq!(
+            session
+                .selected(plan.kind, &plan.id, &plan.expected_state_id)
+                .unwrap(),
+            plan
+        );
+        assert!(
+            session
+                .selected(RecordKind::Source, &plan.id, &plan.expected_state_id)
+                .is_err()
+        );
+        assert!(
+            session
+                .selected(plan.kind, "wrong", &plan.expected_state_id)
+                .is_err()
+        );
+        assert!(session.selected(plan.kind, &plan.id, "stale").is_err());
+        let mut replacement = plan.clone();
+        replacement.id = "capability:two".into();
+        session.stage(replacement.clone()).unwrap();
+        assert!(
+            session
+                .selected(plan.kind, &plan.id, &plan.expected_state_id)
+                .is_err()
+        );
+        assert!(
+            session
+                .selected(
+                    replacement.kind,
+                    &replacement.id,
+                    &replacement.expected_state_id
+                )
+                .is_ok()
+        );
+        session.consumed();
+        assert!(
+            session
+                .selected(
+                    replacement.kind,
+                    &replacement.id,
+                    &replacement.expected_state_id
+                )
                 .is_err()
         );
     }

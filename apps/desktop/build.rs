@@ -18,6 +18,8 @@ fn main() {
             "restore_workspace_backup",
             "inspect_workspace_deletion",
             "delete_workspace_record",
+            "preview_composition",
+            "commit_composition",
         ]),
     ))
     .expect("desktop configuration must be valid");

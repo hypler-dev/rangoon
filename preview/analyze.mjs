@@ -89,7 +89,7 @@ function reportView(state) {
   const diagnostics = report.diagnostics ?? [];
   const active = fragments.find(fragment => fragment.id === state.selectedFragmentId) ?? fragments[0];
   const skills = skillsController.getState();
-  const derived = new Set(skills.capabilities.filter(item => item.sourceId === report.source.id).map(item => item.fragmentId));
+  const derived = new Set(skills.capabilities.filter(item => item.origin.kind === 'source' && item.origin.sourceId === report.source.id).map(item => item.origin.fragmentId));
   const coverage = skills.listStatus === 'ready' ? `${fragments.filter(f => derived.has(f.id)).length} / ${fragments.length} sections linked to skills` : 'Skill coverage unavailable';
   const canCreate = active && state.snapshotsStatus === 'ready' && state.snapshots.some(s => s.sourceId === report.source.id) && !state.busyAction;
 

@@ -15,6 +15,8 @@ apps/desktop/icons/README.md
 apps/desktop/icons/icon.icns
 apps/desktop/icons/icon.ico
 apps/desktop/src/capabilities.rs
+apps/desktop/src/composition.rs
+apps/desktop/src/composition_tests.rs
 apps/desktop/src/data_controls.rs
 apps/desktop/src/main.rs
 apps/desktop/src/session.rs
@@ -62,6 +64,7 @@ docs/browser-checks.json
 docs/changed-files.txt
 docs/claims-and-evidence.md
 docs/composition-destinations.md
+docs/composition-native.md
 docs/composition-recovery.md
 docs/composition-ui.md
 docs/composition.md
@@ -189,3 +192,16 @@ tests/preview.test.mjs
 tests/server.test.mjs
 tests/skills-model.test.mjs
 tests/workspace-model.test.mjs
+docs/screenshots/r3-v1-layout-measurements.json
+docs/screenshots/r3-v1-skills-fixture-dark-1440.jpg
+docs/screenshots/r3-v1-skills-fixture-dark-320.jpg
+docs/screenshots/r3-v1-skills-fixture-dark-768.jpg
+docs/screenshots/r3-v1-skills-fixture-light-1440.jpg
+docs/screenshots/r3-v1-skills-fixture-light-320.jpg
+docs/screenshots/r3-v1-skills-fixture-light-768.jpg
+docs/screenshots/r3-v1-workspace-fixture-dark-1440.jpg
+docs/screenshots/r3-v1-workspace-fixture-dark-320.jpg
+docs/screenshots/r3-v1-workspace-fixture-dark-768.jpg
+docs/screenshots/r3-v1-workspace-fixture-light-1440.jpg
+docs/screenshots/r3-v1-workspace-fixture-light-320.jpg
+docs/screenshots/r3-v1-workspace-fixture-light-768.jpg

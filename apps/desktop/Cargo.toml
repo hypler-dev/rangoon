@@ -18,13 +18,15 @@ tauri = "=2.12.1"
 tauri-plugin-dialog = "=2.8.1"
 rangoon-host = { path = "../../crates/rangoon-host" }
 rangoon-domain = { path = "../../crates/rangoon-domain" }
+getrandom = "=0.3.4"
+rangoon-compose = { path = "../../crates/rangoon-compose" }
+serde_json = "=1.0.151"
 rangoon-store = { path = "../../crates/rangoon-store" }
 rangoon-engine = { path = "../../crates/rangoon-engine" }
 serde = { version = "=1.0.229", features = ["derive"] }
 
 [dev-dependencies]
 rangoon-import = { path = "../../crates/rangoon-import" }
-serde_json = "=1.0.151"
 
 [features]
 default = ["custom-protocol"]

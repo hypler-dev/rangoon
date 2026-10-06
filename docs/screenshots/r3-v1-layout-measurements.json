@@ -1,0 +1,113 @@
+{
+  "evidence": "Synthetic renderer fixtures only; no native mutation, transport or OS qualification.",
+  "measurements": [
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "skills",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "workspace",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "skills",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "workspace",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "view": "skills",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "view": "workspace",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "skills",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "workspace",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "skills",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "workspace",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "view": "skills",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "view": "workspace",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    }
+  ]
+}
