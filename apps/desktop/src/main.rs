@@ -19,6 +19,10 @@ use data_controls::{
 };
 mod instruction_bundles;
 use instruction_bundles::{export_instruction_bundle, inspect_instruction_bundle};
+mod cloud_credentials;
+mod cloud_custody;
+mod cloud_store;
+use cloud_credentials::*;
 mod model_consent;
 mod models;
 mod session;
@@ -311,7 +315,11 @@ fn main() {
         .manage(DeletionSession::default())
         .manage(CompositionSession::default())
         .manage(NativeModel::default())
-        .on_window_event(models::window_event)
+        .manage(cloud_custody::Custody::default())
+        .on_window_event(|window, event| {
+            models::window_event(window, event);
+            cloud_credentials::window_event(window, event);
+        })
         .invoke_handler(tauri::generate_handler![
             select_and_analyze,
             list_snapshots,
@@ -336,6 +344,12 @@ fn main() {
             delete_workspace_record,
             preview_composition,
             commit_composition,
+            inspect_cloud_credential,
+            edit_cloud_credential,
+            remove_cloud_credential,
+            get_cloud_credential_edit,
+            submit_cloud_credential,
+            cancel_cloud_credential_edit,
             get_local_model_profile,
             configure_local_model,
             clear_local_model,

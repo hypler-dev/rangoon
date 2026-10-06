@@ -35,6 +35,9 @@
     "allow-prepare-local-model",
     "allow-check-local-model",
     "allow-send-local-model",
-    "allow-cancel-local-model"
+    "allow-cancel-local-model",
+    "allow-inspect-cloud-credential",
+    "allow-edit-cloud-credential",
+    "allow-remove-cloud-credential"
   ]
 }

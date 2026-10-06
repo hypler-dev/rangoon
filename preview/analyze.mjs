@@ -11,6 +11,7 @@ import { createCompilationController } from './compilation-model.mjs';
 import { renderCompilationPage } from './compilation-view.mjs';
 import { createModelAssistanceController } from './model-assistance-model.mjs';
 import { bindModelAssistanceView } from './model-assistance-view.mjs';
+import { createCloudCredentialController } from './cloud-credential-model.mjs';
 import { icon } from './icons.mjs';
 import { createStartupSplash } from './launch.mjs';
 
@@ -24,6 +25,7 @@ const compositionControllers = new Map();
 let compilationController = null;
 let modelController = null;
 let modelView = null;
+let cloudCredentialController = null;
 let nativeOperations = 0;
 const workspaceWrites = new Set(['save_analysis', 'create_capability', 'revise_capability', 'review_capability', 'restore_workspace_backup', 'delete_workspace_record']);
 function invalidateCompositions(message, except = null) {
@@ -94,7 +96,7 @@ function renderModelAssistance() {
   if (!document.querySelector('#model-assistance-root')) {
     modelView?.dispose();
     app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="model-assistance-root"></div></main></div>`;
-    modelView = bindModelAssistanceView(document.querySelector('#model-assistance-root'),modelController);
+    modelView = bindModelAssistanceView(document.querySelector('#model-assistance-root'),modelController,cloudCredentialController);
   } else modelView.render();
   routeEntry = false;
   document.querySelector('#analysis-theme').innerHTML = `${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}`;
@@ -394,6 +396,7 @@ function renderCompilation() {
 }
 
 modelController = createModelAssistanceController({ invoke: bridge, onChange: () => { if (route === 'model-assistance') renderModelAssistance(); } });
+cloudCredentialController = createCloudCredentialController({ invoke: bridge, onChange: () => { if (route === 'model-assistance') renderModelAssistance(); } });
 const engineController = createEngineController({ invoke: bridge, onChange: () => {
   if (route === 'engine') renderEngine();
 } });
