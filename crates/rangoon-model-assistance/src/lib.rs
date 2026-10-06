@@ -1,6 +1,7 @@
 //! Pure, bounded model-assistance contracts. This crate has no transport or authority.
 #![forbid(unsafe_code)]
 
+mod inspection;
 mod json;
 mod pack;
 mod response;
@@ -8,6 +9,7 @@ mod response;
 use serde::Serialize;
 use std::fmt;
 
+pub use inspection::{InspectionDiagnostic, ProposalInspection};
 pub use pack::ContextPack;
 pub use response::ValidatedResponse;
 
@@ -53,4 +55,13 @@ pub fn validate_response(
     raw_json: &[u8],
 ) -> Result<ValidatedResponse, Diagnostic> {
     response::validate(pack, raw_json)
+}
+
+/// Builds a bounded, read-only inspection for one validated model proposal.
+pub fn inspect_proposal(
+    pack: &ContextPack,
+    response: &ValidatedResponse,
+    proposal_index: u32,
+) -> Result<ProposalInspection, InspectionDiagnostic> {
+    inspection::inspect(pack, response, proposal_index)
 }

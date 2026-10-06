@@ -21,14 +21,14 @@ const MAX_UNCERTAINTY_BYTES: usize = 1024;
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValidatedResponse {
-    schema_version: &'static str,
-    pack_id: String,
-    response_sha256: String,
-    task: Task,
-    proposals: Vec<Proposal>,
-    uncertainties: Vec<String>,
-    content_kind: &'static str,
-    authority: &'static str,
+    pub(super) schema_version: &'static str,
+    pub(super) pack_id: String,
+    pub(super) response_sha256: String,
+    pub(super) task: Task,
+    pub(super) proposals: Vec<Proposal>,
+    pub(super) uncertainties: Vec<String>,
+    pub(super) content_kind: &'static str,
+    pub(super) authority: &'static str,
 }
 
 #[derive(Deserialize)]
@@ -42,28 +42,28 @@ struct Response {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Proposal {
-    kind: ProposalKind,
-    title: String,
-    authored_text: String,
-    explanation: String,
-    citations: Vec<Citation>,
+pub(super) struct Proposal {
+    pub(super) kind: ProposalKind,
+    pub(super) title: String,
+    pub(super) authored_text: String,
+    pub(super) explanation: String,
+    pub(super) citations: Vec<Citation>,
 }
 
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
-enum ProposalKind {
+pub(super) enum ProposalKind {
     Classification,
     Capability,
     Difference,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Citation {
-    input: InputReference,
-    start_byte: u64,
-    end_byte: u64,
+pub(super) struct Citation {
+    pub(super) input: InputReference,
+    pub(super) start_byte: u64,
+    pub(super) end_byte: u64,
 }
 
 pub(super) fn validate(
