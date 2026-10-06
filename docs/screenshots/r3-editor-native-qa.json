@@ -1,0 +1,39 @@
+{
+  "scope": "Unsigned isolated macOS development-bundle GUI QA; not release or Windows/Linux proof",
+  "bundle": "/private/tmp/rangoon-composition-editor-qa/Rangoon Composition QA.app",
+  "bundle_id": "ai.rangoon.composition.qa",
+  "base_commit": "a90b82a5a0220c4e3f3ab3db03c78ce250483436",
+  "code_state": "Uncommitted composition editor working tree",
+  "source": {
+    "name": "rangoon-composition-qa-AGENTS.md",
+    "bytes": 63,
+    "sha256": "451830b1d268f1335136927f0acba67129ae636bd0e9e99ce9c9367ad27f4614",
+    "features": [
+      "UTF-8 BOM",
+      "CRLF",
+      "crab emoji"
+    ]
+  },
+  "observations": [
+    "Native picker imported and explicitly saved one source snapshot.",
+    "Decompose preview copied bytes 0-35 and 35-63; inspected both outputs, acknowledged exact preview, saved Review (35 bytes) and Tests (28 bytes).",
+    "Merge pinned Tests then Review; preview copied both full records plus authored separator; inspected and acknowledged 65-byte output; native commit returned Merged skill.",
+    "Split pinned Merged skill; inspected 30-byte Part 1 and 35-byte Part 2; acknowledged and saved both.",
+    "Quit app; app inventory confirmed absent; relaunched same isolated bundle.",
+    "Saved source remained 1/128; Skills library showed 5/128 capabilities, all Unreviewed.",
+    "Opened Merged skill after restart:65/262144 bytes, full content with BOM/Unicode, Composition birth, operation merge, two pinned inputs, composed revision, authority none."
+  ],
+  "merge_composition_id": "composition:2a16f562e2ea639a8731b04e0ceaceb0db6768e0d509517bd70ed8860dcc8202",
+  "not_exercised": [
+    "Native append destination GUI",
+    "Native malformed IPC injection",
+    "Full native failure matrix",
+    "Windows/Linux GUI",
+    "Installers/signing/update/rollback"
+  ],
+  "data_boundary": "Disposable fixture and separate QA app-local database only; user workspace database untouched",
+  "notes": [
+    "Native append-destination GUI qualification was not completed; the user began exploring the QA application, so automation stopped without changing their selected page.",
+    "Source review and synthetic binding/render tests are separately recorded in the development ledger."
+  ]
+}

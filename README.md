@@ -40,7 +40,7 @@ The intended users are developers managing agent configuration, platform teams m
 | Import & Analyze | Bounded Rust Markdown scanner, stdin CLI, and one explicitly selected native file; exact text, digest, spans, and diagnostics | Explicit directory/repository import, additional formats, optional semantic proposals |
 | Local workspace | SQLite source snapshots; explicit save, deduplication, reanalysis on reopen | Broader project/workspace model and platform qualification |
 | Skills | Source-section derivation, immutable revisions, history comparison, local content review, versioned provenance | Search/library expansion, compatibility, distribution, and collaboration |
-| Decompose/Merge/Split | Pure transformation core, destination validation, atomic storage, schema 3 recovery, and native preview/commit commands | Complete editor publication and end-to-end GUI qualification |
+| Decompose/Merge/Split | Real native editor routes over saved records, exact recipes/coverage, new/append destinations, retained previews, atomic storage, and schema 3 recovery | Complete advanced GUI/failure qualification and Windows/Linux interactive evidence |
 | Data controls | Inventory, plaintext portable backup, additive restore, dependency-aware logical deletion | Encryption, retention policy, recovery UX expansion, and additional platform evidence |
 | Engine integration | Explicit unavailable LNSAT port, native status page, and CLI diagnostics | Qualified transport, authentication, typed operations, and evidence readback |
 | Workflows and agents | Synthetic visual concepts and architecture contracts | Real definitions, validation, execution-state model, scheduling, and qualified runners |
@@ -49,7 +49,7 @@ The intended users are developers managing agent configuration, platform teams m
 | Distribution | Three-OS source/test/build CI; selected macOS development-bundle runtime evidence | Windows/Linux GUI checks, installers, signing, updates, rollback, and release qualification |
 | Team/cloud/enterprise | Architecture direction | Service implementation, tenancy, identity, operations, and deployment evidence |
 
-The atomic composition store and native integration reached public source through [PR #12](https://github.com/hypler-dev/rangoon/pull/12) and [PR #13](https://github.com/hypler-dev/rangoon/pull/13). The interactive composition editor is being developed and validated locally; this README does not claim that editor is already available on `main`. Exact implementation, test, and publication receipts belong in the [development ledger](docs/development.md).
+The atomic composition store and native integration reached public source through [PR #12](https://github.com/hypler-dev/rangoon/pull/12) and [PR #13](https://github.com/hypler-dev/rangoon/pull/13). This revision adds the interactive native composition editor. An isolated macOS development bundle completed Decompose, Merge, and Split with new outputs, then restart/reopen of five saved skills. Native append/mixed-destination GUI, the full failure/keyboard matrix, Windows/Linux GUI, and release qualification remain open. Exact implementation, test, and publication receipts belong in the [development ledger](docs/development.md).
 
 ## Architecture
 
@@ -248,7 +248,7 @@ Only the bundled main window receives the enumerated application commands. Nativ
 | Source | `select_and_analyze`, `save_analysis`, `list_snapshots`, `open_snapshot`, `clear_analysis` | Native selection and retained reports; explicit snapshot save |
 | Skills | `list_capabilities`, `open_capability`, `create_capability`, `revise_capability`, `review_capability` | Saved references, expected heads, immutable revisions, local review |
 | Workspace | `get_workspace_data`, `export_workspace_backup`, `prepare_workspace_restore`, `restore_workspace_backup`, `inspect_workspace_deletion`, `delete_workspace_record` | Native pickers, retained plans, exact confirmations |
-| Composition | `preview_composition`, `commit_composition` | Saved input resolution and one retained preparation |
+| Composition | `read_composition_source`, `preview_composition`, `commit_composition` | Saved input resolution without replacing Import selection, and one retained preparation |
 | Engine | `get_engine_status` | No-argument local unavailable diagnostic |
 
 Composition commands specifically use raw UTF-8 JSON IPC bytes. Preview is bounded to 8 MiB + 16 KiB; confirmation to 4,096 bytes before domain deserialization. Tauri has already allocated the transport buffer, so this is not a transport-level allocation guarantee. Closed DTOs reject unknown/duplicate fields and unsupported schemas.
@@ -342,7 +342,7 @@ On Windows, use binary-preserving Command Prompt redirection with `fixtures\cont
 cargo +1.98.0 run --manifest-path apps/desktop/Cargo.toml --locked
 ```
 
-Choose `fixtures/contracts/AGENTS.md` for a first run. Inspect the report, explicitly save it, derive a skill from a section, edit/review a revision, then quit and reopen saved data. Backup and restore controls are in Workspace. Installer bundling is disabled; this command runs a development executable.
+Choose `fixtures/contracts/AGENTS.md` for a first run. Inspect the report, explicitly save it, derive a skill from a section, edit/review a revision, then quit and reopen saved data. Open Decompose to work from a saved source, Merge to combine two saved skill revisions, or Split to divide one saved revision. Inspect the exact native preview before acknowledging and saving. Backup and restore controls are in Workspace. Installer bundling is disabled; this command runs a development executable.
 
 ## Validation and platform support
 
@@ -380,9 +380,9 @@ The accepted [intent](docs/intent.md), detailed [plan](docs/plan.md), [product e
 
 ### 1. Complete the real composition workbench
 
-**Foundation present:** deterministic core, new/append destination semantics, atomic storage, versioned recovery, and native preview/commit.
+**Foundation present:** deterministic core, new/append destination semantics, atomic storage, versioned recovery, native preview/commit, and interactive editor routes with initial macOS save/restart evidence.
 
-**Deliver:** publish the real Decompose, Merge, and Split editors with saved-input selection, historical revision pinning, source/recipe/graph views, output destinations, before/after inspection, explicit coverage actions, conflict declarations, and actual saved-result navigation.
+**Deliver:** complete qualification and refine the Decompose, Merge, and Split experience across saved-input selection, historical revision pinning, source/recipe/graph views, output destinations, before/after inspection, explicit coverage actions, conflict declarations, and actual saved-result navigation.
 
 **Acceptance:** exact BOM/CRLF/Unicode preservation; no silently omitted spans; stale heads and workspace changes invalidate acknowledgment; failure preserves the draft; all output destinations commit together; restart/reopen works; dark/light, keyboard, reduced motion, and narrow layouts remain usable. Complete native GUI evidence on all three target OSs before declaring that milestone qualified everywhere.
 
