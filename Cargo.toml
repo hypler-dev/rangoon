@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/rangoon-domain", "crates/rangoon-import", "crates/rangoon-cli", "crates/rangoon-host", "crates/rangoon-store", "crates/rangoon-engine", "crates/rangoon-compose", "crates/rangoon-compile"]
+members = ["crates/rangoon-domain", "crates/rangoon-import", "crates/rangoon-cli", "crates/rangoon-host", "crates/rangoon-store", "crates/rangoon-engine", "crates/rangoon-compose", "crates/rangoon-compile", "crates/rangoon-model-assistance"]
 exclude = ["apps/desktop"]
 resolver = "3"
 

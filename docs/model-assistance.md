@@ -2,6 +2,8 @@
 
 Authority: Jeff's October 6, 2026 request recorded in [intent.md](intent.md). The feature is accepted product scope; the design below is the controller's implementation contract, not a claim of existing connectivity or security qualification. Evidence belongs in [development.md](development.md). This port is separate from the unavailable LNSAT authority port.
 
+The first pure stage, M1a, is implemented in `rangoon-model-assistance` under the frozen [context-pack and response specification](model-context-core.md). It supplies bounded context packing and inert proposal validation only. Native input resolution, connection profiles, final HTTP request binding, payload consent, transport, credential custody, proposal application and model-quality qualification remain subsequent stages. The provider-neutral pack body is not an authorized or complete provider request.
+
 ## Product outcome
 
 An operator can choose a configured local model or cloud provider, select exact saved source or capability revisions, inspect the outgoing payload and its budget, and request a narrowly defined analysis. The result is an attributable proposal with source references and a reviewable change preview. A connection check must be an explicit action and send no source text. Offline import, manual composition, review, compilation and export remain useful without a model.
@@ -67,6 +69,7 @@ These are implementation ceilings, not model context-window claims. Lower task/m
 | Pure pack request JSON, before decoding | 8 MiB |
 | Resolved inputs / content per input / total resolved content | 16 / 256 KiB / 4 MiB |
 | Explicit selected ranges, including protected selections | 256 total |
+| Required protected intervals from the trusted task/operator selection contract | 256 total; must be covered by protected selections |
 | Canonical blocks / alias mappings | 256 / 256 |
 | Computed omitted-range complements | 272 total; generated from selection, never model-authored |
 | Actual serialized outgoing analysis body, including instructions and escaping | 256 KiB |
@@ -79,7 +82,7 @@ These are implementation ceilings, not model context-window claims. Lower task/m
 
 Apply generic JSON depth, count and string limits to both input and response parsing, except that a resolved input's `content` field may contain up to 256 KiB. Reject invalid UTF-8, duplicate keys, unknown fields, noninteger offsets, nonfinite numbers and trailing data. Check raw bytes before parsing; use a bounded visitor or equivalent allocation-limited decoder rather than first building an unbounded generic JSON tree. Enforce field-specific limits during decoding and aggregate limits before materializing the pack or proposal. Each exact-limit and one-over-limit case requires a test.
 
-Pure failures are closed diagnostics: `input_invalid`, `input_unavailable`, `identity_mismatch`, `range_invalid`, `input_limit`, `pack_over_budget`, `response_invalid` and `response_limit`. A failed pack returns no sendable payload; a failed response returns no applicable proposal. Diagnostics include bounded codes/counts rather than echoed source, response bodies or credentials. Native lifecycle outcomes such as cancellation, timeout and stale selection wrap this pure contract separately. Exact task wire fields, canonical serialization and domain-separated digest framing must be frozen with independent vectors before M1a code is accepted.
+Pure failures are closed diagnostics: `input_invalid`, `input_unavailable`, `identity_mismatch`, `range_invalid`, `input_limit`, `pack_over_budget`, `response_invalid` and `response_limit`. A failed pack returns no payload; a failed response returns no validated proposal. A successful pure pack still needs a native payload decision before sending, and a validated proposal still needs explicit draft application. Diagnostics include bounded codes/counts rather than echoed source, response bodies or credentials. Native lifecycle outcomes such as cancellation, timeout and stale selection wrap this pure contract separately. The [M1a specification](model-context-core.md) freezes exact task wire fields, canonical serialization and domain-separated digest framing, with independent vectors in `fixtures/model-assistance/context-v1.json`.
 
 A stale response remains inspectable as stale evidence but cannot apply to a changed draft or revision without explicit reconciliation. Cancellation, timeout, transport loss, invalid output, partial/truncated output and successful validated proposals are separate states. A cancelled or timed-out request may already have reached a provider; no refund, recall or remote deletion guarantee follows. Never silently retry, change model/provider or continue with an incomplete proposal.
 

@@ -5,4 +5,5 @@
 *.json text eol=lf
 *.yml text eol=lf
 *.toml text eol=lf
+/crates/rangoon-model-assistance/templates/*.txt text eol=lf
 /fixtures/import/** -text
