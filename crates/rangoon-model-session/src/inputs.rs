@@ -41,11 +41,19 @@ pub(crate) struct Selection {
 
 impl Selection {
     pub(crate) fn parse(raw: &[u8]) -> Result<Self, Diagnostic> {
+        Self::parse_schema(raw, "rangoon.local-selection.v1")
+    }
+
+    pub(crate) fn parse_cloud(raw: &[u8]) -> Result<Self, Diagnostic> {
+        Self::parse_schema(raw, "rangoon.cloud-selection.v1")
+    }
+
+    fn parse_schema(raw: &[u8], schema: &str) -> Result<Self, Diagnostic> {
         if raw.len() > 8192 {
             return Err(Diagnostic::InvalidRequest);
         }
         let value: Self = serde_json::from_slice(raw).map_err(|_| Diagnostic::InvalidRequest)?;
-        if value.schema_version != "rangoon.local-selection.v1"
+        if value.schema_version != schema
             || !(1..=16).contains(&value.inputs.len())
             || value.inputs.iter().collect::<HashSet<_>>().len() != value.inputs.len()
             || value.inputs.iter().any(|input| !match input {
@@ -151,6 +159,35 @@ pub(crate) fn prepare(
     selection: &Selection,
     profile: &LocalProfile,
 ) -> Result<Packed, Diagnostic> {
+    let (pack, inputs) = prepare_pack(
+        store,
+        selection,
+        profile.profile_id(),
+        profile.profile_sha256(),
+        profile.model(),
+        profile.max_output_tokens(),
+    )?;
+    let request = PreparedRequest::new(profile, pack.clone()).map_err(|error| match error {
+        rangoon_model_local::Diagnostic::RequestOverBudget => Diagnostic::PackOverBudget,
+        _ => Diagnostic::PackInvalid,
+    })?;
+    Ok(Packed {
+        request,
+        pack,
+        inputs,
+    })
+}
+
+/// Shared saved-record resolution; provider-specific schemas and outer request
+/// construction stay in their respective session paths.
+pub(crate) fn prepare_pack(
+    store: &Workspace,
+    selection: &Selection,
+    profile_id: &str,
+    profile_sha256: &str,
+    model: &str,
+    max_output_tokens: u64,
+) -> Result<(ContextPack, Vec<Resolved>), Diagnostic> {
     let inputs = selection
         .inputs
         .iter()
@@ -165,7 +202,7 @@ pub(crate) fn prepare(
     }).collect();
     let value = serde_json::json!({
         "schemaVersion":"rangoon.context-pack-request.v1", "task":selection.task,
-        "target":{"profileId":profile.profile_id(),"profileSha256":profile.profile_sha256(),"model":profile.model(),"maxOutputTokens":profile.max_output_tokens()},
+        "target":{"profileId":profile_id,"profileSha256":profile_sha256,"model":model,"maxOutputTokens":max_output_tokens},
         "maxBodyBytes":262144, "inputs":resolved
     });
     let mut buffer = Capped(Vec::new());
@@ -175,15 +212,7 @@ pub(crate) fn prepare(
         | rangoon_model_assistance::Diagnostic::InputLimit => Diagnostic::PackOverBudget,
         _ => Diagnostic::PackInvalid,
     })?;
-    let request = PreparedRequest::new(profile, pack.clone()).map_err(|error| match error {
-        rangoon_model_local::Diagnostic::RequestOverBudget => Diagnostic::PackOverBudget,
-        _ => Diagnostic::PackInvalid,
-    })?;
-    Ok(Packed {
-        request,
-        pack,
-        inputs,
-    })
+    Ok((pack, inputs))
 }
 
 struct Capped(Vec<u8>);

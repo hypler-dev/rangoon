@@ -18,6 +18,8 @@ Run and prepared handles are cryptographically random 32-byte values with `run:`
 
 This crate makes no network calls, shows no native dialog, and does not establish consent, endpoint authentication, model compatibility, security qualification or authority. The native host supplies the caller, reviewed confirmation, workspace guard and transport sequence for the local path. Both local and cloud application integration are mandatory V1 deliverables; the local native path is implemented, but its qualification remains bounded and the cloud path is open.
 
+The separate `rangoon-model-session::cloud::CloudSession` implements cloud-only memory custody under [model-cloud-session.md](model-cloud-session.md). It shares validated saved-record resolution and protected context packing, but requires cloud-specific schema tags, handles and the exact native-supplied credential revision. It exposes exact retained outer request metadata, single-use ownership and freshness helpers. It has no credential access or source-free connectivity operation. Native full-envelope comparison, shared local/cloud operation serialization, isolated cloud review and final OS transfer consent remain pending; the desktop does not call cloud transport.
+
 ## Product outcome
 
 An operator can choose a configured local model or cloud provider, select exact saved source or capability revisions, inspect the outgoing payload and its budget, and request a narrowly defined analysis. The result is an attributable proposal with source references and a reviewable change preview. A connection check must be an explicit action and send no source text. Offline import, manual composition, review, compilation and export remain useful without a model.

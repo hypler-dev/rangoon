@@ -1,61 +1,33 @@
-//! Application-owned, memory-only model request custody and saved-input resolution.
+//! Cloud-only, memory-only request custody over validated saved records.
 //!
-//! This service performs no network calls or native dialogs. An operation lease is
-//! not operator consent: the native caller must implement the reviewed dialog and
-//! workspace-guard sequence before giving the retained request to transport.
-#![forbid(unsafe_code)]
-
-pub mod cloud;
-mod inputs;
-pub use inputs::{Dependency, Selector, Task};
-use inputs::{Packed, Selection};
-use rangoon_model_assistance::ContextPack;
-use rangoon_model_local::{Cancellation, LocalProfile, PreparedRequest};
-use rangoon_store::Workspace;
-use serde::{Deserialize, Serialize};
-use std::{
-    fmt::Write,
-    sync::{Arc, Mutex, MutexGuard},
+//! This service never reads credentials or sends requests. Native consent, full
+//! OS-envelope comparison and cross-provider operation serialization are caller
+//! obligations. A transmission lease is not transfer permission.
+use crate::Dependency;
+use crate::{
+    ActiveView, Cancel, Diagnostic, Freshness, OperationKind, Send, decode, handle_with,
+    inputs::{self, Resolved, Selection},
+    random_handle, valid_digest, valid_handle,
 };
+use rangoon_model_assistance::ContextPack;
+use rangoon_model_cloud::{Cancellation, CloudProfile, PreparedRequest};
+use rangoon_store::Workspace;
+use serde::Serialize;
+use std::sync::{Arc, Mutex, MutexGuard};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Diagnostic {
-    InvalidRequest,
-    InvalidProfile,
-    Unconfigured,
-    Busy,
-    SessionUnavailable,
-    StalePrepared,
-    RunNotFound,
-    InputUnavailable,
-    InputEmpty,
-    InputStale,
-    PackInvalid,
-    PackOverBudget,
-    Cancelled,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum OperationKind {
-    Prepare,
-    Check,
-    Send,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ActiveView {
-    pub run_id: String,
-    pub kind: OperationKind,
+struct Packed {
+    request: PreparedRequest,
+    pack: ContextPack,
+    inputs: Vec<Resolved>,
+    credential_revision: String,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionView {
+    pub schema_version: &'static str,
     pub generation: String,
-    pub profile: Option<LocalProfile>,
+    pub profile: Option<CloudProfile>,
     pub active: Option<ActiveView>,
     pub persistence: &'static str,
     pub processing_location: &'static str,
@@ -66,6 +38,7 @@ pub struct SessionView {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreparedView {
+    pub schema_version: &'static str,
     pub generation: String,
     pub prepared_id: String,
     pub request_id: String,
@@ -73,6 +46,8 @@ pub struct PreparedView {
     pub model: String,
     pub body_json: String,
     pub body_bytes: usize,
+    pub body_sha256: String,
+    pub credential_revision: String,
     pub inputs: Vec<Dependency>,
     pub pack: ContextPack,
     pub processing_location: &'static str,
@@ -91,16 +66,16 @@ struct Staged {
 #[derive(Default)]
 struct State {
     generation: u64,
-    profile: Option<LocalProfile>,
+    profile: Option<CloudProfile>,
     active: Option<Active>,
     prepared: Option<Staged>,
 }
 
 /// Clones share custody and one active-operation slot. No state is persisted.
 #[derive(Clone, Default)]
-pub struct LocalSession(Arc<Mutex<State>>);
+pub struct CloudSession(Arc<Mutex<State>>);
 
-impl LocalSession {
+impl CloudSession {
     fn lock(&self) -> Result<MutexGuard<'_, State>, Diagnostic> {
         self.0.lock().map_err(|_| Diagnostic::SessionUnavailable)
     }
@@ -111,7 +86,7 @@ impl LocalSession {
 
     /// Invalid configuration preserves the current profile and preparation.
     pub fn configure(&self, raw: &[u8]) -> Result<SessionView, Diagnostic> {
-        let profile = LocalProfile::parse(raw).map_err(|_| Diagnostic::InvalidProfile)?;
+        let profile = CloudProfile::parse(raw).map_err(|_| Diagnostic::InvalidProfile)?;
         let mut state = self.lock()?;
         if state.active.is_some() {
             return Err(Diagnostic::Busy);
@@ -130,7 +105,8 @@ impl LocalSession {
 
     pub fn cancel(&self, raw: &[u8]) -> Result<(), Diagnostic> {
         let input: Cancel = decode(raw, 256)?;
-        if input.schema_version != "rangoon.local-cancel.v1" || !valid_handle(&input.run_id, "run:")
+        if input.schema_version != "rangoon.cloud-cancel.v1"
+            || !valid_handle(&input.run_id, "cloud-run:")
         {
             return Err(Diagnostic::InvalidRequest);
         }
@@ -145,30 +121,34 @@ impl LocalSession {
         Ok(())
     }
 
-    pub fn begin_check(&self) -> Result<Operation, Diagnostic> {
-        self.start(OperationKind::Check)
-    }
-
     /// Every new selection attempt discards the previous preparation, including busy failures.
-    pub fn begin_prepare(&self, raw: &[u8]) -> Result<Preparation, Diagnostic> {
+    pub fn begin_prepare(
+        &self,
+        raw: &[u8],
+        credential_revision: &str,
+    ) -> Result<Preparation, Diagnostic> {
         let operation = self.start(OperationKind::Prepare)?;
-        let selection = Selection::parse(raw)?;
+        if !valid_digest(credential_revision) {
+            return Err(Diagnostic::InvalidRequest);
+        }
+        let selection = Selection::parse_cloud(raw)?;
         Ok(Preparation {
             operation,
             selection,
+            credential_revision: credential_revision.to_owned(),
         })
     }
 
     /// Claim consumes the exact handle. The caller must still obtain native consent.
     pub fn begin_send(&self, raw: &[u8]) -> Result<Transmission, Diagnostic> {
         let input: Send = decode(raw, 512)?;
-        if input.schema_version != "rangoon.local-send.v1"
-            || !valid_handle(&input.prepared_id, "prepared:")
+        if input.schema_version != "rangoon.cloud-send.v1"
+            || !valid_handle(&input.prepared_id, "cloud-prepared:")
             || !valid_digest(&input.request_id)
         {
             return Err(Diagnostic::InvalidRequest);
         }
-        let id = random_handle("run:")?;
+        let id = random_handle("cloud-run:")?;
         let mut state = self.lock()?;
         if state.active.is_some() {
             return Err(Diagnostic::Busy);
@@ -208,7 +188,7 @@ impl LocalSession {
             return Err(Diagnostic::Busy);
         }
         let profile = state.profile.clone().ok_or(Diagnostic::Unconfigured)?;
-        let id = handle_with("run:", random)?;
+        let id = handle_with("cloud-run:", random)?;
         Ok(install(self, &mut state, profile, id, kind))
     }
 }
@@ -228,6 +208,7 @@ fn invalidate(state: &mut State) -> Result<(), Diagnostic> {
 
 fn view(state: &State) -> SessionView {
     SessionView {
+        schema_version: "rangoon.cloud-session.v1",
         generation: state.generation.to_string(),
         profile: state.profile.clone(),
         active: state.active.as_ref().map(|a| a.view.clone()),
@@ -239,9 +220,9 @@ fn view(state: &State) -> SessionView {
 }
 
 fn install(
-    session: &LocalSession,
+    session: &CloudSession,
     state: &mut State,
-    profile: LocalProfile,
+    profile: CloudProfile,
     id: String,
     kind: OperationKind,
 ) -> Operation {
@@ -265,10 +246,10 @@ fn install(
 /// A linear lease: not cloneable, releases only its own operation on drop.
 /// It never denotes user consent, record freshness, or endpoint authentication.
 pub struct Operation {
-    session: LocalSession,
+    session: CloudSession,
     generation: u64,
     id: String,
-    profile: LocalProfile,
+    profile: CloudProfile,
     cancellation: Cancellation,
 }
 
@@ -279,7 +260,7 @@ impl Operation {
     pub fn generation(&self) -> String {
         self.generation.to_string()
     }
-    pub fn profile(&self) -> &LocalProfile {
+    pub fn profile(&self) -> &CloudProfile {
         &self.profile
     }
     pub fn cancellation(&self) -> &Cancellation {
@@ -326,6 +307,7 @@ impl Drop for Operation {
 pub struct Preparation {
     operation: Operation,
     selection: Selection,
+    credential_revision: String,
 }
 impl Preparation {
     pub fn operation(&self) -> &Operation {
@@ -335,17 +317,39 @@ impl Preparation {
     /// Validated saved-record reads only; no network or database writes.
     pub fn prepare(self, store: &Workspace) -> Result<PreparedView, Diagnostic> {
         self.operation.ensure_current()?;
-        let packed = inputs::prepare(store, &self.selection, self.operation.profile())?;
+        let profile = self.operation.profile();
+        let (pack, inputs) = inputs::prepare_pack(
+            store,
+            &self.selection,
+            profile.profile_id(),
+            profile.profile_sha256(),
+            profile.model(),
+            profile.max_output_tokens(),
+        )?;
+        let request = PreparedRequest::new(profile, pack.clone(), &self.credential_revision)
+            .map_err(|error| match error {
+                rangoon_model_cloud::Diagnostic::RequestOverBudget => Diagnostic::PackOverBudget,
+                _ => Diagnostic::PackInvalid,
+            })?;
+        let packed = Packed {
+            request,
+            pack,
+            inputs,
+            credential_revision: self.credential_revision.clone(),
+        };
         self.operation.ensure_current()?;
-        let id = random_handle("prepared:")?;
+        let id = random_handle("cloud-prepared:")?;
         let result = PreparedView {
+            schema_version: "rangoon.cloud-prepared.v1",
             generation: self.operation.generation(),
             prepared_id: id.clone(),
             request_id: packed.request.request_id().to_owned(),
-            origin: self.operation.profile.origin(),
+            origin: self.operation.profile.origin().to_owned(),
             model: self.operation.profile.model().to_owned(),
             body_json: packed.request.body_json().to_owned(),
             body_bytes: packed.request.body_json().len(),
+            body_sha256: rangoon_domain::byte_digest(packed.request.body_json().as_bytes()),
+            credential_revision: packed.credential_revision.clone(),
             inputs: packed.inputs.iter().map(|r| r.dependency.clone()).collect(),
             pack: packed.pack.clone(),
             processing_location: "unknown",
@@ -362,14 +366,6 @@ impl Preparation {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Freshness {
-    Current,
-    Stale,
-    Unavailable,
-}
-
 pub struct Transmission {
     operation: Operation,
     packed: Arc<Packed>,
@@ -380,6 +376,9 @@ impl Transmission {
     }
     pub fn request(&self) -> &PreparedRequest {
         &self.packed.request
+    }
+    pub fn credential_revision(&self) -> &str {
+        &self.packed.credential_revision
     }
     pub fn input_count(&self) -> usize {
         self.packed.inputs.len()
@@ -412,65 +411,17 @@ impl Transmission {
     }
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Send {
-    schema_version: String,
-    prepared_id: String,
-    request_id: String,
-}
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Cancel {
-    schema_version: String,
-    run_id: String,
-}
-
-fn decode<T: serde::de::DeserializeOwned>(raw: &[u8], limit: usize) -> Result<T, Diagnostic> {
-    if raw.len() > limit {
-        return Err(Diagnostic::InvalidRequest);
-    }
-    serde_json::from_slice(raw).map_err(|_| Diagnostic::InvalidRequest)
-}
-fn valid_handle(value: &str, prefix: &str) -> bool {
-    value.strip_prefix(prefix).is_some_and(valid_digest)
-}
-fn valid_digest(value: &str) -> bool {
-    value.len() == 64
-        && value
-            .bytes()
-            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
-}
-fn random_handle(prefix: &str) -> Result<String, Diagnostic> {
-    handle_with(prefix, |bytes| {
-        getrandom::fill(bytes).map_err(|_| Diagnostic::SessionUnavailable)
-    })
-}
-fn handle_with(
-    prefix: &str,
-    random: impl FnOnce(&mut [u8]) -> Result<(), Diagnostic>,
-) -> Result<String, Diagnostic> {
-    let mut bytes = [0; 32];
-    random(&mut bytes)?;
-    let mut result = String::with_capacity(prefix.len() + 64);
-    result.push_str(prefix);
-    for byte in bytes {
-        write!(result, "{byte:02x}").map_err(|_| Diagnostic::SessionUnavailable)?;
-    }
-    Ok(result)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    const PROFILE: &[u8] = br#"{"schemaVersion":"rangoon.local-profile-request.v1","profileId":"local","host":"127.0.0.1","port":11434,"model":"fixture:v1","maxOutputTokens":1024}"#;
+    const PROFILE: &[u8] = br#"{"schemaVersion":"rangoon.cloud-profile-request.v1","profileId":"cloud","model":"fixture-v1","maxOutputTokens":1024}"#;
 
     #[test]
-    fn entropy_failure_leaves_no_active_operation() {
-        let session = LocalSession::default();
+    fn entropy_failure_installs_no_operation() {
+        let session = CloudSession::default();
         session.configure(PROFILE).unwrap();
         assert!(matches!(
-            session.start_with(OperationKind::Check, |_| Err(
+            session.start_with(OperationKind::Prepare, |_| Err(
                 Diagnostic::SessionUnavailable
             )),
             Err(Diagnostic::SessionUnavailable)
@@ -479,10 +430,10 @@ mod tests {
     }
 
     #[test]
-    fn generation_overflow_invalidates_and_cancels() {
-        let session = LocalSession::default();
+    fn generation_overflow_cancels_and_invalidates() {
+        let session = CloudSession::default();
         session.configure(PROFILE).unwrap();
-        let operation = session.begin_check().unwrap();
+        let operation = session.start(OperationKind::Prepare).unwrap();
         session.lock().unwrap().generation = u64::MAX;
         assert!(matches!(
             session.clear(),
