@@ -24,6 +24,9 @@ rangoon-compile = { path = "../../crates/rangoon-compile" }
 serde_json = "=1.0.151"
 rangoon-store = { path = "../../crates/rangoon-store" }
 rangoon-engine = { path = "../../crates/rangoon-engine" }
+rangoon-model-session = { path = "../../crates/rangoon-model-session" }
+rangoon-model-local = { path = "../../crates/rangoon-model-local" }
+tokio = { version = "=1.53.2", default-features = false, features = ["sync"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 
 [dev-dependencies]

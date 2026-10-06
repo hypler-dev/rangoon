@@ -28,6 +28,13 @@
     "allow-inspect-workspace-deletion",
     "allow-delete-workspace-record",
     "allow-preview-composition",
-    "allow-commit-composition"
+    "allow-commit-composition",
+    "allow-get-local-model-profile",
+    "allow-configure-local-model",
+    "allow-clear-local-model",
+    "allow-prepare-local-model",
+    "allow-check-local-model",
+    "allow-send-local-model",
+    "allow-cancel-local-model"
   ]
 }
