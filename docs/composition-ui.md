@@ -20,7 +20,7 @@ At wide widths, use a 240-pixel input/coverage column, a flexible source/recipe 
 | Input picker | Saved source or exact revision selection, digest, explicit historical badge and ordering |
 | Coverage list | Actual input-byte totals by disposition; jump to first unassigned span, duplicate or conflict |
 | Source pane | Read-only original text with line numbers and selectable character-safe spans |
-| Output recipe cards | Output title, ordered Copy/Authored/Replace pieces, provenance and unreviewed state |
+| Output recipe cards | Output title, Create new skill / Update existing skill destination, ordered Copy/Authored/Replace pieces, provenance and unreviewed state |
 | Graph/list view | Two synchronized representations of the same inputs, pieces and output records |
 | Inspector | Selected piece/span, bounded reasons, before/after text and optional identity details |
 | Preview footer | Host validation, unresolved counts, preview freshness and exact-preview acknowledgment |
@@ -35,7 +35,9 @@ For Merge, preserve exact chosen revision content and its displayed order. Any s
 
 Copy pieces are read-only source references. Edit new prose in Authored pieces; edit transformed prose in Replace pieces that retain the exact original range. Initial implementation edits pieces rather than allowing an unrestricted output textarea to silently destroy provenance. Reordering has keyboard-accessible Move up/down controls; dragging is optional. Each reasoned operation has Apply and Cancel with draft-preserving behavior.
 
-Conflict declarations show the selected source ranges together with their context and nullable resolution. A recorded resolution is labeled as a local explanation, not proof of semantic safety. Preview shows actual output text, piece origins and replaced/excluded text. The last step explicitly acknowledges the exact current preview; editing any input or recipe makes that acknowledgment stale. Save creates real unreviewed skills and opens their results.
+Conflict declarations show the selected source ranges together with their context and nullable resolution. A recorded resolution is labeled as a local explanation, not proof of semantic safety. Preview shows actual output text, piece origins and replaced/excluded text.
+
+Each output explicitly chooses Create new skill or Update existing skill under the proposed [destination contract](composition-destinations.md). Existing destinations show the actual title and pinned current head with a before/after preview. An output cannot silently select a historical input as its target head, and two outputs cannot target the same skill. The last step names which skills will be created or updated and acknowledges the exact preview; editing any input, recipe or destination makes that acknowledgment stale. Save opens actual created or updated skills with unreviewed new revisions. A changed target head preserves the draft and requires explicit refresh and review. Skills shows both the stable birth origin and the selected revision's provenance.
 
 ## State and accessibility rules
 
@@ -45,4 +47,4 @@ The draft is in memory until explicit save; navigation that would discard it nee
 
 ## Acceptance evidence
 
-Verify the complete native flow for each operation with exact bytes, BOM/CRLF, Unicode and terminal newlines. Verify rejected gaps/mixed dispositions, deliberate duplicates, reasoned replacement/exclusion, unresolved conflicts, historical inputs, stale confirmation, failure draft retention and returned unreviewed output records. Check keyboard-only completion and 320/768/1440 dark/light layouts. Synthetic layout fixtures may support visual QA but cannot stand in for native mutation/restart evidence. All-three-OS GUI and installer/release qualification remain separate gates.
+Verify the complete native flow for each operation with exact bytes, BOM/CRLF, Unicode and terminal newlines. Verify rejected gaps/mixed dispositions, deliberate duplicates, reasoned replacement/exclusion, unresolved conflicts, historical inputs, new and existing destinations, mixed atomic outputs, target-as-input, duplicate-target rejection, stale target heads, stale confirmation, failure draft retention and returned unreviewed output records. Check keyboard-only completion and 320/768/1440 dark/light layouts. Synthetic layout fixtures may support visual QA but cannot stand in for native mutation/restart evidence. All-three-OS GUI and installer/release qualification remain separate gates.

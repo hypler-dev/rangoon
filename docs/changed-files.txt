@@ -24,7 +24,9 @@ crates/rangoon-cli/src/main.rs
 crates/rangoon-cli/tests/cli.rs
 crates/rangoon-cli/tests/golden.rs
 crates/rangoon-compose/Cargo.toml
+crates/rangoon-compose/src/application.rs
 crates/rangoon-compose/src/lib.rs
+crates/rangoon-compose/tests/application_vectors.rs
 crates/rangoon-domain/Cargo.toml
 crates/rangoon-domain/src/capability.rs
 crates/rangoon-domain/src/lib.rs
@@ -49,6 +51,7 @@ docs/artwork.md
 docs/browser-checks.json
 docs/changed-files.txt
 docs/claims-and-evidence.md
+docs/composition-destinations.md
 docs/composition-ui.md
 docs/composition.md
 docs/continue.md
@@ -126,6 +129,7 @@ docs/visual-assets.json
 docs/visual-browser-checks.json
 docs/visual-system.md
 docs/workspace-data-controls.md
+fixtures/composition/application-v0.json
 fixtures/composition/decompose-v0.json
 fixtures/contracts/AGENTS.md
 fixtures/contracts/engine-status.json
