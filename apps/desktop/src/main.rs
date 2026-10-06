@@ -7,6 +7,8 @@ use std::sync::{
 };
 
 mod capabilities;
+mod compilation;
+use compilation::compile_capability;
 mod composition;
 use composition::{CompositionSession, commit_composition, preview_composition};
 mod data_controls;
@@ -316,6 +318,7 @@ fn main() {
             create_capability,
             revise_capability,
             review_capability,
+            compile_capability,
             get_workspace_data,
             export_workspace_backup,
             prepare_workspace_restore,

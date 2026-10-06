@@ -1,0 +1,554 @@
+{
+  "evidence": "Explicit synthetic bridge and renderer fixtures only; no native IPC, database mutation, OS GUI or release qualification.",
+  "checks": [
+    "Browser-only native bridge unavailable",
+    "Real bindings, explicit selection/profile, bounded raw request, unreviewed inspection",
+    "Arrow/Home/End tabs preserve roving focus and active panel",
+    "Known review write stales report; refresh permits explicit recompilation",
+    "Failed retry retains inspectable report and retry control",
+    "Compile-to-Skills navigation preserves existing unsaved draft"
+  ],
+  "measurements": [
+    {
+      "theme": "dark",
+      "width": 320,
+      "readiness": "candidate",
+      "tab": "text",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "readiness": "candidate",
+      "tab": "diagnostics",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "readiness": "candidate",
+      "tab": "evidence",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "readiness": "review_required",
+      "tab": "text",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "readiness": "review_required",
+      "tab": "diagnostics",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "readiness": "review_required",
+      "tab": "evidence",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "readiness": "blocked",
+      "tab": "text",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "readiness": "blocked",
+      "tab": "diagnostics",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "readiness": "blocked",
+      "tab": "evidence",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "readiness": "candidate",
+      "tab": "text",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "readiness": "candidate",
+      "tab": "diagnostics",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "readiness": "candidate",
+      "tab": "evidence",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "readiness": "review_required",
+      "tab": "text",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "readiness": "review_required",
+      "tab": "diagnostics",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "readiness": "review_required",
+      "tab": "evidence",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "readiness": "blocked",
+      "tab": "text",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "readiness": "blocked",
+      "tab": "diagnostics",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "readiness": "blocked",
+      "tab": "evidence",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "readiness": "candidate",
+      "tab": "text",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "readiness": "candidate",
+      "tab": "diagnostics",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "readiness": "candidate",
+      "tab": "evidence",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "readiness": "review_required",
+      "tab": "text",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "readiness": "review_required",
+      "tab": "diagnostics",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "readiness": "review_required",
+      "tab": "evidence",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "readiness": "blocked",
+      "tab": "text",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "readiness": "blocked",
+      "tab": "diagnostics",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "readiness": "blocked",
+      "tab": "evidence",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "readiness": "candidate",
+      "tab": "text",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "readiness": "candidate",
+      "tab": "diagnostics",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "readiness": "candidate",
+      "tab": "evidence",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "readiness": "review_required",
+      "tab": "text",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "readiness": "review_required",
+      "tab": "diagnostics",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "readiness": "review_required",
+      "tab": "evidence",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "readiness": "blocked",
+      "tab": "text",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "readiness": "blocked",
+      "tab": "diagnostics",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "readiness": "blocked",
+      "tab": "evidence",
+      "client": 320,
+      "scroll": 320,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "readiness": "candidate",
+      "tab": "text",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "readiness": "candidate",
+      "tab": "diagnostics",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "readiness": "candidate",
+      "tab": "evidence",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "readiness": "review_required",
+      "tab": "text",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "readiness": "review_required",
+      "tab": "diagnostics",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "readiness": "review_required",
+      "tab": "evidence",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "readiness": "blocked",
+      "tab": "text",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "readiness": "blocked",
+      "tab": "diagnostics",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "readiness": "blocked",
+      "tab": "evidence",
+      "client": 768,
+      "scroll": 768,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "readiness": "candidate",
+      "tab": "text",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "readiness": "candidate",
+      "tab": "diagnostics",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "readiness": "candidate",
+      "tab": "evidence",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "readiness": "review_required",
+      "tab": "text",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "readiness": "review_required",
+      "tab": "diagnostics",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "readiness": "review_required",
+      "tab": "evidence",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "readiness": "blocked",
+      "tab": "text",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "readiness": "blocked",
+      "tab": "diagnostics",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "readiness": "blocked",
+      "tab": "evidence",
+      "client": 1440,
+      "scroll": 1440,
+      "unnamedButtons": 0,
+      "duplicateIds": []
+    }
+  ],
+  "errors": []
+}

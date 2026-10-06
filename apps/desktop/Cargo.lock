@@ -2477,6 +2477,7 @@ name = "rangoon-desktop"
 version = "0.1.0-dev"
 dependencies = [
  "getrandom 0.3.4",
+ "rangoon-compile",
  "rangoon-compose",
  "rangoon-domain",
  "rangoon-engine",

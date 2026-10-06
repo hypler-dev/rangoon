@@ -8,7 +8,7 @@ Owner: Jeff. The primary controller owns architecture, storage integration and p
 
 The complete workflow is: choose a saved, locally reviewed skill revision; select a pinned target profile; inspect the exact file and compatibility report; export a verified portable bundle; separately decide whether to place instructions into an active project. The compiler never launches a harness. Writing instructions into a discovery path can affect a running or future harness even without launching it, so export and project installation have different contracts.
 
-R4a supplies the pure compiler and a read-only workspace service. Native commands, the Compile workbench, portable file export, SKILL frontmatter and target-loader qualification follow through R4/R5. These are unfinished requirements, not silently removed scope. Multiple skills first pass through the existing composition and content-review lifecycle; this initial compiler accepts one exact revision and performs no implicit merge.
+R4a supplies the pure compiler and a read-only workspace service. The following [native inspection stage](compilation-ui.md) adds the Compile command and workbench. Portable file export, SKILL frontmatter and target-loader qualification follow through R4/R5. These are unfinished requirements, not silently removed scope. Multiple skills first pass through the existing composition and content-review lifecycle; this initial compiler accepts one exact revision and performs no implicit merge.
 
 ## Supported profiles
 
@@ -101,7 +101,7 @@ Return `WorkspaceCompilation { observedCurrentHead, compilation }`. The current 
 
 Use a bounded `StoreError::CompilationInvalid` mapping for a compiler input/serialization failure, with no source content in public error text. The store wrapper owns the guarantee that content/review/provenance came from a validated workspace. It does not guarantee a malicious OS owner could not have coherently replaced that workspace.
 
-No native command or CLI accepts a revision body or review flag for compilation. A later native endpoint accepts only exact IDs and the closed profile; its host resolves all content and review facts. Do not retrofit reviewed-content semantics onto the current stdin-only analyzer.
+No native command or CLI accepts a revision body or review flag for compilation. The native inspection endpoint accepts only exact IDs and the closed profile; its host resolves all content and review facts. Do not retrofit reviewed-content semantics onto the current stdin-only analyzer.
 
 ## Acceptance and remaining R4/R5 work
 
@@ -117,7 +117,7 @@ R4a evidence must cover:
 - Stored ordinary and composition-derived revisions, reviewed historical selection, wrong-owner selection, missing/corrupt workspace, and unchanged database bytes/inventory after compilation.
 - Named Rust tests, formatting, warnings-denied Clippy, repository docs validation and fresh independent review.
 
-R4a alone does not satisfy the full R4/R5 exit gates. Remaining work includes native command and UI integration with honest empty/error states, SKILL/support-file profiles and meaningful change reports, exact target artifact/configuration qualification, static Test Lab UI, a selected-destination portable bundle format, drift/collision protection, and all-three-OS export failure/recovery evidence. Target-loader checks must avoid provider calls or execution unless separately authorized. R3's append/mixed-destination and full GUI qualification also remain open.
+R4a alone does not satisfy the full R4/R5 exit gates. The native inspection contract adds command/UI integration with honest empty/error states; its evidence is tracked separately. Remaining work includes native GUI qualification, SKILL/support-file profiles and meaningful change reports, exact target artifact/configuration qualification, static Test Lab UI, a selected-destination portable bundle format, drift/collision protection, and all-three-OS export failure/recovery evidence. Target-loader checks must avoid provider calls or execution unless separately authorized. R3's append/mixed-destination and full GUI qualification also remain open.
 
 ## Primary format evidence
 
