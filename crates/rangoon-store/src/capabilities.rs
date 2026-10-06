@@ -33,6 +33,9 @@ impl Workspace {
         };
         let tx = db.transaction()?;
         verify_schema(&tx)?;
+        if schema_version(&tx)? == 3 {
+            return Err(StoreError::UnsupportedSchema);
+        }
         if schema_version(&tx)? == 1 {
             return Ok(Vec::new());
         }
@@ -93,6 +96,9 @@ impl Workspace {
         let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
         verify_schema(&tx)?;
         let report = read_report(&tx, source_id)?;
+        if schema_version(&tx)? == 3 {
+            return Err(StoreError::UnsupportedSchema);
+        }
         let fragment = report
             .fragments
             .iter()
@@ -224,8 +230,10 @@ pub(super) fn migrate(db: &Connection) -> Result<(), StoreError> {
 }
 fn require_v2(db: &Connection) -> Result<(), StoreError> {
     verify_schema(db)?;
-    if schema_version(db)? != 2 {
-        return Err(StoreError::CapabilityNotFound);
+    match schema_version(db)? {
+        1 => return Err(StoreError::CapabilityNotFound),
+        2 => (),
+        _ => return Err(StoreError::UnsupportedSchema),
     }
     validate_links_and_limits(db)
 }

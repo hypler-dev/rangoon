@@ -207,6 +207,7 @@ dependencies = [
 name = "rangoon-store"
 version = "0.1.0-dev"
 dependencies = [
+ "rangoon-compose",
  "rangoon-domain",
  "rangoon-import",
  "rusqlite",

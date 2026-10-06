@@ -28,7 +28,9 @@ crates/rangoon-compose/src/application.rs
 crates/rangoon-compose/src/lib.rs
 crates/rangoon-compose/tests/application_vectors.rs
 crates/rangoon-domain/Cargo.toml
+crates/rangoon-domain/src/capability_v1.rs
 crates/rangoon-domain/src/capability.rs
+crates/rangoon-domain/src/composition.rs
 crates/rangoon-domain/src/lib.rs
 crates/rangoon-engine/Cargo.toml
 crates/rangoon-engine/src/lib.rs
@@ -42,6 +44,9 @@ crates/rangoon-import/tests/analyze.rs
 crates/rangoon-store/Cargo.toml
 crates/rangoon-store/src/capabilities.rs
 crates/rangoon-store/src/capability_tests.rs
+crates/rangoon-store/src/composition_records.rs
+crates/rangoon-store/src/composition_records_tests.rs
+crates/rangoon-store/src/compositions.rs
 crates/rangoon-store/src/lib.rs
 crates/rangoon-store/src/tests.rs
 crates/rangoon-store/src/workspace_data.rs

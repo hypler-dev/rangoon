@@ -2,10 +2,15 @@
 #![forbid(unsafe_code)]
 
 mod capabilities;
+mod composition_records;
+#[cfg(test)]
+mod composition_records_tests;
+mod compositions;
 mod workspace_data;
 #[cfg(test)]
 mod workspace_data_tests;
 pub use capabilities::{CapabilityReceipt, MAX_CAPABILITIES, MAX_REVISIONS, MAX_TOTAL_REVISIONS};
+pub use compositions::CompositionPreview;
 pub use workspace_data::{
     Backup, DeletionPlan, MAX_BACKUP_BYTES, RecordKind, RestorePlan, WorkspaceData, WorkspaceUsage,
 };
@@ -59,10 +64,15 @@ pub enum StoreError {
     BackupInvalid,
     WorkspaceChanged,
     SourceInUse,
+    CompositionInvalid,
 }
 impl StoreError {
     pub fn public(self) -> (&'static str, &'static str) {
         match self {
+            Self::CompositionInvalid => (
+                "composition_invalid",
+                "This composition or its destinations failed validation. Refresh the preview and review the draft again.",
+            ),
             Self::BackupInvalid => (
                 "backup_invalid",
                 "This backup is unsupported, incomplete or failed validation. No data was restored.",
@@ -174,6 +184,11 @@ impl Workspace {
         let mut db = self.connect(true)?.ok_or(StoreError::Unavailable)?;
         let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
         initialize_or_verify(&tx)?;
+        let version: i64 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
+        if version == 3 {
+            // Schema 3 remains read-only until its recovery format is available.
+            return Err(StoreError::UnsupportedSchema);
+        }
         let snapshots = list_metadata(&tx)?;
         if let Some(existing) = snapshots
             .into_iter()
@@ -286,6 +301,12 @@ impl Workspace {
         let version: i64 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version != 0 {
             verify_schema(&db)?;
+            if version == 3 {
+                db.set_limit(
+                    Limit::SQLITE_LIMIT_LENGTH,
+                    (rangoon_compose::MAX_DRAFT_BYTES + 4096) as i32,
+                )?;
+            }
         } else if !create && !allow_empty {
             return Err(StoreError::UnsupportedSchema);
         } else {
@@ -352,21 +373,28 @@ fn initialize_or_verify(db: &Connection) -> Result<(), StoreError> {
 fn verify_schema(db: &Connection) -> Result<(), StoreError> {
     let version: i64 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
     let app_id: i64 = db.pragma_query_value(None, "application_id", |r| r.get(0))?;
-    let mut query = db.prepare("SELECT type, name, sql FROM sqlite_schema WHERE name NOT IN ('sqlite_autoindex_snapshots_1','sqlite_autoindex_capabilities_1','sqlite_autoindex_revisions_1','sqlite_autoindex_reviews_1') ORDER BY name")?;
+    let mut query = db.prepare("SELECT type, name, sql FROM sqlite_schema WHERE name NOT IN ('sqlite_autoindex_snapshots_1','sqlite_autoindex_capabilities_1','sqlite_autoindex_revisions_1','sqlite_autoindex_reviews_1','sqlite_autoindex_compositions_1','sqlite_autoindex_composition_applications_1','sqlite_autoindex_derived_capabilities_1','sqlite_autoindex_derived_capabilities_2','sqlite_autoindex_revision_derivations_1','sqlite_autoindex_revision_derivations_2') ORDER BY name")?;
     let schema: Vec<(String, String, String)> = query
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
         .collect::<Result<_, _>>()?;
     let mut expected: Vec<(String, String, String)> =
         vec![("table".into(), "snapshots".into(), SCHEMA.into())];
-    if version == 2 {
+    if version >= 2 {
         expected.extend(
             capabilities::SCHEMAS
                 .iter()
                 .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
         );
-        expected.sort_by(|a, b| a.1.cmp(&b.1));
     }
-    if ![1, 2].contains(&version) || app_id != APPLICATION_ID || schema != expected {
+    if version == 3 {
+        expected.extend(
+            composition_records::SCHEMAS
+                .iter()
+                .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
+        );
+    }
+    expected.sort_by(|a, b| a.1.cmp(&b.1));
+    if ![1, 2, 3].contains(&version) || app_id != APPLICATION_ID || schema != expected {
         return Err(StoreError::UnsupportedSchema);
     }
     Ok(())

@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub mod capability;
+pub mod capability_v1;
+pub mod composition;
 
 pub const SCHEMA_VERSION: &str = "rangoon.source-analysis.v0";
 pub const ANALYZER_VERSION: &str = "0.1.0";
