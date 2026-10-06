@@ -8,6 +8,12 @@ Rangoon helps a developer understand and improve the instructions driving their 
 
 The images share an effective structure: familiar left navigation, a page-level primary action, a dense central work area, and an inspector that explains the current selection. Preserve that structure, orange identity and dark/light styling. Avoid copying fictional fleet counts, compliance scores, unsupported integration logos or unexplained model-confidence percentages. Every displayed count must describe actual workspace data or explicitly labeled samples.
 
+## Dual-track build rule
+
+Every feature packet records two linked outcomes in [development.md](development.md): the UX mapping to the original eight-screen structural baseline and shared shell, plus the technical result, evidence, gaps, and tests. The shell keeps grouped navigation, a compact theme-aware banner, a central work area, and a right inspector. Route artwork may vary within the visual system, but route structure, native IDs, control meaning, security disclosures, provenance, and unavailable states remain stable. A packet may be explicitly UI-only; that label never counts as technical progress, and the related technical work remains on the roadmap.
+
+Keep artwork stable per route. Do not add random motion, fake readiness, simulated progress, or decorative art that covers controls or changes hit targets. The root `validate:vision` gate checks narrow structural contracts; it cannot prove visual quality, runtime availability, security qualification, or V1 completion. Each meaningful UI packet also requires fresh independent review and rendered checks at 320, 768, and 1440 pixels in dark and light themes, including no overflow, keyboard focus, and reduced motion.
+
 ## Image-to-behavior contract
 
 All eight originals in [the reference manifest](reference-manifest.json) were visually re-reviewed on October 5 by the independent UI design lane.
@@ -28,6 +34,23 @@ The desktop spike starts in **Import & Analyze**. One primary action opens the n
 
 The existing nine-screen design preview remains a clearly identified sample experience. It does not receive real source records. This prevents a real imported file from appearing to have passed a fictional review, test, connector or deployment. When actual local capability revisions exist, migrate the relevant screen from fixtures to the application contract with its own state and recovery tests.
 
+## Feature gap matrix: current source truth
+
+This matrix separates fixture-backed preview routes from native source that exists today. It is based on current `apps/desktop/src` commands and preview controllers; it does not infer runtime support from a route or button.
+
+| Feature surface | Current source evidence | Current gap / honest label |
+| --- | --- | --- |
+| Import & Analyze | Native `select_and_analyze`, bounded source read, exact bytes/line spans, save/open/clear snapshots, and parser diagnostics in `apps/desktop/src/main.rs` and the Rust workspace | Native file intake is implemented; folder, repository, and archive intake remain future work. Browser workbench has no file bridge. |
+| Skills | Native capability list/open/create/revise/review commands in `apps/desktop/src/capabilities.rs`; local revision/provenance records back these commands | Preview library uses sample rows; reviewed local capabilities do not establish execution authority or released compatibility |
+| Composition / Merge & Split | Native `preview_composition` and `commit_composition` with issued preview IDs, stale checks, and explicit confirmation in `apps/desktop/src/composition.rs` | The native workbench fails closed without its workspace bridge. A separate, explicitly labeled design preview uses fixtures. |
+| Compile / model assistance | Native `compile_capability` plus local/cloud model preparation, check, send, cancellation, freshness, and consent commands registered in `apps/desktop/src/main.rs` | Native-workbench model and compile paths fail closed in the browser; test fixtures are separate; provider, installer, and execution qualification remain open |
+| Workflows | Preview route and tests cover declared sample steps and unknown outcomes | No native workflow command or runtime execution path; route is fixture-backed and demo-only |
+| Connectors | Preview route and tests show configuration/authority states and unavailable handling | No native connector adapter or provider integration; no credentials or action authority implied |
+| Command Center / Evidence / Release Plan | Preview routes summarize sample graph, evidence, and release records | Counts, graph, evidence, and release status are synthetic until backed by workspace records; no full V1 claim |
+| LNSAT | Native source documents state integration is unavailable and never discovers or contacts LNSAT | LNSAT remains unavailable; no activation, runtime, or security qualification claim |
+
+Native IDs and control contracts stay stable while gaps close. Update matrix only from source, tests, or named rendered evidence.
+
 ## Usability acceptance
 
 1. A first-time user sees one obvious action without signing in or choosing an engine. The action works by keyboard and restores focus after the picker closes.
@@ -40,8 +63,8 @@ Use real pilot observations for time-to-first-useful-result, confusing labels, f
 
 ## Build a platform through complete workflows
 
-The next product slice is durable local workspaces: immutable source snapshots, explicit project ownership, recoverable jobs and reviewed capability revisions. A saved asset must survive restart, retain its source identity and support an explicit changed-file/reimport decision. Database/schema design remains controller-owned and requires migration, disk-full and crash/recovery evidence before adoption.
+The first product sequence established durable local records: immutable source snapshots and reviewed capability revisions. Project ownership and recoverable execution jobs remain future work. A saved asset must survive restart, retain its source identity and support an explicit changed-file/reimport decision. Database/schema design remains controller-owned and requires migration, disk-full and crash/recovery evidence before adoption.
 
-Then implement real Decompose and Merge/Split around a coverage ledger, followed by two pinned format adapters and a reviewable export. Only then should the command center summarize a meaningful working inventory. Workflow execution and connectors follow their own qualified authority path; they do not become safe because a canvas or button exists. R2a source records retain `authority: none` and unreviewed fragments; they are local source history, not reviewed capabilities.
+The current source now includes real Decompose and Merge/Split around a coverage ledger, two pinned text profiles and reviewable bundle export. Qualification remains incomplete; the command center can next draw on this meaningful local inventory. Workflow execution and connectors follow their own qualified authority path; they do not become safe because a canvas or button exists. R2a source records retain `authority: none` and unreviewed fragments; they are local source history, not reviewed capabilities.
 
 Keep domain analysis independent of desktop IPC and UI frameworks. Desktop and future server modes may share versioned records and conformance fixtures, while filesystem selection, credentials, identity and execution remain host-specific adapters. A cloud service must not inherit unrestricted local filesystem access, and a subscription must never grant consequence authority. This preserves room for self-hosted teams and enterprise operation without requiring a distributed platform before the local workflow is useful.
