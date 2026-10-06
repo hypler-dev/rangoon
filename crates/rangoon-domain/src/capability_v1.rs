@@ -185,7 +185,7 @@ impl<'de> Deserialize<'de> for RequiredNullableString {
         D: serde::Deserializer<'de>,
     {
         struct Visitor;
-        impl<'de> serde::de::Visitor<'de> for Visitor {
+        impl serde::de::Visitor<'_> for Visitor {
             type Value = RequiredNullableString;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
