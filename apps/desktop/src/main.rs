@@ -24,6 +24,7 @@ mod cloud_custody;
 mod cloud_store;
 use cloud_credentials::*;
 mod model_consent;
+mod model_flight;
 mod models;
 mod session;
 use capabilities::{
@@ -315,6 +316,7 @@ fn main() {
         .manage(DeletionSession::default())
         .manage(CompositionSession::default())
         .manage(NativeModel::default())
+        .manage(model_flight::ModelFlight::default())
         .manage(cloud_custody::Custody::default())
         .on_window_event(|window, event| {
             models::window_event(window, event);

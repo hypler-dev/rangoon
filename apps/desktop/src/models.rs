@@ -2,6 +2,7 @@
 use crate::{
     begin_operation,
     model_consent::{Consent, Decision, REVIEW_WINDOW, Review, SEND_LABEL},
+    model_flight::{ModelFlight, ModelLease},
     workspace,
 };
 use rangoon_model_local::{CheckResult, Completion, LocalClient};
@@ -19,7 +20,27 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
 #[derive(Default)]
 pub struct NativeModel {
     session: LocalSession,
-    consent: Consent,
+    consent: Consent<SendCustody>,
+}
+
+struct SendCustody {
+    send: Transmission,
+    _flight: ModelLease,
+}
+impl std::ops::Deref for SendCustody {
+    type Target = Transmission;
+    fn deref(&self) -> &Self::Target {
+        &self.send
+    }
+}
+
+/// IPC cancellation must reach retained blocking work before it can stage or
+/// dispatch anything. The callback still owns its leases until it returns.
+struct CancelOnDrop(rangoon_model_local::Cancellation);
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        self.0.cancel();
+    }
 }
 
 #[derive(Clone, Serialize)]
@@ -171,7 +192,10 @@ pub fn configure_local_model(
 ) -> Result<ModelResult, ()> {
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
-    let result = raw(request.body(), 1024).and_then(|bytes| model.session.configure(bytes));
+    let result = raw(request.body(), 1024).and_then(|bytes| {
+        let _flight = app.state::<ModelFlight>().begin()?;
+        model.session.configure(bytes)
+    });
     Ok(match result {
         Ok(session) => Stamp {
             generation: Some(session.generation.clone()),
@@ -262,12 +286,18 @@ pub async fn prepare_local_model(
         Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
     };
     let stamp = Stamp::operation(preparation.operation());
+    let _cancel = CancelOnDrop(preparation.operation().cancellation().clone());
+    let flight = match app.state::<ModelFlight>().begin() {
+        Ok(value) => value,
+        Err(error) => return Ok(stamp.error(Code::Session(error))),
+    };
     let Some(guard) = begin_operation(&app) else {
         return Ok(stamp.error(Code::Native(NativeCode::WorkspaceBusy)));
     };
     let failure_stamp = stamp.clone();
     Ok(tauri::async_runtime::spawn_blocking(move || {
         let _guard = guard;
+        let _flight = flight;
         match workspace(&app)
             .map_err(|_| Diagnostic::InputUnavailable)
             .and_then(|store| preparation.prepare(&store))
@@ -298,6 +328,10 @@ pub async fn check_local_model(
         Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
     };
     let stamp = Stamp::operation(&operation);
+    let _flight = match app.state::<ModelFlight>().begin() {
+        Ok(value) => value,
+        Err(error) => return Ok(stamp.error(Code::Session(error))),
+    };
     let result = LocalClient::new()
         .check(operation.profile(), operation.cancellation())
         .await;
@@ -313,6 +347,26 @@ pub async fn check_local_model(
 struct ReviewGuard {
     app: AppHandle,
     run_id: String,
+}
+
+/// Cleanup belongs to the callback, including unwinding after a dialog failure.
+struct PromptCompletion {
+    app: AppHandle,
+    run_id: String,
+    approved: bool,
+}
+impl Drop for PromptCompletion {
+    fn drop(&mut self) {
+        if self
+            .app
+            .state::<NativeModel>()
+            .consent
+            .finish_prompt(&self.run_id, self.approved)
+            && let Some(window) = self.app.get_webview_window(REVIEW_WINDOW)
+        {
+            let _ = window.close();
+        }
+    }
 }
 impl Drop for ReviewGuard {
     fn drop(&mut self) {
@@ -369,7 +423,7 @@ fn open_review(app: &AppHandle, run_id: &str) -> Result<(), ()> {
     Ok(())
 }
 
-async fn freshness(app: AppHandle, send: &Arc<Transmission>) -> Result<Freshness, Code> {
+async fn freshness(app: AppHandle, send: &Arc<SendCustody>) -> Result<Freshness, Code> {
     let Some(guard) = begin_operation(&app) else {
         return Err(Code::Native(NativeCode::WorkspaceBusy));
     };
@@ -395,13 +449,23 @@ pub async fn send_local_model(
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
     let send = match raw(request.body(), 512).and_then(|bytes| model.session.begin_send(bytes)) {
-        Ok(send) => Arc::new(send),
+        Ok(send) => send,
         Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
     };
     let stamp = Stamp::operation(send.operation());
+    let flight = match app.state::<ModelFlight>().begin() {
+        Ok(value) => value,
+        Err(error) => return Ok(stamp.error(Code::Session(error))),
+    };
+    let send = Arc::new(SendCustody {
+        send,
+        _flight: flight,
+    });
+    let _cancel = CancelOnDrop(send.operation().cancellation().clone());
     let decision = match model.consent.install(
         Review::from_transmission(&send),
         send.operation().cancellation().clone(),
+        Arc::clone(&send),
     ) {
         Some(receiver) => receiver,
         None => return Ok(stamp.error(Code::Native(NativeCode::ConfirmationUnavailable))),
@@ -535,7 +599,12 @@ pub async fn confirm_local_model_review(
     let run_id = review.run_id.clone();
     let dialog_app = app.clone();
     let answer = tauri::async_runtime::spawn_blocking(move || {
-        dialog_app
+        let mut completion = PromptCompletion {
+            app: dialog_app.clone(),
+            run_id,
+            approved: false,
+        };
+        let answer = dialog_app
             .dialog()
             .message(review.question())
             .title("Send selected text?")
@@ -544,19 +613,12 @@ pub async fn confirm_local_model_review(
                 SEND_LABEL.into(),
                 "Cancel".into(),
             ))
-            .blocking_show_with_result()
+            .blocking_show_with_result();
+        completion.approved =
+            matches!(answer, MessageDialogResult::Custom(label) if label == SEND_LABEL);
     })
     .await;
-    let approved = matches!(answer, Ok(MessageDialogResult::Custom(label)) if label == SEND_LABEL);
-    if app
-        .state::<NativeModel>()
-        .consent
-        .finish_prompt(&run_id, approved)
-        && let Some(window) = app.get_webview_window(REVIEW_WINDOW)
-    {
-        let _ = window.close();
-    }
-    Ok(review_status(true))
+    Ok(review_status(answer.is_ok()))
 }
 
 pub fn window_event(window: &tauri::Window, event: &WindowEvent) {

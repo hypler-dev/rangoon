@@ -2,7 +2,7 @@
 use rangoon_model_local::Cancellation;
 use rangoon_model_session::{Dependency, Transmission};
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;
 
 pub const REVIEW_WINDOW: &str = "model-confirmation";
@@ -74,22 +74,28 @@ impl Decision {
     }
 }
 
-struct Pending {
+struct Pending<T> {
     review: Review,
     cancellation: Cancellation,
     sender: Option<oneshot::Sender<bool>>,
     prompting: bool,
     cleanup_requested: bool,
+    _owner: Arc<T>,
 }
 
-#[derive(Default)]
-pub struct Consent(Mutex<Option<Pending>>);
+pub struct Consent<T = ()>(Mutex<Option<Pending<T>>>);
+impl<T> Default for Consent<T> {
+    fn default() -> Self {
+        Self(Mutex::new(None))
+    }
+}
 
-impl Consent {
+impl<T> Consent<T> {
     pub fn install(
         &self,
         review: Review,
         cancellation: Cancellation,
+        owner: Arc<T>,
     ) -> Option<oneshot::Receiver<bool>> {
         let mut slot = self.0.lock().ok()?;
         if slot.is_some() || cancellation.is_cancelled() {
@@ -102,6 +108,7 @@ impl Consent {
             sender: Some(sender),
             prompting: false,
             cleanup_requested: false,
+            _owner: owner,
         });
         Some(receiver)
     }
@@ -205,7 +212,7 @@ impl Consent {
     }
 }
 
-fn cancel(pending: &mut Pending) {
+fn cancel<T>(pending: &mut Pending<T>) {
     pending.cancellation.cancel();
     if !pending.prompting
         && let Some(sender) = pending.sender.take()

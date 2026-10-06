@@ -23,7 +23,9 @@ fn decision(review: &Review) -> Decision {
 fn no_approval_from_install_inspection_or_renderer_fields() {
     let consent = Consent::default();
     let value = review();
-    let mut receiver = consent.install(value.clone(), Cancellation::new()).unwrap();
+    let mut receiver = consent
+        .install(value.clone(), Cancellation::new(), Arc::new(()))
+        .unwrap();
     assert_eq!(consent.inspect().unwrap().body_json, "{}");
     assert_eq!(
         receiver.try_recv(),
@@ -39,7 +41,9 @@ fn no_approval_from_install_inspection_or_renderer_fields() {
 fn prompt_single_claim_and_only_final_affirmative_releases_decision() {
     let consent = Consent::default();
     let value = review();
-    let mut receiver = consent.install(value.clone(), Cancellation::new()).unwrap();
+    let mut receiver = consent
+        .install(value.clone(), Cancellation::new(), Arc::new(()))
+        .unwrap();
     let input = decision(&value);
     assert!(consent.prompt(&input).is_some());
     assert!(consent.prompt(&input).is_none());
@@ -56,7 +60,7 @@ fn cancellation_during_dialog_holds_decision_and_late_yes_cannot_revive() {
     let value = review();
     let cancellation = Cancellation::new();
     let mut receiver = consent
-        .install(value.clone(), cancellation.clone())
+        .install(value.clone(), cancellation.clone(), Arc::new(()))
         .unwrap();
     consent.prompt(&decision(&value)).unwrap();
     assert!(consent.cancel_run(Some(&value.run_id)));
@@ -70,18 +74,24 @@ fn cancellation_during_dialog_holds_decision_and_late_yes_cannot_revive() {
 fn cleanup_during_prompt_defers_parent_destruction_and_blocks_replacement() {
     let consent = Consent::default();
     let value = review();
-    let mut receiver = consent.install(value.clone(), Cancellation::new()).unwrap();
+    let mut receiver = consent
+        .install(value.clone(), Cancellation::new(), Arc::new(()))
+        .unwrap();
     consent.prompt(&decision(&value)).unwrap();
     assert!(!consent.remove(&value.run_id));
     assert!(
         consent
-            .install(value.clone(), Cancellation::new())
+            .install(value.clone(), Cancellation::new(), Arc::new(()))
             .is_none()
     );
     assert!(receiver.try_recv().is_err());
     assert!(consent.finish_prompt(&value.run_id, true));
     assert_eq!(receiver.try_recv(), Ok(false));
-    assert!(consent.install(value, Cancellation::new()).is_some());
+    assert!(
+        consent
+            .install(value, Cancellation::new(), Arc::new(()))
+            .is_some()
+    );
 }
 
 #[test]
@@ -89,7 +99,9 @@ fn close_before_prompt_cancels_without_affirmative_and_stale_events_are_inert() 
     let consent = Consent::default();
     let value = review();
     let token = Cancellation::new();
-    let mut receiver = consent.install(value.clone(), token.clone()).unwrap();
+    let mut receiver = consent
+        .install(value.clone(), token.clone(), Arc::new(()))
+        .unwrap();
     assert!(!consent.cancel_run(Some("run:stale")));
     assert!(!token.is_cancelled());
     let mut wrong = decision(&value);
@@ -104,7 +116,9 @@ fn close_before_prompt_cancels_without_affirmative_and_stale_events_are_inert() 
     let mut next = value.clone();
     next.run_id = format!("run:{}", "5".repeat(64));
     let next_token = Cancellation::new();
-    let _next_receiver = consent.install(next.clone(), next_token.clone()).unwrap();
+    let _next_receiver = consent
+        .install(next.clone(), next_token.clone(), Arc::new(()))
+        .unwrap();
     assert!(!consent.cancel_run(Some(&value.run_id)));
     assert!(!consent.remove(&value.run_id));
     assert!(!next_token.is_cancelled());
@@ -205,4 +219,42 @@ fn native_capabilities_separate_main_and_review_without_network_permissions() {
             .unwrap()
             .contains("connect-src ipc: http://ipc.localhost;")
     );
+}
+
+#[test]
+fn prompt_keeps_session_and_shared_flight_after_ipc_owner_disappears() {
+    let session = LocalSession::default();
+    session.configure(br#"{"schemaVersion":"rangoon.local-profile-request.v1","profileId":"fixture","model":"fixture:v1","host":"127.0.0.1","port":11434,"maxOutputTokens":128}"#).unwrap();
+    let operation = session.begin_check().unwrap();
+    let cancellation = operation.cancellation().clone();
+    let gate = ModelFlight::default();
+    let owner = Arc::new((operation, gate.begin().unwrap()));
+    let consent = Consent::default();
+    let mut value = review();
+    value.run_id = owner.0.run_id().to_owned();
+    let receiver = consent
+        .install(value.clone(), cancellation.clone(), Arc::clone(&owner))
+        .unwrap();
+    consent.prompt(&decision(&value)).unwrap();
+    drop(owner);
+    drop(receiver);
+    // The native command's RAII cleanup runs when its waiter disappears.
+    assert!(!consent.remove(&value.run_id));
+    assert!(cancellation.is_cancelled());
+    assert!(matches!(session.begin_check(), Err(Diagnostic::Busy)));
+    assert!(matches!(gate.begin(), Err(Diagnostic::Busy)));
+    // A late affirmative dialog completion cannot revive or retain the run.
+    assert!(consent.finish_prompt(&value.run_id, true));
+    assert!(session.begin_check().is_ok());
+    assert!(gate.begin().is_ok());
+}
+
+#[test]
+fn ipc_drop_guard_cancels_work_still_owned_by_a_callback() {
+    let cancellation = Cancellation::new();
+    let callback_token = cancellation.clone();
+    let waiter = CancelOnDrop(cancellation);
+    assert!(!callback_token.is_cancelled());
+    drop(waiter);
+    assert!(callback_token.is_cancelled());
 }

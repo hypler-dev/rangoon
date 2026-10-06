@@ -4,12 +4,15 @@
 //! current OS credential custody. Constructing these types performs no I/O.
 #![forbid(unsafe_code)]
 
+mod check;
+mod check_wire;
 mod json;
 mod profile;
 mod request;
 mod transport;
 mod wire;
 
+pub use check::{CheckRequest, CheckResult};
 pub use profile::CloudProfile;
 pub use request::PreparedRequest;
 use serde::Serialize;
