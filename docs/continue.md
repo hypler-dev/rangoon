@@ -10,7 +10,7 @@ git rev-parse HEAD
 git remote -v
 ```
 
-The current branch starts from PR16 merge `a1ffdf391abc78d23fdb80e2617f915820a628b4`, reviewed head `85e3714ddb319c9566ca2c1156deb74cc20dad3`, with exact base `e2cc62d66234c0bb8f4d9272c6dfb5542fa1d7d7`. The R3 editor packet and pure R4a compiler are published on `main`; use the startup commands for current branch and working-tree truth, and the [development ledger](development.md) for receipts. The parent directory is a separate marketing site; do not mix its history, files, or deployment workflow with this application repository.
+The current branch starts from PR16 merge `a1ffdf391abc78d23fdb80e2617f915820a628b4`, reviewed head `85e3714ddb319c9566ca2c1156deb74cc20dad3d`, with exact base `e2cc62d66234c0bb8f4d9272c6dfb5542fa1d7d7`. The R3 editor packet and pure R4a compiler are published on `main`; use the startup commands for current branch and working-tree truth, and the [development ledger](development.md) for receipts. The parent directory is a separate marketing site; do not mix its history, files, or deployment workflow with this application repository.
 
 ## Read first
 
@@ -41,9 +41,9 @@ The public `main` source includes the published composition store, native comman
 
 The editor is deterministic and manual over saved bytes. It does not activate the engine, call providers, transmit source, encrypt the workspace, install a released application, or submit a grant. PR15 publication does not declare R3 or V1 complete.
 
-Local R4a has a pure `rangoon-compile` implementation for two frozen text profiles plus an ID-only read service over validated stored revisions. Exact-byte preservation, static diagnostics, content/candidate identity separation, 10 compiler tests, six store integration tests, 142 workspace tests, native checks, and independent byte vectors passed locally; PR16 publication is recorded in the ledger. This does not implement native Compile inspection/UI, portable export, target-loader qualification, or full R4/R5.
+Local R4a has a pure `rangoon-compile` implementation for two frozen text profiles plus an ID-only read service over validated stored revisions. Exact-byte preservation, static diagnostics, content/candidate identity separation, 10 compiler tests, six store integration tests, 142 workspace tests, native checks, and independent byte vectors passed locally; PR16 publication is recorded in the ledger. Portable export, target-loader qualification, and full R4/R5 remain unqualified.
 
-PR16 published that pure compiler and read service with fourteen exact-commit checks passing. Native Compile inspection is now in progress under [compilation-ui.md](compilation-ui.md). The UI workers remain unqualified and unpublished; no full native UI pass is claimed.
+PR16 published that pure compiler and read service. Native Compile inspection source is implemented locally and independently reviewed, with all fourteen hosted CI checks passing for `31de133e0ce39232537f403fcb7af8c0c7bcb02b`; its updated publication remains pending. Native GUI/IPC inspection, portable export, target-loader qualification, and full R4/R5 remain unqualified.
 
 The initial desktop target remains macOS, Windows, and Linux together. The product is intended to be free and open source, but no license has been adopted. LNSAT remains an independent authority/evidence engine; no LNSAT operation is active in this repository.
 
@@ -86,7 +86,7 @@ Run only the checks relevant to the packet, record exact outcomes in `docs/devel
 The next bounded slice is to publish the independently reviewed native Compile inspection source, qualify its real native GUI/IPC flow, then define portable export and the broader R4/R5 gates. Keep the editor's remaining qualification visible in the ledger. Do not treat the pure compiler as native export or a full R4/R5 implementation.
 
 1. Read [compilation.md](compilation.md), then the R4/R5 rows in [plan.md](plan.md), compiler/harness sections in [application-architecture.md](application-architecture.md), and recovered requirements in [sources-and-features.md](sources-and-features.md).
-2. Complete exact-head hosted CI and source publication for the reviewed native Compile inspection/UI; preserve blocked, review-required and unqualified states. Native GUI/IPC qualification remains a separate open gate.
+2. Run hosted CI for the updated publication commit, then publish the reviewed native Compile inspection/UI; preserve blocked, review-required and unqualified states. Native GUI/IPC qualification remains a separate open gate.
 3. Keep adapter output deterministic, loss-reporting, version-pinned, and export-only; do not imply install, activation, provider, or engine authority.
 4. Define portable bundle/export, target-loader, drift/collision, and all-three-OS failure evidence as separate R4/R5 gates.
 5. Preserve the remaining editor gates: append/mixed destinations, complete failure/keyboard coverage, Windows/Linux GUI, installers, and release support.
