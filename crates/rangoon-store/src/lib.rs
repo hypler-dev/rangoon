@@ -2,7 +2,10 @@
 #![forbid(unsafe_code)]
 
 mod capabilities;
+mod capabilities_v1;
 mod composition_backup;
+#[cfg(test)]
+mod composition_commit_tests;
 mod composition_records;
 #[cfg(test)]
 mod composition_records_tests;
@@ -14,11 +17,12 @@ mod workspace_data;
 #[cfg(test)]
 mod workspace_data_tests;
 pub use capabilities::{CapabilityReceipt, MAX_CAPABILITIES, MAX_REVISIONS, MAX_TOTAL_REVISIONS};
+pub use capabilities_v1::CapabilityReceiptV1;
 pub use composition_backup::CompositionBackup;
 pub use composition_recovery::{
     CompositionDeletionPlan, CompositionRestorePlan, CompositionWorkspaceData, RecoveryCounts,
 };
-pub use compositions::CompositionPreview;
+pub use compositions::{CompositionPreview, CompositionReceipt};
 pub use workspace_data::{
     Backup, DeletionPlan, MAX_BACKUP_BYTES, RecordKind, RestorePlan, WorkspaceData, WorkspaceUsage,
 };
@@ -73,12 +77,17 @@ pub enum StoreError {
     WorkspaceChanged,
     SourceInUse,
     CompositionInvalid,
+    CompositionAcknowledgmentRequired,
     CompositionDependencyMissing,
     RecordInUse,
 }
 impl StoreError {
     pub fn public(self) -> (&'static str, &'static str) {
         match self {
+            Self::CompositionAcknowledgmentRequired => (
+                "composition_acknowledgment_required",
+                "Review and acknowledge this exact composition preview before saving its outputs.",
+            ),
             Self::CompositionDependencyMissing => (
                 "composition_dependency_missing",
                 "This restore needs a pinned input revision that is absent from the final workspace. Existing skill histories were kept unchanged.",
@@ -190,6 +199,18 @@ impl Workspace {
     }
 
     pub fn save(&self, report: &AnalysisReport) -> Result<SaveReceipt, StoreError> {
+        self.save_source(report, false)
+    }
+
+    pub fn save_v1(&self, report: &AnalysisReport) -> Result<SaveReceipt, StoreError> {
+        self.save_source(report, true)
+    }
+
+    fn save_source(
+        &self,
+        report: &AnalysisReport,
+        allow_composition: bool,
+    ) -> Result<SaveReceipt, StoreError> {
         // Persist source facts only. Never deserialize a renderer-provided report.
         let checked = analyze(
             &report.source.display_name,
@@ -203,9 +224,11 @@ impl Workspace {
         let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
         initialize_or_verify(&tx)?;
         let version: i64 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version == 3 {
-            // Schema 3 remains read-only until its recovery format is available.
+        if version == 3 && !allow_composition {
             return Err(StoreError::UnsupportedSchema);
+        }
+        if allow_composition {
+            composition_records::Records::load(&tx)?;
         }
         let snapshots = list_metadata(&tx)?;
         if let Some(existing) = snapshots
@@ -238,6 +261,9 @@ impl Workspace {
             saved_at_ms,
         };
         insert(&tx, &snapshot, checked.source.content.as_bytes())?;
+        if allow_composition {
+            composition_records::Records::load(&tx)?;
+        }
         tx.commit()?;
         Ok(SaveReceipt {
             snapshot,

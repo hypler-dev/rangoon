@@ -268,7 +268,7 @@ fn check_ids(id: &str, revision: Option<&str>) -> Result<(), StoreError> {
         Ok(())
     }
 }
-fn now_ms() -> Result<i64, StoreError> {
+pub(super) fn now_ms() -> Result<i64, StoreError> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(|_| StoreError::Unavailable)?

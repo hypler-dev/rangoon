@@ -1,6 +1,6 @@
 # Composition destinations and revision provenance
 
-Status: reviewed destination contract under the accepted version 1.0 objective; bounded pure application layer implemented; independent source review passed; persistence qualification pending
+Status: reviewed destination contract under the accepted version 1.0 objective; pure application, readback and recovery layers published; atomic composition save and versioned ordinary mutations implemented locally with qualification pending
 Authority: [composition specification](composition.md), under [intent.md](intent.md)
 Owner: Jeff; primary controller owns architecture, schema, integration and release judgment
 
@@ -78,6 +78,14 @@ Every capability still has exactly one connected linear parent chain; no disconn
 Read-only schema 1/2 projections remain available without migration. The first successful composition commit upgrades to schema 3 atomically with the recipe, application, all output revisions, new owner rows and head updates. Input validation, destination-head checks, expected workspace state, resource limits and explicit acknowledgment are checked before mutation in the same immediate transaction. Existing head/review metadata and every prior revision survive failure. Reads and previews never initialize or migrate the store.
 
 ## Revision and UI contract
+
+### Store-issued save preparation
+
+The Rust `CompositionPreview` retains a private normalized request alongside its serialized application preview and expected workspace-state digest. It is not deserializable. The serialized result excludes that retained request; it is not a round-trippable write command. `apply_composition` accepts the retained preparation and an explicit acknowledgment, recalculates inputs/destination heads and the complete application result in an immediate transaction, and compares state before any mutation or retry handling. A missing acknowledgment, blocked draft, forged exposed preview, stale workspace, already-existing new destination or changed append head rejects the operation. A stale append head has the explicit `CapabilityConflict` diagnostic; malformed application data remains `CompositionInvalid`.
+
+Preparation validates quotas and the complete proposed post-state in a canonical in-memory database without changing the actual workspace. Commit repeats validation with its actual timestamp before migration or writes. Recipe/application insertion, all output revisions and derivations, new owners and existing-head updates commit together. The receipt contains actual saved capability v1 details in output order and the committed workspace-state digest. Prior birth origins and reviews remain intact; new revisions are unreviewed. The store never automatically retries an application after an uncertain result.
+
+Separate `save_v1`, `create_capability_v1`, `revise_capability_v1` and `review_capability_v1` APIs support ordinary source/content work after schema 3 migration. They validate records, preserve source versus composition birth and distinguish ordinary successors from composition-derived revisions. Legacy APIs retain their schema 3 rejection. Ordinary revise preserves its prior deterministic retry/readback behavior; composition apply still checks stale state first. This storage preparation is not a native confirmation credential: the native host must still issue, retain and consume the opaque per-selection handle specified in the parent contract before exposing composition saves to the renderer.
 
 Capability v1 keeps its discriminated birth origin from the parent specification. Revision details and summaries additionally have required discriminated `provenance`:
 

@@ -43,8 +43,10 @@ crates/rangoon-import/src/lib.rs
 crates/rangoon-import/tests/analyze.rs
 crates/rangoon-store/Cargo.toml
 crates/rangoon-store/src/capabilities.rs
+crates/rangoon-store/src/capabilities_v1.rs
 crates/rangoon-store/src/capability_tests.rs
 crates/rangoon-store/src/composition_backup.rs
+crates/rangoon-store/src/composition_commit_tests.rs
 crates/rangoon-store/src/composition_records.rs
 crates/rangoon-store/src/composition_records_tests.rs
 crates/rangoon-store/src/composition_recovery.rs

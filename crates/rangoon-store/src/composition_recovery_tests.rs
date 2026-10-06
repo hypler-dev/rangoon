@@ -45,14 +45,28 @@ impl Drop for ChildGuard {
 }
 
 fn fault_child(dir: &TestDir, backup: &PathBuf, phase: &str, mode: &str, id: &str) {
+    fault_child_for(
+        dir,
+        backup,
+        phase,
+        mode,
+        id,
+        "composition_recovery_tests::recovery_fault_child",
+    );
+}
+
+pub(super) fn fault_child_for(
+    dir: &TestDir,
+    backup: &PathBuf,
+    phase: &str,
+    mode: &str,
+    id: &str,
+    test_name: &str,
+) {
     let marker = dir.0.join(format!("{phase}-ready"));
     let mut child = ChildGuard(
         Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--ignored",
-                "--exact",
-                "composition_recovery_tests::recovery_fault_child",
-            ])
+            .args(["--ignored", "--exact", test_name])
             .env("RANGOON_RECOVERY_TEST_WORKSPACE", &dir.0)
             .env("RANGOON_RECOVERY_TEST_BACKUP", backup)
             .env("RANGOON_RECOVERY_TEST_PHASE", phase)
