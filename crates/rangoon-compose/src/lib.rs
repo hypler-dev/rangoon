@@ -1,6 +1,8 @@
 //! Pure, bounded composition preview. It has no storage or execution authority.
 #![forbid(unsafe_code)]
 
+pub mod application;
+
 use rangoon_domain::capability::{revision_id, valid_content, valid_title};
 use rangoon_domain::{Authority, byte_digest};
 use serde::{Deserialize, Serialize};
@@ -544,12 +546,21 @@ fn input_key(reference: &InputReference) -> String {
 }
 
 fn ensure_serialized_draft_bound(draft: &Draft) -> Result<(), ComposeError> {
+    ensure_serialized_json_bound(draft, MAX_DRAFT_BYTES, "draft_bytes")
+}
+
+pub(crate) fn ensure_serialized_json_bound<T: Serialize>(
+    value: &T,
+    limit: usize,
+    label: &'static str,
+) -> Result<(), ComposeError> {
     let mut writer = CappedWriter {
         len: 0,
         exceeded: false,
+        limit,
     };
-    if serde_json::to_writer(&mut writer, draft).is_err() && writer.exceeded {
-        return Err(ComposeError::Limit("draft_bytes"));
+    if serde_json::to_writer(&mut writer, value).is_err() && writer.exceeded {
+        return Err(ComposeError::Limit(label));
     }
     Ok(())
 }
@@ -557,6 +568,7 @@ fn ensure_serialized_draft_bound(draft: &Draft) -> Result<(), ComposeError> {
 struct CappedWriter {
     len: usize,
     exceeded: bool,
+    limit: usize,
 }
 impl std::io::Write for CappedWriter {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
@@ -564,7 +576,7 @@ impl std::io::Write for CappedWriter {
             self.exceeded = true;
             return Err(std::io::Error::other("draft limit"));
         };
-        if next > MAX_DRAFT_BYTES {
+        if next > self.limit {
             self.exceeded = true;
             return Err(std::io::Error::other("draft limit"));
         }
@@ -972,7 +984,7 @@ fn covers(outer: InputRange, inner: InputRange) -> bool {
 }
 
 /// A small JSON scanner used only to reject duplicate object members before Serde loses them.
-fn reject_duplicate_keys(input: &str) -> Result<(), ComposeError> {
+pub(crate) fn reject_duplicate_keys(input: &str) -> Result<(), ComposeError> {
     let mut p = JsonParser {
         bytes: input.as_bytes(),
         at: 0,
@@ -1050,6 +1062,7 @@ impl JsonParser<'_> {
                 "conflicts" => self.array_limited(MAX_CONFLICTS, "conflicts", false)?,
                 "ranges" => self.array_limited(MAX_INPUTS, "conflict_ranges", false)?,
                 "pieces" => self.array_limited(MAX_PIECES, "pieces", true)?,
+                "targets" => self.array_limited(MAX_OUTPUTS, "targets", false)?,
                 _ => self.value()?,
             }
             self.ws();

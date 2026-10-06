@@ -50,6 +50,7 @@ Privileged execution, provider calls, operating-system installer publication, LN
 - Prior implementation brief is supporting evidence, not a replacement for this packet's acceptance state.
 - PR #5 auto-merged V1/R2b head `eec2a19bfd7d362ee56a2c3038a44aada3a44988`; PR #6 merged R2b+V1 source head `bdc157c09bc727988a7c14532a2e8d490ee2e4db` at `157731c98d24b140f67c1d55fa22d9e3b8955549`. All 14 checks passed (push `37376411945`, PR `37376522246`) at `2026-10-05T21:38:54Z`.
 - PR #7 merged R2c reviewed head `32a5b446e0baedb04c07931636be01d47df828bd` into main as `538f319011b0611665de27ad32d6c528a8310d98` at `2026-10-05T23:06:42Z`; all 14 checks passed (push `37385850446`, PR `37385906609`). Independent native storage/UI/docs reviews passed. Windows/Linux GUI, installer/released-OS support, security claims and release evidence remain open.
+- PR #8 merged R3 pure-core reviewed head `667996816c4a6007889d5adb01b1ea9b36477293` into main as `3ea25bf83b3cc6cfdc258f60b9af7265b4878784` at `2026-10-05T23:47:41Z`; all 14 checks passed (push `37389805989`, PR `37389810744`), including Rust 1.85 and native tests/builds on all three OS runners. Fresh GitHub gate found no reviews, unresolved threads, comments, protection rules or rulesets. The first failed Clippy attempt remains historical; corrected core CI passed. Native GUI, installer/release, encryption and security qualification remain open.
 
 ## Risks
 
@@ -75,6 +76,7 @@ Largest risks are overclaiming enforcement, losing semantics during harness comp
 - [Local workspace specification](local-workspace.md)
 - [Workspace data-controls specification](workspace-data-controls.md)
 - [Composition and provenance specification](composition.md)
+- [Composition destination contract](composition-destinations.md)
 - [Composition workbench design](composition-ui.md)
 - [Plan and architecture](plan.md)
 - [Source register and recovered features](sources-and-features.md)
