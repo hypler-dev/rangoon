@@ -3,7 +3,7 @@
 use rangoon_model_assistance::prepare_pack;
 use rangoon_model_local::{Cancellation, Diagnostic, LocalClient, LocalProfile, PreparedRequest};
 use serde_json::{Value, json};
-use std::{net::SocketAddr, sync::OnceLock, time::Duration};
+use std::{fmt::Write as _, net::SocketAddr, sync::OnceLock, time::Duration};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -493,9 +493,10 @@ async fn closed_http_failures_reject_redirect_status_headers_and_framing() {
     assert_check_error("compressed encoding", response("200 OK", "Content-Type: application/json\r\nContent-Encoding: gzip\r\nContent-Length: 2\r\nConnection: close", b"{}"), Diagnostic::ResponseInvalid).await;
     assert_check_error("duplicate encoding", response("200 OK", "Content-Type: application/json\r\nContent-Encoding: identity\r\nContent-Encoding: identity\r\nContent-Length: 2\r\nConnection: close", b"{}"), Diagnostic::ResponseInvalid).await;
 
-    let many_headers = (0..33)
-        .map(|index| format!("X-Test-{index}: x\r\n"))
-        .collect::<String>();
+    let mut many_headers = String::new();
+    for index in 0..33 {
+        write!(&mut many_headers, "X-Test-{index}: x\r\n").unwrap();
+    }
     let raw = response(
         "200 OK",
         &format!(
