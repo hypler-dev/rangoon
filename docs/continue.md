@@ -10,7 +10,7 @@ git rev-parse HEAD
 git remote -v
 ```
 
-The continuation branch `codex/model-local-adapter` starts from PR21 merge `4da737ab67dfb54c60eada103e41f6869093c727`, reviewed head `8e0089b5bb3260bab715970e8cec60d5dd6bb266`, with exact base `cfdc6ab6499d557aa808cadcc34a0c528e90015c`. The R3 editor, compiler, native bundle source, isolated macOS qualification evidence and pure M1a context-pack/proposal core are published on `main`. The current working source adds a bounded local transport library; its publication and validation state are in the ledger. Native model integration remains unimplemented. Use startup commands for current branch and working-tree truth, and the [development ledger](development.md) for canonical validation/publication receipts. The parent directory is a separate marketing site; do not mix its history, files or deployment workflow with this application repository.
+The continuation branch `codex/model-native-consent` starts from PR22 merge `31a082f4d97aad6d95ca9610544e3d90686dbbbf`, reviewed head `cbed9fbc7f40fc3c036eaa936269a3dcb5db8087`, with exact base `4da737ab67dfb54c60eada103e41f6869093c727`. Published source includes the R3 editor, compiler/bundle work, M1a pure context/proposal core and bounded M1b local transport library. The follow-on source on this branch adds a portable session-custody service and reviewed native lifecycle contract; native exact-payload consent, commands and UI remain unimplemented. Use startup commands for current branch and working-tree truth, and the [development ledger](development.md) for canonical validation/publication receipts. The parent directory is a separate marketing site; do not mix its history, files or deployment workflow with this application repository.
 
 ## Read first
 
@@ -25,7 +25,7 @@ Read the accepted objective and current evidence in this order:
 7. [Development ledger](development.md) — canonical publication and validation receipts.
 8. [Application architecture](application-architecture.md) — source/runtime ownership.
 9. [Engine integration](engine-integration.md) — inert diagnostics boundary.
-10. [Model assistance](model-assistance.md) and [M1a core](model-context-core.md) — advisory boundary and exact pure contracts.
+10. [Model assistance](model-assistance.md), [M1a core](model-context-core.md) [local transport](model-local-adapter.md) and [native session](model-native-session.md) — advisory, pure-byte, exact loopback and request-custody contracts.
 11. [Plan](plan.md) — future product shape and staged acceptance.
 
 Use the ledger for historical receipts. Do not copy old status paragraphs into this guide. Read additional parser, native, visual, or claim documents only when the active packet requires them.
@@ -63,12 +63,10 @@ node scripts/validate-review.mjs
 git diff --check
 ```
 
-For core Rust source changes:
+For core Rust source changes, install Rust 1.85.0 with rustfmt and Clippy first, then use the validator that pins and prints Cargo, rustc and Clippy versions. A bare `rustup run` can still select Homebrew subcommands from PATH:
 
 ```sh
-cargo fmt --all -- --check
-cargo test --workspace --locked
-cargo clippy --workspace --all-targets --locked -- -D warnings
+node scripts/check-source-rust.mjs
 ```
 
 For desktop changes:
@@ -84,10 +82,10 @@ Run only the checks relevant to the packet, record exact outcomes in `docs/devel
 
 ## Next packet
 
-PR21 publication gates passed; its exact merged-head receipt is in the canonical ledger. The published M1a source implements a pure bounded packer, fixed task templates and strict advisory response validation, with independent canonical fixtures and negative tests. A source-only local transport slice now follows the [local adapter contract](model-local-adapter.md): immutable numeric-loopback profiles, exact final-payload binding, direct HTTP/1, process-wide one-flight, deadlines/cancellation and bounded strict responses. No native model command, profile custody, credential custody, consent UI, tokenizer or proposal-apply path exists yet. Use the ledger for its exact validation/publication state; this is not completed M1b or V1.
+PR22 publication gates passed; its exact merged-head receipt and earlier corrected CI failures are in the canonical ledger. The published M1a source implements a pure bounded packer, fixed task templates and strict advisory response validation, with independent canonical fixtures and negative tests. A source-only local transport slice now follows the [local adapter contract](model-local-adapter.md): immutable numeric-loopback profiles, exact final-payload binding, direct HTTP/1, process-wide one-flight, deadlines/cancellation and bounded strict responses. The `rangoon-model-session` foundation on this branch now owns session-only profile/request custody, saved-ID resolution and freshness/lifecycle helpers. No native model command, credential custody, consent UI, tokenizer or proposal-apply path exists yet. Use the ledger for its exact validation/publication state; this is not completed M1b or V1.
 
 1. Read [model-assistance.md](model-assistance.md) and [model-context-core.md](model-context-core.md), then the latest development-ledger entry. Preserve exact selected text, required protected intervals, per-input aliases, omitted-range accounting, closed schemas and `authority: none`.
-2. Complete reviewed local-transport source publication, then freeze the native profile/request lifecycle and narrow IPC contract. Implement ID-only saved-record resolution, retained prepared-request handles and an explicit exact-payload decision before any source request. Profile changes, deleted inputs and stale expected state must invalidate sending/applying. Preserve direct numeric-loopback bounds and use disposable synthetic servers; do not treat a pack/profile hash as consent or authenticated endpoint identity.
+2. Finish exact-head publication gates for the independently reviewed session foundation, then freeze exact per-outcome IPC schemas and implement native command/dialog integration against [model-native-session.md](model-native-session.md). Reuse its ID-only resolution, retained single-use requests and generation/cancellation leases. Build an explicit native exact-payload decision before any source request. Profile changes, deleted inputs and stale expected state must invalidate sending/applying. Preserve direct numeric-loopback bounds and use disposable synthetic servers; do not treat a pack/profile hash as consent or authenticated endpoint identity.
 3. Keep qualified cloud adapters, all-three-OS secret custody, payload/proposal UI and task-quality/token measurements as required M1c–M1e work. No private/paid calls, existing credentials, automatic transfer, silent fallback, model installation/launch or LNSAT activation.
 4. Preserve bundle exact bytes, plaintext disclosure, exclusive creation, the 295,016-byte limit and uncertain partial-write recovery. Keep target-loader behavior, collision/write GUI, composition compile, complete keyboard coverage and Windows/Linux GUI as separate open gates.
 5. Record local evidence in `docs/development.md`; publication receipts require exact head/base, independent review, hosted CI and fetched ancestry.

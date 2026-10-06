@@ -45,7 +45,7 @@ The intended users are developers managing agent configuration, platform teams m
 | Decompose/Merge/Split | Real native editor routes over saved records, exact recipes/coverage, new/append destinations, retained previews, atomic storage, and schema 3 recovery | Complete advanced GUI/failure qualification and Windows/Linux interactive evidence |
 | Data controls | Inventory, plaintext portable backup, additive restore, dependency-aware logical deletion | Encryption, retention policy, recovery UX expansion, and additional platform evidence |
 | Engine integration | Explicit unavailable LNSAT port, native status page, and CLI diagnostics | Qualified transport, authentication, typed operations, and evidence readback |
-| Model assistance | Pure M1a `rangoon-model-assistance` crate implements bounded `prepare_pack` and `validate_response`: exact selected/protected ranges, canonical provider-neutral payloads, whole-block deduplication with aliases/provenance, omission accounting, fixed task templates, and strict inert proposal validation. The separate source-only `rangoon-model-local` library implements explicit bounded numeric-loopback HTTP/1 transport and final request binding | Native/CLI/UI connection, profile custody, cloud adapters, tokenizer/accounting, credentials, exact-payload consent, application model calls and real-server compatibility remain open; both local and cloud application integration are required V1 deliverables |
+| Model assistance | Pure M1a `rangoon-model-assistance` crate implements bounded `prepare_pack` and `validate_response`: exact selected/protected ranges, canonical provider-neutral payloads, whole-block deduplication with aliases/provenance, omission accounting, fixed task templates, and strict inert proposal validation. Source-only `rangoon-model-local` implements explicit bounded numeric-loopback HTTP/1 transport and final request binding. Source-only `rangoon-model-session` provides memory-only local profile/request custody, saved-ID resolution, exact protected record packing, single-use handles, generation/cancellation/RAII leases, and freshness checks | Native commands/dialogs/IPC/UI caller, cloud adapters, tokenizer/accounting, credentials, exact-payload consent, application model calls and real-server compatibility remain open; both local and cloud application integration are required V1 deliverables |
 | Workflows and agents | Synthetic visual concepts and architecture contracts | Real definitions, validation, execution-state model, scheduling, and qualified runners |
 | Connectors and harnesses | Synthetic catalog and extension direction | Versioned implementations, permissions, compatibility fixtures, and conformance suites |
 | Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, and target-loader compatibility |
@@ -93,6 +93,7 @@ Bundled native frontend                         Synthetic browser preview
 | `crates/rangoon-engine/` | Inert `GovernancePort` and LNSAT unavailable diagnostics |
 | `crates/rangoon-model-assistance/` | Pure bounded context packing and advisory-response validation; no transport, provider, credential, or authority behavior |
 | `crates/rangoon-model-local/` | Explicit numeric-loopback Ollama-compatible HTTP/1 transport for prepared advisory requests; no native caller, consent, credential, or authority behavior |
+| `crates/rangoon-model-session/` | Memory-only session profile/request custody, saved-record resolution, exact protected packing, single-use handles, lifecycle leases, and freshness checks; no network, native command/dialog, IPC, UI, consent, or authority behavior |
 | `crates/rangoon-cli/` | Stdin source analysis and local engine diagnostics; no workspace editing CLI |
 | `apps/desktop/` | Separate Cargo workspace containing the Tauri host, scoped commands, native sessions, assets, and OS icons |
 | `preview/` | Synthetic product preview, native workbench views/controllers, splash, icon system, and styles |
@@ -262,6 +263,8 @@ It supports three closed tasks: `classify_v1`, `decompose_v1`, and `compare_v1`.
 
 The packer uses fixed checked-in task templates and bounded canonical JSON. The response decoder is closed and bounded before typed decoding; it requires the task-specific proposal kind, citations wholly inside selected ranges, and bounded uncertainty entries. `authoredText` remains inert model-authored text. Successful validation carries `authority: none`; it does not review, apply, execute, or mutate content. The pure core cannot authenticate database existence, revision ancestry, provider/profile identity, or operator consent, and it cannot authorize sending a payload. The separate [`rangoon-model-local`](crates/rangoon-model-local/) library now provides a source-only M1b transport seam: `LocalProfile::parse`, `PreparedRequest::new`, and explicit `LocalClient::check`/`analyze` use direct Tokio TCP and Hyper HTTP/1 only for a caller-invoked numeric loopback target (`127.0.0.1` or `::1`) and prepared payload. It uses no proxy, redirect, retry, fallback, credential, model launch, or background traffic; the loopback peer may forward or retain data. The current native application still has no native/CLI/renderer/UI connection, consent flow, credential store, or live model call. See the [local adapter contract](docs/model-local-adapter.md), [model-context-core.md](docs/model-context-core.md), and [model-assistance.md](docs/model-assistance.md). M1b and V1 remain incomplete; no real-model compatibility claim follows from this library source.
 
+The source-only [`rangoon-model-session`](crates/rangoon-model-session/) crate adds portable session custody around those libraries. `LocalSession` keeps one optional profile, one prepared request and at most one active operation in memory; `configure`, `inspect`, `clear`, `cancel`, `begin_prepare`, `begin_check` and `begin_send` enforce session lifecycle. Preparation resolves exact saved source or capability-revision IDs, packs each nonempty record as one protected full-content selection, rejects empty records, and exposes immutable request metadata. Random single-use `prepared:` and `run:` handles, checked generations, cancellation and non-cloneable RAII leases prevent stale or replayed ownership. `Transmission::freshness` is a read-before/read-after helper for native orchestration. The crate performs no network calls and is not registered with native commands, dialogs, IPC or UI; it does not supply consent or authority. Both local and cloud application integration remain required V1 work. See the [native session contract](docs/model-native-session.md).
+
 The local contract binds an exact immutable profile and final request payload, permits one in-flight operation process-wide, and fixes 3-second connect, 5-second version-check, and 120-second analysis deadlines. It caps the final request at 256 KiB, version responses at 1 KiB, chat responses at 1 MiB, and decoded message content at 128 KiB. Cancellation is monotonic and releases the guard; response parsing and proposal validation remain strict and advisory.
 
 ## Backup, restore, and deletion
@@ -302,6 +305,7 @@ Only the bundled main window receives the enumerated application commands. Nativ
 | Composition | `read_composition_source`, `preview_composition`, `commit_composition` | Saved input resolution without replacing Import selection, and one retained preparation |
 | Compilation | `compile_capability` | Closed raw request, exact saved revision/profile, read-only report and canonical manifest inspection |
 | Engine | `get_engine_status` | No-argument local unavailable diagnostic |
+| Model session foundation | Not registered as a native command family | Portable crate only; no native caller, dialog, IPC, UI, network or consent path |
 
 Composition commands specifically use raw UTF-8 JSON IPC bytes. Preview is bounded to 8 MiB + 16 KiB; confirmation to 4,096 bytes before domain deserialization. Tauri has already allocated the transport buffer, so this is not a transport-level allocation guarantee. Closed DTOs reject unknown/duplicate fields and unsupported schemas.
 
@@ -398,6 +402,8 @@ Choose `fixtures/contracts/AGENTS.md` for a first run. Inspect the report, expli
 
 ## Validation and platform support
 
+For local minimum-toolchain source validation, install Rust 1.85.0 with rustfmt and Clippy, then run `node scripts/check-source-rust.mjs`. The script resolves the toolchain's Cargo path, pins compiler/documentation executables and subprocess PATH, prints and verifies Cargo/rustc/Clippy versions, then runs formatting, workspace tests and warnings-denied Clippy. It rejects environment compiler-wrapper overrides and disables file-configured compiler wrappers for its child processes without changing configuration files. This avoids a Homebrew `cargo-clippy` overriding the requested rustup toolchain. `CARGO_TARGET_DIR` may select an isolated build cache; the separate desktop workspace retains its own Rust requirement.
+
 | Evidence | What it establishes | What it does not establish |
 | --- | --- | --- |
 | Core tests and independent vectors | Contract, identity, transformation, storage, and recovery behavior under tested conditions | Native interaction, production readiness, or adversarial certification |
@@ -414,9 +420,7 @@ npm run check
 npm run validate:visuals
 npm test
 node scripts/validate-review.mjs
-cargo +1.85.0 fmt --all -- --check
-cargo +1.85.0 test --workspace --locked
-cargo +1.85.0 clippy --workspace --all-targets --locked -- -D warnings
+node scripts/check-source-rust.mjs
 cargo +1.98.0 fmt --manifest-path apps/desktop/Cargo.toml -- --check
 cargo +1.98.0 test --manifest-path apps/desktop/Cargo.toml --locked
 cargo +1.98.0 clippy --manifest-path apps/desktop/Cargo.toml --all-targets --locked -- -D warnings
@@ -476,7 +480,7 @@ A connector transports requests; it does not become the source of authority. An 
 
 M1a is the pure context-pack and advisory-response core described above. Remaining gates stay separate from that implementation and require their own evidence:
 
-- **M1b:** the source-only `rangoon-model-local` library provides immutable connection profiles, a bounded numeric-loopback adapter, source-free connection check, cancellation/timeout/size handling, no startup traffic, and no automatic provider fallback. Native profile custody, exact-payload consent, narrow IPC, renderer/UI integration, and qualification remain open; the current application makes no model calls. No real-model compatibility claim follows, and M1b is incomplete.
+- **M1b:** the source-only `rangoon-model-local` library provides immutable connection profiles, a bounded numeric-loopback adapter, source-free connection check, cancellation/timeout/size handling, no startup traffic, and no automatic provider fallback. The separate `rangoon-model-session` crate now provides portable session-only profile/request custody, exact saved-ID resolution, protected full-record packing, single-use handles, generation/cancellation/RAII leases, and freshness helpers. Native profile custody, exact-payload consent, narrow IPC, renderer/UI integration, cloud adapters, and qualification remain open; the current application makes no model calls. No real-model compatibility claim follows, and M1b is incomplete.
 - **M1c:** qualified credential custody and cloud adapters, with explicit operator opt-in, origin/TLS/redirect/proxy controls, secret-free logs, and payload consent bound to exact bytes and configuration.
 - **M1d:** native payload preview, coverage/budget display, proposal inspection, stale/error/partial states, accessible controls, and explicit draft application. Proposals remain advisory and inert until existing local review rules accept a change.
 - **M1e:** task-quality and packing qualification on public or synthetic fixtures, with stated tokenizer/accounting assumptions, coverage and correctness measurements, latency/input/output measurements, regression limits, and honest failures. This gate does not follow from the M1a byte counters.
