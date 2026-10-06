@@ -8,6 +8,9 @@ use rangoon_domain::{
 };
 use serde::{Deserialize, Serialize};
 
+pub mod bundle;
+pub use bundle::{BundleError, BundleInspection, EncodedBundle, encode_bundle, inspect_bundle};
+
 const REPORT_SCHEMA: &str = "rangoon.compilation.v1";
 const MANIFEST_SCHEMA: &str = "rangoon.instruction-candidate.v1";
 const IDENTITY_SCHEMA: &str = "rangoon.compilation-identity.v1";
@@ -321,18 +324,18 @@ pub fn compile(
     })
 }
 
-fn canonical<T: Serialize>(value: &T) -> Result<Vec<u8>, CompileError> {
+pub(crate) fn canonical<T: Serialize>(value: &T) -> Result<Vec<u8>, CompileError> {
     serde_json::to_vec(value).map_err(|_| CompileError::SerializationFailed)
 }
 
-fn framed_identity(domain: &str, envelope: &[u8]) -> String {
+pub(crate) fn framed_identity(domain: &str, envelope: &[u8]) -> String {
     let mut bytes = domain.as_bytes().to_vec();
     bytes.extend_from_slice(&(envelope.len() as u64).to_be_bytes());
     bytes.extend_from_slice(envelope);
     format!("compilation:{}", byte_digest(&bytes))
 }
 
-fn candidate_id(compilation_id: &str, manifest_sha256: &str) -> String {
+pub(crate) fn candidate_id(compilation_id: &str, manifest_sha256: &str) -> String {
     let mut bytes = b"rangoon.instruction-candidate.v1\0".to_vec();
     for field in [compilation_id, manifest_sha256] {
         bytes.extend_from_slice(&(field.len() as u64).to_be_bytes());
@@ -409,11 +412,15 @@ fn validate_requirements(requirements: &[String]) -> Result<(), CompileError> {
     Ok(())
 }
 
-fn valid_timestamp(value: i64) -> bool {
+pub(crate) fn valid_timestamp(value: i64) -> bool {
     (0..=MAX_TIMESTAMP_MS).contains(&value)
 }
 
-fn diagnostics(profile: Profile, requirements: &[String], content: &str) -> Vec<Diagnostic> {
+pub(crate) fn diagnostics(
+    profile: Profile,
+    requirements: &[String],
+    content: &str,
+) -> Vec<Diagnostic> {
     let mut diagnostics = vec![
         Diagnostic {
             code: DiagnosticCode::InstructionSemanticsUnverified,
@@ -447,6 +454,10 @@ fn diagnostics(profile: Profile, requirements: &[String], content: &str) -> Vec<
     }
     diagnostics
 }
+
+#[cfg(test)]
+#[path = "bundle_tests.rs"]
+mod bundle_tests;
 
 #[cfg(test)]
 mod tests {
