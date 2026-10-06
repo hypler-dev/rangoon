@@ -22,12 +22,14 @@ The supplied images describe a connected product lifecycle, not twenty unrelated
 
 | Component | Responsibility | Current state and next boundary |
 | --- | --- | --- |
-| `preview/` workbench | Source/section inspector, saved sources, integration status, launch; separate synthetic design surfaces | Real source workbench and A1 status page; nine sample design screens remain synthetic |
+| `preview/` workbench | Source/section inspector, saved sources, Skills, composition editors, Workspace, integration status and launch; separate synthetic design surfaces | Real saved-content routes coexist with nine clearly separated sample design screens; Compile UI remains pending |
 | `apps/desktop` | Window lifecycle, explicit file selection, trusted app-local path, narrow commands | Implemented host; no generic shell, renderer paths or native credential API |
 | `rangoon-domain` | Byte identity, spans, source and fragment report types, capability revision contracts | R2b capability/revision contracts implemented and locally tested; macOS lifecycle checked |
 | `rangoon-import` | Deterministic bounded parsing of caller-supplied bytes | Implemented Markdown subset; bounded folder/archive inventory later |
 | `rangoon-host` | Safe read of the explicitly selected local file | Implemented; broader grants require separate rooted-read design |
-| `rangoon-store` | Rangoon-local transactional repository | R2a source snapshots plus R2b lazy schema 2 capability/revision/review writes; recovery tests and macOS restart/reopen passed; Windows/Linux GUI qualification pending |
+| `rangoon-store` | Rangoon-local transactional repository | Schema 1/2/3 snapshots, revisions/reviews, composition, backup/restore and deletion; R4a read-only stored-revision compilation; no compiler schema migration |
+| `rangoon-compose` | Pure recipes, coverage and destination application | Decompose/Merge/Split over pinned inputs; full GUI/release qualification remains in the ledger |
+| `rangoon-compile` | Pure instruction artifacts, compatibility diagnostics and candidate identities | R4a exact-byte AGENTS.md/CLAUDE.md profiles; native Compile UI, portable export and actual target-loader qualification pending |
 | `rangoon-engine` | Application integration status and engine-dependent port | A1 inert placeholder; no transport, detection or authority |
 | `rangoon-cli` | Headless use of the same application functions | Source analysis and A1 diagnostics; capability commands are native desktop only; no alternate execution path |
 | Future application service | Coordinate revisions, validation, jobs and projections | Extract from host when the second real workflow appears; host and server must call the same use cases |
@@ -110,7 +112,7 @@ The source review shows useful existing contracts and several still-gated runtim
 | A1 now | Inert `rangoon-engine` port, CLI and real native status, five unavailable seams, integration page and this map | No connection attempted, no grant/success output, bad/future UI status fails closed; tests and native/browser evidence |
 | R2b current | Reviewed capability revisions derived from saved snapshots, exact span coverage, compare/revise and local review | Source tests and independent review passed; macOS lifecycle passed. Windows/Linux GUI qualification remains pending. See the development ledger for immutable original, stale-revision rejection, content-bound local review and recovery evidence |
 | R3 | Real Decompose and Merge/Split over these revisions | Conflict and excluded-span accounting, version history, reversible edits; no silent policy weakening |
-| R4/R5 | Two pinned format compilers, compatibility report, deterministic bundle and explicit export | Golden/negative fixtures, meaningful loss report, selected destination, drift/collision handling on all three OSs |
+| R4/R5 | R4a pure instruction compiler and stored-revision service, followed by Compile UI, broader profiles, deterministic bundle and explicit export | [Compiler contract](compilation.md) defines initial byte-preserving subset; golden/negative fixtures, meaningful loss report, target qualification, selected destination and drift/collision handling on all three OSs remain distinct gates |
 | A2 | Qualified engine transport and exact compatibility/readiness inspection | Accepted peer authentication, secret custody, no renderer credentials, explicit feature matrix, hostile-response/redirect/origin/version tests |
 | A3 | Diagnostic configuration and exact evidence readback | Validated request/response fixtures, exact IDs, redaction, freshness/integrity state; reads never become authorization |
 | A4 | One disposable governed operation and reconciliation | Exact request/decision/approval/consumption/receipt chain; crash before/after effect, replay, expiry/revoke and unknown-outcome tests |
