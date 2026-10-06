@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rangoon — Review selected text</title>
+  <link rel="icon" href="assets/brand-symbol.png">
+  <link rel="stylesheet" href="model-confirmation.css">
+  <script type="module" src="model-confirmation.mjs"></script>
+</head>
+<body>
+  <header><img src="assets/brand-symbol.png" alt=""><div><p class="eyebrow">RANGOON · REQUEST REVIEW</p><h1>Know what leaves your workspace.</h1></div></header>
+  <main>
+    <p id="review-status" role="status" aria-live="polite">Loading the selected request…</p>
+    <div id="review-content" hidden>
+      <section class="notice" aria-label="Transfer boundary"><strong>This endpoint may retain or forward your text.</strong><p>A loopback address does not prove local-only processing. Responses are advisory. Sending cannot approve, execute, or change saved work.</p></section>
+      <section aria-labelledby="destination-heading"><h2 id="destination-heading">Destination &amp; exact request</h2><dl id="review-facts"></dl></section>
+      <section aria-labelledby="inputs-heading"><h2 id="inputs-heading">Selected saved records</h2><p>Every selected record is listed below. Full identities and digests remain visible.</p><ol id="review-inputs"></ol></section>
+      <section aria-labelledby="payload-heading"><h2 id="payload-heading">Exact outgoing payload</h2><p>The text below is the complete request body. The next step opens the final operating-system confirmation.</p><pre id="review-payload" tabindex="0" aria-label="Exact outgoing JSON payload"></pre></section>
+    </div>
+  </main>
+  <footer><span>Single use · No automatic retry</span><div><button id="review-cancel" type="button" disabled>Cancel</button><button id="review-send" type="button" disabled>Send selected text</button></div></footer>
+</body>
+</html>

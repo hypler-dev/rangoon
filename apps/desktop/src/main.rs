@@ -19,10 +19,13 @@ use data_controls::{
 };
 mod instruction_bundles;
 use instruction_bundles::{export_instruction_bundle, inspect_instruction_bundle};
+mod model_consent;
+mod models;
 mod session;
 use capabilities::{
     create_capability, list_capabilities, open_capability, review_capability, revise_capability,
 };
+use models::*;
 
 use rangoon_engine::{EngineStatus, GovernancePort, LnsatPlaceholder};
 use rangoon_host::{PublicError, SelectionResult, analyze_selected_path};
@@ -307,6 +310,8 @@ fn main() {
         .manage(BackupSession::default())
         .manage(DeletionSession::default())
         .manage(CompositionSession::default())
+        .manage(NativeModel::default())
+        .on_window_event(models::window_event)
         .invoke_handler(tauri::generate_handler![
             select_and_analyze,
             list_snapshots,
@@ -331,6 +336,16 @@ fn main() {
             delete_workspace_record,
             preview_composition,
             commit_composition,
+            get_local_model_profile,
+            configure_local_model,
+            clear_local_model,
+            prepare_local_model,
+            check_local_model,
+            send_local_model,
+            cancel_local_model,
+            get_local_model_review,
+            confirm_local_model_review,
+            cancel_local_model_review,
         ])
         .setup(|app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("analyze.html".into()))

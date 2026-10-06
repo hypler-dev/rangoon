@@ -9,6 +9,8 @@ import { createCompositionController } from './composition-model.mjs';
 import { bindCompositionView } from './composition-view.mjs';
 import { createCompilationController } from './compilation-model.mjs';
 import { renderCompilationPage } from './compilation-view.mjs';
+import { createModelAssistanceController } from './model-assistance-model.mjs';
+import { bindModelAssistanceView } from './model-assistance-view.mjs';
 import { icon } from './icons.mjs';
 import { createStartupSplash } from './launch.mjs';
 
@@ -20,6 +22,8 @@ const rawBridge = typeof window.__TAURI__?.core?.invoke === 'function'
   : undefined;
 const compositionControllers = new Map();
 let compilationController = null;
+let modelController = null;
+let modelView = null;
 let nativeOperations = 0;
 const workspaceWrites = new Set(['save_analysis', 'create_capability', 'revise_capability', 'review_capability', 'restore_workspace_backup', 'delete_workspace_record']);
 function invalidateCompositions(message, except = null) {
@@ -29,7 +33,7 @@ function invalidateCompositions(message, except = null) {
 }
 const bridge = rawBridge ? async (command, args) => {
   if (workspaceWrites.has(command)) invalidateCompositions('Workspace data may have changed. Preview this retained draft again before saving.');
-  if (workspaceWrites.has(command) || command === 'commit_composition') compilationController?.invalidate();
+  if (workspaceWrites.has(command) || command === 'commit_composition') { compilationController?.invalidate(); modelController?.invalidate(); }
   nativeOperations += 1;
   if (compilationController && route === 'compile') renderCompilation();
   try { return await rawBridge(command, args); }
@@ -41,7 +45,7 @@ const bridge = rawBridge ? async (command, args) => {
 const compositionRoutes = new Set(['decompose', 'merge', 'split']);
 const routeFromHash = () => {
   const name = location.hash.slice(1);
-  return ['analysis', 'skills', 'compile', 'workspace', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
+  return ['analysis', 'skills', 'compile', 'workspace', 'model-assistance', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
 };
 
 let theme = 'dark';
@@ -81,8 +85,25 @@ const savedAt = snapshot => {
 };
 
 function renderRail() {
-  const links = [['analysis','import','Import &amp; Analyze'],['skills','skill','Skills'],['decompose','decompose','Decompose'],['merge','merge','Merge'],['split','decompose','Split'],['compile','bundle','Compile'],['workspace','bundle','Workspace'],['engine','gate','Engine integration']];
+  const links = [['analysis','import','Import &amp; Analyze'],['skills','skill','Skills'],['decompose','decompose','Decompose'],['merge','merge','Merge'],['split','decompose','Split'],['compile','bundle','Compile'],['workspace','bundle','Workspace'],['model-assistance','research','Model assistance'],['engine','gate','Engine integration']];
   return `<aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas">${links.map(([name,symbol,label]) => `<a href="#${name}" ${route === name ? 'aria-current="page"' : ''}>${icon(symbol,{size:16})} ${label}</a>`).join('')}<a href="index.html">${icon('command',{size:16})} Sample design preview</a></nav><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>`;
+}
+
+function renderModelAssistance() {
+  if (!modelController) return;
+  if (!document.querySelector('#model-assistance-root')) {
+    modelView?.dispose();
+    app.innerHTML = `<div class="analysis-shell">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="model-assistance-root"></div></main></div>`;
+    modelView = bindModelAssistanceView(document.querySelector('#model-assistance-root'),modelController);
+  } else modelView.render();
+  routeEntry = false;
+  document.querySelector('#analysis-theme').innerHTML = `${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}`;
+  const message = modelController.getState().message;
+  if (announcer.textContent !== message) announcer.textContent = message;
+  if (routeFocusPending === route) {
+    document.querySelector('#model-assistance-title')?.focus({preventScroll:true});
+    routeFocusPending = null;
+  }
 }
 
 function renderComposition() {
@@ -209,12 +230,15 @@ function revealSelectedLine() {
 }
 
 function render(state) {
-  document.title = compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'compile' ? 'Rangoon — Compile inspection' : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
+  document.title = route === 'model-assistance' ? 'Rangoon — Model assistance' : compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'compile' ? 'Rangoon — Compile inspection' : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
   if (!compositionRoutes.has(route)) {
     compositionView?.dispose();
     compositionView = null;
     compositionViewRoute = null;
   }
+  if (route === 'model-assistance') { renderModelAssistance(); return; }
+  modelView?.dispose();
+  modelView = null;
   if (route === 'workspace') { renderWorkspace(); return; }
   workspaceView?.dispose();
   workspaceView = null;
@@ -369,6 +393,7 @@ function renderCompilation() {
   }
 }
 
+modelController = createModelAssistanceController({ invoke: bridge, onChange: () => { if (route === 'model-assistance') renderModelAssistance(); } });
 const engineController = createEngineController({ invoke: bridge, onChange: () => {
   if (route === 'engine') renderEngine();
 } });
@@ -431,6 +456,7 @@ startupSplash.setRetry(() => controller.listSnapshots());
 render(controller.getState());
 void skillsController.list();
 if (route === 'compile') void compilationController.refresh();
+if (route === 'model-assistance') void modelController.load();
 
 app.addEventListener('click', event => {
   const compileControl = event.target.closest('#compile-refresh, #compile-generate, #compile-open-skills, #compile-export, #compile-inspect, #compile-inspect-external, [data-compile-capability], [data-compile-revision], [data-compile-profile], [data-compile-tab]');
@@ -556,6 +582,7 @@ window.addEventListener('hashchange', () => {
   compilationActionFocus = null;
   render(controller.getState());
   if (route === 'workspace') void workspaceController.load();
+  if (route === 'model-assistance' && modelController.getState().status === 'idle') void modelController.load();
   if (route === 'compile' && compilationController.getState().listStatus === 'idle') void compilationController.refresh();
   if (compositionRoutes.has(route) && compositionControllers.get(route).getState().status !== 'idle') void compositionControllers.get(route).load();
 });

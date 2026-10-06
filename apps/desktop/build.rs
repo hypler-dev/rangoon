@@ -24,6 +24,16 @@ fn main() {
             "delete_workspace_record",
             "preview_composition",
             "commit_composition",
+            "get_local_model_profile",
+            "configure_local_model",
+            "clear_local_model",
+            "prepare_local_model",
+            "check_local_model",
+            "send_local_model",
+            "cancel_local_model",
+            "get_local_model_review",
+            "confirm_local_model_review",
+            "cancel_local_model_review",
         ]),
     ))
     .expect("desktop configuration must be valid");

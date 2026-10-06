@@ -1,0 +1,13 @@
+{
+  "identifier": "model-confirmation",
+  "description": "Only native-retained model review and a final OS confirmation question. No model transport, configuration, workspace, event or generic window commands.",
+  "windows": [
+    "model-confirmation"
+  ],
+  "local": true,
+  "permissions": [
+    "allow-get-local-model-review",
+    "allow-confirm-local-model-review",
+    "allow-cancel-local-model-review"
+  ]
+}
