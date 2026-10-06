@@ -11,7 +11,6 @@ rangoon-domain.workspace = true
 rangoon-model-assistance = { path = "../rangoon-model-assistance" }
 serde.workspace = true
 serde_json.workspace = true
-sha2.workspace = true
 bytes = "=1.12.1"
 http-body-util = "=0.1.5"
 hyper = { version = "=1.11.1", default-features = false, features = ["client", "http1"] }

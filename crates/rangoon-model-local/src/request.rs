@@ -2,7 +2,6 @@ use crate::{Diagnostic, LocalProfile, profile::ADAPTER};
 use rangoon_domain::byte_digest;
 use rangoon_model_assistance::ContextPack;
 use serde::Serialize;
-use sha2::{Digest, Sha256};
 use std::io::{self, Write};
 
 pub(crate) const MAX_BODY_BYTES: usize = 262_144;
@@ -103,16 +102,13 @@ impl PreparedRequest {
         };
         let binding_bytes =
             serde_json::to_vec(&binding).map_err(|_| Diagnostic::RequestOverBudget)?;
-        let mut digest = Sha256::new();
-        digest.update(b"rangoon.local-request.v1\0");
-        digest.update((binding_bytes.len() as u64).to_be_bytes());
-        digest.update(&binding_bytes);
+        let mut framed =
+            Vec::with_capacity(b"rangoon.local-request.v1\0".len() + 8 + binding_bytes.len());
+        framed.extend_from_slice(b"rangoon.local-request.v1\0");
+        framed.extend_from_slice(&(binding_bytes.len() as u64).to_be_bytes());
+        framed.extend_from_slice(&binding_bytes);
         Ok(Self {
-            request_id: digest
-                .finalize()
-                .iter()
-                .map(|b| format!("{b:02x}"))
-                .collect(),
+            request_id: byte_digest(&framed),
             binding,
             body_json: String::from_utf8(bytes).map_err(|_| Diagnostic::RequestOverBudget)?,
             profile: profile.clone(),

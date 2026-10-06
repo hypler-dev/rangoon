@@ -458,6 +458,12 @@ Local validation on Homebrew Rust/Cargo 1.98.0 passed the full `cargo test --wor
 
 This slice is a callable library, not native model integration or completed M1b. Native ID-only input resolution, profile custody, exact-payload consent, retained request lifecycle, scoped IPC and UI are still required. Cloud credential custody/adapters, proposal application, token/model-quality evidence and all-three-OS GUI remain open. No workspace schema, renderer CSP, native command, model installation, actual provider connection, LNSAT activation, release, license, deployment or grant submission changed. Exact-head hosted validation and source publication remain pending.
 
+### M1b first hosted minimum-toolchain failure and correction
+
+Initial PR22 head `96fbfa334fb99e80b1f1f96c952220bef9ff2db6` passed source tests on all three OS runners, but Rust 1.85 warnings-denied Clippy rejected the request-digest formatter with `clippy::format_collect` in push run `37448452810` and PR run `37448499941`. Native tests/builds and preview checks passed. Local Rust 1.98 Clippy had not reported this lint. No failed head was merged.
+
+The controller replaced per-byte `format!` collection with the existing `rangoon_domain::byte_digest` helper over exactly the same domain-separated framing bytes. This removes the new crate's unnecessary direct `sha2` dependency without changing the profile, pack, body or request identities. Independent byte/hash vectors remain unchanged. Corrected identity tests (5/5), formatting, strict workspace Clippy, both golden generators and documentation/whitespace checks passed. Fresh OpenAI GPT-5.6-Terra xhigh re-review confirmed identical framing bytes and the correct dependency removal, with no P1/P2/P3 findings. Corrected exact-head hosted checks remain required before publication.
+
 ## External action boundaries
 
 Commit and push of reviewed app work, review PR creation, repository metadata updates and main merge are authorized by the October 5 request. Deployment, production data changes, LNSAT mutations, license adoption, installer/release publication, paid infrastructure and government application submission remain closed.
