@@ -28,11 +28,11 @@ pub struct ContextPack {
     schema_version: String,
     pack_id: String,
     body_json: String,
-    body_sha256: String,
+    pub(super) body_sha256: String,
     body_bytes: u64,
-    selected_bytes: u64,
-    unique_text_bytes: u64,
-    omitted_bytes: u64,
+    pub(super) selected_bytes: u64,
+    pub(super) unique_text_bytes: u64,
+    pub(super) omitted_bytes: u64,
     token_accounting: &'static str,
     authority: &'static str,
     #[serde(skip_serializing)]
@@ -44,7 +44,10 @@ pub(super) struct PackContext {
     pub(super) task: Task,
     pub(super) inputs: Vec<ResolvedContext>,
     pub(super) pack_id: String,
-    target: Target,
+    pub(super) target: Target,
+    pub(super) template_sha256: String,
+    pub(super) body_inputs: Vec<BodyInput>,
+    pub(super) blocks: Vec<Block>,
 }
 
 #[derive(Clone)]
@@ -130,11 +133,11 @@ struct Request {
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Target {
-    profile_id: String,
-    profile_sha256: String,
-    model: String,
-    max_output_tokens: u64,
+pub(super) struct Target {
+    pub(super) profile_id: String,
+    pub(super) profile_sha256: String,
+    pub(super) model: String,
+    pub(super) max_output_tokens: u64,
 }
 
 #[derive(Deserialize)]
@@ -179,32 +182,32 @@ struct Body {
     authority: &'static str,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct BodyInput {
-    input: InputReference,
-    scope: String,
-    byte_length: u64,
-    required_protected_ranges: Vec<Range>,
-    selected_ranges: Vec<Range>,
-    protected_ranges: Vec<Range>,
-    omitted_ranges: Vec<Range>,
+pub(super) struct BodyInput {
+    pub(super) input: InputReference,
+    pub(super) scope: String,
+    pub(super) byte_length: u64,
+    pub(super) required_protected_ranges: Vec<Range>,
+    pub(super) selected_ranges: Vec<Range>,
+    pub(super) protected_ranges: Vec<Range>,
+    pub(super) omitted_ranges: Vec<Range>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Block {
-    text: String,
-    aliases: Vec<Alias>,
+pub(super) struct Block {
+    pub(super) text: String,
+    pub(super) aliases: Vec<Alias>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Alias {
-    input_index: u64,
-    start_byte: u64,
-    end_byte: u64,
-    protected: bool,
+pub(super) struct Alias {
+    pub(super) input_index: u64,
+    pub(super) start_byte: u64,
+    pub(super) end_byte: u64,
+    pub(super) protected: bool,
 }
 
 pub(super) fn prepare(raw_json: &[u8]) -> Result<ContextPack, Diagnostic> {
@@ -394,6 +397,9 @@ pub(super) fn prepare(raw_json: &[u8]) -> Result<ContextPack, Diagnostic> {
             inputs: contexts,
             pack_id,
             target: request.target,
+            template_sha256: body.template_sha256,
+            body_inputs: body.inputs,
+            blocks: body.blocks,
         },
     })
 }

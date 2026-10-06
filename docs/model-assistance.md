@@ -108,6 +108,10 @@ Use versioned adapters for actual wire contracts. OpenAI-compatible local APIs, 
 
 Bound connection time, total response time, request bytes, response bytes, output tokens where supported and concurrent requests. A source-free connection test establishes only the tested endpoint's reachable protocol/capability subset. It does not establish trustworthy model behavior, zero retention or permission to upload. Show provider-reported usage as provider-reported; label unknown cost/retention/region facts honestly. No silent remote fallback from a local model is allowed.
 
+## Attributed proposal inspection
+
+The [proposal inspection and application contract](model-proposal-inspection.md) defines M1d's required sequence: bounded pure inspection, native retained-result selection/comparison, versioned durable model derivations and recovery, then explicit unreviewed application. The pure inspection stage is implemented and source-tested; it does not add a native command or saved application and does not complete M1d. Existing source/composition origins cannot silently substitute for model provenance. Selected source text remains sensitive even when credential fields are excluded.
+
 ## Ordered implementation and acceptance
 
 | Stage | Deliverable | Required evidence |
