@@ -257,7 +257,7 @@ fn preview_resolves_actual_saved_inputs_and_current_heads_without_writing() {
         .unwrap();
     assert!(matches!(
         dir.store().preview_composition(&request),
-        Err(StoreError::CompositionInvalid)
+        Err(StoreError::CapabilityConflict)
     ));
     request.targets[0] = Target::New {};
     if let InputReference::Source { sha256, .. } = &mut request.draft.inputs[0] {
