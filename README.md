@@ -8,6 +8,8 @@
 
 Rangoon brings agent instructions, reusable skills, workflows, connectors, tests, and evidence into one inspectable lifecycle. The immediate problem is practical: useful knowledge is scattered across `AGENTS.md`, `CLAUDE.md`, `SKILL.md`, project rules, and scripts. Teams need to understand that material, preserve its origin, reorganize it without silently losing constraints, and see exactly what will change before publishing it elsewhere.
 
+Core product scope also includes approval management, redacted correlated telemetry and live operations visualization: operators need to see who can approve, which controls mediate an action and what evidence establishes its outcome. These runtime surfaces are planned and are described separately from implemented local content work.
+
 The long-term product is a desktop and cloud control plane. The current implementation is an **experimental desktop source workbench**, with real local persistence, immutable skill revisions, direct composition editing, portable workflow definitions/revision candidates, an actual `#model-assistance` workbench, and a separate synthetic design preview. The native application has no live agent executor, connector execution, or LNSAT transport. Its model paths provide explicitly configured numeric-loopback local sessions and an optional native cloud route, all advisory. Native cloud orchestration now owns ten bounded commands, explicit capability configuration, full-envelope credential custody, final native consent, freshness checks and a fixed-origin TLS adapter; provider compatibility, proposal application, quality, GUI and release qualification remain open. Native OS credential management remains separate and explicit; no existing key or paid/private call is used by source validation.
 
 The first desktop release targets **macOS, Windows, and Linux together**. The initial product is intended to be free and open source; a software license has not yet been adopted. No license grant or released operating-system support is implied by the public source.
@@ -29,6 +31,7 @@ The first desktop release targets **macOS, Windows, and Linux together**. The in
 - [Backup, restore, and deletion](#backup-restore-and-deletion)
 - [Native application boundary](#native-application-boundary)
 - [Local database security](#local-database-security)
+- [Approval, telemetry and live operations](#approval-telemetry-and-live-operations)
 - [LNSAT integration](#lnsat-integration)
 - [Run from source](#run-from-source)
 - [Validation and platform support](#validation-and-platform-support)
@@ -53,6 +56,7 @@ The intended users are developers managing agent configuration, platform teams m
 | Model assistance | M1a pure pack/validation, session-only local custody, native local workbench, and native cloud orchestration are implemented. Cloud exposes ten bounded main/review commands, explicit capability configuration, retained full-envelope credential pairing, source-free GET checks, fixed-origin TLS, final parented OS consent, and pre/post freshness checks; outputs remain inert and advisory | Real provider compatibility, tokenizer/accounting, proposal application, three-OS GUI, security and release qualification remain open; M1b/V1 are incomplete |
 | Workflows | Pure typed definitions and structural validation; durable schema-4 history/recovery; six native authoring commands; real saved-library/canvas/inspector source with separate control/data wires, six node types, exact capability pins, draft/validated saves, historical reads and comparison | Native save/restart/history/stale-state GUI qualification across all three OSs; run records and execution remain future work. The separate design preview remains synthetic |
 | Agents and templates | Synthetic visual concepts and architecture direction | Real reusable agent records, dependency closure, templates, scheduling and qualified runners |
+| Approval, telemetry and operations | Accepted core scope and shared architecture contract; no runtime implementation | Scoped gateways/rules, human and delegated-agent chains, redacted events, live graph/timelines/replay, operations console and per-operation enforcement adapters; O1–O5 gates remain open |
 | Connectors and harnesses | Synthetic catalog and extension direction | Versioned implementations, permissions, compatibility fixtures, and conformance suites |
 | Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, and target-loader compatibility |
 | Test Lab and export | Development tests, independent golden fixtures, portable instruction-bundle encoder/verifier, and native Export/Inspect commands/UI implemented in this source | User-facing static tests, native GUI qualification, target conformance and evidence bundles |
@@ -442,6 +446,14 @@ Provider requests require the explicit configured model path, retained payload r
 6. Test altered pages/records, replayed backups, interrupted key rotation, lost keys, disk exhaustion, migration failure, and recovery on macOS, Windows, and Linux.
 
 These are proposed controls, not implemented guarantees. A compromised administrator or unlocked application process can exceed the protection of local encryption. Nothing in this repository establishes production readiness, security certification, government compliance, domestic processing, or government endorsement.
+
+## Approval, telemetry and live operations
+
+Approval management, telemetry and dynamic operations visualization are core product scope. The shared flow is **request → policy evaluation → required human/delegated-agent approval → scoped authorization → execution-time checks → execution → outcome evidence**. Rangoon owns configuration, routing, visibility and evidence presentation; LNSAT and other qualified authority adapters enforce their actual contracts. Approval alone cannot bypass consumption-time checks.
+
+Planned operations surfaces include scoped gateway/rule configuration, approval chains, mandatory human duties, explicitly bounded agent delegation, expiry/escalation/revocation/emergency suspension, an approval inbox, agent inventory and authority assignments. Agents cannot grant themselves broader authority. Telemetry must redact sensitive payloads and correlate request/attempt/trace IDs, exact policy versions, approvals, resource access, costs, latency, outcomes and failures. A live graph and timeline connect agents, workflows, tools, resources, gateways, approvers and engines, with filters, exact evidence drill-down and inert historical replay.
+
+These are accepted product requirements, **not implemented runtime features**. Shared closed records, deterministic projections and adapter conformance precede activation. Per-operation coverage must distinguish unavailable, advisory, partially mediated and fully mediated paths; “universal” never means blanket enforcement. Current engine transport remains unavailable, workspace SQLite remains plaintext, and telemetry is not an authenticated audit log. See the [operations control-plane contract](docs/operations-control-plane.md) for responsibility boundaries, state machines, privacy, failure handling and O1–O5 acceptance gates; exact source/runtime evidence belongs in the [development ledger](docs/development.md).
 
 ## LNSAT integration
 

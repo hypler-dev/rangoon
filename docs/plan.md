@@ -170,6 +170,12 @@ Each row is a proposed reviewable PR scope, with dependencies and measurable exi
 
 R2–R6 can deliver useful open-source software while LNSAT completes its own gates. R7 cannot be accelerated by redefining missing engine proof as a Rangoon feature. The first governed demonstration uses disposable fixtures and explicit failure injection, not a production deployment.
 
+### Core operations build track
+
+The October 7 accepted [operations control-plane contract](operations-control-plane.md) adds O1–O5 alongside the content/workflow stages: inert shared records and deterministic projections; local operations views; bounded read-only ingestion and retention; one qualified approval/authorization/consumption/evidence path; then cross-system adapters and hosted live operations. Approval inbox, gateway/rule editor, human and explicitly delegated-agent chains, agent/authority inventory, redacted telemetry explorer, live topology/timelines/replay, alerts and audit exports are core product scope.
+
+Do not mark a universal governed release from UI or adapter discovery. Publish operation-specific unavailable/advisory/partial/full mediation evidence. Mandatory human duties, no self-expanded delegation, expiry/revoke/emergency suspension and execution-time checks are acceptance gates. Initial desktop release scope must state which O stages passed and which engine-dependent paths remain unavailable; the original all-three-desktop target is unchanged. No engine activation, live private ingestion, provider call or release authorization follows from this planning track.
+
 ### Cloud evolution without a rewrite
 
 Keep the domain/service API independent of desktop IPC. In local mode the shell starts an owner-controlled application service; in server mode the same domain is composed behind an authenticated service endpoint. Isolate filesystem import behind a source adapter: remote web cannot arbitrarily browse a user's disk. Remote operations run on scoped workers in the target trust zone, not inside the public web process.
