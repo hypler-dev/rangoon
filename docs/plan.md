@@ -154,7 +154,7 @@ Each row is a proposed reviewable PR scope, with dependencies and measurable exi
 | Packet | User result / exact scope | Depends on | Exit evidence |
 | --- | --- | --- | --- |
 | R0 | This vision, source/claim audit, nine-view prototype, dark/light direction | Current request | Named tests, review, explicit fixture labels, human visual/architecture review |
-| R1 | Choose license; freeze contracts and Tauri spike on macOS/Windows/Linux | R0 review | Reproducible build and clean-machine shell launch on each OS, accessibility/IPC spike, architecture ADR; no engine-support inference |
+| R1 | Apache-2.0 selected; finalize contributor/notices policy, freeze contracts and Tauri spike on macOS/Windows/Linux | R0 review | Reproducible build and clean-machine shell launch on each OS, accessibility/IPC spike, architecture ADR; no engine-support inference |
 | R2 | Persistent local workspace and safe import | R1 | Bounded hostile-input corpus; zero imported execution/network; permission errors, link escapes, long paths, disk-full and crash recovery verified on all OSs |
 | R3 | Capability IR, editor, Decompose, Merge/Split, lineage | R2 | Original snapshots immutable; every retained source span accounted for; policy weakening blocked; undo/version history and provenance tests |
 | R4 | Two real format adapters: Codex-style AGENTS.md and Claude-style instructions/skills; third Gemini target after evidence | R3 | Pinned target versions, golden outputs, round-trip/change report, unsupported fields visible; all three OSs compile identical normalized fixtures |
@@ -186,7 +186,7 @@ For hosted enterprise, define tenant isolation at authentication, queries, objec
 
 ### Open source and business model
 
-Recommendation for acceptance: Apache-2.0 for the Rangoon community app and public adapter/contracts, consistent with the inspectable LNSAT core. This recommendation is **not a license grant**. The current app repository lacks an adopted license; select one, establish contributor/DCO policy and third-party notices before advertising a downloadable open-source app.
+Jeff selected Apache-2.0 on October 7, 2026 for Rangoon's original community source and documentation, permitting modification and commercial use. The root [LICENSE](../LICENSE) supplies the unchanged official terms and [NOTICE](../NOTICE) supplies original-work attribution; this does not relicense dependencies, separately identified third-party materials or LNSAT. Establish contributor/DCO policy and complete distribution notices before downloadable app release. A Hypler consulting business may supply implementation, integration, workflow design, deployment assistance, training, custom development and paid support around the free app; service commitments and future enterprise packaging require separate accurate terms.
 
 Free community scope should include all three desktop apps, local workspaces, core import/decompose/merge/split, skills/workflows, static tests, deterministic compile/export, basic self-hosting, reference adapters, essential security controls, evidence verification/export, and no mandatory cloud account. Model inference or third-party services may cost money when selected; free software does not mean unlimited free inference. Keep deterministic/manual operation usable without paid inference.
 

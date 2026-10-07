@@ -54,6 +54,8 @@ The shared flow is request → policy evaluation → human/agent approval → sc
 
 The next bounded operations stage is the [control-plane architecture and build contract](operations-control-plane.md), followed by inert shared records and projection tests, then independently qualified adapters and runtime integration. This acceptance expands product scope; it does not activate an engine, grant an agent permission, authorize private telemetry ingestion, call providers, expose an endpoint, submit government claims or qualify enforcement. Validation and publication state remain solely in [development.md](development.md).
 
+License continuation, October 7, 2026: Jeff selected Apache License 2.0 to permit modification and commercial use, alongside a planned Hypler consulting business. This authorizes adding the unmodified official LICENSE, original-work attribution NOTICE and accurate README/business-direction updates to the application repository. It supersedes historical license-adoption exclusions for this bounded packet only. Third-party rights and trademark terms remain separate; no service contract, enterprise restriction, warranty, certification, provider activation, deployment or release is created. Publish only a reviewed isolated license packet; preserve all active source work and include its substantive README update.
+
 ## Constraints
 
 - Preserve Rangoon as product and LNSAT as independent reference authority/evidence engine. Do not silently substitute providers or recreate engine semantics in UI code.
@@ -62,12 +64,12 @@ The next bounded operations stage is the [control-plane architecture and build c
 - The design preview uses synthetic fixtures, inert source examples, local navigation, and reversible browser state. It must disclose sample data and cannot perform provider, credential, deployment, approval, or execution actions. The separately identified desktop analysis flow may analyze one explicitly selected local file in memory and persist it only through explicit Save; it must never mix real source with synthetic provenance or report simulated actions as real.
 - Dark is the default; retain a usable light version, keyboard navigation, responsive fallbacks, and reduced-motion support. Reuse the supplied visual identity while making the workbench denser and more ambitious.
 - Distinguish implemented source, passing tests reported by earlier work, directly rerun validation, runtime proof, released support, and proposals.
-- Initial product is intended to be free and open source. A specific license and commercial packaging are human decisions; no invented license grant.
+- Initial community product remains free and open source under Jeff's accepted Apache-2.0 license continuation. Commercial services and future packaging require accurate separate terms; no invented service, trademark or third-party license grant.
 - Government funding work is research and a draft preparation plan. No eligibility assertion, certification, application, registration, contact, or submission is authorized by this packet.
 
 ## Non-goals
 
-Privileged execution, unsolicited provider calls, operating-system installer publication, LNSAT changes, policy/security weakening, website deployment, production changes, paid services, license adoption, and grant submission remain outside the current implementation packet. Earlier R2a exclusions for persistent skills applied to that historical slice; the accepted version 1.0 continuation above authorizes the application lifecycle in subsequent reviewable stages. R2b specifically permits saved-section derivation, immutable revisions and local content review. Automatic repository scanning and live engine activation require their own accepted behavior and qualification contracts.
+Privileged execution, unsolicited provider calls, operating-system installer publication, LNSAT changes, policy/security weakening, website deployment, production changes, paid services and grant submission remain outside the current implementation packet. The dated license continuation above separately authorizes Apache-2.0 adoption. Earlier R2a exclusions for persistent skills applied to that historical slice; the accepted version 1.0 continuation above authorizes the application lifecycle in subsequent reviewable stages. R2b specifically permits saved-section derivation, immutable revisions and local content review. Automatic repository scanning and live engine activation require their own accepted behavior and qualification contracts.
 
 ## Assumptions and verified facts
 
