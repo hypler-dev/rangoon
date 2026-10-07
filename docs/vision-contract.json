@@ -86,12 +86,18 @@
         "S04"
       ],
       "tests": [
-        "tests/preview.test.mjs"
+        "tests/preview.test.mjs",
+        "tests/workflow-model.test.mjs",
+        "tests/workflow-view.test.mjs"
       ],
-      "status": "sample-only",
-      "next": "Build versioned workflow definitions and static validation before separately authorized runners.",
-      "viewSource": "preview/app.mjs",
-      "technicalSources": []
+      "status": "implemented-source",
+      "next": "Qualify native save/restart/history and stale-state GUI behavior across all three OSs; execution requires a separate run and authority contract.",
+      "viewSource": "preview/workflow-view.mjs",
+      "technicalSources": [
+        "apps/desktop/src/workflows.rs",
+        "crates/rangoon-workflow/src/lib.rs",
+        "crates/rangoon-store/src/workflow_saves.rs"
+      ]
     },
     {
       "id": "connectors",
@@ -230,5 +236,8 @@
       100,
       100
     ]
+  },
+  "standaloneRouteArtwork": {
+    "workflows": "preview/assets/capability-assembly-v1.png"
   }
 }

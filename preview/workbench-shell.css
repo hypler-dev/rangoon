@@ -44,3 +44,5 @@
 @media (max-width:760px){.analysis-companion{display:none}.analysis-theme{min-height:44px}}
 @media (max-height:820px) and (min-width:761px){.analysis-companion{display:none}}
 @media (forced-colors:active){.analysis-companion img,.analysis-empty-mascot{display:none}}
+.analysis-shell[data-area="workflows"] .workflow-hero::after,:root[data-theme=light] .analysis-shell[data-area="workflows"] .workflow-hero::after{background-image:url("assets/capability-assembly-v1.png");background-size:contain;background-repeat:no-repeat;background-position:center;width:250px;height:250px}
+@media (forced-colors:active){.analysis-shell[data-area="workflows"] .workflow-hero::after{display:none}}
