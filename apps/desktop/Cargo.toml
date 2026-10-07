@@ -44,6 +44,7 @@ zbus-secret-service-keyring-store = { version = "=1.0.1", features = ["crypto-ru
 
 [dev-dependencies]
 rangoon-import = { path = "../../crates/rangoon-import" }
+rangoon-workflow = { path = "../../crates/rangoon-workflow" }
 
 [features]
 default = ["custom-protocol"]

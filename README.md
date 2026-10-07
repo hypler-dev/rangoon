@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="preview/assets/brand-symbol.png" alt="Rangoon logo" width="160" height="160">
+</p>
+
 # Rangoon
 
 **A local-first workbench for building, understanding, and governing AI capabilities.**
@@ -233,7 +237,7 @@ This graph reorganizes content; it is separate from workflow control/data flow a
 
 ## Workflow definitions and revision records
 
-`rangoon-workflow` implements the portable authoring foundation. It does not yet persist a workflow or drive the synthetic Workflows page. Its closed node types are Input, Capability, Check, Branch, Checkpoint and Output. Typed data mappings are separate from control edges. Capability nodes declare exact capability/revision pairs; branches carry explicit paths, and checkpoints declare a prompt without recording approval.
+`rangoon-workflow` implements the portable authoring foundation. Persistence is provided separately by `rangoon-store`; the Workflows page remains synthetic until the native authoring/editor packets land. Its closed node types are Input, Capability, Check, Branch, Checkpoint and Output. Typed data mappings are separate from control edges. Capability nodes declare exact capability/revision pairs; branches carry explicit paths, and checkpoints declare a prompt without recording approval.
 
 `inspect_definition` strictly decodes bounded JSON, preserves decodable incomplete drafts, and reports structural errors for ports, references, topology, cycles, reachability and data availability. Canonical serialization preserves strings and array order. Only structurally valid definitions receive a `workflow-definition:` identity. The report always distinguishes structural validity from unverified references, unavailable execution and no authority.
 
@@ -247,11 +251,11 @@ The `records` module adds `workflow_id_from_nonce`, `prepare_revision` and `deco
 | Nesting | At most 32 JSON containers; malformed/resource failures return closed errors. Decodable structural faults produce validation diagnostics |
 | Authority | No database, filesystem, network, provider, process, engine, run or approval behavior |
 
-The W2b Rust store implements transactional expected-head saves, complete immutable history, pinned dependency resolution, migration, backup/restore and dependency-aware deletion. W2c native commands and W3 library/canvas/inspector editing follow. Incomplete typed drafts remain saveable; stale or failed saves preserve current edits. The [durable workspace contract](docs/workflow-workspace.md) freezes these semantics; exact qualification and publication receipts belong in the [development ledger](docs/development.md).
+The W2b Rust store implements transactional expected-head saves, complete immutable history, pinned dependency resolution, migration, backup/restore and dependency-aware deletion. W2c-1 native Data inventory, export, restore and deletion controls are implemented in this source. Workflow authoring commands and W3 library/canvas/inspector editing follow. Incomplete typed drafts remain saveable; stale or failed saves preserve current edits. The [durable workspace contract](docs/workflow-workspace.md) freezes these semantics; exact qualification and publication receipts belong in the [development ledger](docs/development.md).
 
 The current source integrates workflow rows into the complete validated record set and schema-4 state digest. Its flat V3 archive codec preserves source, capability, composition and workflow records, validates canonical bytes and exact pins, and checks both payload limits and reconstructed SQLite allocation. V1/V2 compatibility remains; legacy V2 export rejects richer records rather than omitting them. SQLite allocation exhaustion reports `Full`; malformed archives report `BackupInvalid`, except the unchanged legacy decoder behavior documented in the contract.
 
-The following Rust lifecycle APIs are implemented. Native workflow commands and the real editor remain subsequent work:
+The following Rust lifecycle APIs are implemented. Native workflow authoring commands and the real editor remain subsequent work:
 
 | API | Current behavior |
 | --- | --- |
@@ -262,13 +266,13 @@ The following Rust lifecycle APIs are implemented. Native workflow commands and 
 
 `inspect_workflow_save` now validates canonical candidates, exact parent/head relationships, dependency observations, workflow quotas and complete prospective SQLite allocation without creating a workspace. The save transaction implementation supports immutable append and precise current-head retries, preserving original timestamps and history on retries. Incomplete drafts are accepted; validated intent requires exact saved capability revisions. Public `save_workflow` performs noncreating preflight and then atomically migrates/saves complete state. Disposable disk tests exercise first save, restart, head updates, exact retries, stale/deleted-owner replay refusal and concurrent saves; transaction fixtures also cover interruption and capacity failure.
 
-Existing version-aware source reads/`save_v1`, skill `*_v1` operations, composition preview/apply and stored compilation now use explicit complete-state routing. They validate workflow histories and preserve schema 4 and exact pinned revisions when skill heads advance. Composition stale-state checks include workflow metadata. Legacy source save, skill APIs and v1/composition data-control APIs still reject schema 4 before projecting or mutating records. Compatibility is exercised against disposable schema-4 fixtures. Native workflow controls remain separate.
+Existing version-aware source reads/`save_v1`, skill `*_v1` operations, composition preview/apply and stored compilation now use explicit complete-state routing. They validate workflow histories and preserve schema 4 and exact pinned revisions when skill heads advance. Composition stale-state checks include workflow metadata. Legacy source save, skill APIs and v1/composition data-control APIs still reject schema 4 before projecting or mutating records. Compatibility is exercised against disposable schema-4 fixtures. Native workflow authoring commands remain separate from the complete Data controls.
 
 `restore_workflow_backup` now preflights without creating files, then rechecks the exact retained plan and complete state before inserting additions in one transaction. Empty V3 restores preserve absent, empty and existing workspaces; existing no-ops use read-only transactions. Public restore supports V1/V2/V3 data, upgrades schema monotonically when additions require it, and preserves complete local histories. Disposable disk tests exercise exact backup roundtrips, no-op bytes and retained-plan checks; transaction fixtures cover crash recovery and SQLite allocation failure.
 
-`inspect_workflow_deletion` returns a private retained impact plan; `delete_workflow_record` revalidates its complete fields and workspace state inside an immediate transaction. Public operations handle sources, skills and workflows using complete records. Any historical draft reference to a skill owner blocks deletion, deleting a workflow removes only its history, and schema 4 never downgrades. Read-only preflight precedes write access, with full plan/state comparisons repeated inside the transaction. This is logical deletion, not secure erasure; native v2 data controls remain subsequent work.
+`inspect_workflow_deletion` returns a private retained impact plan; `delete_workflow_record` revalidates its complete fields and workspace state inside an immediate transaction. Public operations handle sources, skills and workflows using complete records. Any historical draft reference to a skill owner blocks deletion, deleting a workflow removes only its history, and schema 4 never downgrades. Read-only preflight precedes write access, with full plan/state comparisons repeated inside the transaction. This is logical deletion, not secure erasure; the complete v2 native data-control adoption is specified below.
 
-Previewing an empty V3 archive preserves an absent or existing destination's schema and creates no destination files. Native v2 data-control custody, workflow commands and editor integration remain incomplete. Original images remain the layout reference for that editor. See [workflow definitions](docs/workflow-definitions.md), [workflow records](docs/workflow-records.md), and [validation evidence](docs/development.md).
+Previewing an empty V3 archive preserves an absent or existing destination's schema and creates no destination files. Complete v2 native data controls are implemented in this source. Native workflow authoring commands and editor integration remain incomplete. Original images remain the layout reference for that editor. See [workflow definitions](docs/workflow-definitions.md), [workflow records](docs/workflow-records.md), and [validation evidence](docs/development.md).
 
 ## Instruction compilation
 
@@ -334,21 +338,29 @@ The native Workspace surface provides real inventory, export through a save pick
 
 ### Portable backup
 
-The current native export uses the V2 archive format for source bytes, capability histories, reviews, recipes, applications, and live provenance. V1 backups retain their original interpretation and remain accepted by the versioned restore path. Unsaved editor drafts and transient native preview handles are not backup records.
+Native export uses the complete version-aware store: V2 for schemas 1–3 and V3 for schema 4. V3 includes workflow owners, exact canonical revisions, node positions, parent chains and saved timestamps alongside source bytes, skill histories, reviews, recipes, applications and live provenance. V1 and V2 backups retain their original interpretation and remain accepted by the versioned restore path. Unsaved editor drafts and transient native preview handles are not backup records.
 
-V2 uses a versioned magic header, bounded canonical JSON manifest, raw payload segments, and a SHA-256 trailer. Limits are 2 MiB for the manifest, 68 MiB for the complete archive, and 64 MiB for aggregate raw payload. Reconstructed SQLite allocation must independently fit the database ceiling. The archive is plaintext; its digest is not a signature or encryption.
+V2 and V3 use versioned magic headers, bounded canonical JSON manifests, ordered raw payload segments, and SHA-256 trailers. Limits are 2 MiB for the manifest, 68 MiB for the complete archive, and 64 MiB for aggregate raw payload. Reconstructed SQLite allocation must independently fit the database ceiling. The archive is plaintext; its digest is not a signature or encryption.
 
 ### Additive restore
 
-Restore computes the final union before mutation. Existing local records remain authoritative for membership and retained history. Absent capabilities may be imported with their complete histories; restore does not append missing historical revisions to an already-present capability or replace its head. Same-ID identity-bearing data must agree.
+Restore computes the final union before mutation. Existing local records remain authoritative for membership and retained history. Absent capabilities may be imported with their complete histories; restore does not append missing historical revisions to an already-present capability or replace its head. Same-ID identity-bearing data must agree. Existing workflow owners retain their complete local history and head. Incoming workflow history must be an exact prefix including canonical bytes and timestamps; newer, divergent or retimed incoming histories are refused rather than silently discarded. An archive containing only workflows can be restored.
 
-Missing pinned dependencies block dependent imports. The host retains the selected decoded archive and exact plan. Confirmation binds backup identity, current workspace state, and the proposed operation. State drift rejects the restore rather than applying an old plan. Migration and additions commit atomically.
+Missing pinned dependencies block dependent imports. The host retains the selected decoded archive and exact plan. Confirmation binds backup identity, current workspace state, and the proposed operation. State drift rejects the restore rather than applying an old plan. Migration and additions commit atomically. A matching native confirmation takes the retained candidate before entering storage; success, refusal or uncertain return consumes that attempt. Fresh preview is required for another attempt, and no write is automatically retried.
 
 ### Dependency-aware deletion
 
-Deleting a capability removes its owned revisions, reviews, and derivation membership. A surviving capability that depends on one of those revisions blocks deletion. Source deletion is likewise blocked by surviving source origins or recipe inputs. Orphaned application/recipe metadata can be removed as specified; unrelated inputs and other skills are not implicitly deleted.
+Deleting a capability removes its owned revisions, reviews, and derivation membership. A surviving capability that depends on one of those revisions blocks deletion. Any syntactically valid reference to that skill owner from any saved workflow revision also blocks deletion, including historical draft references with missing or malformed revision IDs. The impact preview lists skill and workflow blockers separately. Source deletion is likewise blocked by surviving source origins or recipe inputs. Orphaned application/recipe metadata can be removed as specified; unrelated inputs and other skills are not implicitly deleted.
 
 Immutable recipe targets may describe outputs that were later deleted. Readback and restore use live membership and do not recreate those outputs merely because the historical application names them. A fresh, explicit composition can deliberately recreate a deterministic new destination; there are no permanent deletion tombstones.
+
+Deleting a workflow removes its owner and complete immutable history only. It does not remove source files, input skills, unrelated workflows or lower schema 4. Native confirmation selects the exact private retained plan and consumes one attempt before storage revalidation.
+
+### Complete native inventory and recovery DTOs
+
+The Data route and existing six native commands now adopt `rangoon.workspace-data.v2`, `rangoon.restore-plan.v2` and `rangoon.deletion-plan.v2` together. Source, skill and workflow owners remain separate; capability revision and workflow revision totals are never combined. The renderer rejects older/unknown shapes, contradictory validated-intent observations and impossible counts. It renders escaped bounded labels, local dependency observations and explicit Inspect/Delete actions without implying a workflow editor or execution exists. A workflow-only restore is actionable; a no-additions preview checks every record count. Native commands retain opaque archives/private plans and accept selectors rather than renderer-supplied impact or SQL.
+
+This source adoption can restore schema-4 archives through explicit native selection and confirmation. It registers no workflow creation/save command. Existing local analysis, skills and composition drafts stay usable; workflow deletion is never treated as source deletion. Native session and synthetic renderer evidence are distinct from interactive OS picker/IPC qualification. See [native controls](docs/workflow-native-controls.md) and the [development ledger](docs/development.md) for exact checks and remaining GUI gates.
 
 Deletion is logical removal, not secure erasure. See [workspace data controls](docs/workspace-data-controls.md) and [composition recovery](docs/composition-recovery.md) for exact archive encoding, dependency closure, stale-state checks, and failure tests.
 
@@ -524,7 +536,7 @@ Each adapter declares accepted input fields, target syntax, preserved semantics,
 
 ### 4. Make Test Lab, agents, and workflows operational
 
-**Foundation present:** pure typed workflow definitions, deterministic structural validation, immutable revision candidates and the complete durable Rust storage/recovery lifecycle. Native workflow custody/commands and the real editor remain open. The existing workflow preview is synthetic.
+**Foundation present:** pure typed workflow definitions, deterministic structural validation, immutable revision candidates and the complete durable Rust storage/recovery lifecycle. Native workflow authoring custody/commands and the real editor remain open; complete Data inventory/recovery adopts v2 in this source. The existing workflow preview is synthetic.
 
 **Deliver:** user-facing static validation, fixture simulations, reusable agent definitions, and workflow graphs with typed inputs/outputs, dependencies, retries, timeouts, cancellation, and evidence links. Templates and a registry build on versioned records and dependency closure.
 
@@ -602,7 +614,8 @@ Keep fixtures secret-free. Imported instruction text is data, including when it 
 | [Model assistance](docs/model-assistance.md) | Accepted local/cloud assistance contract, context packing, proposal validation and staged gates |
 | [Native Compile inspection](docs/compilation-ui.md) | Exact-ID command, workbench states, stale report handling and qualification gates |
 | [Native bundle export and inspection](docs/instruction-bundle-ui.md) | Export/Inspect commands/UI in this source, picker custody, receipts, uncertainty and external-file limits |
-| [Workspace controls](docs/workspace-data-controls.md) | Inventory, export, restore, and deletion experience |
+| [Workspace controls](docs/workspace-data-controls.md) | Original inventory, export, restore, and deletion experience |
+| [Complete native controls](docs/workflow-native-controls.md) | Explicit v2 inventory, workflow recovery/deletion, and single-attempt custody |
 | [Desktop setup](docs/desktop-spike.md) | Native prerequisites and runtime qualification limits |
 | [Engine integration](docs/engine-integration.md) | Unavailable port and LNSAT qualification gates |
 | [Claims and evidence](docs/claims-and-evidence.md) | LNSAT research snapshot and safe claim boundaries |

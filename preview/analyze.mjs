@@ -439,7 +439,7 @@ const workspaceController = createWorkspaceController({
   onMutation: async event => {
     if (event.kind === 'delete') {
       if (event.recordKind === 'capability') skillsController.forgetDeleted(event.id);
-      else controller.noteSnapshotDeleted(event.id);
+      else if (event.recordKind === 'source') controller.noteSnapshotDeleted(event.id);
     }
     await Promise.all([controller.listSnapshots(), skillsController.list()]);
   },

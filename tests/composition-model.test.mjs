@@ -23,7 +23,7 @@ function detail({ id = capabilityId, revision = revisionId, content = 'alpha\r\n
   return { schemaVersion: 'rangoon.capability.v1', id, origin: { kind: 'source', sourceId, fragmentId: `fragment:${'b'.repeat(64)}`, sourceName: 'rules.md', span: span(content), originalText: content }, latestRevisionId: latest, revision: rev, history, authority: 'none' };
 }
 function workspace() {
-  return { schemaVersion: 'rangoon.workspace-data.v1', stateId: workspaceId, records: { sources: 1, capabilities: 1, revisions: 1, reviews: 0, recipes: 0, applications: 0, derivations: 0 }, databaseBytes: 1, reusableBytes: 0, sources: [{ sourceId, displayName: 'rules.md', sha256: sha, byteLength: 20, savedAtMs: 1 }], capabilities: [{ id: capabilityId, origin: { kind: 'source', sourceId, fragmentId: `fragment:${'b'.repeat(64)}` }, latestRevisionId: revisionId, title: 'Bounded skill', reviewed: false, revisionCount: 1 }] };
+  return { schemaVersion: 'rangoon.workspace-data.v2', stateId: workspaceId, records: { sources: 1, capabilities: 1, revisions: 1, reviews: 0, recipes: 0, applications: 0, derivations: 0, workflows: 0, workflowRevisions: 0 }, databaseBytes: 1, reusableBytes: 0, sources: [{ sourceId, displayName: 'rules.md', sha256: sha, byteLength: 20, savedAtMs: 1 }], capabilities: [{ id: capabilityId, origin: { kind: 'source', sourceId, fragmentId: `fragment:${'b'.repeat(64)}` }, latestRevisionId: revisionId, title: 'Bounded skill', reviewed: false, revisionCount: 1 }], workflows: [] };
 }
 function report(content = 'one\r\n😀two\n') {
   const all = encoder.encode(content).length;
