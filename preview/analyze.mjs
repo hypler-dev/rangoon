@@ -7,6 +7,8 @@ import { createWorkspaceController } from './workspace-model.mjs';
 import { bindWorkspaceView } from './workspace-view.mjs';
 import { createCompositionController } from './composition-model.mjs';
 import { bindCompositionView } from './composition-view.mjs';
+import { createWorkflowController } from './workflow-model.mjs';
+import { bindWorkflowView } from './workflow-view.mjs';
 import { createCompilationController } from './compilation-model.mjs';
 import { renderCompilationPage } from './compilation-view.mjs';
 import { createModelAssistanceController } from './model-assistance-model.mjs';
@@ -26,6 +28,7 @@ let compilationController = null;
 let modelController = null;
 let modelView = null;
 let cloudCredentialController = null;
+let workflowController = null;
 let nativeOperations = 0;
 const workspaceWrites = new Set(['save_analysis', 'create_capability', 'revise_capability', 'review_capability', 'restore_workspace_backup', 'delete_workspace_record']);
 function invalidateCompositions(message, except = null) {
@@ -35,7 +38,9 @@ function invalidateCompositions(message, except = null) {
 }
 const bridge = rawBridge ? async (command, args) => {
   if (workspaceWrites.has(command)) invalidateCompositions('Workspace data may have changed. Preview this retained draft again before saving.');
-  if (workspaceWrites.has(command) || command === 'commit_composition') { compilationController?.invalidate(); modelController?.invalidate(); }
+  if (workspaceWrites.has(command) || command === 'commit_composition') workflowController?.invalidate('Workspace data may have changed. Inspect this retained workflow draft again before saving.');
+  if (command === 'commit_workflow_save') invalidateCompositions('A workflow save may change workspace state. Preview this retained draft again before saving.');
+  if (workspaceWrites.has(command) || command === 'commit_composition' || command === 'commit_workflow_save') { compilationController?.invalidate(); modelController?.invalidate(); }
   nativeOperations += 1;
   if (compilationController && route === 'compile') renderCompilation();
   try { return await rawBridge(command, args); }
@@ -47,7 +52,7 @@ const bridge = rawBridge ? async (command, args) => {
 const compositionRoutes = new Set(['decompose', 'merge', 'split']);
 const routeFromHash = () => {
   const name = location.hash.slice(1);
-  return ['analysis', 'skills', 'compile', 'workspace', 'model-assistance', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
+  return ['analysis', 'skills', 'workflows', 'compile', 'workspace', 'model-assistance', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
 };
 
 const compactNavigation = window.matchMedia('(max-width:760px)');
@@ -79,6 +84,8 @@ let analysisReady = false;
 let workspaceView = null;
 let compositionView = null;
 let compositionViewRoute = null;
+let workflowView = null;
+let workflowVisited = false;
 let compilationActionFocus = null;
 
 const text = value => escapeText(value);
@@ -98,7 +105,7 @@ function renderRail() {
   const drawerOpen = !compactNavigation.matches || (sameRoute && document.querySelector('.analysis-nav-drawer')?.open === true);
   const groups = [
     ['Discover', [['analysis','import','Import &amp; Analyze'],['decompose','decompose','Decompose'],['merge','merge','Merge'],['split','decompose','Split']]],
-    ['Build', [['skills','skill','Skills'],['compile','bundle','Compile']]],
+    ['Build', [['skills','skill','Skills'],['workflows','workflow','Workflows'],['compile','bundle','Compile']]],
     ['Connect', [['model-assistance','research','Model assistance'],['engine','gate','Engine integration']]],
     ['Workspace', [['workspace','bundle','Data']]],
   ];
@@ -160,6 +167,28 @@ function renderWorkspace() {
     routeFocusPending = null;
   }
   if (state.status === 'idle') void workspaceController.load();
+}
+
+function renderWorkflow() {
+  if (!workflowController) return;
+  if (!document.querySelector('#workflow-root')) {
+    workflowView?.dispose();
+    app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="workflow-root"></div></main></div>`;
+    workflowView = bindWorkflowView(document.querySelector('#workflow-root'), workflowController);
+  } else workflowView.render();
+  if (!workflowVisited) {
+    workflowVisited = true;
+    if (window.matchMedia('(max-width:360px)').matches) workflowController.setTab('outline');
+  }
+  routeEntry = false;
+  document.querySelector('#analysis-theme').innerHTML = `${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}`;
+  const state = workflowController.getState();
+  if (announcer.textContent !== state.message) announcer.textContent = state.message;
+  if (routeFocusPending === 'workflows') {
+    document.querySelector('#workflow-title')?.focus({ preventScroll: true });
+    routeFocusPending = null;
+  }
+  if (state.status === 'idle') void workflowController.load();
 }
 
 function sourceLines(report, active) {
@@ -247,7 +276,20 @@ function revealSelectedLine() {
 }
 
 function render(state) {
-  document.title = route === 'model-assistance' ? 'Rangoon — Model assistance' : compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'compile' ? 'Rangoon — Compile inspection' : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
+  document.title = route === 'workflows' ? 'Rangoon — Workflows' : route === 'model-assistance' ? 'Rangoon — Model assistance' : compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'compile' ? 'Rangoon — Compile inspection' : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
+  if (route === 'workflows') {
+    compositionView?.dispose();
+    compositionView = null;
+    compositionViewRoute = null;
+    modelView?.dispose();
+    modelView = null;
+    workspaceView?.dispose();
+    workspaceView = null;
+    renderWorkflow();
+    return;
+  }
+  workflowView?.dispose();
+  workflowView = null;
   if (!compositionRoutes.has(route)) {
     compositionView?.dispose();
     compositionView = null;
@@ -411,6 +453,14 @@ function renderCompilation() {
 }
 
 modelController = createModelAssistanceController({ invoke: bridge, onChange: () => { if (route === 'model-assistance') renderModelAssistance(); } });
+workflowController = createWorkflowController({
+  bridge,
+  onChange: () => { if (route === 'workflows') renderWorkflow(); },
+  onSaved: async () => {
+    const [, refreshed] = await Promise.all([skillsController.list(), workflowController.load()]);
+    if (!refreshed) throw new Error('The saved workflow library could not be refreshed.');
+  },
+});
 cloudCredentialController = createCloudCredentialController({ invoke: bridge, onChange: () => { if (route === 'model-assistance') renderModelAssistance(); } });
 const engineController = createEngineController({ invoke: bridge, onChange: () => {
   if (route === 'engine') renderEngine();
@@ -600,13 +650,14 @@ window.addEventListener('hashchange', () => {
   compilationActionFocus = null;
   render(controller.getState());
   if (route === 'workspace') void workspaceController.load();
+  if (route === 'workflows') void workflowController.load();
   if (route === 'model-assistance' && modelController.getState().status === 'idle') void modelController.load();
   if (route === 'compile' && compilationController.getState().listStatus === 'idle') void compilationController.refresh();
   if (compositionRoutes.has(route) && compositionControllers.get(route).getState().status !== 'idle') void compositionControllers.get(route).load();
 });
 
 window.addEventListener('beforeunload', event => {
-  if (![...compositionControllers.values()].some(composition => composition.getState().dirty)) return;
+  if (!workflowController.getState().dirty && !workflowController.getState().fieldEdit && ![...compositionControllers.values()].some(composition => composition.getState().dirty)) return;
   event.preventDefault();
   event.returnValue = '';
 });

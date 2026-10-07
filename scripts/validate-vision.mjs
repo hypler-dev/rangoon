@@ -6,6 +6,7 @@ import { renderCompositionView } from '../preview/composition-view.mjs';
 import { renderSkillsView } from '../preview/skills-view.mjs';
 import { renderWorkspaceView } from '../preview/workspace-view.mjs';
 import { renderEngineView } from '../preview/engine-view.mjs';
+import { renderWorkflowView } from '../preview/workflow-view.mjs';
 
 // This checks narrow source contracts, not visual similarity or native qualification.
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -61,6 +62,10 @@ for (const [route, [x, y]] of Object.entries(contract.routeArtwork)) {
   assert.ok(css.includes(`.analysis-shell[data-area="${route}"]{--scene-x:${x}%;--scene-y:${y}%}`), `Missing route art mapping: ${route}`);
 }
 assert.equal(positions.size, 9, 'Keep distinct artwork for all nine native menus.');
+assert.deepEqual(contract.standaloneRouteArtwork, { workflows: 'preview/assets/capability-assembly-v1.png' }, 'The tenth native route uses distinct existing transparent artwork.');
+await readFile(new URL(`../${contract.standaloneRouteArtwork.workflows}`, import.meta.url));
+assert.ok(css.includes('.analysis-shell[data-area="workflows"] .workflow-hero::after'));
+assert.ok(css.includes('assets/capability-assembly-v1.png'));
 assert.match(css, /prefers-reduced-motion/);
 assert.match(css, /forced-colors/);
 const cascade = (await Promise.all(sheets.map(sheet => read(`preview/${sheet}`)))).join('\n');
@@ -92,6 +97,9 @@ disabled(skills, 'skills-create');
 const workspace = renderWorkspaceView({ status: 'unavailable', bridgeAvailable: false });
 disabled(workspace, 'workspace-export');
 disabled(workspace, 'workspace-restore');
+const workflow = renderWorkflowView({ status: 'unavailable', bridgeAvailable: false });
+disabled(workflow, 'workflow-new');
+disabled(workflow, 'workflow-refresh');
 assert.match(renderEngineView({ bridgeAvailable: false, status: 'unavailable' }), /adapter_not_implemented/);
 
 const pkg = JSON.parse(await read('package.json'));
