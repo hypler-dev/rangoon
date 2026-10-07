@@ -64,7 +64,7 @@ Approval plans and approver decisions bind the exact request, immutable evaluati
 
 ## Application contracts and adapter coverage
 
-Freeze application records before transport. O1a now implements the inert `rangoon.ops.window.v1` observation vocabulary and bounded decoder under the [records contract](operations-records.md); deterministic projection/replay, ingestion and runtime operations remain open. These application schemas are not a declared engine protocol. Initial records:
+Freeze application records before transport. O1a now implements the inert `rangoon.ops.window.v1` observation vocabulary and bounded decoder under the [records contract](operations-records.md); O1b-1 adds bounded structural timeline/declared-graph projection and exact full-window replay under the [projection contract](operations-projection.md). Semantic evaluation/delegation/approval/outcome relationships (O1b-2), ingestion and runtime operations remain open. These application schemas are not a declared engine protocol. Initial records:
 
 | Record | Minimum meaning |
 | --- | --- |

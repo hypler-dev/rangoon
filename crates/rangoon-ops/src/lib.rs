@@ -6,9 +6,15 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 mod decode;
+mod projection;
+mod projection_types;
 mod records;
 
 pub use decode::decode_window;
+pub use projection::project_window;
+pub use projection_types::{
+    MAX_PROJECTION_BYTES, PROJECTION_SCHEMA, Projection, ProjectionDocument, ProjectionError,
+};
 
 pub const WINDOW_SCHEMA: &str = "rangoon.ops.window.v1";
 pub const REDUCER_VERSION: &str = "rangoon.ops.reducer.v1";
@@ -198,3 +204,6 @@ impl std::fmt::Debug for DecodedWindow {
 
 #[cfg(test)]
 mod record_tests;
+
+#[cfg(test)]
+mod projection_tests;
