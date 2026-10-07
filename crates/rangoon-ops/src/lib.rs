@@ -6,6 +6,8 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 mod decode;
+mod delegation_types;
+mod delegations;
 mod projection;
 mod projection_types;
 mod records;
@@ -15,7 +17,16 @@ mod relationships;
 #[cfg(test)]
 mod relationship_tests;
 
+#[cfg(test)]
+mod delegation_tests;
+
 pub use decode::decode_window;
+pub use delegation_types::{
+    DELEGATION_SCHEMA, DelegationDocument, DelegationError, DelegationInspection,
+    MAX_DELEGATION_BYTES, MAX_DELEGATION_MATCHES, MAX_DELEGATION_PATH_STEPS,
+    MAX_DELEGATION_REFERENCES,
+};
+pub use delegations::inspect_delegations;
 pub use projection::project_window;
 pub use projection_types::{
     MAX_PROJECTION_BYTES, PROJECTION_SCHEMA, Projection, ProjectionDocument, ProjectionError,
