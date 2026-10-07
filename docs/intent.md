@@ -30,6 +30,10 @@ Jeff explicitly requested understandable drag-and-drop editing, right-click opti
 
 The accepted V1 objective and owner request to add/connect nodes and build functions include real workflow authoring. Following the published content-composition canvas, the controller sequence is a portable typed definition and structural validator, native saved revisions/recovery, then a real workflow editor. [Workflow definitions](workflow-definitions.md) specifies W1 and the required later outcomes. This sequence does not turn the historical sample graph into a production runtime and does not authorize engine activation, approval consumption or execution.
 
+## README publication continuation — October 6, 2026
+
+Jeff explicitly required the README to be updated every time work is pushed to main. Every reviewed publication packet must therefore include a meaningful README update reflecting its final product behavior, technical limits and changed roadmap/setup details. The repository [build rule](../AGENTS.md) records this publication gate. Exact test and merge receipts remain in the canonical development ledger; README wording must distinguish source implementation from native qualification and released support. This expands the current W2a documentation scope without authorizing new runtime, release or external operations.
+
 ## Problem and evidence
 
 Rangoon's substantial product vision is distributed across conversations, an implementation brief, the public website, and eight interface concepts. Its application repository began this work with only a placeholder README. LNSAT has a separate source foundation with narrower evidence and release gates. A beautiful preview must not turn those design intentions into shipped capability claims.
