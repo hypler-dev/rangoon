@@ -52,7 +52,7 @@ pub struct CompositionWorkspaceData {
     pub capabilities: Vec<CapabilitySummary>,
 }
 
-fn counts(records: &Records) -> RecoveryCounts {
+pub(super) fn counts(records: &Records) -> RecoveryCounts {
     RecoveryCounts {
         sources: records.sources.len() as u32,
         capabilities: records.owners.len() as u32,
@@ -137,7 +137,7 @@ fn trim(records: &mut Records) {
         .collect();
     records.recipes.retain(|id, _| recipes.contains(id));
 }
-fn union(current: &Records, backup: &Records) -> Result<Records, StoreError> {
+pub(super) fn union(current: &Records, backup: &Records) -> Result<Records, StoreError> {
     let mut result = current.clone();
     for (id, source) in &backup.sources {
         if let Some(local) = result.sources.get(id) {
@@ -281,7 +281,7 @@ fn valid_record_id(kind: RecordKind, id: &str) -> Result<(), StoreError> {
         Err(StoreError::InvalidId)
     }
 }
-fn deletion_plan(
+pub(super) fn deletion_plan(
     current: &Records,
     kind: RecordKind,
     id: &str,

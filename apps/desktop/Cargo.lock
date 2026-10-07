@@ -3058,7 +3058,17 @@ dependencies = [
  "rangoon-compose",
  "rangoon-domain",
  "rangoon-import",
+ "rangoon-workflow",
  "rusqlite",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "rangoon-workflow"
+version = "0.1.0-dev"
+dependencies = [
+ "rangoon-domain",
  "serde",
  "serde_json",
 ]

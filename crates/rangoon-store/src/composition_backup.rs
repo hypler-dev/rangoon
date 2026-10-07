@@ -41,47 +41,47 @@ impl CompositionBackup {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Manifest {
-    schema_version: String,
+pub(super) struct Manifest {
+    pub(super) schema_version: String,
     #[serde(deserialize_with = "sources")]
-    sources: Vec<SnapshotMetadata>,
+    pub(super) sources: Vec<SnapshotMetadata>,
     #[serde(deserialize_with = "owners")]
-    owners: Vec<OwnerDescriptor>,
+    pub(super) owners: Vec<OwnerDescriptor>,
     #[serde(deserialize_with = "revisions")]
-    revisions: Vec<RevisionDescriptor>,
+    pub(super) revisions: Vec<RevisionDescriptor>,
     #[serde(deserialize_with = "recipes")]
-    recipes: Vec<RecipeDescriptor>,
+    pub(super) recipes: Vec<RecipeDescriptor>,
     #[serde(deserialize_with = "applications")]
-    applications: Vec<ApplicationDescriptor>,
+    pub(super) applications: Vec<ApplicationDescriptor>,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct OwnerDescriptor {
+pub(super) struct OwnerDescriptor {
     id: String,
     birth: Birth,
     latest_revision_id: String,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RevisionDescriptor {
+pub(super) struct RevisionDescriptor {
     capability_id: String,
     revision: RevisionSummary,
     byte_length: u32,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RecipeDescriptor {
+pub(super) struct RecipeDescriptor {
     id: String,
     transformation_version: String,
     byte_length: u32,
     sha256: String,
     created_at_ms: i64,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ApplicationDescriptor {
+pub(super) struct ApplicationDescriptor {
     id: String,
     composition_id: String,
     #[serde(deserialize_with = "targets")]
@@ -89,7 +89,7 @@ struct ApplicationDescriptor {
     created_at_ms: i64,
 }
 
-fn bounded<'de, T: Deserialize<'de>, D: serde::Deserializer<'de>, const N: usize>(
+pub(super) fn bounded<'de, T: Deserialize<'de>, D: serde::Deserializer<'de>, const N: usize>(
     decoder: D,
 ) -> Result<Vec<T>, D::Error> {
     struct Items<T, const N: usize>(std::marker::PhantomData<T>);
@@ -117,19 +117,27 @@ fn bounded<'de, T: Deserialize<'de>, D: serde::Deserializer<'de>, const N: usize
     }
     decoder.deserialize_seq(Items::<T, N>(std::marker::PhantomData))
 }
-fn sources<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<SnapshotMetadata>, D::Error> {
+pub(super) fn sources<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Vec<SnapshotMetadata>, D::Error> {
     bounded::<_, _, 128>(d)
 }
-fn owners<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<OwnerDescriptor>, D::Error> {
+pub(super) fn owners<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Vec<OwnerDescriptor>, D::Error> {
     bounded::<_, _, 128>(d)
 }
-fn revisions<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<RevisionDescriptor>, D::Error> {
+pub(super) fn revisions<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Vec<RevisionDescriptor>, D::Error> {
     bounded::<_, _, 1024>(d)
 }
-fn recipes<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<RecipeDescriptor>, D::Error> {
+pub(super) fn recipes<'de, D: serde::Deserializer<'de>>(
+    d: D,
+) -> Result<Vec<RecipeDescriptor>, D::Error> {
     bounded::<_, _, 128>(d)
 }
-fn applications<'de, D: serde::Deserializer<'de>>(
+pub(super) fn applications<'de, D: serde::Deserializer<'de>>(
     d: D,
 ) -> Result<Vec<ApplicationDescriptor>, D::Error> {
     bounded::<_, _, 128>(d)
@@ -139,7 +147,7 @@ fn targets<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<Target>, D::Err
 }
 
 impl Manifest {
-    fn from_records(records: &Records) -> Result<Self, StoreError> {
+    pub(super) fn from_records(records: &Records) -> Result<Self, StoreError> {
         Ok(Self {
             schema_version: SCHEMA_VERSION.into(),
             sources: records
@@ -192,7 +200,7 @@ impl Manifest {
                 .collect(),
         })
     }
-    fn preflight(&self) -> Result<usize, StoreError> {
+    pub(super) fn preflight(&self) -> Result<usize, StoreError> {
         fn ordered<'a>(ids: impl Iterator<Item = &'a str>) -> bool {
             let mut previous = None;
             for id in ids {
@@ -247,7 +255,7 @@ impl Manifest {
         }
         Ok(total)
     }
-    fn bytes(&self) -> Result<Vec<u8>, StoreError> {
+    pub(super) fn bytes(&self) -> Result<Vec<u8>, StoreError> {
         let bytes = serde_json::to_vec(self).map_err(|_| StoreError::BackupInvalid)?;
         if bytes.len() > MAX_MANIFEST {
             return Err(StoreError::Full);
@@ -257,6 +265,12 @@ impl Manifest {
 }
 
 pub(super) fn encode(records: &Records) -> Result<Vec<u8>, StoreError> {
+    if !(1..=3).contains(&records.version)
+        || !records.workflows.owners.is_empty()
+        || !records.workflows.revisions.is_empty()
+    {
+        return Err(StoreError::UnsupportedSchema);
+    }
     let manifest = Manifest::from_records(records)?;
     let payload = manifest.preflight()?;
     let metadata = manifest.bytes()?;
@@ -269,6 +283,16 @@ pub(super) fn encode(records: &Records) -> Result<Vec<u8>, StoreError> {
     bytes.extend_from_slice(MAGIC);
     bytes.extend_from_slice(&(metadata.len() as u32).to_be_bytes());
     bytes.extend_from_slice(&metadata);
+    append_payload(records, &mut bytes)?;
+    let digest = byte_digest(&bytes);
+    bytes.extend_from_slice(digest.as_bytes());
+    if bytes.len() != length {
+        return Err(StoreError::Corrupt);
+    }
+    Ok(bytes)
+}
+
+pub(super) fn append_payload(records: &Records, bytes: &mut Vec<u8>) -> Result<(), StoreError> {
     for source in records.sources.values() {
         bytes.extend_from_slice(source.report.source.content.as_bytes());
     }
@@ -281,12 +305,7 @@ pub(super) fn encode(records: &Records) -> Result<Vec<u8>, StoreError> {
                 .map_err(|_| StoreError::Corrupt)?,
         );
     }
-    let digest = byte_digest(&bytes);
-    bytes.extend_from_slice(digest.as_bytes());
-    if bytes.len() != length {
-        return Err(StoreError::Corrupt);
-    }
-    Ok(bytes)
+    Ok(())
 }
 
 fn decode(bytes: &[u8]) -> Result<Records, StoreError> {
@@ -316,6 +335,14 @@ fn decode(bytes: &[u8]) -> Result<Records, StoreError> {
         return Err(StoreError::BackupInvalid);
     }
     cursor += length;
+    read_payload(&manifest, &bytes[cursor..body_end])
+}
+
+pub(super) fn read_payload(manifest: &Manifest, bytes: &[u8]) -> Result<Records, StoreError> {
+    let mut cursor = 0;
+    if manifest.preflight()? != bytes.len() {
+        return Err(StoreError::BackupInvalid);
+    }
     // Counts and all lengths are checked before payload allocation or SQLite.
     let mut db = memory_database()?;
     let tx = db.transaction()?;
@@ -403,6 +430,15 @@ pub(super) fn ensure_schema(db: &Connection, version: i64) -> Result<(), StoreEr
     verify_schema(db)
 }
 pub(super) fn canonical_database(records: &Records) -> Result<Connection, StoreError> {
+    if records.version == 4 {
+        return workflow_backup::canonical_database(records);
+    }
+    if !(1..=3).contains(&records.version)
+        || !records.workflows.owners.is_empty()
+        || !records.workflows.revisions.is_empty()
+    {
+        return Err(StoreError::UnsupportedSchema);
+    }
     let mut db = memory_database()?;
     let tx = db.transaction()?;
     ensure_schema(&tx, records.version)?;
