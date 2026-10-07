@@ -64,7 +64,7 @@ Approval plans and approver decisions bind the exact request, immutable evaluati
 
 ## Application contracts and adapter coverage
 
-Freeze application records before transport. Proposed `rangoon.ops.*.v1` contracts are not yet implemented or a declared engine protocol. Initial records:
+Freeze application records before transport. O1a now implements the inert `rangoon.ops.window.v1` observation vocabulary and bounded decoder under the [records contract](operations-records.md); deterministic projection/replay, ingestion and runtime operations remain open. These application schemas are not a declared engine protocol. Initial records:
 
 | Record | Minimum meaning |
 | --- | --- |
@@ -125,4 +125,4 @@ Use a versioned immutable projection snapshot plus bounded incremental events. T
 
 Root owns O1 semantics/privacy and integration; bounded workers may implement exact pure files after accepted contract and fresh review. Fresh independent source and UI/a11y review and named tests are mandatory. Existing W3 source publication does not qualify O1–O5. Initial three-OS release scope must identify which O stages have passed; staging does not silently remove these core surfaces from the accepted product. Execution-dependent gates cannot pass while required authority/runtime adapters remain unavailable.
 
-The current eight-file architecture packet owns only README, intent, this contract, application architecture, product experience, plan, continuation and development ledger. Run artifact/reference and whitespace validation and fresh independent architecture/claim review. No production source, schema, CI, native configuration, live endpoint, credentials, private telemetry, engine activation, license, installer/release, deployment or government submission is changed. Reversion removes the documentation proposal; it does not revoke an external grant because none is issued.
+The original O0 eight-file architecture packet owned only README, intent, this contract, application architecture, product experience, plan, continuation and development ledger. Run artifact/reference and whitespace validation and fresh independent architecture/claim review. No production source, schema, CI, native configuration, live endpoint, credentials, private telemetry, engine activation, license, installer/release, deployment or government submission is changed. Reversion removes the documentation proposal; it does not revoke an external grant because none is issued.
