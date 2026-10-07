@@ -24,8 +24,8 @@ pub(super) fn fault_checkpoint(db: &Connection, phase: &str) -> Result<(), Store
     }
     if std::env::var("RANGOON_RECOVERY_TEST_MODE").as_deref() == Ok("full") {
         let pages: u32 = db.pragma_query_value(None, "page_count", |r| r.get(0))?;
-        let actual: u32 =
-            db.pragma_query_value(None, &format!("max_page_count={pages}"), |r| r.get(0))?;
+        db.pragma_update(None, "max_page_count", pages)?;
+        let actual: u32 = db.pragma_query_value(None, "max_page_count", |r| r.get(0))?;
         assert_eq!(actual, pages);
         return Ok(());
     }
@@ -850,5 +850,5 @@ fn recovery_fault_child() {
         Ok("full")
     );
     // The storage API intentionally maps SQLite errors to a fixed public diagnostic.
-    assert_eq!(result, Err(StoreError::Unavailable));
+    assert_eq!(result, Err(StoreError::Full));
 }

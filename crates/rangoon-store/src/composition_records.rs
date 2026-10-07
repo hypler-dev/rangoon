@@ -89,6 +89,7 @@ pub(super) struct Records {
     pub revisions: BTreeMap<String, RevisionRecord>,
     pub recipes: BTreeMap<String, Recipe>,
     pub applications: BTreeMap<String, Application>,
+    pub workflows: workflow_records::WorkflowRows,
     histories: BTreeMap<String, Vec<String>>,
 }
 
@@ -109,12 +110,23 @@ impl Records {
             revisions: BTreeMap::new(),
             recipes: BTreeMap::new(),
             applications: BTreeMap::new(),
+            workflows: workflow_records::WorkflowRows::default(),
             histories: BTreeMap::new(),
         }
     }
 
     pub fn load(db: &Connection) -> Result<Self, StoreError> {
         verify_schema(db)?;
+        Self::load_verified(db)
+    }
+
+    /// Internal archive reconstruction only; ordinary file access still rejects schema 4.
+    pub fn load_complete(db: &Connection) -> Result<Self, StoreError> {
+        verify_schema_mode(db, true)?;
+        Self::load_verified(db)
+    }
+
+    fn load_verified(db: &Connection) -> Result<Self, StoreError> {
         let version = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
         let mut records = Self {
             version,
@@ -123,6 +135,7 @@ impl Records {
             revisions: BTreeMap::new(),
             recipes: BTreeMap::new(),
             applications: BTreeMap::new(),
+            workflows: workflow_records::WorkflowRows::default(),
             histories: BTreeMap::new(),
         };
         for metadata in list_metadata(db)? {
@@ -136,10 +149,13 @@ impl Records {
             records.load_owners(db)?;
             records.load_revisions(db)?;
         }
-        if version == 3 {
+        if matches!(version, 3 | 4) {
             records.load_compositions(db)?;
         }
         records.validate()?;
+        if version == 4 {
+            records.workflows = workflow_records::WorkflowRows::load(db, &records)?;
+        }
         Ok(records)
     }
 
@@ -168,7 +184,7 @@ impl Records {
                 },
             );
         }
-        if self.version == 3 {
+        if matches!(self.version, 3 | 4) {
             check_count(
                 db,
                 "SELECT count(*) FROM derived_capabilities",
@@ -770,6 +786,12 @@ impl Records {
     }
 
     pub fn state_id(&self) -> Result<String, StoreError> {
+        if self.version == 4 {
+            return self.workflows.state_id_v4(self);
+        }
+        if !self.workflows.owners.is_empty() || !self.workflows.revisions.is_empty() {
+            return Err(StoreError::Corrupt);
+        }
         let sources: Vec<_> = self.sources.values().map(|s| &s.metadata).collect();
         let revisions: BTreeMap<_, _> = self
             .revisions

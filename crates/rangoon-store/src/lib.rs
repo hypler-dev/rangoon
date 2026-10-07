@@ -19,6 +19,14 @@ mod compositions;
 mod workspace_data;
 #[cfg(test)]
 mod workspace_data_tests;
+// Workflow lifecycle APIs use complete records and explicit version routing.
+mod workflow_backup;
+mod workflow_deletion;
+mod workflow_mutations;
+mod workflow_records;
+mod workflow_recovery;
+mod workflow_saves;
+mod workflow_views;
 pub use capabilities::{CapabilityReceipt, MAX_CAPABILITIES, MAX_REVISIONS, MAX_TOTAL_REVISIONS};
 pub use capabilities_v1::CapabilityReceiptV1;
 pub use compilation::WorkspaceCompilation;
@@ -27,6 +35,14 @@ pub use composition_recovery::{
     CompositionDeletionPlan, CompositionRestorePlan, CompositionWorkspaceData, RecoveryCounts,
 };
 pub use compositions::{CompositionPreview, CompositionReceipt};
+pub use workflow_backup::WorkspaceBackup;
+pub use workflow_deletion::{WorkflowDeletionPlan, WorkflowRecordKind};
+pub use workflow_recovery::{WorkflowRecoveryCounts, WorkflowRestorePlan};
+pub use workflow_saves::{WorkflowSavePlan, WorkflowSaveReceipt};
+pub use workflow_views::{
+    WorkflowDetail, WorkflowReference, WorkflowReferenceStatus, WorkflowRevisionSummary,
+    WorkflowSummary, WorkflowWorkspaceData,
+};
 pub use workspace_data::{
     Backup, DeletionPlan, MAX_BACKUP_BYTES, RecordKind, RestorePlan, WorkspaceData, WorkspaceUsage,
 };
@@ -85,10 +101,35 @@ pub enum StoreError {
     CompositionDependencyMissing,
     CompilationInvalid,
     RecordInUse,
+    WorkflowInvalid,
+    WorkflowNotFound,
+    WorkflowConflict,
+    WorkflowFull,
+    WorkflowDependencyMissing,
 }
 impl StoreError {
     pub fn public(self) -> (&'static str, &'static str) {
         match self {
+            Self::WorkflowInvalid => (
+                "workflow_invalid",
+                "The workflow request is invalid. No saved workflow was changed.",
+            ),
+            Self::WorkflowNotFound => (
+                "workflow_not_found",
+                "The selected workflow or revision is unavailable.",
+            ),
+            Self::WorkflowConflict => (
+                "workflow_conflict",
+                "The workflow head changed. Reload before saving.",
+            ),
+            Self::WorkflowFull => (
+                "workflow_full",
+                "The workspace workflow or history limit has been reached.",
+            ),
+            Self::WorkflowDependencyMissing => (
+                "workflow_dependency_missing",
+                "A validated workflow requires an exact capability revision that is unavailable.",
+            ),
             Self::CompilationInvalid => (
                 "compilation_invalid",
                 "This saved revision could not be compiled. Its stored content was not changed.",
@@ -103,7 +144,7 @@ impl StoreError {
             ),
             Self::RecordInUse => (
                 "record_in_use",
-                "Other saved skills still depend on this record. Keep it or remove those dependent skills first.",
+                "Saved skills or workflow histories still depend on this record. Keep it or remove those dependent records first.",
             ),
             Self::CompositionInvalid => (
                 "composition_invalid",
@@ -165,8 +206,14 @@ impl StoreError {
     }
 }
 impl From<rusqlite::Error> for StoreError {
-    fn from(_: rusqlite::Error) -> Self {
-        Self::Unavailable
+    fn from(error: rusqlite::Error) -> Self {
+        if matches!(error, rusqlite::Error::SqliteFailure(ref failure, _)
+            if failure.code == rusqlite::ErrorCode::DiskFull)
+        {
+            Self::Full
+        } else {
+            Self::Unavailable
+        }
     }
 }
 
@@ -185,11 +232,11 @@ impl Workspace {
     }
 
     pub fn list(&self) -> Result<Vec<SnapshotMetadata>, StoreError> {
-        let Some(mut db) = self.connect(false)? else {
+        let Some(mut db) = self.connect_complete(false)? else {
             return Ok(Vec::new());
         };
         let tx = db.transaction()?;
-        verify_schema(&tx)?;
+        composition_records::Records::load_complete(&tx)?;
         let snapshots = list_metadata(&tx)?;
         tx.commit()?;
         Ok(snapshots)
@@ -197,11 +244,11 @@ impl Workspace {
 
     pub fn open(&self, id: &str) -> Result<AnalysisReport, StoreError> {
         validate_id(id)?;
-        let Some(mut db) = self.connect(false)? else {
+        let Some(mut db) = self.connect_complete(false)? else {
             return Err(StoreError::NotFound);
         };
         let tx = db.transaction()?;
-        verify_schema(&tx)?;
+        composition_records::Records::load_complete(&tx)?;
         let report = read_report(&tx, id)?;
         tx.commit()?;
         Ok(report)
@@ -229,15 +276,25 @@ impl Workspace {
         if &checked != report {
             return Err(StoreError::Corrupt);
         }
-        let mut db = self.connect(true)?.ok_or(StoreError::Unavailable)?;
+        let mut db = if allow_composition {
+            self.connect_complete(true)?
+        } else {
+            self.connect(true)?
+        }
+        .ok_or(StoreError::Unavailable)?;
         let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        initialize_or_verify(&tx)?;
+        let current_version: i64 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
+        if allow_composition && current_version != 0 {
+            verify_schema_mode(&tx, true)?;
+        } else {
+            initialize_or_verify(&tx)?;
+        }
         let version: i64 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version == 3 && !allow_composition {
+        if matches!(version, 3 | 4) && !allow_composition {
             return Err(StoreError::UnsupportedSchema);
         }
         if allow_composition {
-            composition_records::Records::load(&tx)?;
+            composition_records::Records::load_complete(&tx)?;
         }
         let snapshots = list_metadata(&tx)?;
         if let Some(existing) = snapshots
@@ -271,7 +328,7 @@ impl Workspace {
         };
         insert(&tx, &snapshot, checked.source.content.as_bytes())?;
         if allow_composition {
-            composition_records::Records::load(&tx)?;
+            composition_records::Records::load_complete(&tx)?;
         }
         tx.commit()?;
         Ok(SaveReceipt {
@@ -290,6 +347,37 @@ impl Workspace {
         &self,
         create: bool,
         allow_empty: bool,
+    ) -> Result<Option<Connection>, StoreError> {
+        self.connect_mode(create, allow_empty, false, false)
+    }
+
+    fn connect_complete_read_only(
+        &self,
+        allow_empty: bool,
+    ) -> Result<Option<Connection>, StoreError> {
+        self.connect_mode(false, allow_empty, true, true)
+    }
+
+    fn connect_complete_with_empty(
+        &self,
+        create: bool,
+        allow_empty: bool,
+    ) -> Result<Option<Connection>, StoreError> {
+        self.connect_mode(create, allow_empty, false, true)
+    }
+
+    // Only complete-state APIs may use this path. Legacy DTOs retain their
+    // schema rejection through connect()/connect_with_empty().
+    fn connect_complete(&self, create: bool) -> Result<Option<Connection>, StoreError> {
+        self.connect_mode(create, false, false, true)
+    }
+
+    fn connect_mode(
+        &self,
+        create: bool,
+        allow_empty: bool,
+        read_only: bool,
+        allow_workflows: bool,
     ) -> Result<Option<Connection>, StoreError> {
         match fs::symlink_metadata(&self.directory) {
             Ok(meta) if !linked(&meta) && meta.is_dir() => (),
@@ -341,20 +429,25 @@ impl Workspace {
         // No CREATE flag: only explicit Save/Restore creates the file above.
         let db = Connection::open_with_flags(
             &path,
-            OpenFlags::SQLITE_OPEN_READ_WRITE
-                | OpenFlags::SQLITE_OPEN_NO_MUTEX
+            (if read_only {
+                OpenFlags::SQLITE_OPEN_READ_ONLY
+            } else {
+                OpenFlags::SQLITE_OPEN_READ_WRITE
+            }) | OpenFlags::SQLITE_OPEN_NO_MUTEX
                 | OpenFlags::SQLITE_OPEN_NOFOLLOW,
         )?;
         db.busy_timeout(Duration::from_millis(1000))?;
         db.set_limit(Limit::SQLITE_LIMIT_LENGTH, (MAX_SOURCE_BYTES + 4096) as i32)?;
         db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, 16_384)?;
         db.pragma_update(None, "trusted_schema", false)?;
-        db.pragma_update(None, "synchronous", "FULL")?;
+        if !read_only {
+            db.pragma_update(None, "synchronous", "FULL")?;
+        }
         // Reject unsupported files before changing their persistent journal mode.
         let version: i64 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version != 0 {
-            verify_schema(&db)?;
-            if version == 3 {
+            verify_schema_mode(&db, allow_workflows)?;
+            if matches!(version, 3 | 4) {
                 db.set_limit(
                     Limit::SQLITE_LIMIT_LENGTH,
                     (rangoon_compose::MAX_DRAFT_BYTES + 4096) as i32,
@@ -366,7 +459,9 @@ impl Workspace {
             verify_empty(&db)?;
             // Match canonical backup reconstruction. An existing noncanonical
             // empty SQLite file is rejected rather than vacuumed or replaced.
-            db.pragma_update(None, "page_size", 4096)?;
+            if !read_only {
+                db.pragma_update(None, "page_size", 4096)?;
+            }
             let initial_page_size: u32 = db.pragma_query_value(None, "page_size", |r| r.get(0))?;
             if initial_page_size != 4096 {
                 return Err(StoreError::UnsupportedSchema);
@@ -380,11 +475,13 @@ impl Workspace {
         if !(512..=65536).contains(&page_size) {
             return Err(StoreError::Corrupt);
         }
-        db.pragma_update(
-            None,
-            "max_page_count",
-            (MAX_DATABASE_BYTES / u64::from(page_size)) as u32,
-        )?;
+        if !read_only {
+            db.pragma_update(
+                None,
+                "max_page_count",
+                (MAX_DATABASE_BYTES / u64::from(page_size)) as u32,
+            )?;
+        }
         Ok(Some(db))
     }
 }
@@ -424,11 +521,19 @@ fn initialize_or_verify(db: &Connection) -> Result<(), StoreError> {
     verify_schema(db)
 }
 fn verify_schema(db: &Connection) -> Result<(), StoreError> {
+    verify_schema_mode(db, false)
+}
+fn verify_schema_mode(db: &Connection, allow_workflows: bool) -> Result<(), StoreError> {
     let version: i64 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
+    if !((1..=3).contains(&version) || allow_workflows && version == 4) {
+        return Err(StoreError::UnsupportedSchema);
+    }
     let app_id: i64 = db.pragma_query_value(None, "application_id", |r| r.get(0))?;
-    let mut query = db.prepare("SELECT type, name, sql FROM sqlite_schema WHERE name NOT IN ('sqlite_autoindex_snapshots_1','sqlite_autoindex_capabilities_1','sqlite_autoindex_revisions_1','sqlite_autoindex_reviews_1','sqlite_autoindex_compositions_1','sqlite_autoindex_composition_applications_1','sqlite_autoindex_derived_capabilities_1','sqlite_autoindex_derived_capabilities_2','sqlite_autoindex_revision_derivations_1','sqlite_autoindex_revision_derivations_2') ORDER BY name")?;
+    let mut query = db.prepare("SELECT type, name, sql FROM sqlite_schema WHERE name NOT IN ('sqlite_autoindex_snapshots_1','sqlite_autoindex_capabilities_1','sqlite_autoindex_revisions_1','sqlite_autoindex_reviews_1','sqlite_autoindex_compositions_1','sqlite_autoindex_composition_applications_1','sqlite_autoindex_derived_capabilities_1','sqlite_autoindex_derived_capabilities_2','sqlite_autoindex_revision_derivations_1','sqlite_autoindex_revision_derivations_2') AND NOT (?1 AND name IN ('sqlite_autoindex_workflows_1','sqlite_autoindex_workflow_revisions_1')) ORDER BY name")?;
     let schema: Vec<(String, String, String)> = query
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+        .query_map([allow_workflows && version == 4], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+        })?
         .collect::<Result<_, _>>()?;
     let mut expected: Vec<(String, String, String)> =
         vec![("table".into(), "snapshots".into(), SCHEMA.into())];
@@ -439,15 +544,22 @@ fn verify_schema(db: &Connection) -> Result<(), StoreError> {
                 .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
         );
     }
-    if version == 3 {
+    if matches!(version, 3 | 4) {
         expected.extend(
             composition_records::SCHEMAS
                 .iter()
                 .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
         );
     }
+    if version == 4 {
+        expected.extend(
+            workflow_records::SCHEMAS
+                .iter()
+                .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
+        );
+    }
     expected.sort_by(|a, b| a.1.cmp(&b.1));
-    if ![1, 2, 3].contains(&version) || app_id != APPLICATION_ID || schema != expected {
+    if app_id != APPLICATION_ID || schema != expected {
         return Err(StoreError::UnsupportedSchema);
     }
     Ok(())
@@ -528,3 +640,9 @@ mod tests;
 
 #[cfg(test)]
 mod capability_tests;
+
+#[cfg(test)]
+mod workflow_compatibility_tests;
+
+#[cfg(test)]
+mod workflow_lifecycle_tests;

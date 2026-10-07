@@ -554,5 +554,5 @@ fn commit_fault_child() {
         std::env::var("RANGOON_RECOVERY_TEST_MODE").as_deref(),
         Ok("full")
     );
-    assert!(matches!(result, Err(StoreError::Unavailable)));
+    assert!(matches!(result, Err(StoreError::Full)));
 }

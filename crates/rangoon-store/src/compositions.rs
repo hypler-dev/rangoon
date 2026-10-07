@@ -160,7 +160,7 @@ fn candidate(
             return Err(StoreError::CapabilityConflict);
         }
     }
-    result.version = 3;
+    result.version = records.version.max(3);
     validate_candidate(&result)
 }
 
@@ -183,7 +183,7 @@ pub(super) fn validate_candidate(records: &Records) -> Result<Records, StoreErro
             return Err(StoreError::CapabilityFull);
         }
     }
-    Records::load(&composition_backup::canonical_database(records)?)
+    Records::load_complete(&composition_backup::canonical_database(records)?)
 }
 
 pub(super) fn update_head(
@@ -209,11 +209,11 @@ pub(super) fn update_head(
 
 impl Workspace {
     pub fn list_capabilities_v1(&self) -> Result<Vec<CapabilitySummary>, StoreError> {
-        let Some(mut db) = self.connect(false)? else {
+        let Some(mut db) = self.connect_complete(false)? else {
             return Ok(Vec::new());
         };
         let tx = db.transaction()?;
-        let records = Records::load(&tx)?;
+        let records = Records::load_complete(&tx)?;
         let result = records
             .owners
             .keys()
@@ -231,9 +231,11 @@ impl Workspace {
         if !valid_id(id, "capability:") || revision.is_some_and(|r| !valid_id(r, "revision:")) {
             return Err(StoreError::CapabilityInvalid);
         }
-        let mut db = self.connect(false)?.ok_or(StoreError::CapabilityNotFound)?;
+        let mut db = self
+            .connect_complete(false)?
+            .ok_or(StoreError::CapabilityNotFound)?;
         let tx = db.transaction()?;
-        let result = Records::load(&tx)?.detail(id, revision)?;
+        let result = Records::load_complete(&tx)?.detail(id, revision)?;
         tx.commit()?;
         Ok(result)
     }
@@ -246,9 +248,9 @@ impl Workspace {
         }
         application::application_identity_envelope_bytes(&request.draft, &request.targets)
             .map_err(|_| StoreError::CompositionInvalid)?;
-        let mut db = self.connect(false)?.ok_or(StoreError::NotFound)?;
+        let mut db = self.connect_complete(false)?.ok_or(StoreError::NotFound)?;
         let tx = db.transaction()?;
-        let records = Records::load(&tx)?;
+        let records = Records::load_complete(&tx)?;
         let bytes = rangoon_compose::canonical_draft_bytes(&request.draft)
             .map_err(|_| StoreError::CompositionInvalid)?;
         let request = Request {
@@ -279,9 +281,11 @@ impl Workspace {
         if !acknowledged {
             return Err(StoreError::CompositionAcknowledgmentRequired);
         }
-        let mut db = self.connect(false)?.ok_or(StoreError::WorkspaceChanged)?;
+        let mut db = self
+            .connect_complete(false)?
+            .ok_or(StoreError::WorkspaceChanged)?;
         let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let current = Records::load(&tx)?;
+        let current = Records::load_complete(&tx)?;
         if current.state_id()? != prepared.expected_state_id {
             return Err(StoreError::WorkspaceChanged);
         }
@@ -297,7 +301,7 @@ impl Workspace {
         )?;
         #[cfg(test)]
         composition_commit_tests::fault_checkpoint(&tx, "before_migration")?;
-        composition_backup::ensure_schema(&tx, 3)?;
+        workflow_mutations::ensure_schema(&tx, result.version)?;
         #[cfg(test)]
         composition_commit_tests::fault_checkpoint(&tx, "after_migration")?;
         if !current.recipes.contains_key(&preview.core.composition_id) {
@@ -345,7 +349,7 @@ impl Workspace {
             #[cfg(test)]
             composition_commit_tests::fault_checkpoint(&tx, "after_output")?;
         }
-        let stored = Records::load(&tx)?;
+        let stored = Records::load_complete(&tx)?;
         if stored.state_id()? != result.state_id()? {
             return Err(StoreError::Corrupt);
         }

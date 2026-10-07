@@ -432,6 +432,7 @@ dependencies = [
  "rangoon-compose",
  "rangoon-domain",
  "rangoon-import",
+ "rangoon-workflow",
  "rusqlite",
  "serde",
  "serde_json",

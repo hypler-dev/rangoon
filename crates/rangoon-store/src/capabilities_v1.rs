@@ -53,9 +53,9 @@ impl Workspace {
         {
             return Err(StoreError::CapabilityInvalid);
         }
-        let mut db = self.connect(false)?.ok_or(StoreError::NotFound)?;
+        let mut db = self.connect_complete(false)?.ok_or(StoreError::NotFound)?;
         let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let current = Records::load(&tx)?;
+        let current = Records::load_complete(&tx)?;
         let source = current.sources.get(source_id).ok_or(StoreError::NotFound)?;
         let fragment = source
             .report
@@ -97,7 +97,7 @@ impl Workspace {
             },
         );
         let candidate = compositions::validate_candidate(&candidate)?;
-        composition_backup::ensure_schema(&tx, candidate.version)?;
+        workflow_mutations::ensure_schema(&tx, candidate.version)?;
         composition_backup::insert_owner(&tx, &id, &birth, &next.id)?;
         composition_backup::insert_revision(
             &tx,
@@ -105,7 +105,7 @@ impl Workspace {
             &RevisionSummary::from(&next),
             next.content.as_bytes(),
         )?;
-        let stored = Records::load(&tx)?;
+        let stored = Records::load_complete(&tx)?;
         if stored.state_id()? != candidate.state_id()? {
             return Err(StoreError::Corrupt);
         }
@@ -128,9 +128,11 @@ impl Workspace {
         if !valid_title(title) || !valid_content(content) {
             return Err(StoreError::CapabilityInvalid);
         }
-        let mut db = self.connect(false)?.ok_or(StoreError::CapabilityNotFound)?;
+        let mut db = self
+            .connect_complete(false)?
+            .ok_or(StoreError::CapabilityNotFound)?;
         let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let current = Records::load(&tx)?;
+        let current = Records::load_complete(&tx)?;
         let detail = current.detail(id, None)?;
         let retry = capability::revision_id(id, Some(expected), title, content)
             == detail.latest_revision_id;
@@ -166,7 +168,7 @@ impl Workspace {
             content.as_bytes(),
         )?;
         compositions::update_head(&tx, &candidate.owners[id].birth, id, expected, &next.id)?;
-        let stored = Records::load(&tx)?;
+        let stored = Records::load_complete(&tx)?;
         if stored.state_id()? != candidate.state_id()? {
             return Err(StoreError::Corrupt);
         }
@@ -184,9 +186,11 @@ impl Workspace {
         expected: &str,
     ) -> Result<CapabilityReceiptV1, StoreError> {
         check_ids(id, expected)?;
-        let mut db = self.connect(false)?.ok_or(StoreError::CapabilityNotFound)?;
+        let mut db = self
+            .connect_complete(false)?
+            .ok_or(StoreError::CapabilityNotFound)?;
         let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let current = Records::load(&tx)?;
+        let current = Records::load_complete(&tx)?;
         let detail = current.detail(id, None)?;
         if detail.latest_revision_id != expected {
             return Err(StoreError::CapabilityConflict);
@@ -198,7 +202,7 @@ impl Workspace {
                 params![expected, capabilities::now_ms()?],
             )?;
         }
-        let capability = Records::load(&tx)?.detail(id, None)?;
+        let capability = Records::load_complete(&tx)?.detail(id, None)?;
         tx.commit()?;
         Ok(CapabilityReceiptV1 {
             capability,

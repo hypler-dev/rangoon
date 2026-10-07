@@ -36,7 +36,7 @@ Raw record input and canonical serialized record are each capped at 160 KiB. `pr
 
 ## W2b required storage and recovery semantics
 
-The later storage contract must define exact SQL/manifest bytes and API DTOs before migration code. Portable W2a records alone are not a saved workspace. The following requirements are fixed:
+The controller's [workflow workspace contract](workflow-workspace.md) specifies exact SQL/manifest bytes and API DTOs for independent review before migration code. Portable W2a records alone are not a saved workspace. The following requirements are fixed:
 
 - Stable owners and immutable revision rows must form a bounded single-parent chain, with one root and a current head per workflow. Preserve canonical record bytes, verify identities and parent ownership on read, and never silently repair malformed rows. Limits: 128 workflows, 32 revisions per workflow, 1024 workflow revisions total, and the existing 64 MiB SQLite ceiling. Reject rather than evict. Capability quotas remain independent.
 - Draft revisions may retain unresolved syntactically valid dependency references and show them as unresolved. A validated-intent revision requires structurally valid content and all exact capability/revision pairs in the final workspace. Do not mutate the pure W1 report into an authority claim. Pinned historical skill revisions remain pinned when the skill head advances.
