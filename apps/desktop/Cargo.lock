@@ -2948,6 +2948,7 @@ dependencies = [
  "rangoon-model-local",
  "rangoon-model-session",
  "rangoon-store",
+ "rangoon-workflow",
  "serde",
  "serde_json",
  "tauri",
