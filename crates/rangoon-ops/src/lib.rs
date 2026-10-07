@@ -9,12 +9,23 @@ mod decode;
 mod projection;
 mod projection_types;
 mod records;
+mod relationship_types;
+mod relationships;
+
+#[cfg(test)]
+mod relationship_tests;
 
 pub use decode::decode_window;
 pub use projection::project_window;
 pub use projection_types::{
     MAX_PROJECTION_BYTES, PROJECTION_SCHEMA, Projection, ProjectionDocument, ProjectionError,
 };
+
+pub use relationship_types::{
+    MAX_RELATIONSHIP_BYTES, MAX_RELATIONSHIP_MATCHES, MAX_RELATIONSHIP_REFERENCES,
+    RELATIONSHIP_SCHEMA, RelationshipDocument, RelationshipError, Relationships,
+};
+pub use relationships::relate_window;
 
 pub const WINDOW_SCHEMA: &str = "rangoon.ops.window.v1";
 pub const REDUCER_VERSION: &str = "rangoon.ops.reducer.v1";
