@@ -6,6 +6,8 @@ use rangoon_domain::{Authority, byte_digest};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet, VecDeque};
 
+pub mod records;
+
 pub const DEFINITION_SCHEMA: &str = "rangoon.workflow-definition.v1";
 pub const REPORT_SCHEMA: &str = "rangoon.workflow-validation.v1";
 pub const MAX_INPUT_BYTES: usize = 128 * 1024;

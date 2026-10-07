@@ -4,7 +4,7 @@
 
 Rangoon brings agent instructions, reusable skills, workflows, connectors, tests, and evidence into one inspectable lifecycle. The immediate problem is practical: useful knowledge is scattered across `AGENTS.md`, `CLAUDE.md`, `SKILL.md`, project rules, and scripts. Teams need to understand that material, preserve its origin, reorganize it without silently losing constraints, and see exactly what will change before publishing it elsewhere.
 
-The long-term product is a desktop and cloud control plane. The current implementation is an **experimental desktop source workbench**, with real local persistence, immutable skill revisions, composition infrastructure, an actual `#model-assistance` workbench, and a separate synthetic design preview. The native application has no live agent executor, connector execution, or LNSAT transport. Its model paths provide explicitly configured numeric-loopback local sessions and an optional native cloud route, all advisory. Native cloud orchestration now owns ten bounded commands, explicit capability configuration, full-envelope credential custody, final native consent, freshness checks and a fixed-origin TLS adapter; provider compatibility, proposal application, quality, GUI and release qualification remain open. Native OS credential management remains separate and explicit; no existing key or paid/private call is used by source validation.
+The long-term product is a desktop and cloud control plane. The current implementation is an **experimental desktop source workbench**, with real local persistence, immutable skill revisions, direct composition editing, portable workflow definitions/revision candidates, an actual `#model-assistance` workbench, and a separate synthetic design preview. The native application has no live agent executor, connector execution, or LNSAT transport. Its model paths provide explicitly configured numeric-loopback local sessions and an optional native cloud route, all advisory. Native cloud orchestration now owns ten bounded commands, explicit capability configuration, full-envelope credential custody, final native consent, freshness checks and a fixed-origin TLS adapter; provider compatibility, proposal application, quality, GUI and release qualification remain open. Native OS credential management remains separate and explicit; no existing key or paid/private call is used by source validation.
 
 The first desktop release targets **macOS, Windows, and Linux together**. The initial product is intended to be free and open source; a software license has not yet been adopted. No license grant or released operating-system support is implied by the public source.
 
@@ -19,6 +19,7 @@ The first desktop release targets **macOS, Windows, and Linux together**. The in
 - [Import and source analysis](#import-and-source-analysis)
 - [Workspace and revision model](#workspace-and-revision-model)
 - [Composition: Decompose, Merge, and Split](#composition-decompose-merge-and-split)
+- [Workflow definitions and revision records](#workflow-definitions-and-revision-records)
 - [Instruction compilation](#instruction-compilation)
 - [Model assistance](#model-assistance)
 - [Backup, restore, and deletion](#backup-restore-and-deletion)
@@ -42,11 +43,12 @@ The intended users are developers managing agent configuration, platform teams m
 | Import & Analyze | Bounded Rust Markdown scanner, stdin CLI, and one explicitly selected native file; exact text, digest, spans, and diagnostics | Explicit directory/repository import, additional formats, optional semantic proposals |
 | Local workspace | SQLite source snapshots; explicit save, deduplication, reanalysis on reopen | Broader project/workspace model and platform qualification |
 | Skills | Source-section derivation, immutable revisions, history comparison, local content review, versioned provenance | Search/library expansion, compatibility, distribution, and collaboration |
-| Decompose/Merge/Split | Real native editor routes over saved records, exact recipes/coverage, new/append destinations, retained previews, atomic storage, and schema 3 recovery | Complete advanced GUI/failure qualification and Windows/Linux interactive evidence |
+| Decompose/Merge/Split | Real native editor routes and direct composition canvas: drag/drop, click-to-connect, contextual/keyboard actions, bounded undo/redo, exact recipes/coverage, new/append destinations, retained previews, atomic storage, and schema 3 recovery | Complete advanced GUI/failure qualification and Windows/Linux interactive evidence |
 | Data controls | Inventory, plaintext portable backup, additive restore, dependency-aware logical deletion | Encryption, retention policy, recovery UX expansion, and additional platform evidence |
 | Engine integration | Explicit unavailable LNSAT port, native status page, and CLI diagnostics | Qualified transport, authentication, typed operations, and evidence readback |
 | Model assistance | M1a pure pack/validation, session-only local custody, native local workbench, and native cloud orchestration are implemented. Cloud exposes ten bounded main/review commands, explicit capability configuration, retained full-envelope credential pairing, source-free GET checks, fixed-origin TLS, final parented OS consent, and pre/post freshness checks; outputs remain inert and advisory | Real provider compatibility, tokenizer/accounting, proposal application, three-OS GUI, security and release qualification remain open; M1b/V1 are incomplete |
-| Workflows and agents | Synthetic visual concepts and architecture contracts | Real definitions, validation, execution-state model, scheduling, and qualified runners |
+| Workflows | Pure typed definitions and structural validation; immutable draft/validated-intent revision candidates with bounded node positions and strict identity verification | Durable workflow storage/recovery, native commands, real workflow editor, run state and qualified execution; current Workflows page remains synthetic |
+| Agents and templates | Synthetic visual concepts and architecture direction | Real reusable agent records, dependency closure, templates, scheduling and qualified runners |
 | Connectors and harnesses | Synthetic catalog and extension direction | Versioned implementations, permissions, compatibility fixtures, and conformance suites |
 | Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, and target-loader compatibility |
 | Test Lab and export | Development tests, independent golden fixtures, portable instruction-bundle encoder/verifier, and native Export/Inspect commands/UI implemented in this source | User-facing static tests, native GUI qualification, target conformance and evidence bundles |
@@ -90,6 +92,7 @@ Bundled native frontend                         Synthetic browser preview
 | `crates/rangoon-store/` | SQLite schema validation, snapshots, revisions, local reviews, composition storage, backup/restore, and deletion |
 | `crates/rangoon-compose/` | Pure transformation validation, coverage, materialization, destination application, and deterministic identities |
 | `crates/rangoon-compile/` | Pure AGENTS.md/CLAUDE.md instruction artifacts, static diagnostics, candidate identities and strict portable-bundle verification |
+| `crates/rangoon-workflow/` | Pure typed control/data graphs, structural diagnostics, canonical definition identities, and immutable revision candidates; no storage or execution |
 | `crates/rangoon-engine/` | Inert `GovernancePort` and LNSAT unavailable diagnostics |
 | `crates/rangoon-model-assistance/` | Pure bounded context packing and advisory-response validation; no transport, provider, credential, or authority behavior |
 | `crates/rangoon-model-local/` | Explicit numeric-loopback Ollama-compatible HTTP/1 transport for prepared advisory requests; the desktop host supplies consent and calling orchestration; no credential or authority behavior |
@@ -222,6 +225,30 @@ The receipt contains actual saved capability details in output order. A changed 
 
 See the [composition specification](docs/composition.md), [destination contract](docs/composition-destinations.md), and [native session contract](docs/composition-native.md).
 
+### Direct composition canvas
+
+The real Decompose/Merge/Split workbench supports dragging source sections and recipe pieces, click-to-connect ports, visible action menus, right-click actions and keyboard alternatives. These edit the same ordered recipe used by native preview and save. Undo/redo retains at most 32 entries and 4 MiB of combined serialized history; it cannot restore a previous acknowledgment or save receipt. Pending native operations lock editing, stale drag/connection state is rejected, and unsaved field edits require Apply/Cancel before structural changes. Narrow layouts provide explicit text actions instead of relying on dragging.
+
+This graph reorganizes content; it is separate from workflow control/data flow and LNSAT authority. Synthetic browser interaction/layout checks and existing native composition evidence do not establish complete native canvas qualification. See [composition UI](docs/composition-ui.md) and the [development ledger](docs/development.md).
+
+## Workflow definitions and revision records
+
+`rangoon-workflow` implements the portable authoring foundation. It does not yet persist a workflow or drive the synthetic Workflows page. Its closed node types are Input, Capability, Check, Branch, Checkpoint and Output. Typed data mappings are separate from control edges. Capability nodes declare exact capability/revision pairs; branches carry explicit paths, and checkpoints declare a prompt without recording approval.
+
+`inspect_definition` strictly decodes bounded JSON, preserves decodable incomplete drafts, and reports structural errors for ports, references, topology, cycles, reachability and data availability. Canonical serialization preserves strings and array order. Only structurally valid definitions receive a `workflow-definition:` identity. The report always distinguishes structural validity from unverified references, unavailable execution and no authority.
+
+The `records` module adds `workflow_id_from_nonce`, `prepare_revision` and `decode_revision`. A workflow ID derives from a caller-supplied 32-byte nonce; this pure module supplies no randomness or authenticated identity. Immutable revision IDs bind the workflow, nullable parent, explicit `draft` or `validated` intent, canonical definition and canonical layout using domain-separated, length-framed SHA-256. Layout changes alter the revision ID without altering the definition ID. `validated` requires structural validity, but the portable candidate cannot prove dependency existence or successful storage. Drafts preserve invalid but decodable graphs.
+
+| Boundary | Current portable contract |
+| --- | --- |
+| Definition | 128 KiB; at most 128 nodes, 256 control edges, 1,024 data edges and eight inputs/outputs per node |
+| Revision | 160 KiB raw/canonical record; strict schema, IDs, field types, duplicate-key rejection and identity recomputation |
+| Layout | `prepare_revision` caps raw layout at 16 KiB; `decode_revision` caps canonical nested layout at 16 KiB within the 160 KiB raw record limit. At most 128 unique node-index entries; integer coordinates from -100000 through 100000 |
+| Nesting | At most 32 JSON containers; malformed/resource failures return closed errors. Decodable structural faults produce validation diagnostics |
+| Authority | No database, filesystem, network, provider, process, engine, run or approval behavior |
+
+W2b must add transactional expected-head saves, complete immutable history, pinned dependency resolution, migration, backup/restore and dependency-aware deletion together. W2c native commands and W3 library/canvas/inspector editing follow. Incomplete typed drafts must remain saveable as drafts; stale or failed saves must preserve current edits. No new database schema or native workflow command is introduced by these portable records. See [workflow definitions](docs/workflow-definitions.md), [workflow records](docs/workflow-records.md), and [validation evidence](docs/development.md).
+
 ## Instruction compilation
 
 The R4a library compiles one exact capability revision into an inspectable instruction artifact. `Workspace::compile_capability(capability_id, revision_id, profile)` resolves the content, local review and composition lineage through the existing validated store; it accepts IDs rather than renderer-supplied content or a review flag. A reviewed historical revision remains selectable, with the observed current head reported separately. Reads do not create a workspace, migrate its schema, mark a revision reviewed or write an artifact.
@@ -267,6 +294,10 @@ The packer uses fixed checked-in task templates and bounded canonical JSON. The 
 The [`rangoon-model-session`](crates/rangoon-model-session/) crate supplies portable session custody around those libraries, and `apps/desktop/src/models.rs` wires it into the native host. `LocalSession` keeps one optional profile, one prepared request and at most one active operation in memory; `configure`, `inspect`, `clear`, `cancel`, `begin_prepare`, `begin_check` and `begin_send` enforce session lifecycle. Preparation resolves exact saved source or capability-revision IDs, packs each nonempty record as one protected full-content selection, rejects empty records, and exposes immutable request metadata. Random single-use `prepared:` and `run:` handles, checked generations, cancellation and non-cloneable RAII leases prevent stale or replayed ownership. `Transmission::freshness` is a read-before/read-after helper for native orchestration. The library performs no network calls or authority actions; the native host owns the seven main commands, three review commands, isolated exact-payload window, parented OS dialog, single-use consent, cancellation and freshness checks. See the [native session contract](docs/model-native-session.md) and [native workbench contract](docs/model-native-workbench.md).
 
 The local contract binds an exact immutable profile and final request payload, permits one in-flight operation process-wide, and fixes 3-second connect, 5-second version-check, and 120-second analysis deadlines. It caps the final request at 256 KiB, version responses at 1 KiB, chat responses at 1 MiB, and decoded message content at 128 KiB. Cancellation is monotonic and releases the guard; response parsing and proposal validation remain strict and advisory.
+
+### Attributed proposal inspection
+
+The pure `inspect_proposal` API checks a validated response against its exact context pack and selected proposal index, then exposes bounded proposal text and citation evidence for comparison. It performs no freshness check, destination selection, network request or mutation. Native completed-result retention and durable attributed application remain unfinished; routing model text through an ordinary skill edit would lose required model/task/pack/response provenance. See [proposal inspection](docs/model-proposal-inspection.md).
 
 ### Cloud session custody
 
@@ -335,7 +366,7 @@ SQLite connections disable trusted schema, use rollback-journal `DELETE` mode an
 
 **The database and exported backups are unencrypted.** A party with sufficient filesystem access can read them. A writer able to replace the store can recompute its unkeyed hashes; internal consistency does not establish authentic authorship, an untampered history, or freshness after rollback. Local review labels and wall-clock timestamps are unauthenticated.
 
-The current application makes no provider requests or background source uploads. Analysis output and backups contain source content, so publishing those artifacts can disclose that content. Logical deletion cannot promise removal from backups, filesystem snapshots, or storage media.
+Provider requests require the explicit configured model path, retained payload review and native consent described above. There are no automatic background source uploads. Analysis output and backups contain source content, so publishing those artifacts can disclose that content. Logical deletion cannot promise removal from backups, filesystem snapshots, or storage media.
 
 ### Proposed hardening sequence
 
@@ -472,6 +503,8 @@ Each adapter declares accepted input fields, target syntax, preserved semantics,
 
 ### 4. Make Test Lab, agents, and workflows operational
 
+**Foundation present:** pure typed workflow definitions, deterministic structural validation and immutable portable revision candidates. Durable workflow storage, native workflow commands and the real editor remain open. The existing workflow preview is synthetic.
+
 **Deliver:** user-facing static validation, fixture simulations, reusable agent definitions, and workflow graphs with typed inputs/outputs, dependencies, retries, timeouts, cancellation, and evidence links. Templates and a registry build on versioned records and dependency closure.
 
 Keep pure validation and simulated steps distinct from provider or connector runs. Separate a workflow definition from a run record. Runs need durable states for queued, running, waiting for review, completed, failed, cancelled, and unknown effect; failure and unknown effect must not be conflated.
@@ -492,7 +525,7 @@ M1a is the pure context-pack and advisory-response core described above. Remaini
 
 - **M1b:** the source-only `rangoon-model-local` library provides immutable connection profiles, a bounded numeric-loopback adapter, source-free connection check, cancellation/timeout/size handling, no startup traffic, and no automatic provider fallback. The separate `rangoon-model-session` crate provides portable session-only profile/request custody, exact saved-ID resolution, protected full-record packing, single-use handles, generation/cancellation/RAII leases, and freshness helpers. The native host now wires the actual `#model-assistance` workbench, seven main commands, three isolated review commands, exact-payload consent, narrow IPC, cancellation and freshness checks. Isolated macOS synthetic QA passed the named prepare/GET/POST/cancel/inert-response cases recorded in [development.md](docs/development.md). Native cloud integration is source-implemented; three-OS credential custody qualification, proposal application, tokenizer/quality qualification, real compatibility and Windows/Linux GUI remain open. M1b is incomplete.
 - **M1c:** native credential management is implemented under the [cloud custody contract](docs/model-cloud-custody.md). Fixed OpenAI-slot inspect, add/replace and remove commands use explicit OS stores and native Save/Remove decisions. The portable fixed-origin cloud adapter is implemented and tested with synthetic TLS fixtures; cloud session custody adds saved-ID resolution and single-use request ownership. Native exact-request/credential consent integration is source-implemented. Real-provider compatibility and all-three-OS runtime qualification remain open; M1c is incomplete.
-- **M1d:** native payload preview, coverage/budget display, proposal inspection, stale/error/partial states, accessible controls, and explicit draft application. Proposals remain advisory and inert until existing local review rules accept a change.
+- **M1d:** native payload review and pure attributed proposal inspection exist. Complete native result retention/comparison, durable provenance, stale/error/partial states, accessible controls, and explicit draft application. Proposals remain advisory and inert until existing local review rules accept a change.
 - **M1e:** task-quality and packing qualification on public or synthetic fixtures, with stated tokenizer/accounting assumptions, coverage and correctness measurements, latency/input/output measurements, regression limits, and honest failures. This gate does not follow from the M1a byte counters.
 
 ### 6. Release the free three-OS desktop product
@@ -524,6 +557,8 @@ Measure preservation of source constraints across transformations/adapters, prov
 ## Contributing and documentation
 
 Use [intent.md](docs/intent.md) for accepted scope and [development.md](docs/development.md) for exact implementation/publication evidence. Product designs and older packet records are supporting context; their original status labels may describe an earlier stage. Changes should name the controlling contract, preserve unrelated work, and include appropriate tests plus independent review.
+
+Every push or merge to main must include a substantive update to this README that reflects the final delivered change and its limits. The controller verifies this in the reviewed publication diff under [AGENTS.md](AGENTS.md); exact test and merge receipts remain in the development ledger.
 
 Keep fixtures secret-free. Imported instruction text is data, including when it contains commands. Do not commit private project content, credentials, local databases, provider payloads, production records, or engine tokens. Preserve the distinction between synthetic UI, implemented source, observed native behavior, and released support.
 
