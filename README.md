@@ -251,11 +251,11 @@ The `records` module adds `workflow_id_from_nonce`, `prepare_revision` and `deco
 | Nesting | At most 32 JSON containers; malformed/resource failures return closed errors. Decodable structural faults produce validation diagnostics |
 | Authority | No database, filesystem, network, provider, process, engine, run or approval behavior |
 
-The W2b Rust store implements transactional expected-head saves, complete immutable history, pinned dependency resolution, migration, backup/restore and dependency-aware deletion. W2c-1 native Data inventory, export, restore and deletion controls are implemented in this source. Workflow authoring commands and W3 library/canvas/inspector editing follow. Incomplete typed drafts remain saveable; stale or failed saves preserve current edits. The [durable workspace contract](docs/workflow-workspace.md) freezes these semantics; exact qualification and publication receipts belong in the [development ledger](docs/development.md).
+The W2b Rust store implements transactional expected-head saves, complete immutable history, pinned dependency resolution, migration, backup/restore and dependency-aware deletion. W2c-1 native Data inventory, export, restore and deletion controls are implemented in this source. W2c-2 native authoring commands are also implemented in this source; W3 library/canvas/inspector editing follows. Incomplete typed drafts remain saveable; stale or failed saves preserve current edits. The [durable workspace contract](docs/workflow-workspace.md) freezes these semantics; exact qualification and publication receipts belong in the [development ledger](docs/development.md).
 
 The current source integrates workflow rows into the complete validated record set and schema-4 state digest. Its flat V3 archive codec preserves source, capability, composition and workflow records, validates canonical bytes and exact pins, and checks both payload limits and reconstructed SQLite allocation. V1/V2 compatibility remains; legacy V2 export rejects richer records rather than omitting them. SQLite allocation exhaustion reports `Full`; malformed archives report `BackupInvalid`, except the unchanged legacy decoder behavior documented in the contract.
 
-The following Rust lifecycle APIs are implemented. Native workflow authoring commands and the real editor remain subsequent work:
+The following Rust lifecycle APIs are implemented. Native authoring custody is described below; the real editor remains subsequent work:
 
 | API | Current behavior |
 | --- | --- |
@@ -272,7 +272,28 @@ Existing version-aware source reads/`save_v1`, skill `*_v1` operations, composit
 
 `inspect_workflow_deletion` returns a private retained impact plan; `delete_workflow_record` revalidates its complete fields and workspace state inside an immediate transaction. Public operations handle sources, skills and workflows using complete records. Any historical draft reference to a skill owner blocks deletion, deleting a workflow removes only its history, and schema 4 never downgrades. Read-only preflight precedes write access, with full plan/state comparisons repeated inside the transaction. This is logical deletion, not secure erasure; the complete v2 native data-control adoption is specified below.
 
-Previewing an empty V3 archive preserves an absent or existing destination's schema and creates no destination files. Complete v2 native data controls are implemented in this source. Native workflow authoring commands and editor integration remain incomplete. Original images remain the layout reference for that editor. See [workflow definitions](docs/workflow-definitions.md), [workflow records](docs/workflow-records.md), and [validation evidence](docs/development.md).
+Previewing an empty V3 archive preserves an absent or existing destination's schema and creates no destination files. Complete v2 native data controls are implemented in this source. Native workflow authoring commands are implemented in this source; editor integration remains incomplete. Original images remain the layout reference for that editor. See [workflow definitions](docs/workflow-definitions.md), [workflow records](docs/workflow-records.md), and [validation evidence](docs/development.md).
+
+### Native workflow authoring API
+
+The desktop command layer now owns one in-memory draft context and one exact inspected save candidate. The six commands are registered only for the local main workbench; the optional model/credential windows receive no authoring permissions. This is native API source implementation, not a completed workflow editor. The Workflows design preview remains synthetic.
+
+| Command | Inputs and behavior |
+| --- | --- |
+| `list_workflows` | Read complete workflow inventory without creating a workspace or draft |
+| `open_workflow` | Bounded raw request selecting a current head or exact historical revision; changes no head/session |
+| `begin_workflow_draft` | New native-generated identity, or append to an explicitly selected current head; issues an opaque draft handle |
+| `inspect_workflow_save` | Draft handle, closed intent, raw JSON definition/layout; builds the canonical revision using native-retained identity/parent and retains the full store plan |
+| `commit_workflow_save` | Preview handle, exact expected state and explicit acknowledgment; consumes one attempt before reinspection/transaction, returns only a confirmed receipt |
+| `clear_workflow_draft` | Matching active draft handle; clears session state without deleting persistent records |
+
+Open/begin/commit/clear bodies are at most 1 KiB; inspection bodies are at most 160 KiB, with the existing 128 KiB definition and 16 KiB raw layout bounds. Requests use closed versioned raw UTF-8 JSON schemas; typed envelopes reject missing/unknown/duplicate fields and invalid selectors. Nested definition/layout JSON is retained as raw values so the existing strict domain decoders still see duplicates, depth and byte limits. These checks bound decoding after Tauri receives the buffer, not transport allocation.
+
+Preparation accepts authored definition/layout and a native draft selector. It accepts no renderer workflow/parent/revision identity, SQL, path, timestamp or store plan. The native-generated identity stays stable while the draft is repaired. A successful new draft or preview replaces the corresponding prior session; preparation failure preserves the previous native candidate. A future renderer must treat uncertain preparation as stale. Matching confirmation consumes a single attempt even when storage refuses or its response is uncertain; no automatic write retry occurs. Draft identity remains available for a fresh inspection, while renderer text, selection, viewport and history remain the upcoming W3 controller's responsibility.
+
+Reinspection compares the full retained plan. One narrow no-write exception permits the store's exact existing-current-head candidate retry: the schema/workflow/revision and unresolved count match, the store confirms canonical byte equality, and the head equals that candidate. A changed count, different/historical candidate or deleted owner is refused. Equal unresolved counts do not prove each dependency status stayed equal; a no-op receipt reports fresh statuses. The store transaction revalidates complete records and exact candidate/state relationships before any write.
+
+Incomplete decodable definitions may be saved as drafts; validated intent requires structural validity and exact available local capability revisions. Neither intent records review, approval, execution or authority. Source/session tests are separate from native IPC/editor and all-three-OS GUI qualification. See [native authoring](docs/workflow-native-authoring.md) and the [development ledger](docs/development.md) for exact scope, checks and open gates.
 
 ## Instruction compilation
 
@@ -536,7 +557,7 @@ Each adapter declares accepted input fields, target syntax, preserved semantics,
 
 ### 4. Make Test Lab, agents, and workflows operational
 
-**Foundation present:** pure typed workflow definitions, deterministic structural validation, immutable revision candidates and the complete durable Rust storage/recovery lifecycle. Native workflow authoring custody/commands and the real editor remain open; complete Data inventory/recovery adopts v2 in this source. The existing workflow preview is synthetic.
+**Foundation present:** pure typed workflow definitions, deterministic structural validation, immutable revision candidates and the complete durable Rust storage/recovery lifecycle. Native workflow authoring custody/commands and complete v2 Data inventory/recovery are implemented in this source; the real editor and interactive qualification remain open. The existing workflow preview is synthetic.
 
 **Deliver:** user-facing static validation, fixture simulations, reusable agent definitions, and workflow graphs with typed inputs/outputs, dependencies, retries, timeouts, cancellation, and evidence links. Templates and a registry build on versioned records and dependency closure.
 
@@ -615,6 +636,7 @@ Keep fixtures secret-free. Imported instruction text is data, including when it 
 | [Native Compile inspection](docs/compilation-ui.md) | Exact-ID command, workbench states, stale report handling and qualification gates |
 | [Native bundle export and inspection](docs/instruction-bundle-ui.md) | Export/Inspect commands/UI in this source, picker custody, receipts, uncertainty and external-file limits |
 | [Workspace controls](docs/workspace-data-controls.md) | Original inventory, export, restore, and deletion experience |
+| [Native workflow authoring](docs/workflow-native-authoring.md) | Draft identity, exact candidate custody, historical reads and one-attempt save commands |
 | [Complete native controls](docs/workflow-native-controls.md) | Explicit v2 inventory, workflow recovery/deletion, and single-attempt custody |
 | [Desktop setup](docs/desktop-spike.md) | Native prerequisites and runtime qualification limits |
 | [Engine integration](docs/engine-integration.md) | Unavailable port and LNSAT qualification gates |

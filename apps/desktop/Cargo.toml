@@ -21,8 +21,9 @@ rangoon-domain = { path = "../../crates/rangoon-domain" }
 getrandom = "=0.3.4"
 rangoon-compose = { path = "../../crates/rangoon-compose" }
 rangoon-compile = { path = "../../crates/rangoon-compile" }
-serde_json = "=1.0.151"
+serde_json = { version = "=1.0.151", features = ["raw_value"] }
 rangoon-store = { path = "../../crates/rangoon-store" }
+rangoon-workflow = { path = "../../crates/rangoon-workflow" }
 rangoon-engine = { path = "../../crates/rangoon-engine" }
 rangoon-model-session = { path = "../../crates/rangoon-model-session" }
 rangoon-model-cloud = { path = "../../crates/rangoon-model-cloud" }
@@ -44,7 +45,6 @@ zbus-secret-service-keyring-store = { version = "=1.0.1", features = ["crypto-ru
 
 [dev-dependencies]
 rangoon-import = { path = "../../crates/rangoon-import" }
-rangoon-workflow = { path = "../../crates/rangoon-workflow" }
 
 [features]
 default = ["custom-protocol"]

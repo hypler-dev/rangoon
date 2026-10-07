@@ -6,6 +6,11 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 
+mod workflows;
+use workflows::{
+    WorkflowSession, begin_workflow_draft, clear_workflow_draft, commit_workflow_save,
+    inspect_workflow_save, list_workflows, open_workflow,
+};
 mod capabilities;
 mod compilation;
 use compilation::compile_capability;
@@ -322,6 +327,7 @@ fn main() {
         .manage(BackupSession::default())
         .manage(DeletionSession::default())
         .manage(CompositionSession::default())
+        .manage(WorkflowSession::default())
         .manage(NativeModel::default())
         .manage(NativeCloud::default())
         .manage(model_flight::ModelFlight::default())
@@ -355,6 +361,12 @@ fn main() {
             delete_workspace_record,
             preview_composition,
             commit_composition,
+            list_workflows,
+            open_workflow,
+            begin_workflow_draft,
+            inspect_workflow_save,
+            commit_workflow_save,
+            clear_workflow_draft,
             inspect_cloud_credential,
             edit_cloud_credential,
             remove_cloud_credential,
