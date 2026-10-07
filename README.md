@@ -488,7 +488,19 @@ Eighteen fixed structural diagnostics cover duplicate/contradictory identities, 
 
 This stage fixes **authority `none`, authenticity `unverified`, execution `unavailable`, semantic assessment `unavailable`, authoritative eligibility `unknown`, and authoritative effective evaluation `null`**. Its `structural_unverified`, `incomplete` and `conflict` states cover only the named structural checks. Reported full coverage, delegated identity verification, issued authorization or completed execution cannot change those trust fields.
 
-O1b-2 must separately assess evaluation succession, plan/decision/authorization linkage, delegated scope and canonical subjects, mandatory human duties, expiry/revocation/suspension and unknown/conflicting outcomes. O2 then builds real read-only operations routes; O3 qualifies ingress/privacy/retention; O4 qualifies one complete approval/authorization/consumption/evidence path; O5 expands adapters and hosted operation. Neither stage supplies a live collector, approval router, authority engine, execution service or authenticated audit log. Full O1b, O1 and V1 remain incomplete.
+Structural v1 remains frozen. The separate relationship schema below assesses reported links without changing those bytes or trust fields.
+
+### Reported request, evaluation and approval links (O1b-2a)
+
+`relate_window(&DecodedWindow)` first projects the exact immutable window, then returns a separate `rangoon.ops.relationships.v1` document under the [relationship contract](docs/operations-relationships.md). It retains one link row per event and all matching observation ordinals for referenced records. Closed reference checks distinguish absent, ambiguous, wrong-kind and byte-identical repeated records. Flow binding compares workspace, system, environment, engine, request, trace and policy revision; each step keeps its own span ID.
+
+Reported evaluation chains require one root, exact previous/expected selectors, a single successor at each step, matching declared lineage fences and producer streams, and increasing stream sequences. Missing history, branches, cycles, identity conflict, scope/envelope mismatch or inconsistent request/gateway/context pins produce `unknown_or_conflict` with null tip and result. Timestamps never select a winner. Late approvals bound to an older evaluation remain historical; they do not migrate to the successor or override a reported deny.
+
+Plan/decision/authorization links check exact evaluation, plan and stage bindings. This stage does **not** establish approver eligibility, satisfy human duties, authenticate delegation, assess quorum/expiry/revocation/suspension, consume authorization or reconcile effects. Its reported chain tip is an unverified observation selector. Authoritative eligibility remains `unknown`, authoritative effective evaluation remains `null`, and authority/authenticity/execution remain `none`/`unverified`/`unavailable`.
+
+The separate output is capped at **1 MiB**, with at most **8,192 reference rows** and **8,192 combined matching ordinals** across references and chain requests. Work budgets are checked before adding rows or copies; cap failures return fixed, payload-free errors atomically. Structural projection overflow maps to `relationship_structural_limit`; relationship work or output overflow maps to `relationship_limit`. No partial output or hidden dropped observations are returned.
+
+O1b-2b must separately assess delegated scope and canonical subjects, mandatory human duties, expiry/revocation/suspension, outcome relationships and operation-specific coverage. O2 builds real read-only operations routes; O3 qualifies ingress/privacy/retention; O4 qualifies one complete approval/authorization/consumption/evidence path; O5 expands adapters and hosted operation. These source stages supply no live collector, approval router, authority engine, execution service or authenticated audit log. Full O1b, O1 and V1 remain incomplete.
 
 ## LNSAT integration
 

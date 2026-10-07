@@ -619,7 +619,7 @@ impl Write for LimitedWriter {
         Ok(())
     }
 }
-fn bounded_json<T: Serialize>(value: &T) -> Result<Vec<u8>, ProjectionError> {
+pub(crate) fn bounded_json<T: Serialize>(value: &T) -> Result<Vec<u8>, ProjectionError> {
     let mut writer = LimitedWriter::new();
     if serde_json::to_writer(&mut writer, value).is_err() {
         return Err(if writer.limit_hit {
