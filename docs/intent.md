@@ -26,6 +26,10 @@ The build rule has two tracks: preserve recognizable layout and interaction cont
 
 Jeff explicitly requested understandable drag-and-drop editing, right-click options, and adding and connecting nodes to build functions. The first bounded implementation makes the existing Decompose, Merge and Split graph an editable projection of their real composition recipes: pinned source ranges, ordered copy/replacement/authored blocks, and skill outputs. Pointer, context-menu and keyboard operations use the same controller and native preview/save contracts. Undo/redo remains local and invalidates the exact-preview acknowledgment. This is functional content composition; executable workflow nodes and their authority contracts remain later work. The [composition UI contract](composition-ui.md) defines this slice, with evidence recorded in [development.md](development.md). The request does not authorize arbitrary execution, provider calls or changes to LNSAT.
 
+## Workflow authoring implementation sequence — October 6, 2026
+
+The accepted V1 objective and owner request to add/connect nodes and build functions include real workflow authoring. Following the published content-composition canvas, the controller sequence is a portable typed definition and structural validator, native saved revisions/recovery, then a real workflow editor. [Workflow definitions](workflow-definitions.md) specifies W1 and the required later outcomes. This sequence does not turn the historical sample graph into a production runtime and does not authorize engine activation, approval consumption or execution.
+
 ## Problem and evidence
 
 Rangoon's substantial product vision is distributed across conversations, an implementation brief, the public website, and eight interface concepts. Its application repository began this work with only a placeholder README. LNSAT has a separate source foundation with narrower evidence and release gates. A beautiful preview must not turn those design intentions into shipped capability claims.
