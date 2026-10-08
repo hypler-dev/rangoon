@@ -694,7 +694,9 @@ Rangoon's original source and documentation use [Apache License 2.0](LICENSE), w
 
 Hypler's intended consulting business complements the free community app: implementation and integration services, capability/workflow design, deployment assistance, training, custom development and paid maintenance/support. Customers may use or modify community code commercially without buying consulting. Paid services do not convert planned enforcement, certification, hosted operations or platform qualification into current capabilities. Consulting agreements, support commitments and any future separately licensed enterprise components need their own terms; adding restrictions to the Apache license is not the business model.
 
-Contributor/DCO policy and complete dependency/distribution notices remain release work. License adoption does not complete installer, security or government qualification.
+The repository keeps the unmodified license text at its root so GitHub can recognize Apache-2.0. The portable Cargo workspace declares `license = "Apache-2.0"`, every first-party member inherits it, and the separate desktop manifest and Node package declare the same SPDX identifier. `publish = false` and `private: true` remain in force: license metadata does not publish packages or installers. GitHub's default-branch license display is verified separately after main publication; an open pull request alone does not update that display.
+
+Contributor/DCO policy and complete dependency/distribution notices remain release work. Package metadata identifies first-party licensing; it does not relicense dependencies or replace distribution attribution. License adoption does not complete installer, security or government qualification.
 
 ## Contributing and documentation
 

@@ -1,4 +1,5 @@
 [package]
+license.workspace = true
 name = "rangoon-model-assistance"
 version.workspace = true
 edition.workspace = true
