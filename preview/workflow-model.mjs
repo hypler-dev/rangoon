@@ -67,11 +67,12 @@ export const EMPTY_WORKFLOW_STATE = Object.freeze({
   tab: 'canvas', selection: null, viewport: { x: 0, y: 0, zoom: 1 }, fieldEdit: null, canUndo: false, canRedo: false,
 });
 
-export function createWorkflowController({ bridge, onChange = () => {}, onSaved = () => {} } = {}) {
-  const invoke = typeof bridge === 'function' ? bridge : typeof bridge?.invoke === 'function' ? bridge.invoke.bind(bridge) : null;
-  let state = { ...EMPTY_WORKFLOW_STATE, bridgeAvailable: Boolean(invoke), status: invoke ? 'idle' : 'unavailable', message: invoke ? 'Refresh the local workflow library to begin.' : EMPTY_WORKFLOW_STATE.message };
+export function createWorkflowController({ bridge, playground = false, onChange = () => {}, onSaved = () => {} } = {}) {
+  const invoke = playground === true ? null : typeof bridge === 'function' ? bridge : typeof bridge?.invoke === 'function' ? bridge.invoke.bind(bridge) : null;
+  let state = { ...EMPTY_WORKFLOW_STATE, ...(playground === true ? { playground: true } : {}), bridgeAvailable: Boolean(invoke), status: invoke ? 'idle' : 'unavailable', message: invoke ? 'Refresh the local workflow library to begin.' : EMPTY_WORKFLOW_STATE.message };
   let undo = []; let redo = []; let editGeneration = 0; let requestGeneration = 0; let localNodeSequence = 0;
   let activeRequest = null;
+  let playgroundGeneration = 0;
   let invalidatedRequest = null;
   const emit = () => onChange(clone(state));
   const set = changes => { state = { ...state, ...changes }; emit(); };
@@ -80,7 +81,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
     return false;
   };
   const call = async (command, args) => { try { return await invoke(command, args); } catch { return { outcome: 'failed' }; } };
-  const locked = () => !invoke || Boolean(state.pending);
+  const locked = () => (!invoke && playground !== true) || Boolean(state.pending);
   const obsolete = request => {
     if (request !== requestGeneration) return true;
     if (invalidatedRequest !== request) return false;
@@ -97,7 +98,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
     const before = snapshot();
     if (!action()) return false;
     undo.push(before); if (undo.length > 50) undo.shift(); redo = []; editGeneration += 1;
-    set({ dirty: true, candidate: null, acknowledged: false, receipt: null, message: 'Local workflow edits need a fresh inspection.' });
+    set({ dirty: true, candidate: null, acknowledged: false, receipt: null, message: playground === true ? 'Synthetic edits stay in memory. Nothing is saved or inspected.' : 'Local workflow edits need a fresh inspection.' });
     return true;
   };
   const fieldTarget = target => target?.kind === 'workflow' || target?.kind === 'node' && whole(target.index) && target.index < (state.definition?.nodes.length ?? 0);
@@ -117,6 +118,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
   };
   const detailFor = result => exactKeys(result, ['outcome', 'workflow']) && result.outcome === 'opened' ? validateWorkflowDetail(result.workflow) : null;
   const list = async () => {
+    if (playground === true) return false;
     if (locked() || state.fieldEdit) return false;
     const request = ++requestGeneration; activeRequest = request; set({ pending: 'load', message: 'Refreshing local workflow library.' });
     const [workflows, capabilities] = await Promise.all([call('list_workflows'), call('list_capabilities')]);
@@ -130,6 +132,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
     getState: () => clone({ ...state, canUndo: !locked() && undo.length > 0, canRedo: !locked() && redo.length > 0 }),
     load: list,
     async open(workflowId, revisionId = null) {
+      if (playground === true) return false;
       if (locked() || state.session || state.dirty || state.fieldEdit || !/^workflow:[0-9a-f]{64}$/.test(workflowId) || revisionId !== null && !/^workflow-revision:[0-9a-f]{64}$/.test(revisionId)) return false;
       const request = ++requestGeneration; activeRequest = request; set({ pending: 'open', message: 'Opening saved workflow.' });
       const result = await call('open_workflow', encode({ schemaVersion: 'rangoon.workflow-open.v1', workflowId, selection: revisionId ? { kind: 'historical', revisionId } : { kind: 'head' } }));
@@ -139,6 +142,12 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
       undo = []; redo = []; set({ pending: null, status: 'ready', opened: clone(detail), definition: clone(detail.revision.definition), layout: clone(detail.revision.layout), session: null, dirty: false, candidate: null, acknowledged: false, receipt: null, fieldEdit: null, selection: null, message: 'Saved workflow open read-only. Start an explicit append draft to edit.' }); return true;
     },
     async beginNew() {
+      if (playground === true) {
+        if (state.dirty || state.fieldEdit || state.session) return false;
+        undo = []; redo = []; localNodeSequence = 0;
+        set({ status: 'playground', session: { kind: 'playground', generation: ++playgroundGeneration }, definition: emptyDefinition(), layout: emptyLayout(), selection: null, message: 'Synthetic canvas ready. No native or provider action.' });
+        return true;
+      }
       if (locked() || state.session || state.dirty || state.fieldEdit) return false;
       const request = ++requestGeneration; activeRequest = request; set({ pending: 'begin', message: 'Starting a new local workflow draft.' });
       const result = await call('begin_workflow_draft', encode({ schemaVersion: 'rangoon.workflow-draft.v1', target: { kind: 'new' } }));
@@ -147,6 +156,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
       undo = []; redo = []; localNodeSequence = 0; set({ pending: null, status: 'draft', opened: null, session: { draftId: result.draftId, workflowId: result.workflowId, parentRevisionId: null }, definition: emptyDefinition(), layout: emptyLayout(), dirty: false, candidate: null, acknowledged: false, receipt: null, fieldEdit: null, selection: null, message: 'New local draft ready.' }); return true;
     },
     async beginAppend() {
+      if (playground === true) return false;
       const head = state.opened?.head;
       if (locked() || state.session || state.dirty || state.fieldEdit || !head || state.opened.revision.id !== head.latestRevisionId) return false;
       const request = ++requestGeneration; activeRequest = request; set({ pending: 'append', message: 'Starting an append draft from the current head.' });
@@ -164,6 +174,12 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
       set({ pending: null, status: 'draft', opened: clone(detail), session: { draftId: result.draftId, workflowId: result.workflowId, parentRevisionId: result.parentRevisionId }, definition: clone(detail.revision.definition), layout: clone(detail.revision.layout), dirty: false, candidate: null, acknowledged: false, receipt: null, fieldEdit: null, message: 'Append draft ready at the selected current head.' }); return true;
     },
     async clear(confirmed) {
+      if (playground === true) {
+        if (!confirmed) return false;
+        undo = []; redo = [];
+        set({ session: null, definition: null, layout: null, selection: null, dirty: false, candidate: null, acknowledged: false, receipt: null, fieldEdit: null, message: 'Synthetic canvas discarded. No persisted record changed.' });
+        return true;
+      }
       if (!confirmed || locked() || state.fieldEdit || !state.session) return false;
       const draftId = state.session.draftId; const request = ++requestGeneration; activeRequest = request; set({ pending: 'clear', message: 'Clearing the local draft session.' });
       const result = await call('clear_workflow_draft', encode({ schemaVersion: 'rangoon.workflow-clear.v1', draftId }));
@@ -172,6 +188,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
       undo = []; redo = []; set({ pending: null, status: state.opened ? 'ready' : 'idle', session: null, definition: state.opened ? clone(state.opened.revision.definition) : null, layout: state.opened ? clone(state.opened.revision.layout) : null, dirty: false, candidate: null, acknowledged: false, receipt: null, fieldEdit: null, message: 'Local draft cleared.' }); return true;
     },
     async compare(leftRevisionId, rightRevisionId) {
+      if (playground === true) return false;
       if (locked() || state.fieldEdit || !state.opened || !/^workflow-revision:[0-9a-f]{64}$/.test(leftRevisionId) || !/^workflow-revision:[0-9a-f]{64}$/.test(rightRevisionId)) return false;
       const workflowId = state.opened.head.id; const request = ++requestGeneration; activeRequest = request; set({ pending: 'compare', message: 'Comparing saved workflow revisions.' });
       const [leftResult, rightResult] = await Promise.all([leftRevisionId === state.opened.revision.id ? { outcome: 'opened', workflow: state.opened } : call('open_workflow', encode({ schemaVersion: 'rangoon.workflow-open.v1', workflowId, selection: { kind: 'historical', revisionId: leftRevisionId } })), rightRevisionId === state.opened.revision.id ? { outcome: 'opened', workflow: state.opened } : call('open_workflow', encode({ schemaVersion: 'rangoon.workflow-open.v1', workflowId, selection: { kind: 'historical', revisionId: rightRevisionId } }))]);
@@ -182,7 +199,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
       set({ pending: null, comparison: { left: clone(left), right: clone(right), summary }, message: 'Saved revisions compared read-only.' }); return true;
     },
     select(selection) { if (state.fieldEdit || selection !== null && !(selection && ['node', 'control', 'data'].includes(selection.kind) && whole(selection.index))) return false; set({ selection: clone(selection) }); return true; },
-    setTab(tab) { if (!['canvas', 'outline', 'definition', 'diff'].includes(tab)) return false; set({ tab }); return true; },
+    setTab(tab) { if (playground === true && tab === 'diff' || !['canvas', 'outline', 'definition', 'diff'].includes(tab)) return false; set({ tab }); return true; },
     setViewport(patch) { if (!object(patch) || !Object.keys(patch).every(key => ['x', 'y', 'zoom'].includes(key)) || !Object.values(patch).every(Number.isFinite)) return false; const viewport = { ...state.viewport, ...patch }; if (viewport.zoom < .25 || viewport.zoom > 4) return false; set({ viewport }); return true; },
     editFields(target, patch) {
       const sameTarget = state.fieldEdit
@@ -230,6 +247,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
     },
     removeEdge(kind, index) { if (!['control', 'data'].includes(kind) || !whole(index)) return false; return useMutation(() => { const list = kind === 'control' ? state.definition.controlEdges : state.definition.dataEdges; if (index >= list.length) return false; list.splice(index, 1); state.selection = null; return true; }); },
     async chooseCapability(capabilityId) {
+      if (playground === true) return false;
       if (locked() || state.fieldEdit || !/^capability:[0-9a-f]{64}$/.test(capabilityId)) return false;
       const request = ++requestGeneration;
       activeRequest = request;
@@ -244,9 +262,10 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
       set({ pending: null, capabilityDetail: clone(detail), message: 'Exact local capability selected.' });
       return true;
     },
-    pinCapability(nodeIndex, capabilityId, revisionId) { if (!whole(nodeIndex) || !/^capability:[0-9a-f]{64}$/.test(capabilityId) || !/^revision:[0-9a-f]{64}$/.test(revisionId)) return false; return useMutation(() => { const node = state.definition.nodes[nodeIndex]; if (!node || node.operation.kind !== 'capability' || state.capabilityDetail?.id !== capabilityId || !state.capabilityDetail.history.some(item => item.id === revisionId)) return false; node.operation = { kind: 'capability', capabilityId, revisionId }; return true; }); },
+    pinCapability(nodeIndex, capabilityId, revisionId) { if (playground === true) return false; if (!whole(nodeIndex) || !/^capability:[0-9a-f]{64}$/.test(capabilityId) || !/^revision:[0-9a-f]{64}$/.test(revisionId)) return false; return useMutation(() => { const node = state.definition.nodes[nodeIndex]; if (!node || node.operation.kind !== 'capability' || state.capabilityDetail?.id !== capabilityId || !state.capabilityDetail.history.some(item => item.id === revisionId)) return false; node.operation = { kind: 'capability', capabilityId, revisionId }; return true; }); },
     undo() { if (locked() || !undo.length || state.fieldEdit) return false; redo.push(snapshot()); restore(undo.pop()); return true; }, redo() { if (locked() || !redo.length || state.fieldEdit) return false; undo.push(snapshot()); restore(redo.pop()); return true; },
     async inspect(intent) {
+      if (playground === true) return false;
       const draftCandidate = state.candidate;
       const freshDraft = draftCandidate
         && draftCandidate.editGeneration === editGeneration
@@ -267,7 +286,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
       set({ pending: null, status: candidate.revision.intent === 'validated' ? 'validated' : 'draft', candidate: { ...clone(candidate), editGeneration: generation }, acknowledged: false, receipt: null, message: 'Native inspection ready for explicit acknowledgment.' }); return true;
     },
     acknowledge(value) { if (!state.candidate || state.candidate.editGeneration !== editGeneration || typeof value !== 'boolean') return false; set({ acknowledged: value }); return true; },
-    async commit() { const candidate = state.candidate; if (locked() || state.fieldEdit || !candidate || !state.acknowledged || candidate.editGeneration !== editGeneration || !state.session) return false; const request = ++requestGeneration; activeRequest = request; set({ pending: 'commit', candidate: null, acknowledged: false, message: 'Saving the exact inspected local revision.' }); const result = await call('commit_workflow_save', encode({ schemaVersion: 'rangoon.workflow-commit.v1', previewId: candidate.previewId, expectedStateId: candidate.plan.expectedStateId, acknowledged: true })); if (obsolete(request)) return false; const receipt = exactKeys(result, ['outcome', 'receipt']) && result.outcome === 'saved' ? validateWorkflowReceipt(result.receipt, candidate) : null; if (!receipt) { set({ pending: null, status: 'draft', message: failure(result).message }); return false; }
+    async commit() { if (playground === true) return false; const candidate = state.candidate; if (locked() || state.fieldEdit || !candidate || !state.acknowledged || candidate.editGeneration !== editGeneration || !state.session) return false; const request = ++requestGeneration; activeRequest = request; set({ pending: 'commit', candidate: null, acknowledged: false, message: 'Saving the exact inspected local revision.' }); const result = await call('commit_workflow_save', encode({ schemaVersion: 'rangoon.workflow-commit.v1', previewId: candidate.previewId, expectedStateId: candidate.plan.expectedStateId, acknowledged: true })); if (obsolete(request)) return false; const receipt = exactKeys(result, ['outcome', 'receipt']) && result.outcome === 'saved' ? validateWorkflowReceipt(result.receipt, candidate) : null; if (!receipt) { set({ pending: null, status: 'draft', message: failure(result).message }); return false; }
       const saved = clone(receipt);
       set({ pending: null, status: 'saved', opened: clone(saved.workflow), session: null, receipt: saved, candidate: null, acknowledged: false, dirty: false, message: saved.alreadySaved ? 'Exact revision was already current.' : 'Local workflow revision saved.' });
       try {
@@ -278,6 +297,7 @@ export function createWorkflowController({ bridge, onChange = () => {}, onSaved 
       return saved;
     },
     invalidate(message = 'A shared workspace change requires a fresh workflow inspection.') {
+      if (playground === true) return false;
       editGeneration += 1;
       if (activeRequest !== null && state.pending) invalidatedRequest = activeRequest;
       const staleBegin = state.pending === 'begin' || state.pending === 'append';

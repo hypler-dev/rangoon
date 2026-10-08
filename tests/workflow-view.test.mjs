@@ -53,6 +53,35 @@ test('marks unavailable and pending controls closed without sample records', () 
   assert.match(pending.match(/data-workflow-inspect="draft"[^>]*>/)[0], /disabled/);
 });
 
+test('renders a synthetic in-memory playground without native controls and escapes authored text', () => {
+  const definition = structuredClone(state().definition);
+  definition.title = '<Synthetic & hostile>';
+  definition.nodes[0].title = '<Synthetic & hostile>';
+  const html = renderWorkflowView(state({
+    playground: true,
+    bridgeAvailable: false,
+    status: 'playground',
+    definition,
+    workflows: [{ id: 'workflow:should-not-render' }],
+    capabilities: [{ id: capabilityId, title: 'Should not render' }],
+    candidate: { revision: { intent: 'validated' } },
+    receipt: { workflowId: 'workflow:should-not-render' },
+  }));
+  assert.match(html, /SYNTHETIC WORKFLOW PLAYGROUND/);
+  assert.match(html, /Synthetic, in memory, not saved, and not inspected/);
+  assert.match(html, /&lt;Synthetic &amp; hostile&gt;/);
+  assert.doesNotMatch(html, /<Synthetic & hostile>/);
+  assert.doesNotMatch(html, /data-workflow-refresh|data-workflow-inspect|data-workflow-commit|data-workflow-compare|data-workflow-capability/);
+  assert.doesNotMatch(html, /data-workflow-tab="diff"|Saved workflow history|Native report/);
+});
+
+test('keeps native unavailable refusal and the standalone synthetic link', () => {
+  const html = renderWorkflowView(state({ bridgeAvailable: false, definition: null, layout: null, selection: null, dirty: false }));
+  assert.match(html, /Native workflow authoring is unavailable in this preview/);
+  assert.match(html, /href="workflow-playground.html"/);
+  assert.match(html.match(/data-workflow-new[^>]*>/)[0], /disabled/);
+});
+
 test('names historical, candidate, and saved states without readiness claims', () => {
   const historical = renderWorkflowView(state({ opened: { id: 'workflow:history', historical: true, report: { structurallyValid: false, diagnostics: [{ code: 'input_cardinality', nodeIndex: 1 }], referenceStatus: [] } } }));
   assert.match(historical, /Draft/);

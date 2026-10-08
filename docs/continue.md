@@ -127,3 +127,8 @@ Continue the broader V1 plan through adapters, compatibility/export, Workflows, 
 - Reviewed source commit/push, PR creation, and main merge are authorized; verify the exact diff, review and CI gates before publication. Every main publication must include a meaningful README update reflecting that packet, per Jeff's explicit instruction and AGENTS.md.
 - Apache-2.0 adoption is accepted under the dated intent continuation. Installer/release publication, engine activation, deployment, paid services, and government submission remain separate decisions.
 - Update the canonical ledger rather than duplicating receipts here.
+
+
+## UI-P1 local acceptance and current publication
+
+The user-directed builder polish is accepted as a bounded local source packet under intent.md and visual-system.md. Read the final UI-P1 ledger entry for 213-test, rendered breakpoint/gesture and fresh independent-review evidence plus remaining GUI/accessibility limits. Preserve native unavailable refusal and the distinct bridge-free in-memory playground; never treat sample nodes or provider format marks as execution/adapter readiness. Current UI changes remain uncommitted in the mixed checkout; isolate them before any publication and include a substantive README update. PR45 independently carries optional encryption foundation and the Windows directory-builder fix; consult its exact-head hosted checks before guarded main publication. Current desktop database/backups remain plaintext. E1b-2b2 typed inspection stays frozen and deferred; operations/provider/export WIP remains untouched.

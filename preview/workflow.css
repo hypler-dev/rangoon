@@ -42,11 +42,13 @@
 .workflow-svg-label--data { fill: var(--cyan); }
 .workflow-wire-diagram marker path { fill: var(--orange); }
 .workflow-wire-diagram marker#workflow-arrow-data path { fill: var(--cyan); }
-.workflow-page .workflow-node { z-index: 1; display: block; box-sizing: border-box; position: absolute; top: 0; left: 0; width: 220px; min-width: 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: 0 5px 18px #0001; transform: translate(calc(var(--node-x) + var(--graph-offset-x)), calc(var(--node-y) + var(--graph-offset-y))); }
+.workflow-page .workflow-node { z-index: 1; display: block; box-sizing: border-box; position: absolute; top: 0; left: 0; width: 220px; min-width: 0; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: 0 5px 18px #0001; transform: translate(calc(var(--node-x) + var(--graph-offset-x) + var(--node-drag-x, 0px)), calc(var(--node-y) + var(--graph-offset-y) + var(--node-drag-y, 0px))); transition: border-color 120ms var(--ease-rangoon, ease), box-shadow 180ms var(--ease-rangoon, ease), background-color 180ms var(--ease-rangoon, ease); }
+.workflow-node--dragging { transition: none !important; }
 .workflow-node--selected, .workflow-outline--selected { border-color: var(--orange) !important; box-shadow: 0 0 0 2px color-mix(in srgb, var(--orange) 18%, transparent); }
 .workflow-node--connect-source { border-style: double; border-color: var(--cyan) !important; box-shadow: 0 0 0 3px color-mix(in srgb, var(--cyan) 25%, transparent); }
 .workflow-node header { display: flex; border-bottom: 1px solid var(--line); }
-.workflow-node-select { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 6px; flex: 1; min-width: 0; padding: 9px; border: 0; background: none; color: var(--ink); text-align: left; }
+.workflow-node-select { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 6px; flex: 1; min-width: 0; padding: 9px; border: 0; background: none; color: var(--ink); text-align: left; cursor: grab; transition: background-color 120ms var(--ease-rangoon, ease); }
+.workflow-node-select:active { cursor: grabbing; background: color-mix(in srgb, var(--orange) 8%, var(--raised)); }
 .workflow-node-select span { grid-row: span 2; }
 .workflow-node-select strong { overflow-wrap: anywhere; font-size: 10px; }
 .workflow-icon-button { width: 38px; min-width: 36px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--muted); font-size: 17px; }
@@ -63,6 +65,7 @@
 .workflow-wire { display: grid; grid-template-columns: 28px auto minmax(0, 1fr); gap: 5px; align-items: center; width: 100%; padding: 5px; border: 0; background: none; color: var(--ink); text-align: left; }
 .workflow-wire-row .workflow-icon-button { border-left: 0; }
 .workflow-wire-row .workflow-icon-button { min-height: 36px; }
+.workflow-wire { transition: background-color 120ms var(--ease-rangoon, ease), color 120ms var(--ease-rangoon, ease); }
 .workflow-wire:hover, .workflow-wire--selected { background: var(--raised); }
 .workflow-wire-line { height: 2px; background: var(--orange); }
 .workflow-wire--data .workflow-wire-line { height: 0; border-top: 2px dashed var(--cyan); }
@@ -111,5 +114,5 @@
   .workflow-connection-forms form, .workflow-outline li { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 360px) { .workflow-node-type { align-items: flex-start; flex-direction: column; } .workflow-node-type .analysis-button { width: 100%; } }
-@media (prefers-reduced-motion: reduce) { .workflow-node, .workflow-wire { transition: none !important; } }
-@media (forced-colors: active) { .workflow-hero::after { display: none; } .workflow-node, .workflow-wire-group, .workflow-context { border-color: CanvasText; background: Canvas; } .workflow-wire-line { background: CanvasText; } }
+@media (prefers-reduced-motion: reduce) { .workflow-node, .workflow-node-select, .workflow-wire { transition: none !important; } }
+@media (forced-colors: active) { .workflow-hero::after { display: none; } .workflow-node, .workflow-wire-group, .workflow-context { border-color: CanvasText; background: Canvas; } .workflow-wire-line { background: CanvasText; } .workflow-node-select:active { background: Highlight; color: HighlightText; } }

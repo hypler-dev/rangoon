@@ -1,5 +1,6 @@
 import { escapeText } from './analysis-model.mjs';
 import { icon } from './icons.mjs';
+import { vendorMark } from './vendor-marks.mjs';
 
 const text = escapeText;
 const short = value => {
@@ -97,7 +98,7 @@ function revisions(state, busy) {
 }
 
 function profiles(state, busy) {
-  return `<fieldset class="compile-profiles"><legend>Closed text profile</legend><label><input type="radio" name="compile-profile" data-compile-profile="agents_md_v1" ${state.profile === 'agents_md_v1' ? 'checked' : ''} ${disabled(state, busy) ? 'disabled' : ''}> <span>AGENTS.md <small>Exact UTF-8 content</small></span></label><label><input type="radio" name="compile-profile" data-compile-profile="claude_md_v1" ${state.profile === 'claude_md_v1' ? 'checked' : ''} ${disabled(state, busy) ? 'disabled' : ''}> <span>CLAUDE.md <small>Conservative include/comment checks</small></span></label></fieldset>`;
+  return `<fieldset class="compile-profiles"><legend>Closed text profile</legend><label><input type="radio" name="compile-profile" data-compile-profile="agents_md_v1" ${state.profile === 'agents_md_v1' ? 'checked' : ''} ${disabled(state, busy) ? 'disabled' : ''}> ${icon('source', { size: 20 })}<span>AGENTS.md <small>Provider-independent text profile</small></span></label><label><input type="radio" name="compile-profile" data-compile-profile="claude_md_v1" ${state.profile === 'claude_md_v1' ? 'checked' : ''} ${disabled(state, busy) ? 'disabled' : ''}> ${vendorMark('claude')}<span>CLAUDE.md <small>Format only · runtime unqualified</small></span></label></fieldset>`;
 }
 
 function selectionPanel(state, busy, skillsBusy) {
