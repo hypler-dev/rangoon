@@ -2,6 +2,7 @@
   "name": "rangoon-app-review",
   "version": "0.0.0-preview",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Rangoon application development: source analysis and design preview",
   "scripts": {

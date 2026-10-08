@@ -52,7 +52,7 @@ Native Export/Inspect commands and the Compile workbench file-action states are 
 
 Native collision/write uncertainty, historical/composition compile, complete keyboard coverage, Windows/Linux GUI, installers, release qualification and target-loader compatibility remain open. Bundle verification reports internal consistency only, authority none, and no authentication or complete source-graph proof. Preserve the new QA bundle and earlier QA applications; no target compatibility or whole-V1 claim follows from this macOS evidence.
 
-The initial desktop target remains macOS, Windows, and Linux together. The product is intended to be free and open source, but no license has been adopted. LNSAT remains an independent authority/evidence engine; no LNSAT operation is active in this repository.
+The initial desktop target remains macOS, Windows, and Linux together. Jeff selected Apache-2.0 for the free community product; LICENSE, NOTICE and matching first-party package metadata are the isolated licensing publication packet. Check the canonical ledger for branch versus main publication state. LNSAT remains an independent authority/evidence engine; no LNSAT operation is active in this repository.
 
 ## Safe validation rails
 
@@ -111,7 +111,7 @@ The native local Model Assistance workbench is implemented under [model-native-w
 5. The published M1d-1 pure proposal-inspection foundation follows [model proposal inspection](model-proposal-inspection.md). Its exact-byte/identity/resource tests and independent source review pass; implement native completed-result retention and ID-only comparison next, before durable application. Existing capability origins/revisions cannot retain model/task/pack/response/citation attribution. Do not route model output into an ordinary Skills save and silently discard that provenance. Retain only bounded completed evidence needed for inspection, excluding credentials and live transport custody; selected source content still remains sensitive. Re-resolve exact dependencies and target state, preserve unsaved drafts, and keep application/review authority closed until the durable provenance and recovery contract exists. The repository contract supersedes the earlier temporary planning note.
 6. Record evidence in the canonical ledger; publication requires exact head/base, fresh independent review, hosted CI and fetched ancestry.
 
-Continue the broader V1 plan through adapters, compatibility/export, Workflows, Agents/templates, Connectors/Harnesses, local security design and later team/cloud work. Preserve separate decisions for engine activation, private or paid provider use, encryption, licensing, deployment and grants. Do not call this source packet complete V1 or full R3/R4/R5.
+Continue the broader V1 plan through adapters, compatibility/export, Workflows, Agents/templates, Connectors/Harnesses, local security design and later team/cloud work. Preserve separate decisions for engine activation, private or paid provider use, encryption, deployment and grants. Apache-2.0 adoption is separately accepted; dependency/distribution notices and contributor policy remain open. Do not call this source packet complete V1 or full R3/R4/R5.
 
 ## Hard boundaries
 
@@ -121,5 +121,5 @@ Continue the broader V1 plan through adapters, compatibility/export, Workflows, 
 - Do not claim encryption, authentication, tamperproof recovery, installer support, or released-OS support.
 - Do not edit the parent marketing site or deploy it from this repository.
 - Reviewed source commit/push, PR creation, and main merge are authorized; verify the exact diff, review and CI gates before publication. Every main publication must include a meaningful README update reflecting that packet, per Jeff's explicit instruction and AGENTS.md.
-- Installer/release publication, license adoption, engine activation, deployment, paid services, and government submission remain separate decisions.
+- Apache-2.0 adoption is accepted under the dated intent continuation. Installer/release publication, engine activation, deployment, paid services, and government submission remain separate decisions.
 - Update the canonical ledger rather than duplicating receipts here.

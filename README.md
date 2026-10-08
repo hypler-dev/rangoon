@@ -12,7 +12,7 @@ Core product scope also includes approval management, redacted correlated teleme
 
 The long-term product is a desktop and cloud control plane. The current implementation is an **experimental desktop source workbench**, with real local persistence, immutable skill revisions, direct composition editing, portable workflow definitions/revision candidates, an actual `#model-assistance` workbench, and a separate synthetic design preview. The native application has no live agent executor, connector execution, or LNSAT transport. Its model paths provide explicitly configured numeric-loopback local sessions and an optional native cloud route, all advisory. Native cloud orchestration now owns ten bounded commands, explicit capability configuration, full-envelope credential custody, final native consent, freshness checks and a fixed-origin TLS adapter; provider compatibility, proposal application, quality, GUI and release qualification remain open. Native OS credential management remains separate and explicit; no existing key or paid/private call is used by source validation.
 
-The first desktop release targets **macOS, Windows, and Linux together**. The initial product is intended to be free and open source; a software license has not yet been adopted. No license grant or released operating-system support is implied by the public source.
+The first desktop release targets **macOS, Windows, and Linux together**. Rangoon's original source and documentation are licensed under [Apache License 2.0](LICENSE); the initial community product remains free. Released operating-system support is not implied by public source or license adoption.
 
 ![Rangoon Command Center design preview](docs/screenshots/command-dark.jpg)
 
@@ -36,6 +36,7 @@ The first desktop release targets **macOS, Windows, and Linux together**. The in
 - [Run from source](#run-from-source)
 - [Validation and platform support](#validation-and-platform-support)
 - [Roadmap](#roadmap)
+- [License and commercial services](#license-and-commercial-services)
 - [Contributing and documentation](#contributing-and-documentation)
 
 ## Product and feature status
@@ -663,7 +664,7 @@ M1a is the pure context-pack and advisory-response core described above. Remaini
 
 ### 6. Release the free three-OS desktop product
 
-**Deliver:** an adopted license, reproducible builds, documented minimum OS/architecture requirements, packaged artifacts, signing strategy, updates, backup compatibility, and rollback procedures for macOS, Windows, and Linux in the initial release.
+**Deliver:** verified attribution/contribution/dependency notices, reproducible builds, documented minimum OS/architecture requirements, packaged artifacts, signing strategy, updates, backup compatibility, and rollback procedures for macOS, Windows, and Linux in the initial release.
 
 **Acceptance:** clean-host install/launch/select/save/reopen/edit/review/compose/backup/restore/delete/update/uninstall checks; platform accessibility and keyboard evidence; artifact hashes; retained failure receipts; explicit limitations. Core portability and native CI are prerequisites, not substitutes for this release matrix.
 
@@ -686,6 +687,16 @@ Pin supported protocol versions and negotiate capabilities explicitly. Unknown e
 **Deliver:** a reproducible evaluation plan and claim-to-evidence register aligned to a specific funding solicitation when selected. The current government-grant work is research preparation; eligibility, registrations, application submission, and compliance remain separate work.
 
 Measure preservation of source constraints across transformations/adapters, provenance completeness, reviewer task completion, recovery under interruption, interoperability limits, and resistance to bypass in specifically qualified authority paths. Record baselines, datasets, methodology, negative results, and reproducible artifacts. Avoid invented compliance percentages or unsupported claims of universal safety.
+
+## License and commercial services
+
+Rangoon's original source and documentation use [Apache License 2.0](LICENSE), with attribution in [NOTICE](NOTICE). The license permits use, modification and redistribution, including commercial use. Redistributors must provide the license, retain applicable notices and mark modified files; distributed derivatives must carry applicable NOTICE attribution. The license includes a bounded contributor patent grant and its stated termination provisions, and does not grant trademark rights beyond its stated exceptions. Third-party components and separately identified materials retain their own terms. See the [official license](https://www.apache.org/licenses/LICENSE-2.0) for the authoritative conditions.
+
+Hypler's intended consulting business complements the free community app: implementation and integration services, capability/workflow design, deployment assistance, training, custom development and paid maintenance/support. Customers may use or modify community code commercially without buying consulting. Paid services do not convert planned enforcement, certification, hosted operations or platform qualification into current capabilities. Consulting agreements, support commitments and any future separately licensed enterprise components need their own terms; adding restrictions to the Apache license is not the business model.
+
+The repository keeps the unmodified license text at its root so GitHub can recognize Apache-2.0. The portable Cargo workspace declares `license = "Apache-2.0"`, every first-party member inherits it, and the separate desktop manifest and Node package declare the same SPDX identifier. `publish = false` and `private: true` remain in force: license metadata does not publish packages or installers. GitHub's default-branch license display is verified separately after main publication; an open pull request alone does not update that display.
+
+Contributor/DCO policy and complete dependency/distribution notices remain release work. Package metadata identifies first-party licensing; it does not relicense dependencies or replace distribution attribution. License adoption does not complete installer, security or government qualification.
 
 ## Contributing and documentation
 
