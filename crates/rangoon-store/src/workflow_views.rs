@@ -226,7 +226,7 @@ impl Workspace {
         };
         let tx = db.transaction()?;
         let records = workflow_mutations::read_records(&tx)?;
-        let page_size: u32 = tx.pragma_query_value(None, "page_size", |r| r.get(0))?;
+        let page_size: u32 = database_page_size(&tx)?;
         let pages: u32 = tx.pragma_query_value(None, "page_count", |r| r.get(0))?;
         let free: u32 = tx.pragma_query_value(None, "freelist_count", |r| r.get(0))?;
         let result = data(

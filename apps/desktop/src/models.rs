@@ -1,6 +1,6 @@
 //! Desktop model orchestration. Only a native OS decision permits source transfer.
 use crate::{
-    begin_operation,
+    AdmissionError, begin_operation,
     model_consent::{Consent, Decision, REVIEW_WINDOW, Review, SEND_LABEL},
     model_flight::{ModelFlight, ModelLease},
     workspace,
@@ -291,8 +291,14 @@ pub async fn prepare_local_model(
         Ok(value) => value,
         Err(error) => return Ok(stamp.error(Code::Session(error))),
     };
-    let Some(guard) = begin_operation(&app) else {
-        return Ok(stamp.error(Code::Native(NativeCode::WorkspaceBusy)));
+    let guard = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return Ok(stamp.error(Code::Native(NativeCode::WorkspaceBusy)));
+        }
+        Err(AdmissionError::Unavailable) => {
+            return Ok(stamp.error(Code::Session(Diagnostic::SessionUnavailable)));
+        }
     };
     let failure_stamp = stamp.clone();
     Ok(tauri::async_runtime::spawn_blocking(move || {
@@ -424,8 +430,14 @@ fn open_review(app: &AppHandle, run_id: &str) -> Result<(), ()> {
 }
 
 async fn freshness(app: AppHandle, send: &Arc<SendCustody>) -> Result<Freshness, Code> {
-    let Some(guard) = begin_operation(&app) else {
-        return Err(Code::Native(NativeCode::WorkspaceBusy));
+    let guard = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return Err(Code::Native(NativeCode::WorkspaceBusy));
+        }
+        Err(AdmissionError::Unavailable) => {
+            return Err(Code::Session(Diagnostic::SessionUnavailable));
+        }
     };
     // The command retains custody if this bounded worker panics. No request is
     // reconstructed, and the operation lease outlives both freshness reads.

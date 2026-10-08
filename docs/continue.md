@@ -34,6 +34,10 @@ Read the accepted objective and current evidence in this order:
 
 Use the ledger for historical receipts. Do not copy old status paragraphs into this guide. Read additional parser, native, visual, or claim documents only when the active packet requires them.
 
+## Encryption foundation continuation
+
+Read intent.md, encrypted-workspace.md, application-architecture.md and the latest development ledger receipt before extending E1. The reviewed E1a–E1b-2b1 chain implements an optional keyed backend, source-only native key/session custody and shared callback drain admission. Current desktop and portable backups remain plaintext. Typed Owner service coverage, retained-state purge and late-result fencing, credential/profile/review coverage, explicit consent UI, real OS-vault/three-OS GUI qualification, migration and archives remain open. Next: freeze the bounded managed service extension; do not mount encrypted defaults or use normal user data/vault/providers. Publication truth belongs in the ledger.
+
 ## Current truth
 
 The public `main` source includes the published composition store, native command layer, and native Decompose, Merge, and Split editor packet. Its exact publication checks and ancestry are recorded in the development ledger. The packet's evidence includes:

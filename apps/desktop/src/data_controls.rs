@@ -1,5 +1,8 @@
 //! Explicit owner-managed backup, restore and deletion. No renderer file paths.
-use super::{AppHandle, PublicError, StoreError, begin_operation, workspace};
+use super::{
+    AdmissionError, AppHandle, Gate, PublicError, StoreError, begin_operation, dispatch_read,
+    workspace,
+};
 use rangoon_host::{read_selected_backup, write_selected_backup};
 use rangoon_store::{
     WorkflowDeletionPlan as DeletionPlan, WorkflowRecordKind as RecordKind,
@@ -122,13 +125,19 @@ async fn guarded<F>(app: AppHandle, action: F) -> DataResult
 where
     F: FnOnce(AppHandle) -> DataResult + Send + 'static,
 {
-    let Some(pending) = begin_operation(&app) else {
-        return DataResult::Failed {
-            error: PublicError {
-                code: "workspace_busy",
-                message: "Finish the current local workspace operation first.",
-            },
-        };
+    let pending = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return DataResult::Failed {
+                error: PublicError {
+                    code: "workspace_busy",
+                    message: "Finish the current local workspace operation first.",
+                },
+            };
+        }
+        Err(AdmissionError::Unavailable) => {
+            return failure(StoreError::Unavailable);
+        }
     };
     tauri::async_runtime::spawn_blocking(move || {
         let _pending = pending;
@@ -140,14 +149,27 @@ where
 
 #[tauri::command]
 pub async fn get_workspace_data(app: AppHandle) -> DataResult {
-    tauri::async_runtime::spawn_blocking(move || {
+    let gate = app.state::<Gate>().inner().clone();
+    let worker = match dispatch_read(&gate, move || {
         match workspace(&app).and_then(|w| w.workflow_data()) {
             Ok(workspace) => DataResult::Loaded { workspace },
             Err(error) => failure(error),
         }
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable))
+    }) {
+        Ok(worker) => worker,
+        Err(AdmissionError::Busy) => {
+            return DataResult::Failed {
+                error: PublicError {
+                    code: "workspace_busy",
+                    message: "Finish the current local workspace operation first.",
+                },
+            };
+        }
+        Err(AdmissionError::Unavailable) => return failure(StoreError::Unavailable),
+    };
+    worker
+        .await
+        .unwrap_or_else(|_| failure(StoreError::Unavailable))
 }
 
 #[tauri::command]

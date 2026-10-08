@@ -1,11 +1,15 @@
 [package]
-license.workspace = true
 name = "rangoon-store"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
 publish.workspace = true
 repository.workspace = true
+
+[features]
+default = []
+encrypted-sqlite = ["rusqlite/bundled-sqlcipher"]
 
 [dependencies]
 rangoon-domain.workspace = true
@@ -14,6 +18,7 @@ rangoon-compose.workspace = true
 rangoon-compile.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+zeroize = "=1.9.0"
 rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "limits"] }
 
 rangoon-workflow = { path = "../rangoon-workflow" }

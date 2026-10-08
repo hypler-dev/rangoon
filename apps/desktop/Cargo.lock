@@ -2938,6 +2938,7 @@ dependencies = [
  "apple-native-keyring-store",
  "getrandom 0.3.4",
  "keyring-core",
+ "libc",
  "rangoon-compile",
  "rangoon-compose",
  "rangoon-domain",
@@ -3063,6 +3064,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

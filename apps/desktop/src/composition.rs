@@ -1,5 +1,5 @@
 //! Host-retained composition previews. Selection handles confer no authority.
-use super::{AppHandle, PublicError, StoreError, begin_operation, workspace};
+use super::{AdmissionError, AppHandle, PublicError, StoreError, begin_operation, workspace};
 use rangoon_compose::application::{self, ApplicationPreview};
 #[cfg(test)]
 use rangoon_store::Workspace;
@@ -205,8 +205,14 @@ pub async fn preview_composition(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<CompositionResult, ()> {
-    let Some(pending) = begin_operation(&app) else {
-        return Ok(busy());
+    let pending = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return Ok(busy());
+        }
+        Err(AdmissionError::Unavailable) => {
+            return Ok(failure(StoreError::Unavailable));
+        }
     };
     let draft = match decode_preview(request.body()) {
         Ok(draft) => draft,
@@ -231,8 +237,14 @@ pub async fn commit_composition(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<CompositionResult, ()> {
-    let Some(pending) = begin_operation(&app) else {
-        return Ok(busy());
+    let pending = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return Ok(busy());
+        }
+        Err(AdmissionError::Unavailable) => {
+            return Ok(failure(StoreError::Unavailable));
+        }
     };
     let confirmation = match decode_confirmation(request.body()) {
         Ok(confirmation) => confirmation,

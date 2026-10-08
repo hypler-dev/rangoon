@@ -106,7 +106,7 @@ pub(super) fn data(
     db: &Connection,
     records: &Records,
 ) -> Result<WorkflowWorkspaceData, StoreError> {
-    let size: u32 = db.pragma_query_value(None, "page_size", |r| r.get(0))?;
+    let size: u32 = database_page_size(db)?;
     let pages: u32 = db.pragma_query_value(None, "page_count", |r| r.get(0))?;
     let free: u32 = db.pragma_query_value(None, "freelist_count", |r| r.get(0))?;
     let bytes = u64::from(size) * u64::from(pages);

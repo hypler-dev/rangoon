@@ -6,6 +6,8 @@ Authority: [Accepted research and prototype intent](intent.md); this plan is a r
 Owner: Jeff
 Last updated: 2026-10-04
 
+Encryption sequence: optional keyed store and identity-bound native custody are source-qualified; shared native callback admission/drain now has independent production-helper fixtures. Next extend typed managed services before production routing, all-state cleanup and explicit consent controls. Desktop/backups remain plaintext. Verified migration/recovery, encrypted archives and all-three-OS qualification remain separate gates. See [encrypted workspace](encrypted-workspace.md) and the canonical development ledger.
+
 ## Scope and protected lanes
 
 **Build a useful, free, open-source capability workbench first, with macOS, Windows, and Linux in the same initial desktop release.** Make existing agent projects understandable, reusable, portable, and reviewable. Add trustworthy execution only where a tested authority path can mediate the actual consequence. Evolve that same product into an owner-hosted team service and eventually a managed enterprise platform.
