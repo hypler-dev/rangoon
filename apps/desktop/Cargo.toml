@@ -19,6 +19,7 @@ tauri = "=2.12.1"
 tauri-plugin-dialog = "=2.8.1"
 rangoon-host = { path = "../../crates/rangoon-host" }
 rangoon-domain = { path = "../../crates/rangoon-domain" }
+rangoon-import = { path = "../../crates/rangoon-import" }
 getrandom = "=0.3.4"
 rangoon-compose = { path = "../../crates/rangoon-compose" }
 rangoon-compile = { path = "../../crates/rangoon-compile" }
@@ -38,15 +39,16 @@ keyring-core = "=1.0.0"
 [target.'cfg(target_os = "macos")'.dependencies]
 apple-native-keyring-store = { version = "=1.0.2", features = ["keychain"] }
 
+[target.'cfg(unix)'.dependencies]
+libc = "=0.2.190"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-native-keyring-store = "=1.1.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus-secret-service-keyring-store = { version = "=1.0.1", features = ["crypto-rust"] }
 
-[dev-dependencies]
-rangoon-import = { path = "../../crates/rangoon-import" }
-
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+encrypted-workspace = ["rangoon-store/encrypted-sqlite"]

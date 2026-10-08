@@ -1,5 +1,5 @@
 //! Native picker-only portable bundles; external evidence never enters the workspace.
-use super::{AppHandle, PublicError, StoreError, begin_operation, workspace};
+use super::{AdmissionError, AppHandle, PublicError, StoreError, begin_operation, workspace};
 use rangoon_compile::{BundleInspection, Profile, encode_bundle, inspect_bundle};
 use rangoon_domain::{Authority, capability};
 use rangoon_host::{read_selected_instruction_bundle, write_selected_instruction_bundle};
@@ -264,8 +264,14 @@ pub async fn export_instruction_bundle(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<BundleResult, ()> {
-    let Some(pending) = begin_operation(&app) else {
-        return Ok(busy());
+    let pending = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return Ok(busy());
+        }
+        Err(AdmissionError::Unavailable) => {
+            return Ok(store_failure(StoreError::Unavailable));
+        }
     };
     let request = match decode_export(request.body()) {
         Ok(request) => request,
@@ -289,8 +295,14 @@ pub async fn inspect_instruction_bundle(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<BundleResult, ()> {
-    let Some(pending) = begin_operation(&app) else {
-        return Ok(busy());
+    let pending = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return Ok(busy());
+        }
+        Err(AdmissionError::Unavailable) => {
+            return Ok(store_failure(StoreError::Unavailable));
+        }
     };
     if let Err(error) = decode_inspect(request.body()) {
         return Ok(failure(error));

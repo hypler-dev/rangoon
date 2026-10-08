@@ -1,6 +1,6 @@
 //! Native cloud orchestration. A retained request is never transfer permission.
 use crate::{
-    begin_operation,
+    AdmissionError, begin_operation,
     cloud_custody::{Custody, Lease, Phase},
     cloud_model_consent::{Consent, Decision, Purpose, REVIEW_WINDOW, Review},
     cloud_store::{self, OsStore, Secret},
@@ -489,7 +489,10 @@ pub async fn prepare_cloud_model(
             let preparation = resolution
                 .with_credential_revision(&secret.revision())
                 .map_err(Code::Session)?;
-            let _guard = begin_operation(&app).ok_or(Code::Native(NativeCode::WorkspaceBusy))?;
+            let _guard = begin_operation(&app).map_err(|error| match error {
+                AdmissionError::Busy => Code::Native(NativeCode::WorkspaceBusy),
+                AdmissionError::Unavailable => Code::Session(Diagnostic::SessionUnavailable),
+            })?;
             let store = workspace(&app).map_err(|_| Code::Session(Diagnostic::InputUnavailable))?;
             let ready = preparation
                 .prepare_retained(&store)
@@ -590,8 +593,14 @@ pub async fn send_cloud_model(
 }
 
 async fn freshness(app: AppHandle, flow: Arc<Flow>) -> Result<Freshness, Code> {
-    let Some(guard) = begin_operation(&app) else {
-        return Err(Code::Native(NativeCode::WorkspaceBusy));
+    let guard = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return Err(Code::Native(NativeCode::WorkspaceBusy));
+        }
+        Err(AdmissionError::Unavailable) => {
+            return Err(Code::Session(Diagnostic::SessionUnavailable));
+        }
     };
     tauri::async_runtime::spawn_blocking(move || {
         let _guard = guard;

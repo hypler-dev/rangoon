@@ -1,5 +1,5 @@
 //! Read-only compilation of exact host-resolved saved revisions.
-use super::{AppHandle, PublicError, StoreError, begin_operation, workspace};
+use super::{AdmissionError, AppHandle, PublicError, StoreError, begin_operation, workspace};
 use rangoon_compile::{CompilationReport, Profile};
 use rangoon_domain::capability;
 use rangoon_store::Workspace;
@@ -88,13 +88,19 @@ pub async fn compile_capability(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<CompilationResult, ()> {
-    let Some(pending) = begin_operation(&app) else {
-        return Ok(CompilationResult::Failed {
-            error: PublicError {
-                code: "workspace_busy",
-                message: "Finish the current local workspace operation before compiling.",
-            },
-        });
+    let pending = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return Ok(CompilationResult::Failed {
+                error: PublicError {
+                    code: "workspace_busy",
+                    message: "Finish the current local workspace operation before compiling.",
+                },
+            });
+        }
+        Err(AdmissionError::Unavailable) => {
+            return Ok(failure(StoreError::Unavailable));
+        }
     };
     let request = match decode_request(request.body()) {
         Ok(request) => request,

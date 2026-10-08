@@ -1,5 +1,8 @@
 //! Native immutable authoring custody. Definitions remain inert local data.
-use super::{AppHandle, PublicError, StoreError, Workspace, begin_operation, workspace};
+use super::{
+    AdmissionError, AppHandle, Gate, PublicError, StoreError, Workspace, begin_operation,
+    dispatch_read, workspace,
+};
 use rangoon_domain::capability::valid_id;
 use rangoon_store::{WorkflowDetail, WorkflowSavePlan, WorkflowSaveReceipt, WorkflowSummary};
 use rangoon_workflow::{
@@ -395,13 +398,19 @@ async fn guarded(
     app: AppHandle,
     action: impl FnOnce(AppHandle) -> Result<WorkflowResult, StoreError> + Send + 'static,
 ) -> WorkflowResult {
-    let Some(pending) = begin_operation(&app) else {
-        return WorkflowResult::Failed {
-            error: PublicError {
-                code: "workspace_busy",
-                message: "Finish the current local workspace operation first. Your workflow draft remains available.",
-            },
-        };
+    let pending = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return WorkflowResult::Failed {
+                error: PublicError {
+                    code: "workspace_busy",
+                    message: "Finish the current local workspace operation first. Your workflow draft remains available.",
+                },
+            };
+        }
+        Err(AdmissionError::Unavailable) => {
+            return failure(StoreError::Unavailable);
+        }
     };
     tauri::async_runtime::spawn_blocking(move || {
         let _pending = pending;
@@ -412,14 +421,27 @@ async fn guarded(
 }
 #[tauri::command]
 pub async fn list_workflows(app: AppHandle) -> WorkflowResult {
-    tauri::async_runtime::spawn_blocking(move || {
+    let gate = app.state::<Gate>().inner().clone();
+    let worker = match dispatch_read(&gate, move || {
         workspace(&app)
             .and_then(|store| store.list_workflows())
             .map(|workflows| WorkflowResult::Listed { workflows })
             .unwrap_or_else(failure)
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable))
+    }) {
+        Ok(worker) => worker,
+        Err(AdmissionError::Busy) => {
+            return WorkflowResult::Failed {
+                error: PublicError {
+                    code: "workspace_busy",
+                    message: "Finish the current local workspace operation first.",
+                },
+            };
+        }
+        Err(AdmissionError::Unavailable) => return failure(StoreError::Unavailable),
+    };
+    worker
+        .await
+        .unwrap_or_else(|_| failure(StoreError::Unavailable))
 }
 #[tauri::command]
 pub async fn open_workflow(
@@ -430,7 +452,8 @@ pub async fn open_workflow(
         Ok(value) => value,
         Err(error) => return Ok(failure(error)),
     };
-    Ok(tauri::async_runtime::spawn_blocking(move || {
+    let gate = app.state::<Gate>().inner().clone();
+    let worker = match dispatch_read(&gate, move || {
         let selected = match &value.selection {
             Selection::Head {} => None,
             Selection::Historical { revision_id } => Some(revision_id.as_str()),
@@ -441,9 +464,21 @@ pub async fn open_workflow(
                 workflow: Box::new(workflow),
             })
             .unwrap_or_else(failure)
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable)))
+    }) {
+        Ok(worker) => worker,
+        Err(AdmissionError::Busy) => {
+            return Ok(WorkflowResult::Failed {
+                error: PublicError {
+                    code: "workspace_busy",
+                    message: "Finish the current local workspace operation first.",
+                },
+            });
+        }
+        Err(AdmissionError::Unavailable) => return Ok(failure(StoreError::Unavailable)),
+    };
+    Ok(worker
+        .await
+        .unwrap_or_else(|_| failure(StoreError::Unavailable)))
 }
 #[tauri::command]
 pub async fn begin_workflow_draft(

@@ -1,8 +1,9 @@
-<p align="center">
-  <img src="preview/assets/brand-symbol.png" alt="Rangoon logo" width="160" height="160">
-</p>
-
-# Rangoon
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/rangoon-wordmark-dark.svg">
+    <img src="docs/assets/rangoon-wordmark-light.svg" alt="Rangoon.ai" width="420">
+  </picture>
+</h1>
 
 **A local-first workbench for building, understanding, and governing AI capabilities.**
 
@@ -52,7 +53,7 @@ The intended users are developers managing agent configuration, platform teams m
 | Local workspace | SQLite source snapshots; explicit save, deduplication, reanalysis on reopen | Broader project/workspace model and platform qualification |
 | Skills | Source-section derivation, immutable revisions, history comparison, local content review, versioned provenance | Search/library expansion, compatibility, distribution, and collaboration |
 | Decompose/Merge/Split | Real native editor routes and direct composition canvas: drag/drop, click-to-connect, contextual/keyboard actions, bounded undo/redo, exact recipes/coverage, new/append destinations, retained previews, atomic storage, and schema 3 recovery | Complete advanced GUI/failure qualification and Windows/Linux interactive evidence |
-| Data controls | Inventory, plaintext portable backup, additive restore, dependency-aware logical deletion | Encryption, retention policy, recovery UX expansion, and additional platform evidence |
+| Data controls | Inventory, plaintext portable backup, additive restore, dependency-aware logical deletion; optional keyed backend, source-only native key/session ownership, shared callback drain admission | Current desktop remains plaintext; native encrypted adoption/cleanup/consent, verified migration, encrypted archives and platform qualification remain open |
 | Engine integration | Explicit unavailable LNSAT port, native status page, and CLI diagnostics | Qualified transport, authentication, typed operations, and evidence readback |
 | Model assistance | M1a pure pack/validation, session-only local custody, native local workbench, and native cloud orchestration are implemented. Cloud exposes ten bounded main/review commands, explicit capability configuration, retained full-envelope credential pairing, source-free GET checks, fixed-origin TLS, final parented OS consent, and pre/post freshness checks; outputs remain inert and advisory | Real provider compatibility, tokenizer/accounting, proposal application, three-OS GUI, security and release qualification remain open; M1b/V1 are incomplete |
 | Workflows | Pure typed definitions and structural validation; durable schema-4 history/recovery; six native authoring commands; real saved-library/canvas/inspector source with separate control/data wires, six node types, exact capability pins, draft/validated saves, historical reads and comparison | Native save/restart/history/stale-state GUI qualification across all three OSs; run records and execution remain future work. The separate design preview remains synthetic |
@@ -166,6 +167,22 @@ The report contains original source text and is not redacted telemetry. See the 
 Selection and analysis are in-memory operations. **Save locally** persists a source snapshot explicitly. Identical basename and bytes deduplicate; a changed basename or content produces another source identity. Original selected files are never rewritten.
 
 The desktop stores data beneath its OS app-local directory at `source-workspace/workspace.sqlite3`. The renderer cannot choose that location. Listing a missing workspace does not create it. Reopening a source reanalyzes its bytes and checks stored identity, digest, and length.
+
+### Database confidentiality and integrity
+
+**The current desktop database and portable backups remain plaintext.** API credential custody does not encrypt workspace records. The optional `rangoon-store/encrypted-sqlite` feature introduces an explicit host API, `Workspace::encrypted(directory, WorkspaceKey::from_bytes(key))`, backed by the pinned Community SQLCipher 4.14.0 source bundled with `rusqlite =0.40.2`. The default build keeps the API callable but returns `encryption_unavailable` before filesystem access. `Workspace::new` remains the legacy plaintext path. Neither constructor silently switches storage modes.
+
+The encrypted path requires the pinned cipher identity and default profile: 4096-byte pages, HMAC enabled, zero plaintext header, SHA-512 HMAC/KDF algorithms and the SQLCipher-4 iteration setting. Caller-supplied 32-byte raw keys bypass passphrase derivation; the trusted host must supply entropy and custody. Only OpenSSL/CommonCrypto provider labels are accepted; actual provider and platform qualification are recorded separately. Secrets have no debug or serialization representation, and owned key/hex buffers zeroize on final drop. This is not an erasure guarantee for caller, SQLite/parser or OS copies. SQLCipher logging is disabled before keying; temporary SQLite storage is restricted to memory.
+
+Encrypted connections reject misaligned nonempty files. Every nonempty encrypted file passes main-file page authentication and readable-schema checks before existing record validation and transactions. A zero-length file exclusively created by the current write has no pages to authenticate and must pass readable-empty-schema checks before initialization. Wrong keys, plaintext inputs, unreadable content and failed page checks return the same closed `encrypted_store_invalid` diagnostic. Existing zero-length files are rejected; only exclusive creation by the current encrypted write may initialize. Existing file bounds, no-follow checks, journal rules, immutable identities and complete-state validation remain. Page-size reads normalize SQLCipher's text getter without changing domain/schema behavior.
+
+The native library implements source-only database-key custody primitives in `rangoon-desktop::workspace_keys`, behind the optional desktop `encrypted-workspace` feature. Native entropy creates workspace identities and independent key/revision bytes; each workspace has its own OS slot, separate from provider credentials. Strict envelope decoding, observed-existing-slot refusal, exact post-write verification and complete retained-record comparison distinguish missing, unavailable, invalid, changed and uncertain states. Unsupported builds fail before vault access. No production command or unlock UI is mounted, and provisioning requires the later consent/exclusive-custody contract. A returned keyed handle is not database authentication or a locked-session guarantee; actual store reads still enforce the backend checks.
+
+The native source-only layer, `rangoon-desktop::workspace_session`, owns a cooperating-file lease, a strict nonsecret workspace binding, prepared create/unlock actions and managed source operations. Creating retains the exact selected source; unlocking requires actual database authentication. Unix directory descriptors stay retained and are rechecked before vault lookup. Keys and store handles stay inside this owner API, and lock cancels pending actions and drops its key/store session. Interrupted writes remain uncertain and block same-owner retries; missing keys never regenerate. Existing trusted key primitives remain separately callable, so this does not establish library-wide ownership. Production command/callback routing, retained-data invalidation, explicit consent UI and real OS-vault qualification must precede native mounting. This packet does not switch the current plaintext workbench or migrate existing data; see its contract and source acceptance evidence in the development ledger.
+
+The E1b-2b1 native admission foundation shares one in-memory gate between existing source/picker operations, counted snapshot/capability/workflow/data reads and retained model callbacks. Draining closes admission immediately, invalidates old lease generations and waits for the last callback owner before reporting quiescence. Reads retain their previous concurrency, capped at 64 simultaneous admissions; model flights remain independent of the single source-operation lane, while compound model freshness checks retain their existing short source-operation lease. Only capacity contention reports busy; closed or failed admission reports unavailable. Quiescence does not mean storage is locked, data is erased or a write was cancelled. No drain/lock command is mounted; cache purge, standalone credential/profile routing, renderer delivery fencing and typed encrypted-store adoption remain pending. Current GUI and portable backups still use plaintext storage.
+
+The authentication scan may read up to 64 MiB per connection. Encryption does not authenticate a reviewer, stop replacement with an older valid database, detect every modification after a check, protect a compromised unlocked process or establish certification. Backup/export bytes remain plaintext even when sourced from a keyed store. **E1b native key custody, E1c verified migration/recovery and E1d encrypted archives must complete before the desktop can be described as encrypted.** See the [encrypted workspace contract](docs/encrypted-workspace.md) and exact source validation in the [development ledger](docs/development.md).
 
 ### Capabilities, revisions, and review
 

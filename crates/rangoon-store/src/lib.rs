@@ -16,6 +16,8 @@ mod composition_recovery;
 #[cfg(test)]
 mod composition_recovery_tests;
 mod compositions;
+mod encryption;
+pub use encryption::WorkspaceKey;
 mod workspace_data;
 #[cfg(test)]
 mod workspace_data_tests;
@@ -56,6 +58,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::PathBuf,
+    sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -84,6 +87,8 @@ pub struct SaveReceipt {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StoreError {
     Unavailable,
+    EncryptionUnavailable,
+    EncryptedStoreInvalid,
     UnsupportedSchema,
     Corrupt,
     InvalidId,
@@ -110,6 +115,14 @@ pub enum StoreError {
 impl StoreError {
     pub fn public(self) -> (&'static str, &'static str) {
         match self {
+            Self::EncryptionUnavailable => (
+                "encryption_unavailable",
+                "The qualified encrypted storage backend is unavailable. No plaintext fallback was used.",
+            ),
+            Self::EncryptedStoreInvalid => (
+                "encrypted_store_invalid",
+                "The encrypted workspace could not be verified. No saved content was returned.",
+            ),
             Self::WorkflowInvalid => (
                 "workflow_invalid",
                 "The workflow request is invalid. No saved workflow was changed.",
@@ -222,10 +235,23 @@ impl From<rusqlite::Error> for StoreError {
 #[derive(Clone)]
 pub struct Workspace {
     directory: PathBuf,
+    key: Option<Arc<WorkspaceKey>>,
 }
 impl Workspace {
     pub fn new(directory: PathBuf) -> Self {
-        Self { directory }
+        Self {
+            directory,
+            key: None,
+        }
+    }
+    /// Explicit keyed storage. This does not create or migrate a workspace.
+    /// The trusted host supplies key entropy and custody; never use renderer input.
+    pub fn encrypted(directory: PathBuf, key: WorkspaceKey) -> Result<Self, StoreError> {
+        encryption::verify_backend(&key)?;
+        Ok(Self {
+            directory,
+            key: Some(Arc::new(key)),
+        })
     }
     fn path(&self) -> PathBuf {
         self.directory.join("workspace.sqlite3")
@@ -409,6 +435,7 @@ impl Workspace {
                 Err(_) => return Err(StoreError::Unavailable),
             }
         }
+        let mut created = false;
         if !path.exists() {
             if !create {
                 return Ok(None);
@@ -421,7 +448,7 @@ impl Workspace {
                 options.mode(0o600);
             }
             match options.open(&path) {
-                Ok(_) => (),
+                Ok(_) => created = true,
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => (),
                 Err(_) => return Err(StoreError::Unavailable),
             }
@@ -436,6 +463,15 @@ impl Workspace {
             }) | OpenFlags::SQLITE_OPEN_NO_MUTEX
                 | OpenFlags::SQLITE_OPEN_NOFOLLOW,
         )?;
+        if let Some(key) = &self.key {
+            let file_bytes = fs::metadata(&path)
+                .map_err(|_| StoreError::Unavailable)?
+                .len();
+            if file_bytes == 0 && !created {
+                return Err(StoreError::EncryptedStoreInvalid);
+            }
+            encryption::prepare_file(&db, key, file_bytes)?;
+        }
         db.busy_timeout(Duration::from_millis(1000))?;
         db.set_limit(Limit::SQLITE_LIMIT_LENGTH, (MAX_SOURCE_BYTES + 4096) as i32)?;
         db.set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, 16_384)?;
@@ -462,7 +498,7 @@ impl Workspace {
             if !read_only {
                 db.pragma_update(None, "page_size", 4096)?;
             }
-            let initial_page_size: u32 = db.pragma_query_value(None, "page_size", |r| r.get(0))?;
+            let initial_page_size: u32 = database_page_size(&db)?;
             if initial_page_size != 4096 {
                 return Err(StoreError::UnsupportedSchema);
             }
@@ -471,7 +507,7 @@ impl Workspace {
         if mode != "delete" {
             return Err(StoreError::UnsupportedSchema);
         }
-        let page_size: u32 = db.pragma_query_value(None, "page_size", |r| r.get(0))?;
+        let page_size: u32 = database_page_size(&db)?;
         if !(512..=65536).contains(&page_size) {
             return Err(StoreError::Corrupt);
         }
@@ -484,6 +520,28 @@ impl Workspace {
         }
         Ok(Some(db))
     }
+}
+
+// SQLCipher reports a keyed page size as text. Accept its canonical decimal
+// representation only under the optional backend, preserving SQLite integers.
+fn database_page_size(db: &Connection) -> Result<u32, StoreError> {
+    Ok(
+        db.pragma_query_value(None, "page_size", |row| match row.get_ref(0)? {
+            rusqlite::types::ValueRef::Integer(value) => {
+                u32::try_from(value).map_err(|_| rusqlite::Error::InvalidQuery)
+            }
+            #[cfg(feature = "encrypted-sqlite")]
+            rusqlite::types::ValueRef::Text(bytes) => {
+                let text = std::str::from_utf8(bytes).map_err(|_| rusqlite::Error::InvalidQuery)?;
+                let value: u32 = text.parse().map_err(|_| rusqlite::Error::InvalidQuery)?;
+                if value.to_string() != text || !(512..=65536).contains(&value) {
+                    return Err(rusqlite::Error::InvalidQuery);
+                }
+                Ok(value)
+            }
+            _ => Err(rusqlite::Error::InvalidQuery),
+        })?,
+    )
 }
 
 fn linked(meta: &fs::Metadata) -> bool {

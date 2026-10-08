@@ -1,33 +1,34 @@
-//! One native operation across model routes, independent of workspace reads.
+//! One native model flight, sharing drain custody with workspace operations.
+use rangoon_desktop::workspace_lifecycle::{Error, Gate, Lane, Lease};
 use rangoon_model_session::Diagnostic;
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
 
 #[derive(Clone, Default)]
-pub struct ModelFlight(Arc<AtomicBool>);
+pub struct ModelFlight(Gate);
 
 /// Move into blocking callbacks or retained consent custody. Never release a
 /// flight merely because its original IPC waiter has gone away.
-pub struct ModelLease(Arc<AtomicBool>);
-impl ModelFlight {
-    pub fn begin(&self) -> Result<ModelLease, Diagnostic> {
-        self.0
-            .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-            .map_err(|_| Diagnostic::Busy)?;
-        Ok(ModelLease(Arc::clone(&self.0)))
-    }
+pub struct ModelLease {
+    _lease: Lease,
 }
-impl Drop for ModelLease {
-    fn drop(&mut self) {
-        self.0.store(false, Ordering::Release);
+impl ModelFlight {
+    pub fn with_gate(gate: Gate) -> Self {
+        Self(gate)
+    }
+    pub fn begin(&self) -> Result<ModelLease, Diagnostic> {
+        let lease = self.0.begin(Lane::Model).map_err(|error| match error {
+            Error::Busy => Diagnostic::Busy,
+            Error::Closed | Error::Stale | Error::Unavailable | Error::Exhausted => {
+                Diagnostic::SessionUnavailable
+            }
+        })?;
+        Ok(ModelLease { _lease: lease })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     #[test]
     fn callback_custody_outlives_waiter_and_releases_only_after_last_owner() {
@@ -41,5 +42,26 @@ mod tests {
         assert!(matches!(gate.begin(), Err(Diagnostic::Busy)));
         drop(next);
         assert!(gate.begin().is_ok());
+    }
+
+    #[test]
+    fn shared_drain_waits_for_callback_and_compound_source_inspection() {
+        let gate = Gate::new();
+        let model = ModelFlight::with_gate(gate.clone());
+        let waiter = Arc::new(model.begin().unwrap());
+        let callback = Arc::clone(&waiter);
+        let source = gate.begin(Lane::Exclusive).unwrap();
+        let read = gate.begin(Lane::Read).unwrap();
+        drop(waiter);
+        let drain = gate.request_drain().unwrap();
+        assert!(matches!(model.begin(), Err(Diagnostic::SessionUnavailable)));
+        assert!(!drain.is_quiescent().unwrap());
+        drop(source);
+        drop(read);
+        assert!(!drain.is_quiescent().unwrap());
+        drop(callback);
+        assert!(drain.is_quiescent().unwrap());
+        gate.resume(&drain).unwrap();
+        assert!(model.begin().is_ok());
     }
 }

@@ -1,8 +1,12 @@
 //! Local content operations only. Imported or edited instructions are inert data.
-use super::{AppHandle, PublicError, StoreError, Workspace, begin_operation, workspace};
+use super::{
+    AdmissionError, AppHandle, Gate, PublicError, StoreError, Workspace, begin_operation,
+    dispatch_read, workspace,
+};
 use rangoon_domain::capability_v1::{CapabilityDetail, CapabilitySummary};
 use rangoon_store::CapabilityReceiptV1 as CapabilityReceipt;
 use serde::Serialize;
+use tauri::Manager;
 
 #[derive(Serialize)]
 #[serde(
@@ -41,13 +45,19 @@ async fn mutate<F>(app: AppHandle, action: F) -> CapabilityResult
 where
     F: FnOnce(Workspace) -> Result<CapabilityReceipt, StoreError> + Send + 'static,
 {
-    let Some(pending) = begin_operation(&app) else {
-        return CapabilityResult::Failed {
-            error: PublicError {
-                code: "workspace_busy",
-                message: "Finish the current local workspace operation first. Your draft remains available.",
-            },
-        };
+    let pending = match begin_operation(&app) {
+        Ok(lease) => lease,
+        Err(AdmissionError::Busy) => {
+            return CapabilityResult::Failed {
+                error: PublicError {
+                    code: "workspace_busy",
+                    message: "Finish the current local workspace operation first. Your draft remains available.",
+                },
+            };
+        }
+        Err(AdmissionError::Unavailable) => {
+            return failure(StoreError::Unavailable);
+        }
     };
     tauri::async_runtime::spawn_blocking(move || {
         let _pending = pending;
@@ -59,14 +69,27 @@ where
 
 #[tauri::command]
 pub async fn list_capabilities(app: AppHandle) -> CapabilityResult {
-    tauri::async_runtime::spawn_blocking(move || {
+    let gate = app.state::<Gate>().inner().clone();
+    let worker = match dispatch_read(&gate, move || {
         match workspace(&app).and_then(|w| w.list_capabilities_v1()) {
             Ok(capabilities) => CapabilityResult::Listed { capabilities },
             Err(error) => failure(error),
         }
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable))
+    }) {
+        Ok(worker) => worker,
+        Err(AdmissionError::Busy) => {
+            return CapabilityResult::Failed {
+                error: PublicError {
+                    code: "workspace_busy",
+                    message: "Finish the current local workspace operation first.",
+                },
+            };
+        }
+        Err(AdmissionError::Unavailable) => return failure(StoreError::Unavailable),
+    };
+    worker
+        .await
+        .unwrap_or_else(|_| failure(StoreError::Unavailable))
 }
 #[tauri::command]
 pub async fn open_capability(
@@ -74,7 +97,8 @@ pub async fn open_capability(
     capability_id: String,
     revision_id: Option<String>,
 ) -> CapabilityResult {
-    tauri::async_runtime::spawn_blocking(move || {
+    let gate = app.state::<Gate>().inner().clone();
+    let worker = match dispatch_read(&gate, move || {
         match workspace(&app)
             .and_then(|w| w.open_capability_v1(&capability_id, revision_id.as_deref()))
         {
@@ -84,9 +108,21 @@ pub async fn open_capability(
             },
             Err(error) => failure(error),
         }
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable))
+    }) {
+        Ok(worker) => worker,
+        Err(AdmissionError::Busy) => {
+            return CapabilityResult::Failed {
+                error: PublicError {
+                    code: "workspace_busy",
+                    message: "Finish the current local workspace operation first.",
+                },
+            };
+        }
+        Err(AdmissionError::Unavailable) => return failure(StoreError::Unavailable),
+    };
+    worker
+        .await
+        .unwrap_or_else(|_| failure(StoreError::Unavailable))
 }
 #[tauri::command]
 pub async fn create_capability(
