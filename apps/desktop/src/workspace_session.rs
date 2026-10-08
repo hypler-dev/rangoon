@@ -732,12 +732,14 @@ fn directory_proof(path: &Path) -> Result<DirectoryProof, Error> {
     }
 }
 fn create_directory(path: &Path) -> Result<(), Error> {
-    let mut builder = fs::DirBuilder::new();
+    let builder = fs::DirBuilder::new();
     #[cfg(unix)]
-    {
+    let builder = {
         use std::os::unix::fs::DirBuilderExt;
-        builder.mode(0o700);
-    }
+        let mut configured = builder;
+        configured.mode(0o700);
+        configured
+    };
     builder.create(path).map_err(|_| Error::Unavailable)?;
     plain_directory(path)?;
     Ok(())
