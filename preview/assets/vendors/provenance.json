@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "rangoon.vendor-assets.v1",
+  "assets": [
+    {
+      "id": "claude",
+      "path": "preview/assets/vendors/claude-spark-clay.svg",
+      "sha256": "6d53db4be375e899c937c26cf16684a80d6e869b1928d72b37748bef2560e219",
+      "source": "https://anthropic.com/press-kit",
+      "sourcePage": "https://www.anthropic.com/news",
+      "archiveMember": "Anthropic media resources/Anthropic logos/Claude logos/3 Claude Spark/SVG/Claude Spark - Clay.svg",
+      "retrieved": "2026-10-07",
+      "owner": "Anthropic",
+      "usage": "CLAUDE.md text-format identification only. No runtime compatibility or endorsement.",
+      "license": "Third-party trademark asset; not covered by Rangoon Apache-2.0 source license."
+    }
+  ],
+  "unavailable": [
+    {
+      "id": "openai",
+      "reason": "Official brand page/favicon retrieval returned HTTP 403; no unofficial replacement was used."
+    }
+  ]
+}

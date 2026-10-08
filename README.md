@@ -420,6 +420,8 @@ Deletion is logical removal, not secure erasure. See [workspace data controls](d
 
 ## Native application boundary
 
+The workflow builder has browser-native drag previews, attached control/data wires and an explicitly synthetic in-memory playground at `preview/workflow-playground.html`. Native persistence and authority remain separate. The CLAUDE.md profile displays an official locally bundled Claude mark as format identification only; AGENTS.md remains provider-independent. No animation framework, CDN or runtime asset download is introduced. The current UI packet passes 213 frontend tests and fresh independent review; rendered checks cover drag, undo/redo, zoomed wires, keyboard tabs/context menus, and dark/light layouts at 320, 768 and 1440 pixels. Cancellation and reduced-motion rules have source/fixture coverage, with live assistive-technology and reduced-motion emulation qualification still open. Exact evidence is tracked in the [development ledger](docs/development.md); this local source packet is not a released feature.
+
 The OS application is named **Rangoon** and uses the selected logo without added text. The startup experience may display the Rangoon.ai wordmark. Startup resolves to usable application state or a visible failure; it does not invent progress or engine readiness. The visual system includes custom Foldline SVG icons, dark/light tokens, visible keyboard focus, and reduced-motion behavior.
 
 Only the bundled main window receives the enumerated application commands. Native code opens its own pickers; the renderer receives no generic shell, arbitrary filesystem, SQL, or external HTTP capability. Bundled navigation restrictions and a native CSP complement command permissions.

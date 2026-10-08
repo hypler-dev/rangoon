@@ -1,5 +1,6 @@
 import { escapeText } from './analysis-model.mjs';
 import { icon } from './icons.mjs';
+import { createWorkflowDrag } from './workflow-drag.mjs';
 
 const text = value => escapeText(String(value ?? ''));
 const nodeKinds = Object.freeze(['input', 'capability', 'check', 'branch', 'checkpoint', 'output']);
@@ -11,7 +12,8 @@ const short = value => {
   return source.length > 26 ? `${source.slice(0, 12)}…${source.slice(-9)}` : source;
 };
 const asArray = value => Array.isArray(value) ? value : [];
-const disabled = state => Boolean(state.pending) || !state.bridgeAvailable;
+const playground = state => state.playground === true;
+const disabled = state => Boolean(state.pending) || (!state.bridgeAvailable && !playground(state));
 const nodeList = state => asArray(state.definition?.nodes);
 const controlEdges = state => asArray(state.definition?.controlEdges);
 const dataEdges = state => asArray(state.definition?.dataEdges);
@@ -37,6 +39,7 @@ const fieldTarget = state => state.fieldEdit?.target ?? (selection(state)?.kind 
 const fieldPatch = state => state.fieldEdit?.patch ?? {};
 const candidateReport = state => state.candidate?.report ?? null;
 const candidateIntent = state => state.candidate?.revision?.intent ?? null;
+const visibleTabs = state => playground(state) ? tabs.filter(tab => tab !== 'diff') : tabs;
 
 function statusLabel(state) {
   if (state.receipt) return 'Saved revision';
@@ -46,6 +49,7 @@ function statusLabel(state) {
 }
 
 function workflowSummary(state) {
+  if (playground(state)) return `<div class="workflow-summary" aria-label="Workflow state"><span>Synthetic</span><span>In memory</span><span>Not saved</span><span>Not inspected</span><span>No native or provider action</span></div>`;
   if (!state.definition) return `<div class="workflow-summary" aria-label="Workflow state"><span>No workflow selected</span><span>Not inspected</span><span>References unavailable</span><span>${state.pending ? `Working: ${text(state.pending)}` : 'Open a saved workflow or begin a local draft'}</span></div>`;
   const report = candidateReport(state) ?? state.opened?.report;
   const issues = report ? asArray(report.diagnostics).length : null;
@@ -54,6 +58,7 @@ function workflowSummary(state) {
 }
 
 function library(state) {
+  if (playground(state)) return `<aside class="workflow-library" aria-label="Synthetic workflow builder"><header class="workflow-panel-head"><div><p class="analysis-kicker">SYNTHETIC</p><h2>In-memory builder</h2></div></header><p class="workflow-library-note">This canvas has no native records, history, capability library, provider action, or save path. Refreshing or leaving discards it.</p><section class="workflow-node-library"><p class="analysis-kicker">ADD NODE</p><h3>Definition nodes</h3><p>Add and connect local synthetic nodes. Each action changes only this browser memory.</p>${nodeKinds.map(kind => `<article class="workflow-node-type" draggable="${structureDisabled(state) ? 'false' : 'true'}" data-workflow-add-kind="${kind}"><div>${icon('workflow', { size: 16 })}<strong>${text(kind)}</strong></div><button type="button" class="analysis-button analysis-button--small" data-workflow-add="${kind}" ${structureDisabled(state)}>Add</button></article>`).join('')}</section></aside>`;
   const workflows = asArray(state.workflows);
   return `<aside class="workflow-library" aria-label="Workflow library"><header class="workflow-panel-head"><div><p class="analysis-kicker">LIBRARY</p><h2>Saved workflows</h2></div><button type="button" class="analysis-button analysis-button--small" data-workflow-refresh ${actionDisabled(state)}>Refresh</button></header><p class="workflow-library-note">Records shown here come from the local workspace. Historical opening is read-only.</p><div class="workflow-library-list">${workflows.length ? workflows.map(item => `<button type="button" class="workflow-library-item${state.opened?.id === item.id ? ' workflow-library-item--active' : ''}" data-workflow-open="${text(item.id)}" ${actionDisabled(state)}><strong>${text(item.label ?? item.title ?? 'Untitled workflow')}</strong><small>${text(item.intent ?? 'draft')} · ${Number(item.revisionCount ?? 0)} saved revision${Number(item.revisionCount ?? 0) === 1 ? '' : 's'}</small></button>`).join('') : '<p class="workflow-empty">No saved workflows are available.</p>'}</div><section class="workflow-node-library"><p class="analysis-kicker">ADD NODE</p><h3>Definition nodes</h3><p>Drag a card to the canvas or use Add. Each action changes only the local draft.</p>${nodeKinds.map(kind => `<article class="workflow-node-type" draggable="${structureDisabled(state) ? 'false' : 'true'}" data-workflow-add-kind="${kind}"><div>${icon('workflow', { size: 16 })}<strong>${text(kind)}</strong></div><button type="button" class="analysis-button analysis-button--small" data-workflow-add="${kind}" ${structureDisabled(state)}>Add</button></article>`).join('')}</section></aside>`;
 }
@@ -81,7 +86,7 @@ function nodeCard(state, node, index, connect = null) {
     : '<small>None</small>';
   const outlets = controlOutlets(node).map(outlet => `<button type="button" draggable="${structureDisabled(state) ? 'false' : 'true'}" class="workflow-control-port" data-workflow-control-source="${index}:${outlet}" ${structureDisabled(state)}>Control · ${text(outlet)}</button>`).join('');
   const source = connect?.fromIndex === index;
-  return `<article class="workflow-node${selected ? ' workflow-node--selected' : ''}${source ? ' workflow-node--connect-source' : ''}" data-workflow-node="${index}" tabindex="0" aria-label="${text(nodeTitle(node, index))}, ${text(nodeKind(node))} node${source ? ', connection source selected' : ''}" style="--node-x:${Number(position.x ?? 0)}px;--node-y:${Number(position.y ?? 0)}px"><header><button type="button" class="workflow-node-select" data-workflow-select-node="${index}"><span>${icon('workflow', { size: 16 })}</span><strong>${text(nodeTitle(node, index))}</strong><small>${text(nodeKind(node))}</small></button><button type="button" class="workflow-icon-button" aria-label="Actions for ${text(nodeTitle(node, index))}" data-workflow-menu="node:${index}" ${actionDisabled(state)}>⋯</button></header><div class="workflow-node-ports"><div><span>Inputs</span>${inputPorts}</div><div><span>Outputs</span>${outputPorts}${outlets}</div></div></article>`;
+  return `<article class="workflow-node${selected ? ' workflow-node--selected' : ''}${source ? ' workflow-node--connect-source' : ''}" data-workflow-node="${index}" tabindex="0" aria-label="${text(nodeTitle(node, index))}, ${text(nodeKind(node))} node${source ? ', connection source selected' : ''}" style="--node-x:${Number(position.x ?? 0)}px;--node-y:${Number(position.y ?? 0)}px"><header><button type="button" class="workflow-node-select" data-workflow-select-node="${index}" data-workflow-drag-handle><span>${icon('workflow', { size: 16 })}</span><strong>${text(nodeTitle(node, index))}</strong><small>${text(nodeKind(node))}</small></button><button type="button" class="workflow-icon-button" aria-label="Actions for ${text(nodeTitle(node, index))}" data-workflow-menu="node:${index}" ${actionDisabled(state)}>⋯</button></header><div class="workflow-node-ports"><div><span>Inputs</span>${inputPorts}</div><div><span>Outputs</span>${outputPorts}${outlets}</div></div></article>`;
 }
 
 function edgeList(state) {
@@ -114,7 +119,9 @@ function canvas(state, ui = {}) {
   const viewport = state.viewport ?? { x: 0, y: 0, zoom: 1 };
   const bounds = graphBounds(state);
   const connectionStatus = connect ? `<p class="workflow-connect-status" role="status">${connect.kind === 'data' ? `Data source ${text(connect.fromPort)} selected. Choose a compatible input port.` : `Control outlet ${text(connect.outlet)} selected. Choose the next node.`}<button type="button" class="analysis-button analysis-button--small" data-workflow-connect-cancel>Cancel connection</button></p>` : '';
-  return `<section class="workflow-canvas-panel" aria-label="Workflow canvas"><header><div><p class="analysis-kicker">CANVAS</p><h2>Local graph</h2></div><div class="workflow-canvas-tools" aria-label="Canvas viewport"><button type="button" class="workflow-icon-button" data-workflow-pan="left" aria-label="Pan left" ${actionDisabled(state)}>←</button><button type="button" class="workflow-icon-button" data-workflow-pan="right" aria-label="Pan right" ${actionDisabled(state)}>→</button><button type="button" class="workflow-icon-button" data-workflow-zoom="-0.1" aria-label="Zoom out" ${actionDisabled(state)}>−</button><span>${Math.round(Number(viewport.zoom ?? 1) * 100)}%</span><button type="button" class="workflow-icon-button" data-workflow-zoom="0.1" aria-label="Zoom in" ${actionDisabled(state)}>+</button><button type="button" class="analysis-button analysis-button--small" data-workflow-viewport-reset ${actionDisabled(state)}>Reset</button><button type="button" class="analysis-button analysis-button--small" data-workflow-menu="canvas" ${actionDisabled(state)}>Actions</button></div></header><p class="workflow-canvas-help">Solid arrows are control paths. Dashed arrows are typed data mappings. Drag a labelled outlet to a node or input port; Outline provides keyboard forms.</p>${connectionStatus}<div class="workflow-canvas${nodes.length ? '' : ' workflow-canvas--empty'}" data-workflow-canvas tabindex="0">${nodes.length ? `<div class="workflow-graph-stage" data-workflow-graph-stage style="width:${bounds.width}px;height:${bounds.height}px;--graph-offset-x:${bounds.offsetX}px;--graph-offset-y:${bounds.offsetY}px;--viewport-x:${Number(viewport.x ?? 0)}px;--viewport-y:${Number(viewport.y ?? 0)}px;--viewport-zoom:${Number(viewport.zoom ?? 1)}">${nodes.map((node, index) => nodeCard(state, node, index, connect)).join('')}</div>${wireDiagram(state)}` : '<div class="workflow-canvas-empty"><h3>Start a local definition</h3><p>Add one of the six node types. Incomplete graphs can still be inspected and saved as drafts.</p></div>'}${nodes.length ? edgeList(state) : ''}</div></section>`;
+  const localLabel = playground(state) ? 'Synthetic graph' : 'Local graph';
+  const emptyCopy = playground(state) ? 'Start a synthetic in-memory definition. Refreshing or leaving discards it; it is not saved or inspected.' : 'Add one of the six node types. Incomplete graphs can still be inspected and saved as drafts.';
+  return `<section class="workflow-canvas-panel" aria-label="Workflow canvas"><header><div><p class="analysis-kicker">CANVAS</p><h2>${localLabel}</h2></div><div class="workflow-canvas-tools" aria-label="Canvas viewport"><button type="button" class="workflow-icon-button" data-workflow-pan="left" aria-label="Pan left" ${actionDisabled(state)}>←</button><button type="button" class="workflow-icon-button" data-workflow-pan="right" aria-label="Pan right" ${actionDisabled(state)}>→</button><button type="button" class="workflow-icon-button" data-workflow-zoom="-0.1" aria-label="Zoom out" ${actionDisabled(state)}>−</button><span>${Math.round(Number(viewport.zoom ?? 1) * 100)}%</span><button type="button" class="workflow-icon-button" data-workflow-zoom="0.1" aria-label="Zoom in" ${actionDisabled(state)}>+</button><button type="button" class="analysis-button analysis-button--small" data-workflow-viewport-reset ${actionDisabled(state)}>Reset</button><button type="button" class="analysis-button analysis-button--small" data-workflow-menu="canvas" ${actionDisabled(state)}>Actions</button></div></header><p class="workflow-canvas-help">Solid arrows are control paths. Dashed arrows are typed data mappings. Drag a labelled outlet to a node or input port; Outline provides keyboard forms.</p>${connectionStatus}<div class="workflow-canvas${nodes.length ? '' : ' workflow-canvas--empty'}" data-workflow-canvas tabindex="0">${nodes.length ? `<div class="workflow-graph-stage" data-workflow-graph-stage style="width:${bounds.width}px;height:${bounds.height}px;--graph-offset-x:${bounds.offsetX}px;--graph-offset-y:${bounds.offsetY}px;--viewport-x:${Number(viewport.x ?? 0)}px;--viewport-y:${Number(viewport.y ?? 0)}px;--viewport-zoom:${Number(viewport.zoom ?? 1)}">${wireDiagram(state)}${nodes.map((node, index) => nodeCard(state, node, index, connect)).join('')}</div>` : `<div class="workflow-canvas-empty"><h3>Start a ${playground(state) ? 'synthetic canvas' : 'local definition'}</h3><p>${emptyCopy}</p></div>`}${nodes.length ? edgeList(state) : ''}</div></section>`;
 }
 
 function outline(state) {
@@ -150,12 +157,18 @@ function nodeFieldMarkup(state, node, patch) {
 }
 
 function inspector(state) {
+  if (playground(state)) return playgroundInspector(state);
   const target = fieldTarget(state); const node = target.kind === 'node' ? nodeList(state)[target.index] : null; const patch = fieldPatch(state); const report = candidateReport(state) ?? state.opened?.report;
   const fieldsLocked = disabled(state) || !state.session;
   const capabilities = asArray(state.capabilities); const detail = state.capabilityDetail;
   const candidate = state.candidate;
   const canValidated = Boolean(candidate?.report?.structurallyValid) && Number(candidate?.plan?.unresolvedReferences) === 0;
   return `<aside class="workflow-inspector" aria-label="Workflow inspector"><header class="workflow-panel-head"><div><p class="analysis-kicker">INSPECTOR</p><h2>${target.kind === 'node' ? text(nodeTitle(node, target.index)) : 'Workflow details'}</h2></div><button type="button" class="analysis-button analysis-button--small" data-workflow-menu="${target.kind}:${target.index ?? ''}" ${actionDisabled(state)}>Actions</button></header><section class="workflow-fields"><p>${state.session ? 'Pending field edits stay local until Apply. Resolve them before changing graph structure or native inspection.' : 'Saved revisions are read-only. Open the current head and start an append draft to edit fields.'}</p><label>Title<input data-workflow-field="title" value="${text(patch.title ?? (node?.title ?? state.definition?.title ?? ''))}" ${fieldsLocked ? 'disabled' : ''}></label>${target.kind === 'node' ? nodeFieldMarkup(state, node, patch) : ''}<div class="workflow-field-actions"><button type="button" class="analysis-button analysis-button--small" data-workflow-apply ${fieldsLocked ? 'disabled' : ''}>Apply</button><button type="button" class="analysis-button analysis-button--small" data-workflow-cancel ${fieldsLocked ? 'disabled' : ''}>Cancel</button></div></section>${target.kind === 'node' && nodeKind(node) === 'capability' ? `<section class="workflow-capability-picker"><h3>Exact capability pin</h3><p>Choose a saved local capability, then choose one of its exact recorded revisions. IDs are not typed here.</p><select data-workflow-capability ${fieldsLocked ? 'disabled' : ''}><option value="">Choose capability</option>${capabilities.map(item => `<option value="${text(item.id)}" ${node?.operation?.capabilityId === item.id ? 'selected' : ''}>${text(item.title ?? item.label ?? short(item.id))}</option>`).join('')}</select>${detail ? `<div class="workflow-capability-history"><strong>${text(detail.title ?? 'Selected capability')}</strong>${asArray(detail.history).map(revision => `<button type="button" data-workflow-pin="${target.index}|${text(detail.id)}|${text(revision.id)}" ${fieldsLocked ? 'disabled' : ''}>${text(revision.title ?? short(revision.id))}<small>${text(short(revision.id))}</small></button>`).join('')}</div>` : '<p class="workflow-empty">Choose a capability to load its actual saved revision history.</p>'}</section>` : ''}<section class="workflow-native-record"><h3>Native report</h3>${report ? `<p>${report.structurallyValid ? 'Structural validity reported by the native inspector.' : 'Draft remains inspectable; native structural report is not valid yet.'}</p><ul>${asArray(report.diagnostics).map(item => `<li>${text(item.code ?? 'structural issue')} · node ${text(item.nodeIndex ?? '—')}</li>`).join('') || '<li>No retained diagnostics.</li>'}</ul>` : '<p>Inspect the authored draft to receive native structural details.</p>'}</section><section class="workflow-save"><h3>Candidate and local save</h3>${candidate ? `<p>${candidateIntent(state) === 'validated' ? 'Validated candidate is retained.' : 'Draft candidate is retained.'} Acknowledgment applies only to this exact candidate.</p><label><input type="checkbox" data-workflow-ack ${state.acknowledged ? 'checked' : ''} ${disabled(state) ? 'disabled' : ''}> I inspected this exact local candidate. This does not approve execution.</label><button type="button" class="analysis-button analysis-button--primary" data-workflow-commit ${!state.acknowledged || actionDisabled(state) ? 'disabled' : ''}>Save ${candidateIntent(state) === 'validated' ? 'validated revision' : 'draft'}</button>${canValidated && candidateIntent(state) === 'draft' ? `<button type="button" class="analysis-button" data-workflow-inspect="validated" ${actionDisabled(state)}>Inspect validated revision</button>` : ''}` : `<div class="workflow-inspect-actions"><button type="button" class="analysis-button" data-workflow-inspect="draft" ${actionDisabled(state) || !state.session ? 'disabled' : ''}>Inspect draft</button><button type="button" class="analysis-button" data-workflow-inspect="validated" disabled>Inspect validated revision</button></div><p>Validated inspection requires a fresh native draft report with resolved exact references.</p>`}${state.receipt ? `<details><summary>Saved local receipt</summary><pre>${json(state.receipt)}</pre></details>` : ''}</section></aside>`;
+}
+
+function playgroundInspector(state) {
+  const target = fieldTarget(state); const node = target.kind === 'node' ? nodeList(state)[target.index] : null; const patch = fieldPatch(state); const fieldsLocked = !state.session;
+  return `<aside class="workflow-inspector" aria-label="Synthetic workflow inspector"><header class="workflow-panel-head"><div><p class="analysis-kicker">SYNTHETIC</p><h2>${target.kind === 'node' ? text(nodeTitle(node, target.index)) : 'Canvas details'}</h2></div><button type="button" class="analysis-button analysis-button--small" data-workflow-menu="${target.kind}:${target.index ?? ''}" ${actionDisabled(state)}>Actions</button></header><section class="workflow-fields"><p>Edits stay in browser memory. There is no capability library, native record, inspection, candidate, acknowledgment, or save action.</p><label>Title<input data-workflow-field="title" value="${text(patch.title ?? (node?.title ?? state.definition?.title ?? ''))}" ${fieldsLocked ? 'disabled' : ''}></label>${target.kind === 'node' ? nodeFieldMarkup(state, node, patch) : ''}<div class="workflow-field-actions"><button type="button" class="analysis-button analysis-button--small" data-workflow-apply ${fieldsLocked ? 'disabled' : ''}>Apply</button><button type="button" class="analysis-button analysis-button--small" data-workflow-cancel ${fieldsLocked ? 'disabled' : ''}>Cancel</button></div></section><section class="workflow-native-record"><h3>Ephemeral status</h3><p>Synthetic, in memory, not saved, and not inspected. No native or provider action can run here.</p></section></aside>`;
 }
 
 function historyPanel(state) {
@@ -175,15 +188,22 @@ function menu(state, menu) {
 }
 
 export function renderWorkflowView(state = {}, ui = {}) {
-  const activeTab = tabs.includes(state.tab) ? state.tab : 'canvas';
+  const availableTabs = visibleTabs(state);
+  const activeTab = availableTabs.includes(state.tab) ? state.tab : 'canvas';
   const unavailable = !state.bridgeAvailable;
   const panel = activeTab === 'canvas' ? canvas(state, ui) : activeTab === 'outline' ? outline(state) : activeTab === 'definition' ? definitionView(state) : diffView(state);
-  return `<section class="workflow-page" aria-labelledby="workflow-title" aria-busy="${Boolean(state.pending)}"><header class="composition-hero workflow-hero"><p class="analysis-kicker">${icon('workflow', { size: 16 })} LOCAL WORKFLOW AUTHORING</p><h1 id="workflow-title" tabindex="-1">Workflows <em>with evidence.</em></h1><p>Build reviewable local definitions. This editor does not run, deploy, approve, connect a provider, or activate an engine.</p><div class="analysis-actions"><button id="workflow-new" type="button" class="analysis-button analysis-button--primary" data-workflow-new ${actionDisabled(state)}>New workflow</button><button id="workflow-refresh" type="button" class="analysis-button" data-workflow-refresh ${actionDisabled(state)}>Refresh library</button></div><p class="workflow-status${state.status === 'unavailable' ? ' workflow-status--error' : ''}" role="status" aria-live="polite">${unavailable ? 'Native workflow authoring is unavailable in this preview.' : text(state.message ?? 'Open a saved workflow or begin a new local draft.')}</p></header>${workflowSummary(state)}<nav class="workflow-tabs" role="tablist" aria-label="Workflow editor views">${tabs.map(tab => `<button type="button" id="workflow-tab-${tab}" role="tab" aria-controls="workflow-panel-${tab}" aria-selected="${activeTab === tab}" tabindex="${activeTab === tab ? '0' : '-1'}" data-workflow-tab="${tab}">${tab[0].toUpperCase() + tab.slice(1)}</button>`).join('')}<span class="workflow-tabs-actions"><button type="button" class="analysis-button analysis-button--small" data-workflow-undo ${actionDisabled(state) || !state.canUndo ? 'disabled' : ''}>Undo</button><button type="button" class="analysis-button analysis-button--small" data-workflow-redo ${actionDisabled(state) || !state.canRedo ? 'disabled' : ''}>Redo</button></span></nav><div class="workflow-workbench">${library(state)}<section class="workflow-main" id="workflow-panel-${activeTab}" role="tabpanel" aria-labelledby="workflow-tab-${activeTab}">${panel}</section>${inspector(state).replace('</aside>', `${historyPanel(state)}</aside>`)}</div>${menu(state, ui.menu)}</section>`;
+  const synthetic = playground(state);
+  const status = synthetic ? text(state.message ?? 'Synthetic canvas is in memory only.') : unavailable ? 'Native workflow authoring is unavailable in this preview.' : text(state.message ?? 'Open a saved workflow or begin a new local draft.');
+  const unavailableLink = unavailable && !synthetic ? '<a class="analysis-button" href="workflow-playground.html">Open synthetic playground</a>' : '';
+  const actions = synthetic
+    ? `<button id="workflow-new" type="button" class="analysis-button analysis-button--primary" data-workflow-new ${state.session ? 'disabled' : ''}>Start synthetic canvas</button><button type="button" class="analysis-button" data-workflow-discard ${!state.session ? 'disabled' : ''}>Discard canvas</button>`
+    : `<button id="workflow-new" type="button" class="analysis-button analysis-button--primary" data-workflow-new ${actionDisabled(state)}>New workflow</button><button id="workflow-refresh" type="button" class="analysis-button" data-workflow-refresh ${actionDisabled(state)}>Refresh library</button>${unavailableLink}`;
+  return `<section class="workflow-page${synthetic ? ' workflow-page--playground' : ''}" aria-labelledby="workflow-title" aria-busy="${Boolean(state.pending)}"><header class="composition-hero workflow-hero"><p class="analysis-kicker">${icon('workflow', { size: 16 })} ${synthetic ? 'SYNTHETIC WORKFLOW PLAYGROUND' : 'LOCAL WORKFLOW AUTHORING'}</p><h1 id="workflow-title" tabindex="-1">Workflows <em>${synthetic ? 'in memory.' : 'with evidence.'}</em></h1><p>${synthetic ? 'Build an in-memory graph. It is synthetic, not saved, not inspected, and has no native or provider action.' : 'Build reviewable local definitions. This editor does not run, deploy, approve, connect a provider, or activate an engine.'}</p><div class="analysis-actions">${actions}</div><p class="workflow-status${state.status === 'unavailable' && !synthetic ? ' workflow-status--error' : ''}" role="status" aria-live="polite">${status}</p></header>${workflowSummary(state)}<nav class="workflow-tabs" role="tablist" aria-label="Workflow editor views">${availableTabs.map(tab => `<button type="button" id="workflow-tab-${tab}" role="tab" aria-controls="workflow-panel-${tab}" aria-selected="${activeTab === tab}" tabindex="${activeTab === tab ? '0' : '-1'}" data-workflow-tab="${tab}">${tab[0].toUpperCase() + tab.slice(1)}</button>`).join('')}<span class="workflow-tabs-actions"><button type="button" class="analysis-button analysis-button--small" data-workflow-undo ${actionDisabled(state) || !state.canUndo ? 'disabled' : ''}>Undo</button><button type="button" class="analysis-button analysis-button--small" data-workflow-redo ${actionDisabled(state) || !state.canRedo ? 'disabled' : ''}>Redo</button></span></nav><div class="workflow-workbench">${library(state)}<section class="workflow-main" id="workflow-panel-${activeTab}" role="tabpanel" aria-labelledby="workflow-tab-${activeTab}">${panel}</section>${inspector(state).replace('</aside>', `${synthetic ? '' : historyPanel(state)}</aside>`)}</div>${menu(state, ui.menu)}</section>`;
 }
 
 export function bindWorkflowView(root, controller) {
-  const retained = bindingState.get(controller) ?? { menu: null, focus: null, scroll: new Map(), dragging: null, connect: null };
-  let { menu, focus, scroll, dragging, connect } = retained;
+  const retained = bindingState.get(controller) ?? { menu: null, focus: null, scroll: new Map(), connect: null };
+  let { menu, focus, scroll, connect } = retained;
   let connectOrigin = null;
   let disposed = false;
   const fieldSelector = '[data-workflow-field]';
@@ -203,16 +223,18 @@ export function bindWorkflowView(root, controller) {
   };
   const layoutWires = () => {
     const state = controller.getState();
-    const canvas = root.querySelector('[data-workflow-canvas]');
-    const svg = root.querySelector('.workflow-wire-diagram');
-    if (!canvas || !svg) return;
-    const canvasRect = canvas.getBoundingClientRect();
+    const stage = root.querySelector('[data-workflow-graph-stage]');
+    const svg = stage?.querySelector('.workflow-wire-diagram');
+    if (!stage || !svg) return;
+    const zoom = Number(state.viewport?.zoom ?? 1);
+    if (!Number.isFinite(zoom) || zoom < .25 || zoom > 4) return;
+    const stageRect = stage.getBoundingClientRect();
     const point = (element, side) => {
       const rect = element?.getBoundingClientRect();
       if (!rect) return null;
       return {
-        x: rect[side] - canvasRect.left + canvas.scrollLeft,
-        y: rect.top + rect.height / 2 - canvasRect.top + canvas.scrollTop
+        x: (rect[side] - stageRect.left) / zoom,
+        y: (rect.top + rect.height / 2 - stageRect.top) / zoom,
       };
     };
     const path = (kind, index, from, to) => {
@@ -238,12 +260,25 @@ export function bindWorkflowView(root, controller) {
         point(root.querySelector(`[data-workflow-data-source="${fromIndex}:${CSS.escape(edge.fromPort)}"]`), 'right'),
         point(root.querySelector(`[data-workflow-data-target="${toIndex}:${CSS.escape(edge.toPort)}"]`), 'left'));
     });
-    svg.setAttribute('width', String(canvas.scrollWidth));
-    svg.setAttribute('height', String(canvas.scrollHeight));
-    svg.setAttribute('viewBox', `0 0 ${canvas.scrollWidth} ${canvas.scrollHeight}`);
+    const width = stage.offsetWidth;
+    const height = stage.offsetHeight;
+    svg.setAttribute('width', String(width));
+    svg.setAttribute('height', String(height));
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   };
+  const drag = createWorkflowDrag({
+    getState: () => controller.getState(),
+    requestFrame: callback => root.ownerDocument.defaultView?.requestAnimationFrame(callback) ?? setTimeout(callback, 16),
+    cancelFrame: frame => {
+      if (typeof frame === 'number') root.ownerDocument.defaultView?.cancelAnimationFrame(frame);
+      else clearTimeout(frame);
+    },
+    redraw: layoutWires,
+    commit: (index, x, y) => controller.moveNode(index, x, y),
+  });
   const render = () => {
     if (disposed) return;
+    if (drag.isActive()) drag.cancel();
     saveDomState();
     root.innerHTML = renderWorkflowView(controller.getState(), { menu, connect });
     restoreDomState();
@@ -316,6 +351,7 @@ export function bindWorkflowView(root, controller) {
     if (!target || target.disabled) return;
     if (target.dataset.workflowTab) return invoke(() => controller.setTab(target.dataset.workflowTab));
     if (target.dataset.workflowNew !== undefined) return confirmDiscard(() => controller.beginNew());
+    if (target.dataset.workflowDiscard !== undefined) return invoke(() => controller.clear(true));
     if (target.dataset.workflowRefresh !== undefined) return invoke(() => controller.load());
     if (target.dataset.workflowOpen) return confirmDiscard(() => controller.open(target.dataset.workflowOpen));
     if (target.dataset.workflowOpenCurrent !== undefined) return confirmDiscard(() => controller.open(controller.getState().opened?.head?.id));
@@ -396,18 +432,15 @@ export function bindWorkflowView(root, controller) {
     return invoke(() => controller.connectData(Number(fields.get('from')), String(fields.get('fromPort')), Number(fields.get('to')), String(fields.get('toPort'))));
   };
   const pointerdown = event => {
-    const node = event.target.closest('[data-workflow-node]'); if (!node || disabled(controller.getState()) || !controller.getState().session) return;
-    if (event.target.closest('[data-workflow-menu],[data-workflow-data-source],[data-workflow-data-target],[data-workflow-control-source]')) return;
-    dragging = { index: Number(node.dataset.workflowNode), startX: event.clientX, startY: event.clientY, x: Number(node.style.getPropertyValue('--node-x').replace('px', '')) || 0, y: Number(node.style.getPropertyValue('--node-y').replace('px', '')) || 0 };
-    node.setPointerCapture?.(event.pointerId);
+    const handle = event.target.closest('[data-workflow-drag-handle]');
+    const node = handle?.closest('[data-workflow-node]');
+    if (!node || event.target.closest('[data-workflow-menu],[data-workflow-data-source],[data-workflow-data-target],[data-workflow-control-source],input,textarea,select')) return;
+    drag.start(event, node);
   };
-  const pointerup = event => {
-    if (!dragging) return;
-    const drag = dragging; dragging = null;
-    const zoom = Number(controller.getState().viewport?.zoom ?? 1);
-    const x = Math.round(drag.x + (event.clientX - drag.startX) / zoom); const y = Math.round(drag.y + (event.clientY - drag.startY) / zoom);
-    invoke(() => controller.moveNode(drag.index, x, y));
-  };
+  const pointermove = event => drag.move(event);
+  const pointerup = event => drag.finish(event);
+  const pointercancel = event => drag.cancel(event.pointerId);
+  const lostpointercapture = event => drag.cancel(event.pointerId);
   const dragstart = event => {
     if (!controller.getState().session) return;
     const kind = event.target.closest('[data-workflow-add-kind]')?.dataset.workflowAddKind;
@@ -440,12 +473,14 @@ export function bindWorkflowView(root, controller) {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); return invoke(() => event.shiftKey ? controller.redo() : controller.undo()); }
     if (active?.getAttribute?.('role') === 'tab' && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
       event.preventDefault();
-      const current = tabs.indexOf(active.dataset.workflowTab);
-      const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-      controller.setTab(tabs[next]);
-      root.ownerDocument.defaultView?.requestAnimationFrame(() => root.querySelector(`[data-workflow-tab="${tabs[next]}"]`)?.focus({ preventScroll: true }));
+      const availableTabs = visibleTabs(controller.getState());
+      const current = availableTabs.indexOf(active.dataset.workflowTab);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? availableTabs.length - 1 : (current + (event.key === 'ArrowRight' ? 1 : -1) + availableTabs.length) % availableTabs.length;
+      controller.setTab(availableTabs[next]);
+      root.ownerDocument.defaultView?.requestAnimationFrame(() => root.querySelector(`[data-workflow-tab="${availableTabs[next]}"]`)?.focus({ preventScroll: true }));
       return;
     }
+    if (event.key === 'Escape' && drag.isActive()) { event.preventDefault(); return drag.cancel(); }
     if (event.key === 'Escape' && connect) { event.preventDefault(); return cancelConnect(); }
     if (event.key === 'Escape' && menu) { event.preventDefault(); return closeMenu(); }
     if (menu && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
@@ -460,11 +495,14 @@ export function bindWorkflowView(root, controller) {
   };
   const contextmenu = event => { if (event.target.closest('input,textarea')) return; const target = event.target.closest('[data-workflow-node],[data-workflow-select-edge],[data-workflow-canvas]'); if (!target) return; event.preventDefault(); menuReturnTarget = target.dataset.workflowNode !== undefined ? `node:${target.dataset.workflowNode}` : target.dataset.workflowSelectEdge ?? 'canvas'; menu = { target: menuReturnTarget }; render(); };
   const outside = event => { if (menu && !event.target.closest('[data-workflow-context],[data-workflow-menu]')) closeMenu(); };
-  const documentKeydown = event => { if (event.key === 'Escape' && connect) { event.preventDefault(); cancelConnect(); } };
+  const documentKeydown = event => {
+    if (event.key === 'Escape' && drag.isActive()) { event.preventDefault(); drag.cancel(); return; }
+    if (event.key === 'Escape' && connect) { event.preventDefault(); cancelConnect(); }
+  };
   const dragover = event => { if (event.target.closest('[data-workflow-canvas],[data-workflow-data-target],[data-workflow-node]')) event.preventDefault(); };
-  root.addEventListener('click', click); root.addEventListener('change', change); root.addEventListener('input', input); root.addEventListener('submit', submit); root.addEventListener('pointerdown', pointerdown); root.addEventListener('pointerup', pointerup); root.addEventListener('dragstart', dragstart); root.addEventListener('dragover', dragover); root.addEventListener('drop', drop); root.addEventListener('keydown', keydown); root.addEventListener('contextmenu', contextmenu); root.ownerDocument.addEventListener('pointerdown', outside); root.ownerDocument.addEventListener('keydown', documentKeydown);
+  root.addEventListener('click', click); root.addEventListener('change', change); root.addEventListener('input', input); root.addEventListener('submit', submit); root.addEventListener('pointerdown', pointerdown); root.addEventListener('pointermove', pointermove); root.addEventListener('pointerup', pointerup); root.addEventListener('pointercancel', pointercancel); root.addEventListener('lostpointercapture', lostpointercapture); root.addEventListener('dragstart', dragstart); root.addEventListener('dragover', dragover); root.addEventListener('drop', drop); root.addEventListener('keydown', keydown); root.addEventListener('contextmenu', contextmenu); root.ownerDocument.addEventListener('pointerdown', outside); root.ownerDocument.addEventListener('keydown', documentKeydown);
   const unsubscribe = typeof controller.subscribe === 'function' ? controller.subscribe(render) : null;
   bindingState.set(controller, retained);
   render();
-  return { render, dispose() { if (disposed) return; disposed = true; unsubscribe?.(); root.removeEventListener('click', click); root.removeEventListener('change', change); root.removeEventListener('input', input); root.removeEventListener('submit', submit); root.removeEventListener('pointerdown', pointerdown); root.removeEventListener('pointerup', pointerup); root.removeEventListener('dragstart', dragstart); root.removeEventListener('dragover', dragover); root.removeEventListener('drop', drop); root.removeEventListener('keydown', keydown); root.removeEventListener('contextmenu', contextmenu); root.ownerDocument.removeEventListener('pointerdown', outside); root.ownerDocument.removeEventListener('keydown', documentKeydown); } };
+  return { render, dispose() { if (disposed) return; disposed = true; drag.dispose(); unsubscribe?.(); root.removeEventListener('click', click); root.removeEventListener('change', change); root.removeEventListener('input', input); root.removeEventListener('submit', submit); root.removeEventListener('pointerdown', pointerdown); root.removeEventListener('pointermove', pointermove); root.removeEventListener('pointerup', pointerup); root.removeEventListener('pointercancel', pointercancel); root.removeEventListener('lostpointercapture', lostpointercapture); root.removeEventListener('dragstart', dragstart); root.removeEventListener('dragover', dragover); root.removeEventListener('drop', drop); root.removeEventListener('keydown', keydown); root.removeEventListener('contextmenu', contextmenu); root.ownerDocument.removeEventListener('pointerdown', outside); root.ownerDocument.removeEventListener('keydown', documentKeydown); } };
 }

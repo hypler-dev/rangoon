@@ -495,3 +495,36 @@ test('connection refusals explain invalid targets without changing the inspected
   assert.match(model.getState().message, /matching port types/i);
   assert.deepEqual(unchanged(), beforeType);
 });
+
+test('explicit playground ignores even a supplied bridge and authors only ephemeral graph content', async () => {
+  let calls = 0;
+  const controller = createWorkflowController({ playground: true, bridge: async () => { calls++; throw new Error('Must never reach a bridge'); } });
+  assert.equal(controller.getState().bridgeAvailable, false);
+  assert.equal(await controller.beginNew(), true);
+  assert.deepEqual(controller.getState().session, { kind: 'playground', generation: 1 });
+  assert.equal(controller.addNode('input', { x: 0, y: 0 }), true);
+  assert.equal(controller.addNode('output', { x: 300, y: 0 }), true);
+  assert.equal(controller.connectControl(0, 'next', 1), true);
+  assert.equal(controller.connectData(0, 'text', 1, 'text'), true);
+  assert.equal(controller.moveNode(1, 325, 30), true);
+  assert.equal(controller.undo(), true);
+  assert.equal(controller.getState().layout.positions[1].x, 300);
+  assert.equal(controller.redo(), true);
+  assert.equal(controller.getState().layout.positions[1].x, 325);
+  const before = controller.getState();
+  for (const action of [() => controller.load(), () => controller.open(`workflow:${'a'.repeat(64)}`), () => controller.beginAppend(), () => controller.compare(`workflow-revision:${'a'.repeat(64)}`, `workflow-revision:${'b'.repeat(64)}`), () => controller.chooseCapability(`capability:${'c'.repeat(64)}`), () => controller.inspect('draft'), () => controller.inspect('validated'), () => controller.commit(), () => controller.invalidate(), () => controller.pinCapability(0, `capability:${'c'.repeat(64)}`, `revision:${'d'.repeat(64)}`)]) assert.equal(await action(), false);
+  assert.deepEqual(controller.getState(), before);
+  assert.equal(calls, 0); assert.equal(controller.getState().receipt, null); assert.equal(controller.getState().candidate, null);
+  assert.equal(controller.setTab('diff'), false);
+  for (const tab of ['canvas', 'outline', 'definition']) assert.equal(controller.setTab(tab), true);
+});
+
+test('playground clear requires confirmation; fresh controller never reopens prior ephemeral graph', async () => {
+  const controller = createWorkflowController({ playground: true }); await controller.beginNew(); controller.addNode('input', { x: 40, y: 30 });
+  controller.editFields({ kind: 'workflow' }, { title: '<Untrusted & synthetic>' });
+  assert.equal(await controller.clear(false), false); assert.equal(controller.getState().definition.nodes.length, 1);
+  assert.equal(await controller.clear(true), true); assert.equal(controller.getState().definition, null); assert.equal(controller.getState().fieldEdit, null);
+  assert.equal(await controller.beginNew(), true); assert.equal(controller.getState().session.generation, 2);
+  const fresh = createWorkflowController({ playground: true }); assert.equal(fresh.getState().definition, null); assert.equal(fresh.getState().session, null);
+  const native = createWorkflowController(); assert.equal(await native.beginNew(), false); assert.equal(native.getState().bridgeAvailable, false); assert.equal(native.addNode('input', { x: 0, y: 0 }), false);
+});

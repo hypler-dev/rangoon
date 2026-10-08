@@ -11,3 +11,12 @@
 @media (max-width:1120px){.compile-portable-action{grid-column:2;grid-row:1 / span 3;margin-top:0;padding-top:0;border-top:0}}
 @media (max-width:760px){.compile-portable-action{margin-top:16px;padding-top:15px;border-top:1px solid var(--line)}.compile-tabs{scrollbar-width:thin}.compile-facts div,.compile-evidence div{grid-template-columns:minmax(84px,.42fr) minmax(0,1fr)}}
 @media (max-width:820px){.compile-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;overflow:visible}.compile-tabs button{min-width:0;white-space:normal;text-align:left}}
+
+/* Vendor identity is format metadata, not a connection or readiness state. */
+.compile-profiles label{min-width:0;gap:9px;border-radius:8px;transition:border-color 140ms ease,background-color 140ms ease}
+.compile-profiles label:has(input:checked){border-color:var(--orange);background:color-mix(in srgb,var(--orange) 7%,var(--surface))}
+.compile-profiles label:focus-within{outline:2px solid var(--cyan);outline-offset:2px}
+.compile-profiles .vendor-mark,.compile-profiles .foldline-icon{flex:0 0 auto;object-fit:contain}
+.compile-profiles label>span{min-width:0}
+@media (prefers-reduced-motion:reduce){.compile-profiles label{transition:none}}
+@media (forced-colors:active){.compile-profiles label:has(input:checked){border-color:Highlight;background:Canvas}}
