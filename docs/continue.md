@@ -16,6 +16,13 @@ Approval management, telemetry and live visualization are core accepted product 
 
 An isolated unsigned QA bundle `ai.rangoon.workflow.w3qa.20261007` launched with zero saved sources, but no workflow edit/save/restart pass was recorded after a UI-tool stall. Inspect fresh app state and tool documentation before resuming disposable QA; never use normal Rangoon workspace, providers or credentials. Normal-identifier native build was restored. Parent marketing repository is outside scope. Full V1 objective remains active.
 
+
+## October 8 database continuation
+
+Jeff authorized a scoped GitHub database update. This packet includes typed Owner services E1b-2b2 through E1b-2b6, a private composition issuance-state binding fix and the [installation/management direction](encrypted-workspace.md#installation-first-run-setup-and-management-surfaces). Exact validation, independent review and publication state live in development.md. Historical deferred/uncommitted statements below describe their dated packets; read the newest ledger receipt for current source state. Core content work remains independent of LNSAT/providers.
+
+Current mounted desktop database/backups remain plaintext. Next: complete native routing, generation-bound confirmation and all-state/callback purge; add empty encrypted initialization preserving selected-source creation, explicit native consent and durable interrupted-setup recovery before default adoption. Simple/Advanced/CLI are proposed surfaces over the same services, not extra privileges or implemented workspace CLI. No provider/user-vault/data access, migration, default activation, installer/deployment/release is authorized here. Preserve unrelated mixed source; never publish approval/model/integration/UI backlog in this database slice.
+
 ## Read first
 
 Read the accepted objective and current evidence in this order:

@@ -14,6 +14,8 @@ pub struct CompositionPreview {
     pub preview: application::ApplicationPreview,
     #[serde(skip)]
     request: Request,
+    #[serde(skip)]
+    bound_state_id: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -262,8 +264,10 @@ impl Workspace {
         if preview.saveable {
             candidate(&records, &request, &preview, 0)?;
         }
+        let bound_state_id = records.state_id()?;
         let result = CompositionPreview {
-            expected_state_id: records.state_id()?,
+            expected_state_id: bound_state_id.clone(),
+            bound_state_id,
             preview,
             request,
         };
@@ -281,12 +285,16 @@ impl Workspace {
         if !acknowledged {
             return Err(StoreError::CompositionAcknowledgmentRequired);
         }
+        // The public display ID cannot rebind the private issuance state.
+        if prepared.expected_state_id != prepared.bound_state_id {
+            return Err(StoreError::CompositionInvalid);
+        }
         let mut db = self
             .connect_complete(false)?
             .ok_or(StoreError::WorkspaceChanged)?;
         let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let current = Records::load_complete(&tx)?;
-        if current.state_id()? != prepared.expected_state_id {
+        if current.state_id()? != prepared.bound_state_id {
             return Err(StoreError::WorkspaceChanged);
         }
         let preview = checked_preview(&current, &prepared.request)?;

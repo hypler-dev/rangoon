@@ -1,4 +1,20 @@
 use super::*;
+
+#[path = "workspace_data_control_tests.rs"]
+mod data_controls;
+
+#[path = "workspace_inspection_tests.rs"]
+mod inspections;
+
+#[path = "workspace_capability_mutation_tests.rs"]
+mod capability_mutations;
+
+#[path = "workspace_workflow_save_tests.rs"]
+mod workflow_authoring;
+
+#[path = "workspace_composition_tests.rs"]
+mod compositions;
+
 #[cfg(feature = "encrypted-workspace")]
 use std::{
     cell::RefCell,

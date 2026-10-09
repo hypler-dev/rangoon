@@ -184,6 +184,22 @@ The E1b-2b1 native admission foundation shares one in-memory gate between existi
 
 The authentication scan may read up to 64 MiB per connection. Encryption does not authenticate a reviewer, stop replacement with an older valid database, detect every modification after a check, protect a compromised unlocked process or establish certification. Backup/export bytes remain plaintext even when sourced from a keyed store. **E1b native key custody, E1c verified migration/recovery and E1d encrypted archives must complete before the desktop can be described as encrypted.** See the [encrypted workspace contract](docs/encrypted-workspace.md) and exact source validation in the [development ledger](docs/development.md).
 
+### Managed encrypted-session source services
+
+The optional native Owner now covers capability/workflow inspection, compilation, capability creation/revision/local review, workflow preview/save, composition preview/application and complete-state backup/restore/deletion through typed methods. Existing domain receipts, provenance, immutable records, state/head/dependency checks and backend validation are reused. Reads lock on invalid store/custody; attempted mutation failures conservatively lock and require recovery. Recovery remains Owner-local and non-durable; this does not establish interrupted-operation reconciliation or rollback.
+
+Composition previews privately retain their issuance-state identity: replacing a stale preview's display state ID with a freshly issued value cannot rebind it to current state. Serialization remains unchanged. This is a trusted-host API integrity fix, not authentication, native consent or protection against a compromised host.
+
+Backup output remains plaintext even from a keyed store. These services return only typed records/owned results to trusted native code; no raw keyed Workspace escapes Owner. Existing standalone trusted key primitives remain separately callable. **Production command routing, generation-bound confirmation, native/renderer/callback purge and consent are still incomplete; mounted desktop storage/backups remain plaintext.** Unix file-identity proofs do not establish Windows replacement-race detection. See the [single encrypted-workspace contract](docs/encrypted-workspace.md) and [validation/review ledger](docs/development.md) before claiming runtime or released support.
+
+### Planned encrypted setup and management
+
+The intended installation experience provisions an encrypted local workspace at first interactive launch under the user's OS account, after explicit review and confirmation. It needs no model, cloud account or LNSAT. Installer elevation must not own the database key. New setup never silently falls back to plaintext; existing plaintext workspaces require a separately verified migration. The current selected-source creation path will be preserved while a new empty-store initializer enables setup before import.
+
+Simple is the proposed default: setup, unlock/lock, import, save and clear data-management guidance. Advanced adds storage/cipher diagnostics, provenance, dependency-aware retention/deletion and qualified recovery tools over the same typed services. Future CLI management uses the same custody/refusal and domain-receipt contracts, with exclusive workspace ownership and explicit consent; no raw keys, arbitrary SQL, hidden unlock or broad unsafe override. Mode selection changes presentation, not privileges.
+
+**These setup screens and workspace CLI commands are planned; current desktop storage and backups remain plaintext.** Recovery, rotation and encrypted portable archives require their own implementation and qualification; ordinary instruction exports remain plaintext. See the [installation flow, state table, management matrix and ordered implementation packets](docs/encrypted-workspace.md#installation-first-run-setup-and-management-surfaces), with review/validation evidence in the [development ledger](docs/development.md).
+
 ### Capabilities, revisions, and review
 
 A source-backed capability begins at one saved section. Editing creates an immutable successor revision and advances the capability's current head only when the expected revision still matches. Earlier content and reviews remain available. History comparison is local content comparison, not proof of semantic equivalence.
@@ -467,6 +483,10 @@ Provider requests require the explicit configured model path, retained payload r
 6. Test altered pages/records, replayed backups, interrupted key rotation, lost keys, disk exhaustion, migration failure, and recovery on macOS, Windows, and Linux.
 
 These are proposed controls, not implemented guarantees. A compromised administrator or unlocked application process can exceed the protection of local encryption. Nothing in this repository establishes production readiness, security certification, government compliance, domestic processing, or government endorsement.
+
+### ISO and OpenSSF readiness direction
+
+The roadmap now targets scoped preparation for ISO/IEC 27001:2022 with 27002:2022 guidance, AI management under 42001:2023 and applicable privacy management under 27701:2025. Repository/supply-chain work will assess OpenSSF OSPS Baseline v2026.08.28, Best Practices passing criteria, dated Scorecard findings and SLSA v1.2 artifact provenance. These are planning targets, not achieved certification, badge, score or build level. Organizational controls, verified hosted settings, real human approval where required, vulnerability reporting and release attestations remain distinct from source tests and agent reviews. See the [evidence/gap/owner matrix and next readiness packets](docs/plan.md#security-and-standards-readiness).
 
 ## Approval, telemetry and live operations
 
