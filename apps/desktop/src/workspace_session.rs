@@ -2,8 +2,16 @@
 //! No production command or renderer is mounted here. Raw trusted-host key
 //! primitives remain outside this owner's guarantees until native adoption.
 use crate::workspace_keys::{self, RetainedKey, Store, WorkspaceId};
+use rangoon_compose::application::Request as CompositionRequest;
 use rangoon_domain::AnalysisReport;
-use rangoon_store::{SaveReceipt, SnapshotMetadata, Workspace};
+use rangoon_domain::capability_v1::{CapabilityDetail, CapabilitySummary};
+use rangoon_store::{
+    CapabilityReceiptV1, CompositionPreview, CompositionReceipt, SaveReceipt, SnapshotMetadata,
+    WorkflowDeletionPlan, WorkflowDetail, WorkflowRecordKind, WorkflowRestorePlan,
+    WorkflowSavePlan, WorkflowSaveReceipt, WorkflowSummary, WorkflowWorkspaceData, Workspace,
+    WorkspaceBackup, WorkspaceCompilation,
+};
+use rangoon_workflow::records::WorkflowRevision;
 use serde::Serialize;
 use std::{
     fs::{self, File, Metadata, OpenOptions, TryLockError},
@@ -142,6 +150,16 @@ enum Fault {
     BeforeReadySync,
     BeforeReadyReadback,
     AfterSave,
+    AfterCapabilityMutation,
+    AfterWorkflowSave,
+    AfterCompositionApply,
+    AfterRestore,
+    AfterDeletion,
+}
+
+enum DataMutation {
+    Restore,
+    Delete,
 }
 
 impl Owner {
@@ -583,6 +601,387 @@ impl Owner {
             .open(source_id);
         self.finish_read(result, previous)
     }
+    /// Inspects complete capability state without exposing the managed store.
+    pub fn list_capabilities(
+        &mut self,
+        vault: &impl Vault,
+    ) -> Result<Vec<CapabilitySummary>, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .list_capabilities_v1();
+        self.finish_read(result, previous)
+    }
+
+    /// Resolves an exact historical revision or the currently observed head.
+    pub fn open_capability(
+        &mut self,
+        vault: &impl Vault,
+        capability_id: &str,
+        revision_id: Option<&str>,
+    ) -> Result<CapabilityDetail, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .open_capability_v1(capability_id, revision_id);
+        self.finish_read(result, previous)
+    }
+
+    /// Compiles owned saved bytes; the result grants no installation authority.
+    pub fn compile_capability(
+        &mut self,
+        vault: &impl Vault,
+        capability_id: &str,
+        revision_id: &str,
+        profile: rangoon_compile::Profile,
+    ) -> Result<WorkspaceCompilation, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .compile_capability(capability_id, revision_id, profile);
+        self.finish_read(result, previous)
+    }
+
+    /// Returns validated inventory, including workflow history and source data.
+    pub fn workflow_data(&mut self, vault: &impl Vault) -> Result<WorkflowWorkspaceData, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .workflow_data();
+        self.finish_read(result, previous)
+    }
+
+    /// Lists validated workflow summaries without advancing their revisions.
+    pub fn list_workflows(&mut self, vault: &impl Vault) -> Result<Vec<WorkflowSummary>, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .list_workflows();
+        self.finish_read(result, previous)
+    }
+
+    /// Opens owned workflow evidence; historical selection preserves its head.
+    pub fn open_workflow(
+        &mut self,
+        vault: &impl Vault,
+        workflow_id: &str,
+        revision_id: Option<&str>,
+    ) -> Result<WorkflowDetail, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .open_workflow(workflow_id, revision_id);
+        self.finish_read(result, previous)
+    }
+
+    /// Inspects a workflow candidate without reserving state or execution authority.
+    pub fn inspect_workflow_save(
+        &mut self,
+        vault: &impl Vault,
+        candidate: &WorkflowRevision,
+    ) -> Result<WorkflowSavePlan, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .inspect_workflow_save(candidate);
+        self.finish_read(result, previous)
+    }
+
+    /// Saves an immutable workflow under the store's exact state and head rules.
+    pub fn save_workflow(
+        &mut self,
+        vault: &impl Vault,
+        candidate: &WorkflowRevision,
+        expected_state_id: &str,
+    ) -> Result<WorkflowSaveReceipt, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .save_workflow(candidate, expected_state_id);
+        self.finish_workflow_save(result, previous)
+    }
+
+    fn finish_workflow_save(
+        &mut self,
+        result: Result<WorkflowSaveReceipt, rangoon_store::StoreError>,
+        previous: Metadata,
+    ) -> Result<WorkflowSaveReceipt, Error> {
+        #[cfg(all(test, feature = "encrypted-workspace"))]
+        if self.fail_at(Fault::AfterWorkflowSave).is_err() {
+            self.lock();
+            self.recovery = true;
+            return Err(Error::WriteUncertain);
+        }
+        match self.finish_read(result, previous) {
+            Ok(receipt) => Ok(receipt),
+            Err(_) => {
+                self.lock();
+                self.recovery = true;
+                Err(Error::WriteUncertain)
+            }
+        }
+    }
+
+    /// Returns the existing plaintext archive into trusted host memory only.
+    /// This is not encrypted recovery or consent to write/export these bytes.
+    pub fn export_workflow_backup(&mut self, vault: &impl Vault) -> Result<Vec<u8>, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .export_workflow_backup();
+        self.finish_read(result, previous)
+    }
+
+    /// Prepares the existing additive restore against exact complete state.
+    pub fn prepare_workflow_restore(
+        &mut self,
+        vault: &impl Vault,
+        backup: &WorkspaceBackup,
+    ) -> Result<WorkflowRestorePlan, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .prepare_workflow_restore(backup);
+        self.finish_read(result, previous)
+    }
+
+    /// Attempts one exact retained restore; failures do not prove no commit.
+    pub fn restore_workflow_backup(
+        &mut self,
+        vault: &impl Vault,
+        backup: &WorkspaceBackup,
+        prepared: &WorkflowRestorePlan,
+    ) -> Result<WorkflowWorkspaceData, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .restore_workflow_backup(backup, prepared);
+        self.finish_data_mutation(result, previous, DataMutation::Restore)
+    }
+
+    /// Returns an exact dependency-aware logical deletion plan, not authority.
+    pub fn inspect_workflow_deletion(
+        &mut self,
+        vault: &impl Vault,
+        kind: WorkflowRecordKind,
+        id: &str,
+    ) -> Result<WorkflowDeletionPlan, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .inspect_workflow_deletion(kind, id);
+        self.finish_read(result, previous)
+    }
+
+    /// Attempts logical deletion once; this does not establish secure erasure.
+    pub fn delete_workflow_record(
+        &mut self,
+        vault: &impl Vault,
+        prepared: &WorkflowDeletionPlan,
+    ) -> Result<WorkflowWorkspaceData, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .delete_workflow_record(prepared);
+        self.finish_data_mutation(result, previous, DataMutation::Delete)
+    }
+
+    fn finish_data_mutation(
+        &mut self,
+        result: Result<WorkflowWorkspaceData, rangoon_store::StoreError>,
+        previous: Metadata,
+        _mutation: DataMutation,
+    ) -> Result<WorkflowWorkspaceData, Error> {
+        #[cfg(all(test, feature = "encrypted-workspace"))]
+        {
+            let fault = match _mutation {
+                DataMutation::Restore => Fault::AfterRestore,
+                DataMutation::Delete => Fault::AfterDeletion,
+            };
+            if self.fail_at(fault).is_err() {
+                self.lock();
+                self.recovery = true;
+                return Err(Error::WriteUncertain);
+            }
+        }
+        match self.finish_read(result, previous) {
+            Ok(receipt) => Ok(receipt),
+            Err(_) => {
+                self.lock();
+                self.recovery = true;
+                Err(Error::WriteUncertain)
+            }
+        }
+    }
+
+    /// Previews exact saved inputs; the returned record grants no authority.
+    pub fn preview_composition(
+        &mut self,
+        vault: &impl Vault,
+        request: &CompositionRequest,
+    ) -> Result<CompositionPreview, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .preview_composition(request);
+        self.finish_read(result, previous)
+    }
+
+    /// Applies a store-issued preview under its retained state and exact recheck.
+    pub fn apply_composition(
+        &mut self,
+        vault: &impl Vault,
+        prepared: &CompositionPreview,
+        acknowledged: bool,
+    ) -> Result<CompositionReceipt, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .apply_composition(prepared, acknowledged);
+        self.finish_composition_apply(result, previous)
+    }
+
+    fn finish_composition_apply(
+        &mut self,
+        result: Result<CompositionReceipt, rangoon_store::StoreError>,
+        previous: Metadata,
+    ) -> Result<CompositionReceipt, Error> {
+        #[cfg(all(test, feature = "encrypted-workspace"))]
+        if self.fail_at(Fault::AfterCompositionApply).is_err() {
+            self.lock();
+            self.recovery = true;
+            return Err(Error::WriteUncertain);
+        }
+        match self.finish_read(result, previous) {
+            Ok(receipt) => Ok(receipt),
+            Err(_) => {
+                self.lock();
+                self.recovery = true;
+                Err(Error::WriteUncertain)
+            }
+        }
+    }
+
+    /// Derives source-born content under managed custody without review authority.
+    pub fn create_capability(
+        &mut self,
+        vault: &impl Vault,
+        source_id: &str,
+        fragment_id: &str,
+        title: &str,
+    ) -> Result<CapabilityReceiptV1, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .create_capability_v1(source_id, fragment_id, title);
+        self.finish_capability_mutation(result, previous)
+    }
+
+    /// Preserves exact expected-head and immutable content-revision semantics.
+    pub fn revise_capability(
+        &mut self,
+        vault: &impl Vault,
+        capability_id: &str,
+        expected_revision_id: &str,
+        title: &str,
+        content: &str,
+    ) -> Result<CapabilityReceiptV1, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .revise_capability_v1(capability_id, expected_revision_id, title, content);
+        self.finish_capability_mutation(result, previous)
+    }
+
+    /// Records local content review; it grants no approval or execution authority.
+    pub fn review_capability(
+        &mut self,
+        vault: &impl Vault,
+        capability_id: &str,
+        expected_revision_id: &str,
+    ) -> Result<CapabilityReceiptV1, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .review_capability_v1(capability_id, expected_revision_id);
+        self.finish_capability_mutation(result, previous)
+    }
+
+    fn finish_capability_mutation(
+        &mut self,
+        result: Result<CapabilityReceiptV1, rangoon_store::StoreError>,
+        previous: Metadata,
+    ) -> Result<CapabilityReceiptV1, Error> {
+        #[cfg(all(test, feature = "encrypted-workspace"))]
+        if self.fail_at(Fault::AfterCapabilityMutation).is_err() {
+            self.lock();
+            self.recovery = true;
+            return Err(Error::WriteUncertain);
+        }
+        match self.finish_read(result, previous) {
+            Ok(receipt) => Ok(receipt),
+            Err(_) => {
+                self.lock();
+                self.recovery = true;
+                Err(Error::WriteUncertain)
+            }
+        }
+    }
+
     pub fn save(
         &mut self,
         vault: &impl Vault,
