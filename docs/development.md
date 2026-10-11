@@ -1,8 +1,22 @@
 # Development status
 
+## SI branding publication preflight — October 10, 2026
+
+Authority: Jeff requested Rangoon.si and SI-only interface branding, then explicitly said “push this.” This packet publishes only those reviewed branding changes. The accepted [SI interface terminology continuation](intent.md#si-interface-terminology-continuation--october-10-2026) owns direction. Status: isolated source validation and fresh independent native OpenAI Terra-xhigh publication review passed with no actionable P1/P2/P3 findings. Push is authorized; merge, deployment and release are not part of this packet.
+
+Isolation: codex/si-branding starts from freshly fetched public main 890d233c54cb5a3893c7ebb298d236b2b117bc81. The mixed codex/approval-duty-inspection checkout remains at 8140689303737a6bd163f5190a7cf6910596915b and its unpublished work is preserved. Exact ownership: README.md, docs/intent.md, this receipt, docs/assets/rangoon-wordmark-dark.svg, docs/assets/rangoon-wordmark-light.svg, preview/app.mjs, preview/analyze.mjs, preview/workflow-playground.mjs, preview/launch.mjs and preview/analyze.html. No unrelated architecture, encryption, authority or editor work is imported into the publication branch.
+
+Experience: README and both light/dark wordmarks use Rangoon.si; three navigation surfaces and both dynamic/static splash labels use the same product wordmark. UI branding uses the short SI term, while documentation explicitly describes superintelligence as long-term ambition. The OS application remains Rangoon. Symbol bytes, layout, provider/protocol identities, historical reference images, unavailable/experimental states and feature behavior remain unchanged. The original two local packets passed fresh independent native OpenAI Terra-xhigh reviews; their active-tree validation passed 261 Node tests and 24 browser brand/overflow cases at 320/768/1440 widths across both themes. Those mixed-tree counts are separate from isolated publication validation below.
+
+Security/standards impact: branding strings and local static SVG only. No new dependencies, build privilege, data collection, storage/encryption mode, credentials, provider calls, telemetry, authority or execution. Existing security, confidentiality, ISO/OpenSSF and release gaps remain unchanged. No present superintelligence, safe-autonomy guarantee, readiness or certification claim is added. Root Sol owns isolated integration; fresh native OpenAI Terra-xhigh owns final read-only review. GLM/Spark skipped for adequate native lanes; no external private-source transfer.
+
+
 Authority: [intent.md](intent.md). Jeff authorized publishing the application work to `hypler-dev/rangoon` and continuing development on October 4, 2026. The repository is an application in development. Preview completeness does not imply product or runtime qualification.
 
 October 5 continuation: Jeff authorized a detailed README, corrected repository metadata/topics, publication to main and further development. R0/R1a reached reviewed main publication in PR #1. A bounded desktop-shell and explicit file-analysis spike follows; it is not a desktop release.
+
+Validation on the isolated branch: `npm run build:check` passed syntax, visual/vision gates and 213/213 Node tests; `node scripts/validate-review.mjs` passed eight original image hashes, historical brief hash, Markdown targets and 311 authored files; `git diff --check` passed. A loopback preview of the exact publication source passed 24 SI-brand/overflow checks across splash, workbench shell, design preview and playground at 320/768/1440 pixels in dark and light themes. SVG preimages match public main; only accessible titles and suffix outlines change. No native/OS GUI, provider, installer or release qualification is inferred.
+
 
 ## Publication
 

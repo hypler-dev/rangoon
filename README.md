@@ -1,13 +1,15 @@
 <h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/rangoon-wordmark-dark.svg">
-    <img src="docs/assets/rangoon-wordmark-light.svg" alt="Rangoon.ai" width="420">
+    <img src="docs/assets/rangoon-wordmark-light.svg" alt="Rangoon.si" width="420">
   </picture>
 </h1>
 
-**A local-first workbench for building, understanding, and governing AI capabilities.**
+**Rangoon.si — a local-first workbench for building, understanding, and governing AI capabilities, with a long-term superintelligence direction.**
 
 Rangoon brings agent instructions, reusable skills, workflows, connectors, tests, and evidence into one inspectable lifecycle. The immediate problem is practical: useful knowledge is scattered across `AGENTS.md`, `CLAUDE.md`, `SKILL.md`, project rules, and scripts. Teams need to understand that material, preserve its origin, reorganize it without silently losing constraints, and see exactly what will change before publishing it elsewhere.
+
+**Terminology and direction:** Rangoon.si is the product wordmark; the desktop application remains named **Rangoon**. We use **superintelligence (super intelligence, SI)** to describe the long-term ambition of supporting increasingly capable intelligence systems through inspectable capability authoring, provenance, bounded approvals, optional authority integrations, and outcome evidence. This is a research and product direction, not a claim that Rangoon implements superintelligence today, guarantees safe autonomous behavior, or supplies execution authority. Current AI and model-assistance features retain their documented experimental and advisory boundaries.
 
 Core product scope also includes approval management, redacted correlated telemetry and live operations visualization: operators need to see who can approve, which controls mediate an action and what evidence establishes its outcome. These runtime surfaces are planned and are described separately from implemented local content work.
 
@@ -422,7 +424,7 @@ Deletion is logical removal, not secure erasure. See [workspace data controls](d
 
 The workflow builder has browser-native drag previews, attached control/data wires and an explicitly synthetic in-memory playground at `preview/workflow-playground.html`. Native persistence and authority remain separate. The CLAUDE.md profile displays an official locally bundled Claude mark as format identification only; AGENTS.md remains provider-independent. No animation framework, CDN or runtime asset download is introduced. The current UI packet passes 213 frontend tests and fresh independent review; rendered checks cover drag, undo/redo, zoomed wires, keyboard tabs/context menus, and dark/light layouts at 320, 768 and 1440 pixels. Cancellation and reduced-motion rules have source/fixture coverage, with live assistive-technology and reduced-motion emulation qualification still open. Exact evidence is tracked in the [development ledger](docs/development.md); this local source packet is not a released feature.
 
-The OS application is named **Rangoon** and uses the selected logo without added text. The startup experience may display the Rangoon.ai wordmark. Startup resolves to usable application state or a visible failure; it does not invent progress or engine readiness. The visual system includes custom Foldline SVG icons, dark/light tokens, visible keyboard focus, and reduced-motion behavior.
+The OS application is named **Rangoon** and uses the selected logo without added text. Splash and navigation wordmarks use **Rangoon.si**. User-facing branding uses the short **SI** terminology; the expanded superintelligence term describes the documented long-term direction. This wording change does not add model, approval or execution capabilities. Startup resolves to usable application state or a visible failure; it does not invent progress or engine readiness. The visual system includes custom Foldline SVG icons, dark/light tokens, visible keyboard focus, and reduced-motion behavior.
 
 Only the bundled main window receives the enumerated application commands. Native code opens its own pickers; the renderer receives no generic shell, arbitrary filesystem, SQL, or external HTTP capability. Bundled navigation restrictions and a native CSP complement command permissions.
 
