@@ -2,7 +2,7 @@ const splashMarkup = ({ status = 'Opening local workspace…', preview = false }
   <section class="splash-card" aria-labelledby="splash-title">
     <div class="splash-content">
       <img class="splash-mark" src="assets/brand-symbol.png" alt="">
-      <h1 id="splash-title" class="splash-wordmark">Rangoon<span>.ai</span></h1>
+      <h1 id="splash-title" class="splash-wordmark">Rangoon<span>.si</span></h1>
       <p class="splash-purpose">Build capable agents. Keep them in bounds.</p>
       <div class="splash-rule" aria-hidden="true"></div>
       <p class="splash-status" data-splash-status role="status" aria-live="polite">${status}</p>
