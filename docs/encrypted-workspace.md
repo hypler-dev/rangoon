@@ -2,6 +2,45 @@
 
 Authority: the accepted local-first V1 objective and Jeff's October 7 request to address database encryption in [intent.md](intent.md). This specification refines storage confidentiality without changing domain identities, authority semantics or the accepted three-desktop release target. Current evidence and acceptance belong only in [development.md](development.md).
 
+## E1c provisioning recovery and outcome reconciliation
+
+This continues the [accepted encryption program](intent.md#provisioning-recovery-continuation--october-15-2026). It is a behavior/design contract, not an implemented recovery protocol. Reuse the existing empty/source initializer, Owner/key custody, exact confirmation tokens, binding, typed routing and close/drain/purge. No new cipher or database schema is needed to investigate this boundary.
+
+### Verified problem and required outcome
+
+Owner recovery is currently process-local. Existing native fixtures deliberately show that setup faults before Ready synchronization/readback can return WriteUncertain while leaving a Ready binding; a newly acquired Owner can then prepare unlock. The post-save fixture likewise preserves real committed bytes but loses its recovery flag on reacquisition. Explicit unlock already requires confirmation and authenticates the store; it must not be described as an automatic open or proof that the previous operation was acknowledged. These fixtures document unfinished recovery, not a passing production guarantee.
+
+The target is usable restart recovery with no implicit retry, replacement key, replacement database, source repair or execution authority. Preserve ordinary successful setup, clean lock and explicit restart/unlock. A verified committed operation and delivery of its result are different facts. After an interrupted or uncertain operation, expose available recorded evidence and require qualified explicit reconciliation before resuming affected mutations. Content inspection and reconciliation do not establish an execution approval.
+
+### Failure matrix for the next source packet
+
+| Observation | Required behavior | Evidence needed before normal work |
+| --- | --- | --- |
+| No operation intent, binding or managed artifacts, with explicit readable absence | Allow preparation only; no vault/database writes | Exact absent-state and directory custody checks |
+| Known orphaned managed artifacts, absent binding, or contradictory records | RecoveryRequired; never treat the root as a new empty workspace | Explicit inspection of the known app-owned root; no automatic adoption/deletion |
+| Persisted provisioning intent with missing/incomplete completion evidence | RecoveryRequired before key lookup or another create/unlock attempt | Identity-bound explicit reconciliation; no replay of setup |
+| Ready binding after setup returned an uncertain result | Do not infer that the caller saw success; retain the previous attempt for inspection | Consistent durable intent/result evidence and separately confirmed reconciliation |
+| Valid recorded commit but missing delivery acknowledgment | Present committed and unconfirmed delivery as separate facts; do not automatically repeat the operation | Read-only exact revision/inventory comparison and explicit next action |
+| Malformed, unreadable, linked/replaced or identity-mismatched recovery evidence | Closed recovery/unavailable state; no key regeneration or fallback | Bounded no-follow/same-file inspection; no implicit repair |
+| Successful clean close and consistent completed records | Locked; offer ordinary explicit unlock | Qualified identity/key/store checks before returning content |
+| Final record write/sync/readback or cleanup result is unknown | Remain conservative in the current process; do not claim that a later process can infer the failed response from readable bytes alone | Protocol-specific crash and filesystem-failure evidence; explicit reconciliation when observation is ambiguous |
+
+### Protocol constraints and rejected shortcuts
+
+An operation marker can be a useful write-ahead fence, but deleting the only marker and then failing directory synchronization can leave Ready plus an absent marker. That observation cannot prove clean completion. A completion receipt written before Ready also does not fix the current BeforeReadySync/BeforeReadyReadback gap. Moving the last Complete write after Ready merely moves the final uncertain-write boundary: a failed call can still have persisted readable bytes. No local-file scheme may claim perfect knowledge of a caller's result after arbitrary storage failure.
+
+A permanent Pending marker that is never cleared safely refuses later opens, including successful normal restarts. That is a conservative test substrate, not an accepted replacement for usable lock/restart/unlock. Do not implement that regression as a completed recovery feature. The next mechanism must separate durable operation evidence, actual database state, result delivery and the explicitly confirmed reconciliation decision. It must retain enough information to inspect uncertainty without inventing a failure/success fact or replaying the mutation.
+
+Recovery records must contain only bounded versioned nonsecret metadata, exact workspace/attempt identities and finite state. No source content, database key, provider credential, key fingerprint or renderer-selected path is permitted. Unknown fields/states and unavailable reads cannot become absence. No-follow/reparse rejection, same-file/directory custody, exclusive creation, OS-appropriate durability and cross-process ownership must be qualified together. Unkeyed metadata is not authenticated tamper or rollback protection; OS-account compromise, deliberate deletion and arbitrary filesystem/hardware failure remain separate limits. The current native same-file helper returns true on non-Unix targets, and directory synchronization is also Unix-only; native restart durability cannot be inferred from portable source or default hosted build checks.
+
+### Small implementation packet and validators
+
+Root retains architecture, private Owner/host integration, filesystem and key/privacy judgment. Freeze the exact recovery record, terminal-state/reconciliation semantics and error taxonomy before assigning a writer. Candidate root ownership is apps/desktop/src/workspace_session.rs, apps/desktop/src/workspace_session_tests.rs and apps/desktop/src/workspace_empty_tests.rs. A private recovery module and a disjoint new synthetic fixture file may be added only by the next exact-scope amendment; no worker is assigned production code here. Preserve existing module/API privacy and successful fixtures; update existing fault assertions only to strengthen recovery behavior. Any additional file or behavior needs an explicit scope amendment. This contract does not authorize all-provider adapters, a plugin runtime or a new encryption foundation.
+
+Acceptance must include source and empty setup, the four existing provisioning faults, process/Owner restart, malformed and mismatched evidence, failures before/after record persistence and final completion, read-only reconciliation and clean restart success. Add exact vault-open/write and key-generation counters; refused cases must not touch the vault or change database/key bytes. All mutating families require their own interruption matrix before activation; fixing provisioning alone does not solve later capability/workflow/composition/restore/deletion uncertainty.
+
+Use disposable roots and fake vaults. Run pinned Rust 1.98 native format, default/encrypted all-target tests, both warnings-denied Clippy variants, privacy doctests and encrypted build; portable checks only if portable source changes. Run authored-reference/whitespace checks and exact outside-owned identity proof. Require fresh independent pre-code protocol and final source/evidence reviews. Process-kill, disk-full, real OS-vault/GUI and all-three-OS durability remain distinct qualification. Production stays Legacy and Managed stays test-only until the complete adoption gates pass.
+
 ## E1b-2b9 routing and lock-drain coverage contract
 
 Jeff's [October 12 continuation](intent.md#storage-adoption-restart--october-12-2026) resumes technical work after the system audit. This section freezes the remaining coverage and first routing packet; it does not activate encrypted storage or replace the existing Owner, Gate, model consent, workflow or provider contracts. The source prerequisite for empty encrypted provisioning is already implemented under E1b-2b8; the older ordering table below is an adoption dependency map, not an instruction to repeat that foundation.
