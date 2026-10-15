@@ -16,6 +16,9 @@ use super::{
     },
 };
 use rangoon_desktop::workspace_lifecycle::{Drain, Gate, Lane, Lease};
+use rangoon_desktop::workspace_session::{
+    Error as ControlOwnerError, Preview as ControlPreview, RecoveryPreview,
+};
 use rangoon_domain::{
     AnalysisReport,
     capability_v1::{CapabilityDetail, CapabilitySummary},
@@ -166,6 +169,25 @@ impl Error {
 }
 
 trait Backend: Send {
+    fn control_prepare(
+        &mut self,
+        _kind: reopen::Kind,
+    ) -> Result<ControlPreview, ControlOwnerError> {
+        Err(ControlOwnerError::BackendUnavailable)
+    }
+    fn control_confirm(&mut self, _id: &str) -> Result<(), ControlOwnerError> {
+        Err(ControlOwnerError::BackendUnavailable)
+    }
+    fn control_inspect(&mut self) -> Result<RecoveryPreview, ControlOwnerError> {
+        Err(ControlOwnerError::BackendUnavailable)
+    }
+    fn control_reconcile(&mut self, _id: &str) -> Result<(), ControlOwnerError> {
+        Err(ControlOwnerError::BackendUnavailable)
+    }
+    fn control_is_open(&self) -> bool {
+        false
+    }
+
     /// Memory-only cleanup. Never use this to read, provision or retry storage.
     fn close_session(&mut self) -> bool {
         true
@@ -407,10 +429,30 @@ struct Managed<V> {
 }
 #[cfg(all(test, feature = "encrypted-workspace"))]
 impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V> {
+    fn control_prepare(&mut self, kind: reopen::Kind) -> Result<ControlPreview, ControlOwnerError> {
+        match kind {
+            reopen::Kind::CreateEmpty => self.owner.prepare_create_empty(),
+            reopen::Kind::Unlock => self.owner.prepare_unlock(),
+            reopen::Kind::Recovery => Err(ControlOwnerError::ConsentRequired),
+        }
+    }
+    fn control_confirm(&mut self, id: &str) -> Result<(), ControlOwnerError> {
+        self.owner.confirm(id, &self.vault)
+    }
+    fn control_inspect(&mut self) -> Result<RecoveryPreview, ControlOwnerError> {
+        self.owner.inspect_recovery(&self.vault)
+    }
+    fn control_reconcile(&mut self, id: &str) -> Result<(), ControlOwnerError> {
+        self.owner.confirm_recovery(id, &self.vault)
+    }
+    fn control_is_open(&self) -> bool {
+        self.owner.is_unlocked() && !self.owner.requires_recovery()
+    }
+
     fn close_session(&mut self) -> bool {
-        let healthy = !self.owner.requires_recovery();
+        let healthy_for_reopen = !self.owner.requires_recovery();
         self.owner.lock();
-        healthy
+        healthy_for_reopen
     }
     fn list(&mut self) -> Result<Vec<SnapshotMetadata>, Error> {
         self.owner.list(&self.vault).map_err(Error::Managed)
@@ -583,14 +625,16 @@ struct CloseCycle {
     drain: Drain,
     healthy: bool,
     released: Mutex<Option<bool>>,
+    cleanup_failed: std::sync::atomic::AtomicBool,
 }
 /// An opaque handle for one SourceAccess close cycle. It cannot resume admission.
 pub(super) struct CloseTicket {
     access: SourceAccess,
     cycle: Arc<CloseCycle>,
 }
+type ClosingGuard<'a> = std::sync::MutexGuard<'a, Option<Arc<CloseCycle>>>;
 impl CloseTicket {
-    fn current(&self) -> Result<bool, ()> {
+    fn current_slot(&self) -> Result<(ClosingGuard<'_>, bool), ()> {
         let (slot, healthy) = match self.access.0.closing.lock() {
             Ok(slot) => (slot, true),
             Err(error) => (error.into_inner(), false),
@@ -598,22 +642,28 @@ impl CloseTicket {
         if !slot.as_ref().is_some_and(|c| Arc::ptr_eq(c, &self.cycle)) {
             return Err(());
         }
-        Ok(healthy && self.cycle.healthy)
+        let healthy = healthy
+            && self.cycle.healthy
+            && !self
+                .cycle
+                .cleanup_failed
+                .load(std::sync::atomic::Ordering::SeqCst);
+        Ok((slot, healthy))
     }
     pub(super) fn purge(&self) -> bool {
-        let Ok(healthy) = self.current() else {
+        let Ok((_slot, healthy)) = self.current_slot() else {
             return false;
         };
         let purged = self.access.purge_retained();
         healthy && purged
     }
     pub(super) fn is_quiescent(&self) -> Result<bool, ()> {
-        self.current()?;
+        let (_slot, _) = self.current_slot()?;
         self.cycle.drain.is_quiescent().map_err(|_| ())
     }
     pub(super) fn release_key(&self) -> Result<bool, ()> {
-        let healthy = self.current()?;
-        if !self.is_quiescent()? {
+        let (_slot, healthy) = self.current_slot()?;
+        if !self.cycle.drain.is_quiescent().map_err(|_| ())? {
             return Err(());
         }
         let (mut released, release_healthy) = match self.cycle.released.lock() {
@@ -623,8 +673,8 @@ impl CloseTicket {
         if let Some(result) = *released {
             return Ok(healthy && release_healthy && result);
         }
-        // No normal operation can hold this mutex after proven callback drain.
-        // Poison recovery is restricted to dropping Owner/key custody.
+        // Keep cycle identity protected through key release; an old memo or
+        // cleanup cannot race a renewed control or a newly opened session.
         let (mut backend, backend_healthy) = match self.access.0.backend.try_lock() {
             Ok(backend) => (backend, true),
             Err(TryLockError::Poisoned(error)) => (error.into_inner(), false),
@@ -636,6 +686,12 @@ impl CloseTicket {
         Ok(result)
     }
 }
+// Private trusted-host prerequisite. No command or renderer can construct a
+// control. Remove this dead-code allowance when the qualified supervisor mounts.
+#[allow(dead_code)]
+#[path = "workspace_reopen.rs"]
+mod reopen;
+
 #[derive(Clone)]
 pub(super) struct SourceAccess(Arc<Inner>);
 impl SourceAccess {
@@ -690,6 +746,7 @@ impl SourceAccess {
                     drain,
                     healthy,
                     released: Mutex::new(None),
+                    cleanup_failed: std::sync::atomic::AtomicBool::new(false),
                 });
                 *slot = Some(Arc::clone(&cycle));
                 cycle
@@ -709,8 +766,19 @@ impl SourceAccess {
         let deletion = self.0.deletion.purge();
         source && workflow && composition && backup && deletion
     }
+    fn admit_open(&self, lane: Lane) -> Result<Lease, AdmissionError> {
+        let slot = self
+            .0
+            .closing
+            .lock()
+            .map_err(|_| AdmissionError::Unavailable)?;
+        if slot.is_some() {
+            return Err(AdmissionError::Unavailable);
+        }
+        admit(&self.0.gate, lane)
+    }
     fn begin(&self, lane: Lane) -> Result<Ticket, AdmissionError> {
-        let lease = admit(&self.0.gate, lane)?;
+        let lease = self.admit_open(lane)?;
         let generation = self
             .0
             .session
@@ -725,7 +793,7 @@ impl SourceAccess {
     fn begin_capability(&self, lane: Lane) -> Result<CapabilityTicket, AdmissionError> {
         Ok(CapabilityTicket {
             access: self.clone(),
-            lease: admit(&self.0.gate, lane)?,
+            lease: self.admit_open(lane)?,
         })
     }
     pub(super) async fn list_capabilities(&self) -> CapabilityResult {

@@ -872,3 +872,6 @@ mod model_inputs;
 
 #[path = "workspace_close_tests.rs"]
 mod workspace_close;
+
+#[path = "workspace_reopen_tests.rs"]
+mod reopen_controls;

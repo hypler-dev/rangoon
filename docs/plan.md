@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Active close-cycle routing prerequisite
+
+The [accepted E1c-2b continuation](intent.md#e1c-2b-typed-close-cycle-control-transitions) completes the source implementation and independent validation of the [private typed control seam](encrypted-workspace.md#typed-close-cycle-control-transitions-e1c-2b) after Gate checkpoint `0930111`; the [receipt](development.md#typed-close-cycle-transitions-e1c-2b--october-15-2026) owns evidence. Root owns protected source; one disjoint fixture writer owns only its new test file. The native coordinator/OS consent/renderer integration follows, reusing this seam and existing purge/ack behavior; no constructor/default switch is opened.
+
 ## Active closed-control prerequisite
 
 The [accepted E1c-2a continuation](intent.md#e1c-2a-closed-native-control-custody) has completed the source implementation and independent validation of [closed-control Gate custody](encrypted-workspace.md#closed-native-control-custody-e1c-2a) atop `250fcf4`. Root owns protected source; a separate literal fixture writer owns one new test file; pre-code and final independent review plus all seven native gates pass, as recorded in the [receipt](development.md#closed-native-control-custody-e1c-2a--october-15-2026). Then integrate the supervisor's cancel/drain/reset/resume protocol before setup/unlock commands and the separately designed protection overlay. Preserve existing typed routing, Owner, durable recovery and renderer purge. Do not activate encryption by changing a constructor before native lifecycle and platform qualification.
