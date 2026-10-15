@@ -1,0 +1,40 @@
+# Export handoff: portable bundle to exact instruction text
+
+Authority: the accepted [product-value priority continuation](intent.md#product-value-priority-continuation--october-7-2026). This is a bounded increment of the existing [compilation](compilation.md) and [bundle](instruction-bundle.md) contracts, not another compiler or provider contract. Evidence and acceptance state belong in [development.md](development.md).
+
+## User outcome and boundary
+
+A user can inspect a desktop-exported `.rangoon-instructions` bundle from the CLI and recover the exact instruction bytes for independent inspection or a later explicit installation decision. Today the native Export action produces the Rangoon container, not a ready-installed AGENTS.md/CLAUDE.md project file. The new commands close that handoff gap without writing a project, starting an agent or claiming a target consumed the output.
+
+Both commands accept only stdin. There are no file/path/target arguments, environment configuration, credential lookup, provider calls, workspace opens or filesystem writes. Shell redirection is a separate caller action: it can truncate a file before Rangoon runs. Examples must not redirect directly into active instruction filenames or imply safe automatic installation.
+
+## Small first packet and exact ownership
+
+The controller owns this contract, canonical priority records, README claims, integration, Cargo.lock and validation. The existing local `rangoon-domain` dependency may be added for test-only reconstruction of the maximum-content golden fixture, with its literal expected identities retained. A native GPT worker owns only `crates/rangoon-cli/Cargo.toml`, `crates/rangoon-cli/src/main.rs` and new `crates/rangoon-cli/tests/bundle.rs`. Existing analysis and engine behavior must remain intact. The existing compiler, bundle verifier, immutable profiles, golden corpus, store, composition, native host and UI are protected and unchanged. One writer per overlapping file. Fresh independent read-only review covers the exact packet after named validation.
+
+## Commands and output
+
+| Command | Success stdout | Success stderr |
+| --- | --- | --- |
+| `rangoon bundle inspect < exported.rangoon-instructions` | Existing `BundleInspection` JSON plus one LF; includes exact content and current no-authority/qualification fields | Empty |
+| `rangoon bundle artifact < exported.rangoon-instructions` | Exact validated artifact bytes, without JSON framing, normalization or an added newline | One fixed notice: `Rangoon: plaintext artifact; internal consistency only; target runtime untested; authority none.` followed by LF |
+
+The inspection exposes content; it is not a redacted or safe-to-upload report. The artifact notice must be written and flushed successfully before artifact output starts. Use an injectable output-writer seam to test I/O failures without a platform-specific broken-pipe assumption; inspect must not touch its stderr writer. Inspection and artifact extraction reuse `rangoon_compile::inspect_bundle`; no fallback parser or bypass of candidate/profile/manifest validation is permitted. Output preserves BOM, CRLF/LF, Unicode and final-newline state. Both valid fixed profiles are eligible, without claiming actual Codex/Claude compatibility. Existing `runtimeQualification: untested`, `semanticEquivalence: unverified` and authority none remain unchanged.
+
+Read at most `MAX_BUNDLE_BYTES + 1` bytes (295,017) to distinguish over-limit input. Validate the complete bounded input before writing any stdout. Malformed/unsupported/checksum-invalid/trailing-data input returns `bundle_invalid`. Actual input over the total bound returns `bundle_too_large`. Preserve the existing verifier's exact order: minimum frame size (106 bytes) and magic, zero component lengths, oversized component declarations, then expected total length. Thus a bare 40-byte header returns `bundle_invalid`, while a 106-byte truncated frame with nonzero oversized components returns `bundle_too_large`. A zero component still returns `bundle_invalid` even when the other declaration is oversized. Do not add a second header parser or reinterpret the verifier's error precedence. Fixed error messages use the existing `rangoon.cli-error.v0` stderr envelope with exit 2 for usage/input, exit 3 for stdin/stdout/stderr I/O or serialization. Neither rejected bytes nor arbitrary argument values are echoed. A failed stdout write/flush can leave partial output; the command returns failure, without automatic retry or durability claims. Stdin pipes retain the existing byte-bound/no-wall-clock-deadline behavior.
+
+Unknown bundle subcommands, extra arguments and missing subcommands return usage before reading stdin. Existing analyze/help/engine behavior remains intact; help accurately distinguishes bundle reading from inert engine diagnostics.
+
+## Acceptance and named validation
+
+Use the existing independently framed `fixtures/compilation/instruction-bundle-v1.json` golden corpus as literal input. Tests compare both profile outputs with expected instruction bytes and fixed inspection identities, not with a value reconstructed by the implementation under test. Cover BOM/CRLF/Unicode, no added final newline, exact maximum artifact bytes, deterministic output, malformed/truncated/trailing/checksum-invalid/oversized input with zero stdout, non-echoed errors and argument rejection without stdin reads. Pin inspect stderr empty and artifact stderr exactly the fixed notice. Add both a bare short header and a minimum-sized truncated frame with an over-limit declared component, a zero-plus-oversized declaration, an exact `MAX_BUNDLE_BYTES + 1` reader-consumption assertion, argument rejection with stdin kept open, and injected stderr write/flush failures that produce zero artifact output and exit-3 failures. Inject stdout write/flush failures for both command modes and assert exit-3 failures; partial output after an I/O failure is possible and never success. Existing core verifier tests retain semantic/canonical tamper coverage. The CLI must not loosen that verifier.
+
+Run pinned Rust 1.85 package tests and warnings-denied all-target Clippy plus workspace format, `node scripts/validate-review.mjs`, intent validation and packet whitespace checks. Existing CLI tests cover source/engine regressions. No UI change occurs, so no new synthetic layout or GUI acceptance follows. Three-OS CI can run the portable tests later; a local macOS run is not Windows/Linux runtime evidence. Review independently before source acceptance; publication remains closed.
+
+## Two-target qualification still required
+
+This packet proves the handoff to exact text, not instruction loading or adherence. A later packet must pin actual product/version and configuration, use isolated synthetic projects without inherited user instructions, and exercise a verified read-only/offline loader path. If a target has no safe standalone loader inspection, record that gap; do not invoke an agent or model as a substitute under this packet. Account for filename discovery, hierarchy, overrides/imports, comments, context limits and omissions using that target's native semantics. Do not modify the two frozen v1 descriptors in place.
+
+The subsequent [target-loader investigation](target-loader-qualification.md) records the observed local executable identities and separates public documentation/source inspection from runtime evidence. Its machine-readable receipt is documentary evidence only, not a new provider or compiler contract. A documented debug command is a candidate for further startup/isolation review; it is not automatically a safe loader invocation. Actual qualification and acceptance receipts remain in [development.md](development.md).
+
+Desktop one-click target-file export, installation/diff/collision/recovery UX, SKILL.md/support files, authenticated evidence, semantic transformation and real-loader qualification remain later work. No agent execution, account/credential use, provider installation, paid call, merge, deploy or release is authorized here.

@@ -74,6 +74,7 @@ export function createWorkflowController({ bridge, playground = false, onChange 
   let activeRequest = null;
   let playgroundGeneration = 0;
   let invalidatedRequest = null;
+  let workspaceIdentity = Symbol('workflow-workspace');
   const emit = () => onChange(clone(state));
   const set = changes => { state = { ...state, ...changes }; emit(); };
   const refuse = message => {
@@ -82,7 +83,8 @@ export function createWorkflowController({ bridge, playground = false, onChange 
   };
   const call = async (command, args) => { try { return await invoke(command, args); } catch { return { outcome: 'failed' }; } };
   const locked = () => (!invoke && playground !== true) || Boolean(state.pending);
-  const obsolete = request => {
+  const obsolete = (request, identity) => {
+    if (identity !== workspaceIdentity) return true;
     if (request !== requestGeneration) return true;
     if (invalidatedRequest !== request) return false;
     invalidatedRequest = null;
@@ -120,23 +122,43 @@ export function createWorkflowController({ bridge, playground = false, onChange 
   const list = async () => {
     if (playground === true) return false;
     if (locked() || state.fieldEdit) return false;
-    const request = ++requestGeneration; activeRequest = request; set({ pending: 'load', message: 'Refreshing local workflow library.' });
+    const request = ++requestGeneration; const identity = workspaceIdentity; activeRequest = request; set({ pending: 'load', message: 'Refreshing local workflow library.' });
+    if (identity !== workspaceIdentity) return false;
     const [workflows, capabilities] = await Promise.all([call('list_workflows'), call('list_capabilities')]);
-    if (obsolete(request)) return false;
+    if (obsolete(request, identity)) return false;
     const nextWorkflows = exactKeys(workflows, ['outcome', 'workflows']) && workflows.outcome === 'listed' && Array.isArray(workflows.workflows) && workflows.workflows.length <= 128 && new Set(workflows.workflows.map(item => item?.id)).size === workflows.workflows.length && workflows.workflows.every(validateWorkflowSummary) ? workflows.workflows : null;
     const nextCapabilities = exactKeys(capabilities, ['outcome', 'capabilities']) && capabilities.outcome === 'listed' && Array.isArray(capabilities.capabilities) && capabilities.capabilities.length <= 128 && new Set(capabilities.capabilities.map(item => item?.id)).size === capabilities.capabilities.length && capabilities.capabilities.every(validateCapabilitySummary) ? capabilities.capabilities : null;
     if (!nextWorkflows || !nextCapabilities) { set({ pending: null, status: state.workflows.length || state.capabilities.length ? 'ready' : 'failed', message: failure(!nextWorkflows ? workflows : capabilities).message }); return false; }
     set({ pending: null, status: 'ready', workflows: clone(nextWorkflows), capabilities: clone(nextCapabilities), message: 'Local workflow library refreshed.' }); return true;
   };
   const controller = {
+    purgeForWorkspaceLock() {
+      requestGeneration += 1;
+      editGeneration += 1;
+      workspaceIdentity = Symbol('workflow-workspace');
+      playgroundGeneration += 1;
+      activeRequest = null;
+      invalidatedRequest = null;
+      localNodeSequence = 0;
+      undo = [];
+      redo = [];
+      set({
+        ...EMPTY_WORKFLOW_STATE,
+        ...(playground === true ? { playground: true } : {}),
+        bridgeAvailable: Boolean(invoke),
+        status: invoke ? 'idle' : 'unavailable',
+        message: invoke ? 'Workflow data cleared from this view.' : EMPTY_WORKFLOW_STATE.message,
+      });
+    },
     getState: () => clone({ ...state, canUndo: !locked() && undo.length > 0, canRedo: !locked() && redo.length > 0 }),
     load: list,
     async open(workflowId, revisionId = null) {
       if (playground === true) return false;
       if (locked() || state.session || state.dirty || state.fieldEdit || !/^workflow:[0-9a-f]{64}$/.test(workflowId) || revisionId !== null && !/^workflow-revision:[0-9a-f]{64}$/.test(revisionId)) return false;
-      const request = ++requestGeneration; activeRequest = request; set({ pending: 'open', message: 'Opening saved workflow.' });
+      const request = ++requestGeneration; const identity = workspaceIdentity; activeRequest = request; set({ pending: 'open', message: 'Opening saved workflow.' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('open_workflow', encode({ schemaVersion: 'rangoon.workflow-open.v1', workflowId, selection: revisionId ? { kind: 'historical', revisionId } : { kind: 'head' } }));
-      if (obsolete(request)) return false;
+      if (obsolete(request, identity)) return false;
       const detail = detailFor(result);
       if (!detail || detail.revision.workflowId !== workflowId || revisionId === null && detail.revision.id !== detail.head.latestRevisionId || revisionId !== null && detail.revision.id !== revisionId) { set({ pending: null, message: failure(result).message }); return false; }
       undo = []; redo = []; set({ pending: null, status: 'ready', opened: clone(detail), definition: clone(detail.revision.definition), layout: clone(detail.revision.layout), session: null, dirty: false, candidate: null, acknowledged: false, receipt: null, fieldEdit: null, selection: null, message: 'Saved workflow open read-only. Start an explicit append draft to edit.' }); return true;
@@ -149,9 +171,10 @@ export function createWorkflowController({ bridge, playground = false, onChange 
         return true;
       }
       if (locked() || state.session || state.dirty || state.fieldEdit) return false;
-      const request = ++requestGeneration; activeRequest = request; set({ pending: 'begin', message: 'Starting a new local workflow draft.' });
+      const request = ++requestGeneration; const identity = workspaceIdentity; activeRequest = request; set({ pending: 'begin', message: 'Starting a new local workflow draft.' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('begin_workflow_draft', encode({ schemaVersion: 'rangoon.workflow-draft.v1', target: { kind: 'new' } }));
-      if (obsolete(request)) return false;
+      if (obsolete(request, identity)) return false;
       if (!(exactKeys(result, ['outcome', 'schemaVersion', 'draftId', 'workflowId', 'parentRevisionId', 'workflow']) && result.outcome === 'draft_ready' && result.schemaVersion === 'rangoon.workflow-draft-session.v1' && /^workflow-draft:[0-9a-f]{64}$/.test(result.draftId) && /^workflow:[0-9a-f]{64}$/.test(result.workflowId) && result.parentRevisionId === null && result.workflow === null)) { set({ pending: null, message: failure(result).message }); return false; }
       undo = []; redo = []; localNodeSequence = 0; set({ pending: null, status: 'draft', opened: null, session: { draftId: result.draftId, workflowId: result.workflowId, parentRevisionId: null }, definition: emptyDefinition(), layout: emptyLayout(), dirty: false, candidate: null, acknowledged: false, receipt: null, fieldEdit: null, selection: null, message: 'New local draft ready.' }); return true;
     },
@@ -159,9 +182,10 @@ export function createWorkflowController({ bridge, playground = false, onChange 
       if (playground === true) return false;
       const head = state.opened?.head;
       if (locked() || state.session || state.dirty || state.fieldEdit || !head || state.opened.revision.id !== head.latestRevisionId) return false;
-      const request = ++requestGeneration; activeRequest = request; set({ pending: 'append', message: 'Starting an append draft from the current head.' });
+      const request = ++requestGeneration; const identity = workspaceIdentity; activeRequest = request; set({ pending: 'append', message: 'Starting an append draft from the current head.' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('begin_workflow_draft', encode({ schemaVersion: 'rangoon.workflow-draft.v1', target: { kind: 'append', workflowId: head.id, expectedHeadId: head.latestRevisionId } }));
-      if (obsolete(request)) return false;
+      if (obsolete(request, identity)) return false;
       const detail = result?.workflow && validateWorkflowDetail(result.workflow);
       if (!(exactKeys(result, ['outcome', 'schemaVersion', 'draftId', 'workflowId', 'parentRevisionId', 'workflow']) && result.outcome === 'draft_ready' && result.schemaVersion === 'rangoon.workflow-draft-session.v1' && /^workflow-draft:[0-9a-f]{64}$/.test(result.draftId) && result.workflowId === head.id && result.parentRevisionId === head.latestRevisionId && detail && detail.head.latestRevisionId === head.latestRevisionId)) { set({ pending: null, message: failure(result).message }); return false; }
       if (detail.revision.id !== detail.head.latestRevisionId || detail.revision.id !== head.latestRevisionId) {
@@ -181,18 +205,20 @@ export function createWorkflowController({ bridge, playground = false, onChange 
         return true;
       }
       if (!confirmed || locked() || state.fieldEdit || !state.session) return false;
-      const draftId = state.session.draftId; const request = ++requestGeneration; activeRequest = request; set({ pending: 'clear', message: 'Clearing the local draft session.' });
+      const draftId = state.session.draftId; const request = ++requestGeneration; const identity = workspaceIdentity; activeRequest = request; set({ pending: 'clear', message: 'Clearing the local draft session.' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('clear_workflow_draft', encode({ schemaVersion: 'rangoon.workflow-clear.v1', draftId }));
-      if (obsolete(request)) return false;
+      if (obsolete(request, identity)) return false;
       if (!exactKeys(result, ['outcome']) || result.outcome !== 'cleared') { set({ pending: null, message: failure(result).message }); return false; }
       undo = []; redo = []; set({ pending: null, status: state.opened ? 'ready' : 'idle', session: null, definition: state.opened ? clone(state.opened.revision.definition) : null, layout: state.opened ? clone(state.opened.revision.layout) : null, dirty: false, candidate: null, acknowledged: false, receipt: null, fieldEdit: null, message: 'Local draft cleared.' }); return true;
     },
     async compare(leftRevisionId, rightRevisionId) {
       if (playground === true) return false;
       if (locked() || state.fieldEdit || !state.opened || !/^workflow-revision:[0-9a-f]{64}$/.test(leftRevisionId) || !/^workflow-revision:[0-9a-f]{64}$/.test(rightRevisionId)) return false;
-      const workflowId = state.opened.head.id; const request = ++requestGeneration; activeRequest = request; set({ pending: 'compare', message: 'Comparing saved workflow revisions.' });
+      const workflowId = state.opened.head.id; const request = ++requestGeneration; const identity = workspaceIdentity; activeRequest = request; set({ pending: 'compare', message: 'Comparing saved workflow revisions.' });
+      if (identity !== workspaceIdentity) return false;
       const [leftResult, rightResult] = await Promise.all([leftRevisionId === state.opened.revision.id ? { outcome: 'opened', workflow: state.opened } : call('open_workflow', encode({ schemaVersion: 'rangoon.workflow-open.v1', workflowId, selection: { kind: 'historical', revisionId: leftRevisionId } })), rightRevisionId === state.opened.revision.id ? { outcome: 'opened', workflow: state.opened } : call('open_workflow', encode({ schemaVersion: 'rangoon.workflow-open.v1', workflowId, selection: { kind: 'historical', revisionId: rightRevisionId } }))]);
-      if (obsolete(request)) return false;
+      if (obsolete(request, identity)) return false;
       const left = detailFor(leftResult); const right = detailFor(rightResult);
       if (!left || !right || left.revision.workflowId !== workflowId || right.revision.workflowId !== workflowId || left.revision.id !== leftRevisionId || right.revision.id !== rightRevisionId) { set({ pending: null, message: 'The exact saved revisions could not be compared.' }); return false; }
       const summary = { definitionChanged: !same(left.revision.definition, right.revision.definition), layoutChanged: !same(left.revision.layout, right.revision.layout), nodeDelta: right.revision.definition.nodes.length - left.revision.definition.nodes.length, controlEdgeDelta: right.revision.definition.controlEdges.length - left.revision.definition.controlEdges.length, dataEdgeDelta: right.revision.definition.dataEdges.length - left.revision.definition.dataEdges.length };
@@ -250,10 +276,12 @@ export function createWorkflowController({ bridge, playground = false, onChange 
       if (playground === true) return false;
       if (locked() || state.fieldEdit || !/^capability:[0-9a-f]{64}$/.test(capabilityId)) return false;
       const request = ++requestGeneration;
+      const identity = workspaceIdentity;
       activeRequest = request;
       set({ pending: 'capability', message: 'Opening exact local capability.' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('open_capability', { capabilityId, revisionId: null });
-      if (obsolete(request)) return false;
+      if (obsolete(request, identity)) return false;
       const detail = exactKeys(result, ['outcome', 'capability', 'alreadyApplied']) && result.outcome === 'opened' ? validateCapabilityDetail(result.capability) : null;
       if (!detail || typeof result.alreadyApplied !== 'boolean' || detail.id !== capabilityId || detail.revision.id !== detail.latestRevisionId) {
         set({ pending: null, message: failure(result).message });
@@ -274,25 +302,28 @@ export function createWorkflowController({ bridge, playground = false, onChange 
         && draftCandidate.plan.unresolvedReferences === 0;
       if (!editing() || !['draft', 'validated'].includes(intent) || intent === 'validated' && !freshDraft) return false;
       const request = ++requestGeneration;
+      const identity = workspaceIdentity;
       activeRequest = request;
       const generation = editGeneration;
       const authoredDefinition = clone(state.definition);
       const authoredLayout = clone(state.layout);
       set({ pending: 'inspect', message: 'Inspecting the exact local workflow draft.' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('inspect_workflow_save', encode({ schemaVersion: 'rangoon.workflow-inspect.v1', draftId: state.session.draftId, intent, definition: authoredDefinition, layout: authoredLayout }));
-      if (obsolete(request)) return false;
+      if (obsolete(request, identity)) return false;
       const candidate = validateWorkflowSaveReady(result, { ...state.session, definition: authoredDefinition, layout: authoredLayout, intent });
       if (!candidate || generation !== editGeneration || !same(state.definition, authoredDefinition) || !same(state.layout, authoredLayout)) { set({ pending: null, candidate: null, acknowledged: false, message: failure(result).message }); return false; }
       set({ pending: null, status: candidate.revision.intent === 'validated' ? 'validated' : 'draft', candidate: { ...clone(candidate), editGeneration: generation }, acknowledged: false, receipt: null, message: 'Native inspection ready for explicit acknowledgment.' }); return true;
     },
     acknowledge(value) { if (!state.candidate || state.candidate.editGeneration !== editGeneration || typeof value !== 'boolean') return false; set({ acknowledged: value }); return true; },
-    async commit() { if (playground === true) return false; const candidate = state.candidate; if (locked() || state.fieldEdit || !candidate || !state.acknowledged || candidate.editGeneration !== editGeneration || !state.session) return false; const request = ++requestGeneration; activeRequest = request; set({ pending: 'commit', candidate: null, acknowledged: false, message: 'Saving the exact inspected local revision.' }); const result = await call('commit_workflow_save', encode({ schemaVersion: 'rangoon.workflow-commit.v1', previewId: candidate.previewId, expectedStateId: candidate.plan.expectedStateId, acknowledged: true })); if (obsolete(request)) return false; const receipt = exactKeys(result, ['outcome', 'receipt']) && result.outcome === 'saved' ? validateWorkflowReceipt(result.receipt, candidate) : null; if (!receipt) { set({ pending: null, status: 'draft', message: failure(result).message }); return false; }
+    async commit() { if (playground === true) return false; const candidate = state.candidate; if (locked() || state.fieldEdit || !candidate || !state.acknowledged || candidate.editGeneration !== editGeneration || !state.session) return false; const request = ++requestGeneration; const identity = workspaceIdentity; activeRequest = request; set({ pending: 'commit', candidate: null, acknowledged: false, message: 'Saving the exact inspected local revision.' }); if (identity !== workspaceIdentity) return false; const result = await call('commit_workflow_save', encode({ schemaVersion: 'rangoon.workflow-commit.v1', previewId: candidate.previewId, expectedStateId: candidate.plan.expectedStateId, acknowledged: true })); if (obsolete(request, identity)) return false; const receipt = exactKeys(result, ['outcome', 'receipt']) && result.outcome === 'saved' ? validateWorkflowReceipt(result.receipt, candidate) : null; if (!receipt) { set({ pending: null, status: 'draft', message: failure(result).message }); return false; }
       const saved = clone(receipt);
       set({ pending: null, status: 'saved', opened: clone(saved.workflow), session: null, receipt: saved, candidate: null, acknowledged: false, dirty: false, message: saved.alreadySaved ? 'Exact revision was already current.' : 'Local workflow revision saved.' });
+      if (identity !== workspaceIdentity || request !== requestGeneration) return false;
       try {
         if (await onSaved(clone(saved)) === false) throw new Error('refresh_failed');
       } catch {
-        set({ message: 'Local workflow revision saved. Library refresh did not finish.' });
+        if (identity === workspaceIdentity && request === requestGeneration) set({ message: 'Local workflow revision saved. Library refresh did not finish.' });
       }
       return saved;
     },

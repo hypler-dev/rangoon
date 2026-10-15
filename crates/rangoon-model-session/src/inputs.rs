@@ -6,6 +6,41 @@ use rangoon_store::Workspace;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, io::Write};
 
+/// Trusted host reads of exact saved records. Implementations must not execute
+/// imported instructions or infer permission to contact an external service.
+pub trait InputReader {
+    fn read_source(
+        &mut self,
+        source_id: &str,
+    ) -> Result<rangoon_domain::AnalysisReport, Diagnostic>;
+    fn read_capability(
+        &mut self,
+        capability_id: &str,
+        revision_id: &str,
+    ) -> Result<rangoon_domain::capability_v1::CapabilityDetail, Diagnostic>;
+}
+
+pub(crate) struct WorkspaceReader<'a>(pub(crate) &'a Workspace);
+impl InputReader for WorkspaceReader<'_> {
+    fn read_source(
+        &mut self,
+        source_id: &str,
+    ) -> Result<rangoon_domain::AnalysisReport, Diagnostic> {
+        self.0
+            .open(source_id)
+            .map_err(|_| Diagnostic::InputUnavailable)
+    }
+    fn read_capability(
+        &mut self,
+        capability_id: &str,
+        revision_id: &str,
+    ) -> Result<rangoon_domain::capability_v1::CapabilityDetail, Diagnostic> {
+        self.0
+            .open_capability_v1(capability_id, Some(revision_id))
+            .map_err(|_| Diagnostic::InputUnavailable)
+    }
+}
+
 #[derive(Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Task {
@@ -91,12 +126,18 @@ pub(crate) struct Resolved {
 }
 
 impl Resolved {
-    pub(crate) fn read(store: &Workspace, selector: &Selector) -> Result<Self, Diagnostic> {
+    pub(crate) fn read(
+        store: &mut dyn InputReader,
+        selector: &Selector,
+    ) -> Result<Self, Diagnostic> {
         let (input, observed_head, content) = match selector {
             Selector::Source { source_id } => {
                 let report = store
-                    .open(source_id)
+                    .read_source(source_id)
                     .map_err(|_| Diagnostic::InputUnavailable)?;
+                if report.source.id != *source_id {
+                    return Err(Diagnostic::InputUnavailable);
+                }
                 (
                     InputReference::Source {
                         source_id: source_id.clone(),
@@ -111,8 +152,11 @@ impl Resolved {
                 revision_id,
             } => {
                 let detail = store
-                    .open_capability_v1(capability_id, Some(revision_id))
+                    .read_capability(capability_id, revision_id)
                     .map_err(|_| Diagnostic::InputUnavailable)?;
+                if detail.id != *capability_id || detail.revision.id != *revision_id {
+                    return Err(Diagnostic::InputUnavailable);
+                }
                 (
                     InputReference::Revision {
                         capability_id: capability_id.clone(),
@@ -155,7 +199,7 @@ pub(crate) struct Packed {
 }
 
 pub(crate) fn prepare(
-    store: &Workspace,
+    store: &mut dyn InputReader,
     selection: &Selection,
     profile: &LocalProfile,
 ) -> Result<Packed, Diagnostic> {
@@ -181,7 +225,7 @@ pub(crate) fn prepare(
 /// Shared saved-record resolution; provider-specific schemas and outer request
 /// construction stay in their respective session paths.
 pub(crate) fn prepare_pack(
-    store: &Workspace,
+    store: &mut dyn InputReader,
     selection: &Selection,
     profile_id: &str,
     profile_sha256: &str,

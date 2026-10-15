@@ -1,8 +1,8 @@
 //! Explicit owner-managed backup, restore and deletion. No renderer file paths.
 use super::{
-    AdmissionError, AppHandle, Gate, PublicError, StoreError, begin_operation, dispatch_read,
-    workspace,
+    AdmissionError, AppHandle, PublicError, StoreError, workspace_source_access::SourceAccess,
 };
+use rangoon_desktop::workspace_lifecycle::GenerationWitness;
 use rangoon_host::{read_selected_backup, write_selected_backup};
 use rangoon_store::{
     WorkflowDeletionPlan as DeletionPlan, WorkflowRecordKind as RecordKind,
@@ -15,44 +15,197 @@ use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
 #[derive(Default)]
-pub struct BackupSession(Mutex<Option<(Arc<Backup>, RestorePlan)>>);
+pub struct BackupSession(Mutex<Option<RetainedBackup>>);
+struct RetainedBackup {
+    backup: Arc<Backup>,
+    plan: RestorePlan,
+    generation: Option<GenerationWitness>,
+}
 impl BackupSession {
+    #[cfg(test)]
+    pub(super) fn retained_for_close_test(&self) -> bool {
+        self.0.lock().unwrap().is_some()
+    }
+    #[cfg(test)]
     fn stage(&self, backup: Backup, plan: RestorePlan) -> Result<(), StoreError> {
-        *self.0.lock().map_err(|_| StoreError::Unavailable)? = Some((Arc::new(backup), plan));
+        self.stage_inner(backup, plan, None)
+    }
+    fn stage_inner(
+        &self,
+        backup: Backup,
+        plan: RestorePlan,
+        generation: Option<GenerationWitness>,
+    ) -> Result<(), StoreError> {
+        let mut guard = self.0.lock().map_err(|_| StoreError::Unavailable)?;
+        if generation
+            .as_ref()
+            .is_some_and(|generation| !generation.is_current().unwrap_or(false))
+        {
+            *guard = None;
+            return Err(StoreError::Unavailable);
+        }
+        *guard = Some(RetainedBackup {
+            backup: Arc::new(backup),
+            plan,
+            generation,
+        });
         Ok(())
     }
+    pub(super) fn stage_routed(
+        &self,
+        backup: Backup,
+        plan: RestorePlan,
+        generation: GenerationWitness,
+    ) -> Result<(), StoreError> {
+        if !generation.is_current().unwrap_or(false) {
+            return Err(StoreError::Unavailable);
+        }
+        self.stage_inner(backup, plan, Some(generation))
+    }
+    #[cfg(test)]
     fn claim(&self, id: &str, expected: &str) -> Result<(Arc<Backup>, RestorePlan), StoreError> {
+        self.claim_inner(id, expected, false)
+    }
+    pub(super) fn claim_routed(
+        &self,
+        id: &str,
+        expected: &str,
+    ) -> Result<(Arc<Backup>, RestorePlan), StoreError> {
+        self.claim_inner(id, expected, true)
+    }
+    fn claim_inner(
+        &self,
+        id: &str,
+        expected: &str,
+        routed: bool,
+    ) -> Result<(Arc<Backup>, RestorePlan), StoreError> {
         let mut guard = self.0.lock().map_err(|_| StoreError::Unavailable)?;
-        let (backup, plan) = guard.as_ref().ok_or(StoreError::BackupInvalid)?;
-        if backup.id() != id || plan.expected_state_id() != expected {
+        let retained = guard.as_ref().ok_or(StoreError::BackupInvalid)?;
+        if retained.backup.id() != id || retained.plan.expected_state_id() != expected {
             return Err(StoreError::WorkspaceChanged);
         }
-        // Claim before storage. Failed or uncertain results cannot replay this
-        // attempt, and completing it cannot clear a newer prepared candidate.
-        guard.take().ok_or(StoreError::BackupInvalid)
+        if routed
+            && !retained
+                .generation
+                .as_ref()
+                .is_some_and(|generation| generation.is_current().unwrap_or(false))
+        {
+            *guard = None;
+            return Err(StoreError::Unavailable);
+        }
+        let retained = guard.take().ok_or(StoreError::BackupInvalid)?;
+        Ok((retained.backup, retained.plan))
+    }
+    pub(super) fn purge(&self) -> bool {
+        match self.0.lock() {
+            Ok(mut guard) => {
+                *guard = None;
+                true
+            }
+            Err(error) => {
+                *error.into_inner() = None;
+                false
+            }
+        }
     }
 }
 
 /// Retain the exact dependency and removal preview; confirmation cannot replace it.
 #[derive(Default)]
-pub struct DeletionSession(Mutex<Option<DeletionPlan>>);
+pub struct DeletionSession(Mutex<Option<RetainedDeletion>>);
+struct RetainedDeletion {
+    plan: DeletionPlan,
+    generation: Option<GenerationWitness>,
+}
 impl DeletionSession {
+    #[cfg(test)]
+    pub(super) fn retained_for_close_test(&self) -> bool {
+        self.0.lock().unwrap().is_some()
+    }
+    #[cfg(test)]
     fn stage(&self, plan: DeletionPlan) -> Result<(), StoreError> {
-        *self.0.lock().map_err(|_| StoreError::Unavailable)? = Some(plan);
+        self.stage_inner(plan, None)
+    }
+    fn stage_inner(
+        &self,
+        plan: DeletionPlan,
+        generation: Option<GenerationWitness>,
+    ) -> Result<(), StoreError> {
+        let mut guard = self.0.lock().map_err(|_| StoreError::Unavailable)?;
+        if generation
+            .as_ref()
+            .is_some_and(|generation| !generation.is_current().unwrap_or(false))
+        {
+            *guard = None;
+            return Err(StoreError::Unavailable);
+        }
+        *guard = Some(RetainedDeletion { plan, generation });
         Ok(())
     }
+    pub(super) fn stage_routed(
+        &self,
+        plan: DeletionPlan,
+        generation: GenerationWitness,
+    ) -> Result<(), StoreError> {
+        if !generation.is_current().unwrap_or(false) {
+            return Err(StoreError::Unavailable);
+        }
+        self.stage_inner(plan, Some(generation))
+    }
+    #[cfg(test)]
     fn claim(
         &self,
         kind: RecordKind,
         id: &str,
         expected: &str,
     ) -> Result<DeletionPlan, StoreError> {
+        self.claim_inner(kind, id, expected, false)
+    }
+    pub(super) fn claim_routed(
+        &self,
+        kind: RecordKind,
+        id: &str,
+        expected: &str,
+    ) -> Result<DeletionPlan, StoreError> {
+        self.claim_inner(kind, id, expected, true)
+    }
+    fn claim_inner(
+        &self,
+        kind: RecordKind,
+        id: &str,
+        expected: &str,
+        routed: bool,
+    ) -> Result<DeletionPlan, StoreError> {
         let mut guard = self.0.lock().map_err(|_| StoreError::Unavailable)?;
-        let plan = guard.as_ref().ok_or(StoreError::WorkspaceChanged)?;
-        if plan.kind() != kind || plan.id() != id || plan.expected_state_id() != expected {
+        let retained = guard.as_ref().ok_or(StoreError::WorkspaceChanged)?;
+        if retained.plan.kind() != kind
+            || retained.plan.id() != id
+            || retained.plan.expected_state_id() != expected
+        {
             return Err(StoreError::WorkspaceChanged);
         }
-        guard.take().ok_or(StoreError::WorkspaceChanged)
+        if routed
+            && !retained
+                .generation
+                .as_ref()
+                .is_some_and(|generation| generation.is_current().unwrap_or(false))
+        {
+            *guard = None;
+            return Err(StoreError::Unavailable);
+        }
+        Ok(guard.take().ok_or(StoreError::WorkspaceChanged)?.plan)
+    }
+    pub(super) fn purge(&self) -> bool {
+        match self.0.lock() {
+            Ok(mut guard) => {
+                *guard = None;
+                true
+            }
+            Err(error) => {
+                *error.into_inner() = None;
+                false
+            }
+        }
     }
 }
 
@@ -65,7 +218,7 @@ pub enum NativeRecordKind {
     Workflow,
 }
 impl NativeRecordKind {
-    fn store(self) -> RecordKind {
+    pub(super) fn store(self) -> RecordKind {
         match self {
             Self::Source => RecordKind::Source,
             Self::Capability => RecordKind::Capability,
@@ -106,7 +259,7 @@ pub enum DataResult {
         error: PublicError,
     },
 }
-fn failure(error: StoreError) -> DataResult {
+pub(super) fn failure(error: StoreError) -> DataResult {
     // A transport/storage failure is not proof that a write rolled back. Unlike
     // source Save, these confirmations are never automatically retried.
     let (code, message) = if error == StoreError::Unavailable {
@@ -121,174 +274,111 @@ fn failure(error: StoreError) -> DataResult {
         error: PublicError { code, message },
     }
 }
-async fn guarded<F>(app: AppHandle, action: F) -> DataResult
-where
-    F: FnOnce(AppHandle) -> DataResult + Send + 'static,
-{
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return DataResult::Failed {
-                error: PublicError {
-                    code: "workspace_busy",
-                    message: "Finish the current local workspace operation first.",
-                },
-            };
-        }
-        Err(AdmissionError::Unavailable) => {
-            return failure(StoreError::Unavailable);
-        }
+pub(super) fn admission(error: AdmissionError) -> DataResult {
+    match error {
+        AdmissionError::Busy => DataResult::Failed {
+            error: PublicError {
+                code: "workspace_busy",
+                message: "Finish the current local workspace operation first.",
+            },
+        },
+        AdmissionError::Unavailable => failure(StoreError::Unavailable),
+    }
+}
+fn pick(app: &AppHandle, exporting: bool) -> Result<Option<std::path::PathBuf>, PublicError> {
+    let window = app.get_webview_window("main").ok_or(PublicError {
+        code: "workspace_unavailable",
+        message: "The native backup picker is unavailable.",
+    })?;
+    let dialog = app
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .add_filter("Rangoon backup", &["rangoon-backup"]);
+    let selected = if exporting {
+        dialog
+            .set_title("Save an unencrypted Rangoon backup")
+            .set_file_name("Rangoon.rangoon-backup")
+            .blocking_save_file()
+    } else {
+        dialog
+            .set_title("Choose a Rangoon backup to review")
+            .blocking_pick_file()
     };
-    tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        action(app)
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable))
+    selected
+        .map(|value| {
+            value.into_path().map_err(|_| PublicError {
+                code: "workspace_unavailable",
+                message: "The native backup selection is unavailable.",
+            })
+        })
+        .transpose()
 }
 
 #[tauri::command]
 pub async fn get_workspace_data(app: AppHandle) -> DataResult {
-    let gate = app.state::<Gate>().inner().clone();
-    let worker = match dispatch_read(&gate, move || {
-        match workspace(&app).and_then(|w| w.workflow_data()) {
-            Ok(workspace) => DataResult::Loaded { workspace },
-            Err(error) => failure(error),
-        }
-    }) {
-        Ok(worker) => worker,
-        Err(AdmissionError::Busy) => {
-            return DataResult::Failed {
-                error: PublicError {
-                    code: "workspace_busy",
-                    message: "Finish the current local workspace operation first.",
-                },
-            };
-        }
-        Err(AdmissionError::Unavailable) => return failure(StoreError::Unavailable),
-    };
-    worker
-        .await
-        .unwrap_or_else(|_| failure(StoreError::Unavailable))
+    let access = app.state::<SourceAccess>().inner().clone();
+    access.workflow_data().await
 }
-
 #[tauri::command]
 pub async fn export_workspace_backup(app: AppHandle) -> DataResult {
-    guarded(app, |app| {
-        let Some(window) = app.get_webview_window("main") else {
-            return failure(StoreError::Unavailable);
-        };
-        let Some(selected) = app
-            .dialog()
-            .file()
-            .set_parent(&window)
-            .set_title("Save an unencrypted Rangoon backup")
-            .set_file_name("Rangoon.rangoon-backup")
-            .add_filter("Rangoon backup", &["rangoon-backup"])
-            .blocking_save_file()
-        else {
-            return DataResult::Cancelled;
-        };
-        let Ok(path) = selected.into_path() else {
-            return failure(StoreError::Unavailable);
-        };
-        let bytes = match workspace(&app).and_then(|w| w.export_workflow_backup()) {
-            Ok(bytes) => bytes,
-            Err(error) => return failure(error),
-        };
-        if let Err(error) = write_selected_backup(&path, &bytes) {
-            return DataResult::Failed { error };
-        }
-        DataResult::Exported {
-            backup_id: format!("backup:{}", rangoon_domain::byte_digest(&bytes)),
-            byte_length: bytes.len(),
-        }
+    let operation = match app.state::<SourceAccess>().begin_file() {
+        Ok(operation) => operation,
+        Err(error) => return admission(error),
+    };
+    match tauri::async_runtime::spawn_blocking(move || {
+        operation.export_backup(|| pick(&app, true), write_selected_backup)
     })
     .await
+    {
+        Ok(completed) => completed.deliver(),
+        Err(_) => DataResult::Failed {
+            error: PublicError {
+                code: "workspace_export_uncertain",
+                message: "Export did not return a confirmed result. A file may remain; inspect it and choose a new name before retrying.",
+            },
+        },
+    }
 }
-
 #[tauri::command]
 pub async fn prepare_workspace_restore(app: AppHandle) -> DataResult {
-    guarded(app, |app| {
-        let Some(window) = app.get_webview_window("main") else {
-            return failure(StoreError::Unavailable);
-        };
-        let Some(selected) = app
-            .dialog()
-            .file()
-            .set_parent(&window)
-            .set_title("Choose a Rangoon backup to review")
-            .add_filter("Rangoon backup", &["rangoon-backup"])
-            .blocking_pick_file()
-        else {
-            return DataResult::Cancelled;
-        };
-        let Ok(path) = selected.into_path() else {
-            return failure(StoreError::Unavailable);
-        };
-        let bytes = match read_selected_backup(&path) {
-            Ok(bytes) => bytes,
-            Err(error) => return DataResult::Failed { error },
-        };
-        let backup = match Backup::decode(&bytes) {
-            Ok(backup) => backup,
-            Err(error) => return failure(error),
-        };
-        drop(bytes);
-        let plan = match workspace(&app).and_then(|w| w.prepare_workflow_restore(&backup)) {
-            Ok(plan) => plan,
-            Err(error) => return failure(error),
-        };
-        if let Err(error) = app.state::<BackupSession>().stage(backup, plan.clone()) {
-            return failure(error);
-        }
-        DataResult::RestoreReady { plan }
+    let access = app.state::<SourceAccess>().inner().clone();
+    let operation = match access.begin_file() {
+        Ok(operation) => operation,
+        Err(error) => return admission(error),
+    };
+    match tauri::async_runtime::spawn_blocking(move || {
+        operation.prepare_restore(|| pick(&app, false), read_selected_backup)
     })
     .await
+    {
+        Ok(completed) => completed.deliver(),
+        Err(_) => {
+            access.purge_data_controls();
+            failure(StoreError::Unavailable)
+        }
+    }
 }
-
 #[tauri::command]
 pub async fn restore_workspace_backup(
     app: AppHandle,
     backup_id: String,
     expected_state_id: String,
 ) -> DataResult {
-    guarded(app, move |app| {
-        let (backup, plan) = match app
-            .state::<BackupSession>()
-            .claim(&backup_id, &expected_state_id)
-        {
-            Ok(backup) => backup,
-            Err(error) => return failure(error),
-        };
-        match workspace(&app).and_then(|w| w.restore_workflow_backup(&backup, &plan)) {
-            Ok(_) => DataResult::Restored { plan },
-            Err(error) => failure(error),
-        }
-    })
-    .await
+    app.state::<SourceAccess>()
+        .restore_workspace_backup(backup_id, expected_state_id)
+        .await
 }
-
 #[tauri::command]
 pub async fn inspect_workspace_deletion(
     app: AppHandle,
     kind: NativeRecordKind,
     id: String,
 ) -> DataResult {
-    guarded(app, move |app| {
-        match workspace(&app).and_then(|w| w.inspect_workflow_deletion(kind.store(), &id)) {
-            Ok(plan) => {
-                if let Err(error) = app.state::<DeletionSession>().stage(plan.clone()) {
-                    return failure(error);
-                }
-                DataResult::DeletionReady { plan }
-            }
-            Err(error) => failure(error),
-        }
-    })
-    .await
+    app.state::<SourceAccess>()
+        .inspect_workspace_deletion(kind, id)
+        .await
 }
-
 #[tauri::command]
 pub async fn delete_workspace_record(
     app: AppHandle,
@@ -296,20 +386,9 @@ pub async fn delete_workspace_record(
     id: String,
     expected_state_id: String,
 ) -> DataResult {
-    guarded(app, move |app| {
-        let plan = match app
-            .state::<DeletionSession>()
-            .claim(kind.store(), &id, &expected_state_id)
-        {
-            Ok(plan) => plan,
-            Err(error) => return failure(error),
-        };
-        match workspace(&app).and_then(|w| w.delete_workflow_record(&plan)) {
-            Ok(_) => DataResult::Deleted { kind, id },
-            Err(error) => failure(error),
-        }
-    })
-    .await
+    app.state::<SourceAccess>()
+        .delete_workspace_record(kind, id, expected_state_id)
+        .await
 }
 
 #[cfg(test)]

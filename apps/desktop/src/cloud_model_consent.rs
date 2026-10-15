@@ -1,4 +1,5 @@
 //! Native-owned, one-shot consent bookkeeping. This module cannot send requests.
+use rangoon_desktop::workspace_lifecycle::GenerationWitness;
 use rangoon_model_cloud::Cancellation;
 use rangoon_model_session::Dependency;
 use serde::{Deserialize, Serialize};
@@ -85,6 +86,7 @@ impl Decision {
 
 struct Pending<T> {
     review: Review,
+    workspace: Option<GenerationWitness>,
     cancellation: Cancellation,
     sender: Option<oneshot::Sender<bool>>,
     prompting: bool,
@@ -100,19 +102,46 @@ impl<T> Default for Consent<T> {
 }
 
 impl<T> Consent<T> {
+    #[cfg(test)]
     pub fn install(
         &self,
         review: Review,
         cancellation: Cancellation,
         owner: Arc<T>,
     ) -> Option<oneshot::Receiver<bool>> {
+        self.install_inner(review, cancellation, owner, None)
+    }
+
+    pub fn install_guarded(
+        &self,
+        review: Review,
+        cancellation: Cancellation,
+        owner: Arc<T>,
+        workspace: GenerationWitness,
+    ) -> Option<oneshot::Receiver<bool>> {
+        self.install_inner(review, cancellation, owner, Some(workspace))
+    }
+
+    fn install_inner(
+        &self,
+        review: Review,
+        cancellation: Cancellation,
+        owner: Arc<T>,
+        workspace: Option<GenerationWitness>,
+    ) -> Option<oneshot::Receiver<bool>> {
         let mut slot = self.0.lock().ok()?;
-        if slot.is_some() || cancellation.is_cancelled() {
+        if slot.is_some()
+            || cancellation.is_cancelled()
+            || workspace
+                .as_ref()
+                .is_some_and(|w| !w.is_current().unwrap_or(false))
+        {
             return None;
         }
         let (sender, receiver) = oneshot::channel();
         *slot = Some(Pending {
             review,
+            workspace,
             cancellation,
             sender: Some(sender),
             prompting: false,
@@ -125,8 +154,10 @@ impl<T> Consent<T> {
     pub fn inspect(&self) -> Option<Review> {
         let slot = self.0.lock().ok()?;
         let pending = slot.as_ref()?;
-        (!pending.cancellation.is_cancelled() && pending.sender.is_some())
-            .then(|| pending.review.clone())
+        (!pending.cancellation.is_cancelled()
+            && pending.sender.is_some()
+            && workspace_current(pending))
+        .then(|| pending.review.clone())
     }
 
     /// Claim the OS prompt exactly once. No lock is retained by the caller.
@@ -138,6 +169,7 @@ impl<T> Consent<T> {
             || pending.prompting
             || pending.sender.is_none()
             || pending.cancellation.is_cancelled()
+            || !workspace_current(pending)
         {
             return None;
         }
@@ -148,8 +180,10 @@ impl<T> Consent<T> {
     /// Called only after the OS prompt exits. True asks the native caller to
     /// close a window whose owner disappeared while that prompt was active.
     pub fn finish_prompt(&self, run_id: &str, approved: bool) -> bool {
-        let Ok(mut slot) = self.0.lock() else {
-            return false;
+        // A poisoned state may release a completed callback, but never approve.
+        let (mut slot, poisoned) = match self.0.lock() {
+            Ok(slot) => (slot, false),
+            Err(error) => (error.into_inner(), true),
         };
         let Some(pending) = slot
             .as_mut()
@@ -158,14 +192,18 @@ impl<T> Consent<T> {
             return false;
         };
         pending.prompting = false;
-        let allow = approved && !pending.cancellation.is_cancelled() && !pending.cleanup_requested;
+        let allow = !poisoned
+            && approved
+            && !pending.cancellation.is_cancelled()
+            && !pending.cleanup_requested
+            && workspace_current(pending);
         if !allow {
             pending.cancellation.cancel();
         }
         if let Some(sender) = pending.sender.take() {
             let _ = sender.send(allow);
         }
-        let cleanup = pending.cleanup_requested;
+        let cleanup = pending.cleanup_requested || poisoned;
         if cleanup {
             *slot = None;
         }
@@ -201,6 +239,36 @@ impl<T> Consent<T> {
         pending.prompting
     }
 
+    #[cfg(test)]
+    pub fn poison_for_test(&self) {
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _slot = self.0.lock().unwrap();
+            panic!("synthetic consent poison");
+        }));
+    }
+
+    /// Cleanup may run after admission closes. A visible OS prompt keeps its
+    /// sender and real callback owner until finish_prompt performs removal.
+    pub fn purge(&self) -> crate::workspace_close::Cleanup {
+        let (mut slot, healthy) = match self.0.lock() {
+            Ok(slot) => (slot, true),
+            Err(error) => (error.into_inner(), false),
+        };
+        if let Some(pending) = slot.as_mut() {
+            if pending.prompting {
+                pending.cleanup_requested = true;
+                cancel(pending);
+            } else {
+                cancel(pending);
+                *slot = None;
+            }
+        }
+        crate::workspace_close::Cleanup {
+            healthy,
+            keep_parent: slot.as_ref().is_some_and(|p| p.prompting),
+        }
+    }
+
     /// RAII owner cleanup is identity-bound. A pending OS prompt retains its
     /// parent; finish_prompt performs deferred removal after the dialog exits.
     pub fn remove(&self, run_id: &str) -> bool {
@@ -219,6 +287,13 @@ impl<T> Consent<T> {
             true
         }
     }
+}
+
+fn workspace_current<T>(pending: &Pending<T>) -> bool {
+    pending
+        .workspace
+        .as_ref()
+        .is_none_or(|w| w.is_current().unwrap_or(false))
 }
 
 fn cancel<T>(pending: &mut Pending<T>) {

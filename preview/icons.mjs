@@ -7,6 +7,8 @@ const drawings = Object.freeze({
   merge: 'M7 6.5h4v4H7zM7 13.5h4v4H7zM15 10h4v4h-4zM11 8.5h2c1.1 0 2 .9 2 2M11 15.5h2c1.1 0 2-.9 2-2',
   skill: 'M6 6.5h10l2 2v9H8l-2-2zM8 4.5h10l2 2M8 8.5h7M8 12h7M8 15.5h4',
   workflow: 'M4.5 4.5h4v4h-4zM10 10h4v4h-4zM15.5 15.5h4v4h-4zM8.5 6.5H10v3.5M14 12h1.5v3.5',
+  check: 'M5.5 4.5h13v15h-13zM9 8h6M9 11.5h3M9 15l2 2 4-4',
+  branch: 'M12 3.5 16 7.5 12 11.5 8 7.5zM12 11.5v2M5 16h4v4H5zM15 16h4v4h-4zM7 16v-2.5h10V16',
   connector: 'M8.5 7.25h5v5h2.25a2.25 2.25 0 0 1 2.25 2.25v2M10.5 12.25v2M13.5 12.25v2M7.5 16.5h10v2h-10zM6.5 10.25h2M6.5 14.25h2',
   evidence: `${folded}M8 9h8M8 12.5h5M8 16h3M15.5 15.5l1 1 2-2.25`,
   roadmap: `${folded}M7.5 16.5 10.5 13l2.5 2.25 4-5M7.5 19.25h9M8 8.5h.01M12 8.5h.01M16 8.5h.01`,
@@ -27,6 +29,15 @@ const drawings = Object.freeze({
   plus: 'M12 5v14M5 12h14',
   save: `${folded}M8 4v5h7V4M8 19v-5h8v5`,
   clear: 'M6.5 7.5h11M9.25 7.5v-2h5.5v2M9.5 10.5v5M14.5 10.5v5M8 7.5l.7 11h6.6l.7-11',
+  more: 'M5 11.5h1v1H5zM11.5 11.5h1v1h-1zM18 11.5h1v1h-1z',
+  zoomin: 'M10 4.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM14 14l5.5 5.5M7.5 10h5M10 7.5v5',
+  zoomout: 'M10 4.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11ZM14 14l5.5 5.5M7.5 10h5',
+  panleft: 'M19 12H5M10 7l-5 5 5 5',
+  panright: 'M5 12h14M14 7l5 5-5 5',
+  reset: 'M5 9a7 7 0 1 1 .5 7M5 4.5V9h4.5',
+  undo: 'M9 5 4.5 9.5 9 14M5 9.5h9a5 5 0 0 1 0 10H12',
+  redo: 'M15 5 19.5 9.5 15 14M19 9.5h-9a5 5 0 0 0 0 10h2',
+  viewcube: 'M12 3.5 20 8v8l-8 4.5L4 16V8zM4 8l8 4.5L20 8M12 12.5v8',
 });
 
 export const catalogKeys = Object.freeze(Object.keys(drawings));

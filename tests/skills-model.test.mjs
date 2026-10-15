@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSkillsController, validCapabilityContent, validCapabilityTitle } from '../preview/skills-model.mjs';
+import { createSkillsController, filterSavedSkills, validCapabilityContent, validCapabilityTitle, validLibraryQuery } from '../preview/skills-model.mjs';
 
 const sourceId = `source:${'1'.repeat(64)}`;
 const fragmentId = `fragment:${'2'.repeat(64)}`;
@@ -130,6 +130,60 @@ test('late list response cannot replace newer library results', async () => {
   assert.equal(controller.getState().capabilities[0].title, 'Newer rules');
 });
 
+test('filters loaded summaries with literal Unicode query and combined review and origin facets', () => {
+  const composedId = `capability:${'a'.repeat(64)}`;
+  const composed = { id: composedId, origin: { kind: 'composition', compositionId, operation: 'merge', outputIndex: 0 }, latestRevisionId: revisionId2, title: 'Caf\u00e9 guide', reviewed: true, revisionCount: 1 };
+  const items = [...listed().capabilities, composed];
+  assert.deepEqual(filterSavedSkills(items, { query: 'CAFE\u0301', reviewFilter: 'reviewed', originFilter: 'composition' }).map(item => item.id), [composedId]);
+  assert.deepEqual(filterSavedSkills(items, { query: 'source:', reviewFilter: 'unreviewed', originFilter: 'source' }).map(item => item.id), [capabilityId]);
+  assert.deepEqual(filterSavedSkills(items, { query: '.*', reviewFilter: 'all', originFilter: 'all' }), []);
+  assert.equal(validLibraryQuery('😀'.repeat(128)), true);
+  assert.equal(validLibraryQuery('😀'.repeat(129)), false);
+  assert.equal(validLibraryQuery('safe\u0000query'), false);
+  assert.equal(filterSavedSkills(items, { query: 'ok', reviewFilter: 'invented', originFilter: 'all' }), null);
+});
+
+test('library controls stay local and retain selection, draft, history, conflict and pending state', async () => {
+  const calls = [];
+  let resolveOpen;
+  const controller = createSkillsController({ invoke: command => {
+    calls.push(command);
+    if (command === 'list_capabilities') return Promise.resolve(listed());
+    if (command === 'open_capability') return new Promise(resolve => { resolveOpen = resolve; });
+    return Promise.resolve({ outcome: 'failed', error: { code: 'capability_conflict', message: 'Conflict' } });
+  } });
+  await controller.list();
+  const opening = controller.open(capabilityId);
+  assert.equal(controller.getState().pending, 'open');
+  assert.equal(controller.setLibraryFilters({ query: 'rules', reviewFilter: 'unreviewed' }), true);
+  assert.equal(controller.getState().pending, 'open');
+  assert.equal(controller.getState().selected, null);
+  assert.deepEqual(calls, ['list_capabilities', 'open_capability']);
+  resolveOpen({ outcome: 'opened', capability: detail(), alreadyApplied: false });
+  await opening;
+  controller.updateDraft({ content: 'Unsaved work\n' });
+  const before = controller.getState();
+  assert.equal(controller.setLibraryFilters({ query: 'miss', originFilter: 'composition' }), true);
+  const after = controller.getState();
+  assert.equal(after.selected.id, before.selected.id);
+  assert.equal(after.viewedRevisionId, before.viewedRevisionId);
+  assert.equal(after.draft.content, 'Unsaved work\n');
+  assert.equal(after.draft.dirty, true);
+  await controller.save();
+  assert.equal(controller.getState().needsReload, true);
+  assert.equal(controller.setLibraryFilters({ query: 'rules', reviewFilter: 'unreviewed', originFilter: 'source' }), true);
+  assert.equal(controller.getState().needsReload, true);
+  assert.equal(controller.getState().draft.content, 'Unsaved work\n');
+  assert.equal(controller.setLibraryFilters({ query: 'x'.repeat(129) }), false);
+  assert.equal(controller.getState().query, 'rules');
+  assert.equal(controller.setLibraryFilters(null), false);
+  assert.equal(controller.setLibraryFilters(['reviewed']), false);
+  assert.equal(controller.getState().query, 'rules');
+  controller.clearLibraryFilters();
+  assert.deepEqual([controller.getState().query, controller.getState().reviewFilter, controller.getState().originFilter], ['', 'all', 'all']);
+  assert.deepEqual(calls, ['list_capabilities', 'open_capability', 'revise_capability']);
+});
+
 test('creation title survives repeated source updates and section round trips', () => {
   const controller = createSkillsController({ invoke: async () => listed() });
   const context = { report: { source: { id: sourceId }, selectedFragmentId: fragmentId, fragments: [{ id: fragmentId, heading: { title: 'Rules' } }] }, snapshots: [{ sourceId }], snapshotsStatus: 'ready' };
@@ -163,15 +217,21 @@ test('historical display uses its saved content while retaining the current dirt
   const controller = createSkillsController({ invoke: async (command, args) => command === 'list_capabilities' ? listed() : { outcome: 'opened', capability: args.revisionId ? { ...current, revision: revision() } : current, alreadyApplied: false } });
   await controller.open(capabilityId);
   controller.updateDraft({ content: 'Unsaved current draft\n' });
+  assert.equal(controller.hasUnsavedDrafts(), true);
   await controller.open(capabilityId, revisionId);
   const historical = controller.getState();
   assert.equal(historical.draft.content, 'Unsaved current draft\n');
+  assert.equal(controller.setLibraryFilters({ query: 'missing', reviewFilter: 'reviewed', originFilter: 'source' }), true);
+  assert.equal(controller.getState().viewedRevisionId, revisionId);
+  assert.equal(controller.getState().draft.content, 'Unsaved current draft\n');
+  assert.equal(controller.getState().draft.dirty, true);
   const html = renderSkillsView(historical);
   assert.match(html, /<textarea[^>]*readonly[^>]*>Keep text inert\.\n<\/textarea>/);
   assert.doesNotMatch(html, /<textarea[^>]*>Unsaved current draft/);
   await controller.open(capabilityId);
   assert.equal(controller.getState().draft.content, 'Unsaved current draft\n');
   assert.equal(controller.getState().draft.dirty, true);
+  assert.equal(controller.hasUnsavedDrafts(), true);
 });
 
 test('missing span fields, invalid dates, forged review and broken history are rejected', async () => {
@@ -265,6 +325,7 @@ test('confirmed deletion clears only that skill draft and prevents a late open f
   await controller.open(capabilityId);
   controller.updateDraft({ content: 'Unsaved work\n' });
   assert.equal(controller.hasUnsavedDraft(capabilityId), true);
+  assert.equal(controller.hasUnsavedDrafts(), true);
   controller.forgetDeleted(`capability:${'9'.repeat(64)}`);
   assert.equal(controller.getState().draft.content, 'Unsaved work\n');
   delayed = true;
@@ -275,5 +336,6 @@ test('confirmed deletion clears only that skill draft and prevents a late open f
   assert.equal(controller.getState().selected, null);
   assert.equal(controller.getState().draft, null);
   assert.equal(controller.hasUnsavedDraft(capabilityId), false);
+  assert.equal(controller.hasUnsavedDrafts(), false);
   assert.equal(controller.getState().pending, null);
 });

@@ -1,10 +1,12 @@
 //! Read-only compilation of exact host-resolved saved revisions.
-use super::{AdmissionError, AppHandle, PublicError, StoreError, begin_operation, workspace};
+use super::{AppHandle, PublicError, SourceAccess, StoreError};
 use rangoon_compile::{CompilationReport, Profile};
 use rangoon_domain::capability;
+#[cfg(test)]
 use rangoon_store::Workspace;
+use rangoon_store::WorkspaceCompilation;
 use serde::{Deserialize, Serialize};
-use tauri::ipc::InvokeBody;
+use tauri::{Manager, ipc::InvokeBody};
 
 const REQUEST_SCHEMA: &str = "rangoon.compile-request.v1";
 const RESPONSE_SCHEMA: &str = "rangoon.compilation-inspection.v1";
@@ -12,14 +14,14 @@ const MAX_REQUEST_BYTES: usize = 4096;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Request {
+pub(super) struct Request {
     schema_version: String,
-    capability_id: String,
-    revision_id: String,
-    profile: Profile,
+    pub(super) capability_id: String,
+    pub(super) revision_id: String,
+    pub(super) profile: Profile,
 }
 
-fn decode_request(body: &InvokeBody) -> Result<Request, StoreError> {
+pub(super) fn decode_request(body: &InvokeBody) -> Result<Request, StoreError> {
     let bytes = match body {
         InvokeBody::Raw(bytes) if bytes.len() <= MAX_REQUEST_BYTES => bytes,
         _ => return Err(StoreError::CompilationInvalid),
@@ -60,12 +62,16 @@ fn failure(error: StoreError) -> CompilationResult {
     }
 }
 
+#[cfg(test)]
 fn inspect(store: &Workspace, request: &Request) -> Result<CompilationResult, StoreError> {
-    let result = store.compile_capability(
+    compiled(store.compile_capability(
         &request.capability_id,
         &request.revision_id,
         request.profile,
-    )?;
+    )?)
+}
+
+pub(super) fn compiled(result: WorkspaceCompilation) -> Result<CompilationResult, StoreError> {
     let candidate_manifest_json = result
         .compilation
         .canonical_manifest_bytes()
@@ -88,33 +94,14 @@ pub async fn compile_capability(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<CompilationResult, ()> {
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return Ok(CompilationResult::Failed {
-                error: PublicError {
-                    code: "workspace_busy",
-                    message: "Finish the current local workspace operation before compiling.",
-                },
-            });
-        }
-        Err(AdmissionError::Unavailable) => {
-            return Ok(failure(StoreError::Unavailable));
-        }
-    };
     let request = match decode_request(request.body()) {
         Ok(request) => request,
         Err(error) => return Ok(failure(error)),
     };
-    Ok(tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        match workspace(&app).and_then(|store| inspect(&store, &request)) {
-            Ok(result) => result,
-            Err(error) => failure(error),
-        }
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable)))
+    Ok(app
+        .state::<SourceAccess>()
+        .compile_capability(request)
+        .await)
 }
 
 #[cfg(test)]

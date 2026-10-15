@@ -1,5 +1,8 @@
 //! Single-operation native custody, independent of model transport and SQLite.
 use crate::cloud_store::{Error, Secret};
+use rangoon_desktop::workspace_lifecycle::{
+    Gate, GenerationWitness, Lane, Lease as AdmissionLease,
+};
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;
@@ -17,22 +20,28 @@ pub enum Phase {
 }
 struct Pending {
     id: String,
+    witness: GenerationWitness,
     phase: Phase,
     cancelled: bool,
     sender: Option<oneshot::Sender<Option<Secret>>>,
 }
 #[derive(Clone, Default)]
-pub struct Custody(Arc<Mutex<Option<Pending>>>);
+pub struct Custody(Arc<Mutex<Option<Pending>>>, Gate);
 pub struct Lease {
     owner: Custody,
     pub id: String,
+    admission: AdmissionLease,
 }
 impl Lease {
+    pub fn workspace_is_current(&self) -> bool {
+        self.admission.is_current().unwrap_or(false)
+    }
     pub fn is_current(&self) -> bool {
-        self.owner.0.lock().ok().is_some_and(|slot| {
-            slot.as_ref()
-                .is_some_and(|p| p.id == self.id && !p.cancelled)
-        })
+        self.workspace_is_current()
+            && self.owner.0.lock().ok().is_some_and(|slot| {
+                slot.as_ref()
+                    .is_some_and(|p| p.id == self.id && !p.cancelled)
+            })
     }
 }
 impl Drop for Lease {
@@ -45,8 +54,46 @@ impl Drop for Lease {
     }
 }
 impl Custody {
+    /// Deletion-only cleanup. Callback leases live outside Pending and remain
+    /// counted even when a caller or the renderer disappears.
+    pub(super) fn purge_for_workspace_close(
+        &self,
+        drained: bool,
+    ) -> crate::workspace_close::Cleanup {
+        let (mut slot, healthy) = match self.0.lock() {
+            Ok(slot) => (slot, true),
+            Err(error) => (error.into_inner(), false),
+        };
+        let mut keep_parent = false;
+        if let Some(pending) = slot.as_mut() {
+            keep_parent = !drained && pending.phase != Phase::Editing;
+            if pending.phase != Phase::Storage {
+                pending.cancelled = true;
+                if let Some(sender) = pending.sender.take() {
+                    let _ = sender.send(None);
+                }
+            }
+            if !keep_parent {
+                *slot = None;
+            }
+        }
+        crate::workspace_close::Cleanup {
+            healthy,
+            keep_parent,
+        }
+    }
+    pub fn with_gate(gate: Gate) -> Self {
+        Self(Arc::new(Mutex::new(None)), gate)
+    }
     pub fn begin(&self, phase: Phase) -> Result<(Lease, oneshot::Receiver<Option<Secret>>), Error> {
+        let admission = self.1.begin(Lane::Read).map_err(|error| match error {
+            rangoon_desktop::workspace_lifecycle::Error::Busy => Error::Busy,
+            _ => Error::Unavailable,
+        })?;
         let mut slot = self.0.lock().map_err(|_| Error::Unavailable)?;
+        if !admission.is_current().unwrap_or(false) {
+            return Err(Error::Unavailable);
+        }
         if slot.is_some() {
             return Err(Error::Busy);
         }
@@ -56,6 +103,7 @@ impl Custody {
         let (sender, receiver) = oneshot::channel();
         *slot = Some(Pending {
             id: id.clone(),
+            witness: admission.witness(),
             phase,
             cancelled: false,
             sender: Some(sender),
@@ -64,6 +112,7 @@ impl Custody {
             Lease {
                 owner: self.clone(),
                 id,
+                admission,
             },
             receiver,
         ))
@@ -71,14 +120,21 @@ impl Custody {
     pub fn edit_id(&self) -> Option<String> {
         let slot = self.0.lock().ok()?;
         slot.as_ref()
-            .filter(|p| p.phase == Phase::Editing && !p.cancelled)
+            .filter(|p| {
+                p.phase == Phase::Editing && !p.cancelled && p.witness.is_current().unwrap_or(false)
+            })
             .map(|p| p.id.clone())
     }
     pub fn submit(&self, id: &str, secret: Secret) -> Result<(), Error> {
         let mut slot = self.0.lock().map_err(|_| Error::Unavailable)?;
         let pending = slot
             .as_mut()
-            .filter(|p| p.id == id && p.phase == Phase::Editing && !p.cancelled)
+            .filter(|p| {
+                p.id == id
+                    && p.phase == Phase::Editing
+                    && !p.cancelled
+                    && p.witness.is_current().unwrap_or(false)
+            })
             .ok_or(Error::InvalidRequest)?;
         let sender = pending.sender.take().ok_or(Error::InvalidRequest)?;
         pending.phase = Phase::Submitted;
@@ -121,7 +177,10 @@ impl Custody {
         let Ok(mut slot) = self.0.lock() else {
             return false;
         };
-        let Some(p) = slot.as_mut().filter(|p| p.id == id && !p.cancelled) else {
+        let Some(p) = slot
+            .as_mut()
+            .filter(|p| p.id == id && !p.cancelled && p.witness.is_current().unwrap_or(false))
+        else {
             return false;
         };
         p.phase = phase;
@@ -181,3 +240,60 @@ fn valid_id(id: &str) -> bool {
 #[cfg(test)]
 #[path = "cloud_custody_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod close_cleanup_tests {
+    use super::*;
+    use rangoon_desktop::workspace_lifecycle::Lane;
+    #[test]
+    fn close_keeps_storage_lease_and_poison_never_becomes_healthy() {
+        for poison in [false, true] {
+            let gate = Gate::new();
+            let custody = Custody::with_gate(gate.clone());
+            let (lease, receiver) = custody.begin(Phase::Storage).unwrap();
+            drop(receiver);
+            if poison {
+                let _ = std::panic::catch_unwind(|| {
+                    let _slot = custody.0.lock().unwrap();
+                    panic!("synthetic credential custody poison");
+                });
+            }
+            let drain = gate.request_drain().unwrap();
+            let status = custody.purge_for_workspace_close(false);
+            assert_eq!(status.healthy, !poison);
+            assert!(status.keep_parent);
+            assert!(!drain.is_quiescent().unwrap());
+            drop(lease);
+            assert!(drain.is_quiescent().unwrap());
+            let final_status = custody.purge_for_workspace_close(true);
+            assert_eq!(final_status.healthy, !poison);
+            assert!(!final_status.keep_parent);
+            let slot = custody
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            assert!(slot.is_none());
+            drop(slot);
+            assert!(gate.begin(Lane::Read).is_err());
+            if poison {
+                assert!(custody.0.lock().is_err());
+            }
+        }
+    }
+    #[test]
+    fn close_cancels_unsubmitted_editor_without_releasing_callback_custody() {
+        let gate = Gate::new();
+        let custody = Custody::with_gate(gate.clone());
+        let (lease, mut receiver) = custody.begin(Phase::Editing).unwrap();
+        let drain = gate.request_drain().unwrap();
+        let status = custody.purge_for_workspace_close(false);
+        assert!(status.healthy);
+        assert!(!status.keep_parent);
+        assert!(matches!(receiver.try_recv(), Ok(None)));
+        assert!(custody.edit_id().is_none());
+        assert!(!lease.is_current());
+        assert!(!drain.is_quiescent().unwrap());
+        drop(lease);
+        assert!(drain.is_quiescent().unwrap());
+    }
+}

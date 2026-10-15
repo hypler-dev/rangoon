@@ -295,15 +295,16 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
   let state = { ...EMPTY_COMPILATION_STATE, bridgeAvailable, listStatus: bridgeAvailable ? 'idle' : 'unavailable', message: bridgeAvailable ? 'Refresh local skills, then choose a revision and profile.' : EMPTY_COMPILATION_STATE.message };
   let epoch = 0;
   let fileEpoch = 0;
+  let lockEpoch = Symbol('compilation');
   const publish = () => onChange(clone(state));
   const set = changes => { state = { ...state, ...changes }; publish(); };
   const clearReport = () => ({ report: null, reportStale: false, bundleExport: { status: 'idle', receipt: null, error: null } });
-  const call = async (command, args) => { try { return await invoke(command, args); } catch { return failed(); } };
+  const call = async (command, args, identity) => { if (identity !== lockEpoch) return failed(); try { return await invoke(command, args); } catch { return failed(); } };
   const clearSelection = message => set({ selected: null, ...clearReport(), needsRefresh: false, error: null, message });
 
-  async function openSelection(capabilityId, revisionId, request) {
-    const result = await call('open_capability', { capabilityId, revisionId });
-    if (request !== epoch) return null;
+  async function openSelection(capabilityId, revisionId, request, lock) {
+    const result = await call('open_capability', { capabilityId, revisionId }, lock);
+    if (request !== epoch || lock !== lockEpoch) return null;
     const detail = result?.outcome === 'opened' ? validateCapabilityDetail(result.capability) : null;
     if (!detail || detail.id !== capabilityId || detail.revision.id !== (revisionId ?? detail.latestRevisionId)) return { error: failure(result) };
     return { detail };
@@ -323,8 +324,9 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
     async open(capabilityId, revisionId = null) {
       if (!bridgeAvailable || state.pending || state.needsRefresh || !id(capabilityId, 'capability:') || (revisionId !== null && !id(revisionId, 'revision:'))) return false;
       const request = ++epoch;
+      const lock = lockEpoch;
       set({ pending: 'open', error: null, message: 'Opening saved skill revision…' });
-      const opened = await openSelection(capabilityId, revisionId, request);
+      const opened = await openSelection(capabilityId, revisionId, request, lock);
       if (!opened) return false;
       if (opened.error) { set({ pending: null, error: opened.error, message: opened.error.message }); return false; }
       set({ selected: opened.detail, pending: null, ...clearReport(), error: null, message: opened.detail.revision.id === opened.detail.latestRevisionId ? 'Saved skill current head selected.' : 'Saved historical skill revision selected.' });
@@ -333,16 +335,17 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
     async refresh() {
       if (!bridgeAvailable || state.pending) return false;
       const request = ++epoch;
+      const lock = lockEpoch;
       const prior = state.selected ? { id: state.selected.id, revisionId: state.selected.revision.id } : null;
       set({ listStatus: 'loading', pending: 'refresh', error: null, message: 'Refreshing saved local skills…' });
-      const listed = await call('list_capabilities');
-      if (request !== epoch) return false;
+      const listed = await call('list_capabilities', undefined, lock);
+      if (request !== epoch || lock !== lockEpoch) return false;
       const capabilities = listed?.outcome === 'listed' && Array.isArray(listed.capabilities) && listed.capabilities.length <= 128
         && new Set(listed.capabilities.map(item => item?.id)).size === listed.capabilities.length && listed.capabilities.every(validateCapabilitySummary) ? listed.capabilities : null;
       if (!capabilities) { const issue = failure(listed); set({ listStatus: 'failed', pending: null, error: issue, message: issue.message }); return false; }
       if (!prior) { set({ listStatus: 'ready', capabilities: clone(capabilities), pending: null, needsRefresh: false, error: null, message: capabilities.length ? 'Saved local skills refreshed. Choose one to inspect.' : 'No saved local skills are available yet.' }); return true; }
       if (!capabilities.some(item => item.id === prior.id)) { set({ listStatus: 'ready', capabilities: clone(capabilities), pending: null }); clearSelection('Selected saved skill was removed.'); return true; }
-      const opened = await openSelection(prior.id, prior.revisionId, request);
+      const opened = await openSelection(prior.id, prior.revisionId, request, lock);
       if (!opened) return false;
       if (opened.error) {
         if (opened.error.code === 'capability_not_found') { set({ listStatus: 'ready', capabilities: clone(capabilities), pending: null }); clearSelection('Selected saved skill revision was removed.'); return true; }
@@ -354,12 +357,13 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
     async compile() {
       if (!bridgeAvailable || state.pending || state.needsRefresh || !state.selected || !state.profile) return false;
       const detail = clone(state.selected); const profile = state.profile; const request = ++epoch;
+      const lock = lockEpoch;
       const payload = { schemaVersion: 'rangoon.compile-request.v1', capabilityId: detail.id, revisionId: detail.revision.id, profile };
       set({ pending: 'generate', error: null, message: 'Compiling exact saved local revision…' });
-      const result = await call('compile_capability', encoder.encode(JSON.stringify(payload)));
-      if (request !== epoch) return false;
+      const result = await call('compile_capability', encoder.encode(JSON.stringify(payload)), lock);
+      if (request !== epoch || lock !== lockEpoch) return false;
       const inspected = await validateResponse(result, detail, profile);
-      if (request !== epoch) return false;
+      if (request !== epoch || lock !== lockEpoch) return false;
       if (!inspected) {
         const issue = failure(result);
         const retained = Boolean(state.report);
@@ -375,14 +379,16 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
         || state.report?.compilation?.readiness !== 'candidate' || !state.report?.compilation?.candidate) return false;
       const report = clone(state.report.compilation);
       const selection = clone(state.selected); const profile = state.profile; const request = ++fileEpoch;
+      const lock = lockEpoch;
       const payload = { schemaVersion: 'rangoon.instruction-bundle-export-request.v1', capabilityId: selection.id, revisionId: selection.revision.id, profile, expectedCandidateId: report.candidate.candidateId };
       set({ pending: 'export', bundleExport: { status: 'pending', receipt: null, error: null }, error: null, message: 'Exporting exact reviewed candidate…' });
       let result;
+      if (request !== fileEpoch || lock !== lockEpoch) return false;
       try { result = await invoke('export_instruction_bundle', encoder.encode(JSON.stringify(payload))); } catch { result = null; }
-      if (request !== fileEpoch) return false;
+      if (request !== fileEpoch || lock !== lockEpoch) return false;
       let receipt = null;
       try { receipt = await validateExportReceipt(result, report); } catch { receipt = null; }
-      if (request !== fileEpoch) return false;
+      if (request !== fileEpoch || lock !== lockEpoch) return false;
       if (receipt) {
         set({ pending: null, bundleExport: { status: 'exported', receipt, error: null }, error: null, message: 'Instruction bundle write and file sync completed. Future disk integrity is unconfirmed.' });
         return true;
@@ -402,13 +408,15 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
     async inspectBundle() {
       if (!bridgeAvailable || state.pending) return false;
       const request = ++fileEpoch;
+      const lock = lockEpoch;
       set({ pending: 'inspect-bundle', externalBundle: { status: 'pending', report: state.externalBundle.report, previous: state.externalBundle.report ?? state.externalBundle.previous, error: null }, error: null, message: 'Inspecting selected external instruction bundle…' });
       let result;
+      if (request !== fileEpoch || lock !== lockEpoch) return false;
       try { result = await invoke('inspect_instruction_bundle', encoder.encode(JSON.stringify({ schemaVersion: 'rangoon.instruction-bundle-inspect-request.v1' }))); } catch { result = null; }
-      if (request !== fileEpoch) return false;
+      if (request !== fileEpoch || lock !== lockEpoch) return false;
       let external = null;
       try { external = await validateExternal(result); } catch { external = null; }
-      if (request !== fileEpoch) return false;
+      if (request !== fileEpoch || lock !== lockEpoch) return false;
       if (external) {
         set({ pending: null, tab: 'external', externalBundle: { status: 'inspected', report: external, previous: null, error: null }, error: null, message: 'External instruction bundle passed internal-consistency checks. Authority remains none.' });
         return true;
@@ -427,6 +435,18 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
       if (!filePending) ++epoch;
       const changes = { pending: filePending ? state.pending : null, needsRefresh: true, reportStale: Boolean(state.report), error: null, message };
       set(changes); return true;
+    },
+    purgeForWorkspaceLock() {
+      ++epoch;
+      ++fileEpoch;
+      lockEpoch = Symbol('compilation');
+      state = {
+        ...EMPTY_COMPILATION_STATE,
+        bridgeAvailable,
+        listStatus: bridgeAvailable ? 'idle' : 'unavailable',
+        message: bridgeAvailable ? 'Refresh local skills, then choose a revision and profile.' : EMPTY_COMPILATION_STATE.message,
+      };
+      publish();
     },
   };
   return controller;

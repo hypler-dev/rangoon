@@ -12,6 +12,14 @@
   pointer-events: none;
 }
 
+/* Closed local vectors share optical size and never become independent controls. */
+.foldline-icon { shape-rendering: geometricPrecision; }
+.analysis-button, .analysis-theme { font-weight: 600; }
+.analysis-button:not(:disabled):active, .analysis-theme:active {
+  background-color: color-mix(in srgb, var(--orange) 8%, var(--raised));
+}
+.analysis-button:disabled { box-shadow: none; }
+
 .icon-button,
 .button,
 .analysis-button,
@@ -69,6 +77,44 @@ summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: -3px; }
 .engine-capabilities summary small { margin-left: auto; }
 .engine-capabilities details[open] summary::after { transform: rotate(225deg); }
 
+.term-help {
+  margin: 0 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.term-help summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 9px;
+  min-height: 44px;
+  padding: 8px 12px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.term-help__topics { color: var(--muted); font-size: 11px; font-weight: 500; }
+.term-help summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  flex: 0 0 auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+}
+.term-help[open] summary::after { transform: rotate(45deg); }
+.term-help__definitions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; margin: 0; padding: 0 12px 12px; border-top: 1px solid var(--line); }
+.term-help__definitions > div { min-width: 0; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.term-help__definitions > div:nth-last-child(-n + 2) { border-bottom: 0; }
+.term-help__definitions dt { color: var(--ink); font-size: 11px; font-weight: 650; }
+.term-help__definitions dd { margin: 4px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.term-help summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
+
 .hero {
   background: radial-gradient(ellipse at 92% 45%, color-mix(in srgb, var(--orange) 12%, transparent), transparent 60%), var(--surface);
   border-color: color-mix(in srgb, var(--orange) 25%, var(--line));
@@ -125,11 +171,22 @@ summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: -3px; }
   .engine-capabilities summary > span:first-child { flex: 1 1 90%; }
   .engine-capabilities summary small { order: 2; margin: 0; flex: 1 0 100%; padding-left: 29px; }
   .engine-capabilities summary::after { margin-left: auto; }
+  .term-help__definitions { grid-template-columns: minmax(0, 1fr); }
+  .term-help__definitions > div:nth-last-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .term-help__definitions > div:last-child { border-bottom: 0; }
+}
+@media (max-width: 320px) {
+  .term-help summary { align-items: flex-start; }
+  .term-help__topics { flex-basis: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .button, .icon-button, .nav-item, .analysis-button, .analysis-theme,
+  .analysis-nav a, .connector, .graph-node, .candidate, .table-select,
+  .nav-item .foldline-icon { transition: none; }
   .route-enter { animation: none; }
   .nav-item:hover .foldline-icon { transform: none; }
   .engine-capabilities summary::after { transition: none; }
+  .term-help *, .term-help *::before, .term-help *::after { animation: none !important; transition: none !important; }
 }
 @media (forced-colors: active) {
   .foldline-icon { color: CanvasText; }
@@ -137,4 +194,7 @@ summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: -3px; }
   .hero h1, .hero h1 em, .hero p, .hero .eyebrow { color: CanvasText; }
   .capability-art { display: none; }
   summary:focus-visible { outline-color: Highlight; }
+  .term-help { background: Canvas; border-color: CanvasText; }
+  .term-help summary, .term-help__definitions dt, .term-help__definitions dd { color: CanvasText; }
+  .term-help summary:focus-visible { outline-color: Highlight; }
 }

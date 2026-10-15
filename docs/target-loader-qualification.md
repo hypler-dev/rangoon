@@ -1,0 +1,55 @@
+# Target loader discovery and qualification boundary
+
+Status: discovery complete; target loader qualification remains open.
+
+Authority: [Product-value priority continuation](intent.md#product-value-priority-continuation--october-7-2026) and [export handoff](export-handoff.md). This document records discovery evidence for a later qualification packet. It does not establish runtime support, instruction adherence, offline behavior, or released-OS support.
+
+## Scope
+
+The discovery pass examined the installed Codex and Claude command-line artifacts and the public documentation or source needed to identify a possible inspection path. No installed target process was launched, including `help` or `version`. No target model call, target authentication, provider operation, project installation, target-runtime network attempt, private configuration/transcript read, or application source change was performed. Public documentation and upstream source were retrieved through read-only tools; this was not a network-free research session.
+
+The frozen descriptors `agents_md_v1` and `claude_md_v1` were not changed. Their contents remain outside this report's evidence boundary.
+
+## Installed artifact evidence
+
+| Target | Observed evidence | What it proves | What it does not prove |
+| --- | --- | --- | --- |
+| Codex | Installed bundle metadata identifies `codex-package.json` version `0.159.0-alpha.12.1`, target `aarch64-apple-darwin`. Metadata SHA-256: `663d734fec63c905ce4f4ed360639a45d9c0511b25181a038c0be7ce6be3b798`. | A specific installed Codex package identity was recorded. | Loader presence, startup isolation, instruction loading, model adherence, or runtime compatibility. |
+| Codex executable | `/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex`; SHA-256: `1180e2d56ea06ec583092acd933345685da3441cb1769a436d76dbf320613e75`. | A specific executable path and digest were recorded. | That executing it is safe, offline, read-only, or equivalent to current upstream source. |
+| Claude | `~/.local/bin/claude` is a symlink to `~/.local/share/claude/versions/2.1.92`; target is Mach-O arm64, `198736976` bytes; SHA-256: `6d1b9657727dce81332b3cda11bfe0a8c83e2392e3c062a31022e10b0e71cdd1`; signature identifier `com.anthropic.claude-code`. | A specific installed Claude artifact identity was recorded. | Runtime version semantics beyond PATH naming, standalone loader behavior, offline safety, or instruction adherence. |
+
+Claude `2.1.92` is an identity observed from the versioned PATH target name. It is not a runtime version result. No adjacent package JSON or JavaScript loader was identified in this discovery evidence.
+
+## Codex inspection-path finding
+
+Official documentation describes AGENTS.md discovery from repository root toward the current working directory, override priority, and a default aggregate limit of 32 KiB: <https://learn.chatgpt.com/docs/agent-configuration/agents-md>. This is documentation evidence only; it is not proof that the installed binary implements or exposes a safe standalone loader.
+
+Official developer-command documentation lists experimental `codex debug prompt-input`: <https://learn.chatgpt.com/docs/developer-commands>. It is a candidate inspection path, not a qualified path.
+
+Public mutable upstream source reviewed for context shows `main.rs` building config, using `AuthManager::shared_from_config`, and installing git-attribution and skills extensions (lines 1907–1998): <https://raw.githubusercontent.com/openai/codex/main/codex-rs/cli/src/main.rs>. Upstream `prompt_debug.rs` resolves an installation ID, builds an environment manager and thread manager, starts a thread, and builds a prompt without `run_turn` (lines 23–111): <https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/src/prompt_debug.rs>.
+
+Therefore, upstream `codex debug prompt-input` is not established as a pure, isolated, read-only loader for the installed `0.159.0-alpha.12.1` binary. It is also unsafe to infer installed behavior from mutable upstream source. This report does not claim that the command is absent, that it invokes a model, or that startup isolation is impossible; those points remain unaudited.
+
+## Claude inspection-path finding
+
+Claude's official memory documentation describes memory visibility within a session: <https://code.claude.com/docs/en/memory>. The CLI reference documents `-p`, `--bare`, and `--no-session-persistence`: <https://code.claude.com/docs/en/cli-reference>. The documented flags do not establish a comparable standalone, offline loader inspection path. `--bare` skips `CLAUDE.md`, so it cannot qualify target-file loading. `-p` and `--no-session-persistence` still involve session-path behavior. Current documentation also cannot be applied as proof of behavior for the installed `2.1.92` artifact.
+
+## Qualification result
+
+Loader presence and model adherence are separate claims. Current result:
+
+- Codex loader presence: unknown; qualification untested.
+- Codex instruction loading and adherence: unknown; qualification untested.
+- Claude loader presence: unknown; qualification untested.
+- Claude instruction loading and adherence: unknown; qualification untested.
+- Offline, credential-free, config-isolated, hook-isolated, filesystem-read-only startup: unknown for both targets.
+
+No target compatibility claim may be promoted from this discovery report. Rangoon's own filename parser, portable bundle verifier, or source-level analysis cannot substitute for native target-loader qualification.
+
+## Proposed future qualification protocol
+
+This protocol is proposed, not accepted. A later packet must pin the exact executable, version, digest, OS, and invocation. It must use an independent OS-enforced environment that blocks network and credentials, isolates configuration and hooks without repurposing `HOME` or `CODEX_HOME`, and captures all writes. The protocol must use synthetic project roots and subdirectories containing root instructions, nested instructions, override files, imports, comments, encoding variants, boundary sizes, and malformed inputs.
+
+The observation record must distinguish discovered, loaded, omitted, overridden, imported, truncated, and rejected bytes; diagnostics; exit status; filesystem effects; network attempts; and credential/config reads. It must include historical replay against frozen descriptors and test macOS, Windows, and Linux separately. A loader can be present while model adherence remains unqualified. Failure to find a safe standalone loader is an explicit gap; invoking an agent or model is not a substitute under the export-handoff packet.
+
+The existing [model-proposal inspection and application sequence](model-proposal-inspection.md) and useful local workbench may proceed independently. Resume at M1d-2 native retained inspection, preserving M1d-1's typed validated response and bounded immutable inspection instead of reconstructing provenance from renderer JSON. Durable application must still follow the existing M1d-3/M1d-4 storage, recovery, conflict and explicit-save gates. Target compatibility claims remain gated on separately accepted exact-version qualification and fresh evidence; this proposed protocol is not a newly imposed local-editing release prerequisite.

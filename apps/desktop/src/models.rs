@@ -1,9 +1,8 @@
 //! Desktop model orchestration. Only a native OS decision permits source transfer.
 use crate::{
-    AdmissionError, begin_operation,
+    AdmissionError,
     model_consent::{Consent, Decision, REVIEW_WINDOW, Review, SEND_LABEL},
     model_flight::{ModelFlight, ModelLease},
-    workspace,
 };
 use rangoon_model_local::{CheckResult, Completion, LocalClient};
 use rangoon_model_session::{
@@ -23,9 +22,32 @@ pub struct NativeModel {
     consent: Consent<SendCustody>,
 }
 
+struct LocalPreparationCustody {
+    ready: rangoon_model_session::RetainedPreparation,
+    _flight: ModelLease,
+}
+
 struct SendCustody {
     send: Transmission,
     _flight: ModelLease,
+}
+impl NativeModel {
+    pub(super) fn purge_for_workspace_close(&self) -> crate::workspace_close::Cleanup {
+        let session = self.session.purge_for_workspace_close();
+        let consent = self.consent.purge();
+        crate::workspace_close::Cleanup {
+            healthy: session && consent.healthy,
+            keep_parent: consent.keep_parent,
+        }
+    }
+}
+impl SendCustody {
+    fn ensure_current(&self) -> Result<(), Diagnostic> {
+        if !self._flight.is_current() {
+            return Err(Diagnostic::Cancelled);
+        }
+        self.send.operation().ensure_current()
+    }
 }
 impl std::ops::Deref for SendCustody {
     type Target = Transmission;
@@ -179,7 +201,17 @@ pub fn get_local_model_profile(
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
     Ok(if empty(request.body()) {
-        profile_result(&model)
+        match app.state::<ModelFlight>().read() {
+            Ok(lease) => {
+                let result = profile_result(&model);
+                if lease.is_current() {
+                    result
+                } else {
+                    Stamp::idle(&model).error(Code::Session(Diagnostic::SessionUnavailable))
+                }
+            }
+            Err(error) => Stamp::idle(&model).error(Code::Session(error)),
+        }
     } else {
         Stamp::idle(&model).error(Code::Session(Diagnostic::InvalidRequest))
     })
@@ -193,8 +225,15 @@ pub fn configure_local_model(
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
     let result = raw(request.body(), 1024).and_then(|bytes| {
-        let _flight = app.state::<ModelFlight>().begin()?;
-        model.session.configure(bytes)
+        let flight = app.state::<ModelFlight>().begin()?;
+        if !flight.is_current() {
+            return Err(Diagnostic::SessionUnavailable);
+        }
+        let result = model.session.configure(bytes)?;
+        if !flight.is_current() {
+            return Err(Diagnostic::SessionUnavailable);
+        }
+        Ok(result)
     });
     Ok(match result {
         Ok(session) => Stamp {
@@ -217,13 +256,7 @@ pub fn clear_local_model(
         return Ok(Stamp::idle(&model).error(Code::Session(Diagnostic::InvalidRequest)));
     }
     let result = model.session.clear();
-    if let Ok(session) = &result
-        && let Some(active) = &session.active
-    {
-        model.consent.cancel_run(Some(&active.run_id));
-    } else if result.is_err() {
-        model.consent.cancel_run(None);
-    }
+    model.consent.purge();
     Ok(match result {
         Ok(session) => Stamp {
             generation: Some(session.generation.clone()),
@@ -291,8 +324,8 @@ pub async fn prepare_local_model(
         Ok(value) => value,
         Err(error) => return Ok(stamp.error(Code::Session(error))),
     };
-    let guard = match begin_operation(&app) {
-        Ok(lease) => lease,
+    let guard = match app.state::<super::SourceAccess>().begin_model_inputs() {
+        Ok(value) => value,
         Err(AdmissionError::Busy) => {
             return Ok(stamp.error(Code::Native(NativeCode::WorkspaceBusy)));
         }
@@ -300,22 +333,40 @@ pub async fn prepare_local_model(
             return Ok(stamp.error(Code::Session(Diagnostic::SessionUnavailable)));
         }
     };
-    let failure_stamp = stamp.clone();
-    Ok(tauri::async_runtime::spawn_blocking(move || {
-        let _guard = guard;
-        let _flight = flight;
-        match workspace(&app)
-            .map_err(|_| Diagnostic::InputUnavailable)
-            .and_then(|store| preparation.prepare(&store))
-        {
+    let completed = tauri::async_runtime::spawn_blocking(move || {
+        guard.with_inputs(|reader| {
+            preparation
+                .prepare_with_inputs(reader)
+                .map(|ready| LocalPreparationCustody {
+                    ready,
+                    _flight: flight,
+                })
+        })
+    })
+    .await;
+    Ok(match completed {
+        Ok(completed) => match completed.deliver_using(
+            |custody| {
+                if !custody._flight.is_current() {
+                    return Err(Diagnostic::Cancelled);
+                }
+                custody.ready.ensure_current()?;
+                Ok(custody.ready.view().clone())
+            },
+            |custody| {
+                if !custody._flight.is_current() {
+                    return Err(Diagnostic::Cancelled);
+                }
+                custody.ready.publish()
+            },
+        ) {
             Ok(prepared) => stamp.result(Outcome::Prepared {
                 prepared: Box::new(prepared),
             }),
             Err(error) => stamp.error(Code::Session(error)),
-        }
+        },
+        Err(_) => stamp.error(Code::Session(Diagnostic::SessionUnavailable)),
     })
-    .await
-    .unwrap_or_else(|_| failure_stamp.error(Code::Session(Diagnostic::SessionUnavailable))))
 }
 
 #[tauri::command]
@@ -338,9 +389,16 @@ pub async fn check_local_model(
         Ok(value) => value,
         Err(error) => return Ok(stamp.error(Code::Session(error))),
     };
+    let _cancel = CancelOnDrop(operation.cancellation().clone());
+    if !_flight.is_current() {
+        return Ok(stamp.error(Code::Session(Diagnostic::Cancelled)));
+    }
     let result = LocalClient::new()
         .check(operation.profile(), operation.cancellation())
         .await;
+    if !_flight.is_current() {
+        return Ok(stamp.error(Code::Session(Diagnostic::Cancelled)));
+    }
     Ok(match operation.ensure_current() {
         Err(error) => stamp.error(Code::Session(error)),
         Ok(()) => match result {
@@ -430,26 +488,23 @@ fn open_review(app: &AppHandle, run_id: &str) -> Result<(), ()> {
 }
 
 async fn freshness(app: AppHandle, send: &Arc<SendCustody>) -> Result<Freshness, Code> {
-    let guard = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return Err(Code::Native(NativeCode::WorkspaceBusy));
-        }
-        Err(AdmissionError::Unavailable) => {
-            return Err(Code::Session(Diagnostic::SessionUnavailable));
-        }
-    };
-    // The command retains custody if this bounded worker panics. No request is
-    // reconstructed, and the operation lease outlives both freshness reads.
+    let guard = app
+        .state::<super::SourceAccess>()
+        .begin_model_inputs()
+        .map_err(|error| match error {
+            AdmissionError::Busy => Code::Native(NativeCode::WorkspaceBusy),
+            AdmissionError::Unavailable => Code::Session(Diagnostic::SessionUnavailable),
+        })?;
     let retained = Arc::clone(send);
-    tauri::async_runtime::spawn_blocking(move || {
-        let _guard = guard;
-        workspace(&app)
-            .map_err(|_| Code::Session(Diagnostic::InputUnavailable))
-            .and_then(|store| retained.freshness(&store).map_err(Code::Session))
+    let completed = tauri::async_runtime::spawn_blocking(move || {
+        guard.with_inputs(|reader| {
+            retained.ensure_current()?;
+            retained.freshness_with_inputs(reader)
+        })
     })
     .await
-    .map_err(|_| Code::Session(Diagnostic::SessionUnavailable))?
+    .map_err(|_| Code::Session(Diagnostic::SessionUnavailable))?;
+    completed.deliver().map_err(Code::Session)
 }
 
 #[tauri::command]
@@ -474,10 +529,11 @@ pub async fn send_local_model(
         _flight: flight,
     });
     let _cancel = CancelOnDrop(send.operation().cancellation().clone());
-    let decision = match model.consent.install(
+    let decision = match model.consent.install_guarded(
         Review::from_transmission(&send),
         send.operation().cancellation().clone(),
         Arc::clone(&send),
+        send._flight.witness(),
     ) {
         Some(receiver) => receiver,
         None => return Ok(stamp.error(Code::Native(NativeCode::ConfirmationUnavailable))),
@@ -489,13 +545,13 @@ pub async fn send_local_model(
     if open_review(&app, send.operation().run_id()).is_err() {
         return Ok(stamp.error(Code::Native(NativeCode::ConfirmationUnavailable)));
     }
-    if let Err(error) = send.operation().ensure_current() {
+    if let Err(error) = send.ensure_current() {
         return Ok(stamp.error(Code::Session(error)));
     }
     if !decision.await.unwrap_or(false) {
         return Ok(stamp.result(Outcome::Cancelled));
     }
-    if let Err(error) = send.operation().ensure_current() {
+    if let Err(error) = send.ensure_current() {
         return Ok(stamp.error(Code::Session(error)));
     }
     // Close the reviewed surface after the OS decision, before any request.
@@ -508,13 +564,13 @@ pub async fn send_local_model(
         }
         Err(error) => return Ok(stamp.error(error)),
     }
-    if let Err(error) = send.operation().ensure_current() {
+    if let Err(error) = send.ensure_current() {
         return Ok(stamp.error(Code::Session(error)));
     }
     let response = LocalClient::new()
         .analyze(send.request(), send.operation().cancellation())
         .await;
-    if let Err(error) = send.operation().ensure_current() {
+    if let Err(error) = send.ensure_current() {
         return Ok(stamp.error(Code::Session(error)));
     }
     let completion = match response {
@@ -522,7 +578,7 @@ pub async fn send_local_model(
         Err(error) => return Ok(stamp.error(Code::Transport(error))),
     };
     let observed = freshness(app, &send).await;
-    if let Err(error) = send.operation().ensure_current() {
+    if let Err(error) = send.ensure_current() {
         return Ok(stamp.error(Code::Session(error)));
     }
     Ok(stamp.result(Outcome::Completed {
@@ -654,3 +710,23 @@ pub fn window_event(window: &tauri::Window, event: &WindowEvent) {
 #[cfg(test)]
 #[path = "models_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod close_cleanup_tests {
+    use super::*;
+    #[test]
+    fn native_local_close_removes_profile_and_cancels_active_work() {
+        let model = NativeModel::default();
+        model.session.configure(br#"{"schemaVersion":"rangoon.local-profile-request.v1","profileId":"local","host":"127.0.0.1","port":11434,"model":"fixture:v1","maxOutputTokens":128}"#).unwrap();
+        let operation = model.session.begin_check().unwrap();
+        let status = model.purge_for_workspace_close();
+        assert!(status.healthy);
+        assert!(!status.keep_parent);
+        assert!(operation.cancellation().is_cancelled());
+        assert!(operation.ensure_current().is_err());
+        assert!(model.session.inspect().unwrap().profile.is_none());
+        assert!(model.session.inspect().unwrap().active.is_some());
+        drop(operation);
+        assert!(model.session.inspect().unwrap().active.is_none());
+    }
+}

@@ -5,19 +5,18 @@ use rangoon_desktop::workspace_lifecycle::{Error as GateError, Gate, Lane, Lease
 
 mod workflows;
 use workflows::{
-    WorkflowSession, begin_workflow_draft, clear_workflow_draft, commit_workflow_save,
-    inspect_workflow_save, list_workflows, open_workflow,
+    begin_workflow_draft, clear_workflow_draft, commit_workflow_save, inspect_workflow_save,
+    list_workflows, open_workflow,
 };
 mod capabilities;
 mod compilation;
 use compilation::compile_capability;
 mod composition;
-use composition::{CompositionSession, commit_composition, preview_composition};
+use composition::{commit_composition, preview_composition};
 mod data_controls;
 use data_controls::{
-    BackupSession, DeletionSession, delete_workspace_record, export_workspace_backup,
-    get_workspace_data, inspect_workspace_deletion, prepare_workspace_restore,
-    restore_workspace_backup,
+    delete_workspace_record, export_workspace_backup, get_workspace_data,
+    inspect_workspace_deletion, prepare_workspace_restore, restore_workspace_backup,
 };
 mod instruction_bundles;
 use instruction_bundles::{export_instruction_bundle, inspect_instruction_bundle};
@@ -43,11 +42,18 @@ use models::*;
 
 use rangoon_engine::{EngineStatus, GovernancePort, LnsatPlaceholder};
 use rangoon_host::{PublicError, SelectionResult, analyze_selected_path};
-use rangoon_store::{SnapshotMetadata, StoreError, Workspace};
+#[cfg(test)]
+use rangoon_store::Workspace;
+use rangoon_store::{SnapshotMetadata, StoreError};
 use serde::Serialize;
-use session::Session;
+mod workspace_close;
+mod workspace_source_access;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
+use workspace_close::{
+    WorkspaceClose, acknowledge_workspace_purge, begin_workspace_close, get_workspace_close_state,
+};
+use workspace_source_access::SourceAccess;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AdmissionError {
@@ -73,14 +79,8 @@ fn admit(gate: &Gate, lane: Lane) -> Result<Lease, AdmissionError> {
 /// fresh native picker. The host retains the current report for explicit saving.
 #[tauri::command]
 async fn select_and_analyze(app: AppHandle) -> SelectionResult {
-    let Some(generation) = app.state::<Session>().generation() else {
-        return SelectionResult::failed(
-            "session_unavailable",
-            "Reopen Rangoon to restore the source workbench.",
-        );
-    };
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
+    let operation = match app.state::<SourceAccess>().begin_selection() {
+        Ok(operation) => operation,
         Err(AdmissionError::Busy) => {
             return SelectionResult::failed(
                 "selection_busy",
@@ -95,12 +95,17 @@ async fn select_and_analyze(app: AppHandle) -> SelectionResult {
         }
     };
     tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
+        if !operation.is_current() {
+            return operation.complete(SelectionResult::failed(
+                "analysis_cleared",
+                "This analysis was cleared. Choose or open a source again.",
+            ));
+        }
         let Some(window) = app.get_webview_window("main") else {
-            return SelectionResult::failed(
+            return operation.complete(SelectionResult::failed(
                 "selection_failed",
                 "The source workbench is unavailable.",
-            );
+            ));
         };
         let selected = app
             .dialog()
@@ -109,6 +114,14 @@ async fn select_and_analyze(app: AppHandle) -> SelectionResult {
             .set_title("Choose a Markdown file to analyze")
             .add_filter("Markdown", &["md"])
             .blocking_pick_file();
+        // Closing admission while the dialog was open must prevent the next
+        // file-read phase, not merely discard its later output.
+        if !operation.is_current() {
+            return operation.complete(SelectionResult::failed(
+                "analysis_cleared",
+                "This analysis was cleared. Choose or open a source again.",
+            ));
+        }
         let result = match selected {
             None => SelectionResult::Cancelled,
             Some(selected) => match selected.into_path() {
@@ -119,27 +132,16 @@ async fn select_and_analyze(app: AppHandle) -> SelectionResult {
                 ),
             },
         };
-        accept_result(&app, generation, result)
+        operation.complete(result)
     })
     .await
+    .map(|completed| completed.deliver())
     .unwrap_or_else(|_| {
         SelectionResult::failed(
             "selection_failed",
             "File selection did not complete. Try again.",
         )
     })
-}
-
-fn accept_result(app: &AppHandle, generation: u64, result: SelectionResult) -> SelectionResult {
-    if let SelectionResult::Analyzed { ref report } = result
-        && !app.state::<Session>().accept(generation, report)
-    {
-        return SelectionResult::failed(
-            "analysis_cleared",
-            "This analysis was cleared. Choose or open a source again.",
-        );
-    }
-    result
 }
 
 #[derive(Serialize)]
@@ -161,21 +163,6 @@ enum WorkspaceResult {
         error: PublicError,
     },
 }
-fn workspace_error(error: StoreError) -> WorkspaceResult {
-    let (code, message) = error.public();
-    WorkspaceResult::Failed {
-        error: PublicError { code, message },
-    }
-}
-fn workspace(app: &AppHandle) -> Result<Workspace, StoreError> {
-    app.path()
-        .app_local_data_dir()
-        .map(|path| Workspace::new(path.join("source-workspace")))
-        .map_err(|_| StoreError::Unavailable)
-}
-fn begin_operation(app: &AppHandle) -> Result<Lease, AdmissionError> {
-    admit(&app.state::<Gate>(), Lane::Exclusive)
-}
 /// One shared native state factory for the Builder and integration fixtures.
 fn admission_state() -> (Gate, model_flight::ModelFlight) {
     let gate = Gate::new();
@@ -185,6 +172,7 @@ fn admission_state() -> (Gate, model_flight::ModelFlight) {
 
 /// Admission precedes scheduling; the actual worker retains custody even if
 /// its IPC waiter drops. No gate mutex spans the callback.
+#[cfg(test)]
 fn dispatch_read<T: Send + 'static>(
     gate: &Gate,
     action: impl FnOnce() -> T + Send + 'static,
@@ -195,180 +183,34 @@ fn dispatch_read<T: Send + 'static>(
         action()
     }))
 }
+/// Uses the same private source state in Builder setup and synthetic fixtures.
+fn source_state(gate: &Gate, root: Result<std::path::PathBuf, StoreError>) -> SourceAccess {
+    SourceAccess::legacy(gate.clone(), root)
+}
 #[tauri::command]
 async fn list_snapshots(app: AppHandle) -> WorkspaceResult {
-    let gate = app.state::<Gate>().inner().clone();
-    let worker = match dispatch_read(&gate, move || {
-        match workspace(&app).and_then(|store| store.list()) {
-            Ok(snapshots) => WorkspaceResult::Listed { snapshots },
-            Err(error) => workspace_error(error),
-        }
-    }) {
-        Ok(worker) => worker,
-        Err(AdmissionError::Busy) => {
-            return WorkspaceResult::Failed {
-                error: PublicError {
-                    code: "workspace_busy",
-                    message: "Finish the current local workspace operation first.",
-                },
-            };
-        }
-        Err(AdmissionError::Unavailable) => return workspace_error(StoreError::Unavailable),
-    };
-    worker
-        .await
-        .unwrap_or_else(|_| workspace_error(StoreError::Unavailable))
+    let sources = app.state::<SourceAccess>().inner().clone();
+    sources.list_snapshots().await
 }
 #[tauri::command]
 async fn save_analysis(app: AppHandle, source_id: String) -> WorkspaceResult {
-    if rangoon_store::validate_id(&source_id).is_err() {
-        return workspace_error(StoreError::InvalidId);
-    }
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return WorkspaceResult::Failed {
-                error: PublicError {
-                    code: "analysis_busy",
-                    message: "Finish the current source operation first.",
-                },
-            };
-        }
-        Err(AdmissionError::Unavailable) => {
-            return workspace_error(StoreError::Unavailable);
-        }
-    };
-    let Some(report) = app.state::<Session>().snapshot(&source_id) else {
-        return WorkspaceResult::Failed {
-            error: PublicError {
-                code: "analysis_changed",
-                message: "The current analysis changed. Choose or open the source before saving.",
-            },
-        };
-    };
-    // An explicit save owns this copy. Clear never cancels a disk commit.
-    tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        match workspace(&app).and_then(|store| store.save_v1(&report)) {
-            Ok(receipt) => WorkspaceResult::Saved {
-                snapshot: receipt.snapshot,
-                already_saved: receipt.already_saved,
-            },
-            Err(error) => workspace_error(error),
-        }
-    })
-    .await
-    .unwrap_or_else(|_| workspace_error(StoreError::Unavailable))
+    let sources = app.state::<SourceAccess>().inner().clone();
+    sources.save_analysis(source_id).await
 }
 #[tauri::command]
 async fn open_snapshot(app: AppHandle, source_id: String) -> SelectionResult {
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return SelectionResult::failed(
-                "analysis_busy",
-                "Finish the current source operation first.",
-            );
-        }
-        Err(AdmissionError::Unavailable) => {
-            return SelectionResult::failed(
-                "session_unavailable",
-                "Reopen Rangoon to restore the source workbench.",
-            );
-        }
-    };
-    let Some(generation) = app.state::<Session>().generation() else {
-        return SelectionResult::failed(
-            "session_unavailable",
-            "Reopen Rangoon to restore the source workbench.",
-        );
-    };
-    tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        match workspace(&app).and_then(|store| store.open(&source_id)) {
-            Ok(report) => accept_result(
-                &app,
-                generation,
-                SelectionResult::Analyzed {
-                    report: Box::new(report),
-                },
-            ),
-            Err(error) => {
-                let (code, message) = error.public();
-                SelectionResult::failed(code, message)
-            }
-        }
-    })
-    .await
-    .unwrap_or_else(|_| {
-        SelectionResult::failed(
-            "workspace_unavailable",
-            "The saved snapshot could not be opened. Retry.",
-        )
-    })
+    let sources = app.state::<SourceAccess>().inner().clone();
+    sources.open_snapshot(source_id).await
 }
-
-/// Read a saved composition input without replacing the Import workbench's
-/// selected report. The renderer supplies only a content-addressed source ID.
+/// Composition inspection leaves the Import selection unchanged.
 #[tauri::command]
 async fn read_composition_source(app: AppHandle, source_id: String) -> SelectionResult {
-    if rangoon_store::validate_id(&source_id).is_err() {
-        let (code, message) = StoreError::InvalidId.public();
-        return SelectionResult::failed(code, message);
-    }
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return SelectionResult::failed(
-                "analysis_busy",
-                "Finish the current source operation first.",
-            );
-        }
-        Err(AdmissionError::Unavailable) => {
-            return SelectionResult::failed(
-                "session_unavailable",
-                "Reopen Rangoon to restore the source workbench.",
-            );
-        }
-    };
-    tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        match workspace(&app) {
-            Ok(store) => read_saved_composition_source(&store, &source_id),
-            Err(error) => {
-                let (code, message) = error.public();
-                SelectionResult::failed(code, message)
-            }
-        }
-    })
-    .await
-    .unwrap_or_else(|_| {
-        SelectionResult::failed(
-            "workspace_unavailable",
-            "The saved composition source could not be opened. Retry.",
-        )
-    })
+    let sources = app.state::<SourceAccess>().inner().clone();
+    sources.read_composition_source(source_id).await
 }
-
-fn read_saved_composition_source(store: &Workspace, source_id: &str) -> SelectionResult {
-    match store.open(source_id) {
-        Ok(report) => SelectionResult::Analyzed {
-            report: Box::new(report),
-        },
-        Err(error) => {
-            let (code, message) = error.public();
-            SelectionResult::failed(code, message)
-        }
-    }
-}
-
 #[tauri::command]
 fn clear_analysis(app: AppHandle) -> WorkspaceResult {
-    if app.state::<Session>().clear() {
-        WorkspaceResult::Cleared
-    } else {
-        workspace_error(StoreError::Unavailable)
-    }
+    app.state::<SourceAccess>().clear_analysis()
 }
 
 /// Describes this build's integration only. Never discovers or contacts LNSAT.
@@ -389,21 +231,19 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(gate.clone())
-        .manage(Session::default())
-        .manage(BackupSession::default())
-        .manage(DeletionSession::default())
-        .manage(CompositionSession::default())
-        .manage(WorkflowSession::default())
         .manage(NativeModel::default())
         .manage(NativeCloud::default())
         .manage(model_flight)
-        .manage(cloud_custody::Custody::default())
+        .manage(cloud_custody::Custody::with_gate(gate.clone()))
         .on_window_event(|window, event| {
             models::window_event(window, event);
             cloud_models::window_event(window, event);
             cloud_credentials::window_event(window, event);
         })
         .invoke_handler(tauri::generate_handler![
+            get_workspace_close_state,
+            begin_workspace_close,
+            acknowledge_workspace_purge,
             select_and_analyze,
             list_snapshots,
             save_analysis,
@@ -461,6 +301,15 @@ fn main() {
             cancel_local_model_review,
         ])
         .setup(|app| {
+            let root = app
+                .path()
+                .app_local_data_dir()
+                .map(|path| path.join("source-workspace"))
+                .map_err(|_| StoreError::Unavailable);
+            app.manage(source_state(app.state::<Gate>().inner(), root));
+            app.manage(WorkspaceClose::new(
+                app.state::<SourceAccess>().inner().clone(),
+            ));
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("analyze.html".into()))
                 .title("Rangoon")
                 .inner_size(1440.0, 960.0)
@@ -561,25 +410,35 @@ mod tests {
         let saved =
             rangoon_import::analyze("saved.md", "\u{feff}# Saved\r\nExact 🦀\r\n".as_bytes())
                 .unwrap();
-        let session = Session::default();
-        assert!(session.accept(session.generation().unwrap(), &imported));
+        let sources = source_state(&Gate::new(), Ok(root.clone()));
+        let selection = sources.begin_selection().unwrap();
+        assert!(matches!(
+            selection
+                .complete(SelectionResult::Analyzed {
+                    report: Box::new(imported.clone())
+                })
+                .deliver(),
+            SelectionResult::Analyzed { .. }
+        ));
         store.save_v1(&saved).unwrap();
         let before = store.list().unwrap();
-        match read_saved_composition_source(&store, &saved.source.id) {
+        match tauri::async_runtime::block_on(
+            sources.read_composition_source(saved.source.id.clone()),
+        ) {
             SelectionResult::Analyzed { report } => assert_eq!(*report, saved),
             _ => panic!("expected saved source analysis"),
         }
-        assert_eq!(
-            session.snapshot(&imported.source.id),
-            Some(imported.clone())
-        );
-        assert!(session.snapshot(&saved.source.id).is_none());
         assert_eq!(store.list().unwrap(), before);
         assert!(matches!(
-            read_saved_composition_source(&store, "../../outside"),
+            tauri::async_runtime::block_on(sources.read_composition_source("../../outside".into())),
             SelectionResult::Failed { .. }
         ));
-        assert_eq!(session.snapshot(&imported.source.id), Some(imported));
+        // The unsaved imported source remains the exact selected save input.
+        assert!(matches!(
+            tauri::async_runtime::block_on(sources.save_analysis(imported.source.id.clone())),
+            WorkspaceResult::Saved { .. }
+        ));
+        assert_eq!(store.open(&imported.source.id).unwrap(), imported);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

@@ -1,6 +1,7 @@
 //! Host-retained composition previews. Selection handles confer no authority.
-use super::{AdmissionError, AppHandle, PublicError, StoreError, begin_operation, workspace};
+use super::{AppHandle, PublicError, SourceAccess, StoreError};
 use rangoon_compose::application::{self, ApplicationPreview};
+use rangoon_desktop::workspace_lifecycle::GenerationWitness;
 #[cfg(test)]
 use rangoon_store::Workspace;
 use rangoon_store::{CompositionPreview, CompositionReceipt};
@@ -14,23 +15,83 @@ const MAX_CONFIRMATION_BYTES: usize = 4096;
 
 struct IssuedPreview {
     id: String,
-    prepared: Arc<CompositionPreview>,
+    handle: Option<CompositionHandle>,
+    expected_state_id: String,
+    generation: Option<GenerationWitness>,
     attempted: bool,
+}
+
+// Managed commits accept only the Owner's private retained token. Inspection
+// copies are never used as mutation input.
+pub(super) enum CompositionHandle {
+    Legacy(Arc<CompositionPreview>),
+    #[cfg(all(test, feature = "encrypted-workspace"))]
+    Managed(String),
+}
+
+pub(super) struct RoutedCompositionPreview {
+    pub(super) inspection: CompositionPreview,
+    pub(super) handle: CompositionHandle,
+}
+impl RoutedCompositionPreview {
+    pub(super) fn legacy(prepared: CompositionPreview) -> Self {
+        Self {
+            inspection: prepared.clone(),
+            handle: CompositionHandle::Legacy(Arc::new(prepared)),
+        }
+    }
+    #[cfg(all(test, feature = "encrypted-workspace"))]
+    pub(super) fn managed(
+        prepared: rangoon_desktop::workspace_session::CompositionConfirmation,
+    ) -> Self {
+        Self {
+            inspection: prepared.inspection,
+            handle: CompositionHandle::Managed(prepared.id),
+        }
+    }
 }
 
 #[derive(Default)]
 pub struct CompositionSession(Mutex<Option<IssuedPreview>>);
 
 impl CompositionSession {
+    #[cfg(test)]
+    pub(super) fn retained_for_close_test(&self) -> bool {
+        self.0.lock().unwrap().is_some()
+    }
+    #[cfg(test)]
     fn stage(&self, prepared: CompositionPreview) -> Result<CompositionResult, StoreError> {
         self.stage_with(prepared, |bytes| {
             getrandom::fill(bytes).map_err(|_| StoreError::Unavailable)
         })
     }
 
+    #[cfg(test)]
     fn stage_with(
         &self,
         prepared: CompositionPreview,
+        random: impl FnOnce(&mut [u8]) -> Result<(), StoreError>,
+    ) -> Result<CompositionResult, StoreError> {
+        self.publish(RoutedCompositionPreview::legacy(prepared), None, random)
+    }
+
+    pub(super) fn stage_routed(
+        &self,
+        prepared: RoutedCompositionPreview,
+        generation: GenerationWitness,
+    ) -> Result<CompositionResult, StoreError> {
+        if !generation.is_current().unwrap_or(false) {
+            return Err(StoreError::Unavailable);
+        }
+        self.publish(prepared, Some(generation), |bytes| {
+            getrandom::fill(bytes).map_err(|_| StoreError::Unavailable)
+        })
+    }
+
+    fn publish(
+        &self,
+        prepared: RoutedCompositionPreview,
+        generation: Option<GenerationWitness>,
         random: impl FnOnce(&mut [u8]) -> Result<(), StoreError>,
     ) -> Result<CompositionResult, StoreError> {
         let mut bytes = [0_u8; 32];
@@ -45,17 +106,20 @@ impl CompositionSession {
         let result = CompositionResult::Ready {
             schema_version: SESSION_SCHEMA,
             preview_id: id.clone(),
-            expected_state_id: prepared.expected_state_id.clone(),
-            preview: Box::new(prepared.preview.clone()),
+            expected_state_id: prepared.inspection.expected_state_id.clone(),
+            preview: Box::new(prepared.inspection.preview.clone()),
         };
         *self.0.lock().map_err(|_| StoreError::Unavailable)? = Some(IssuedPreview {
             id,
-            prepared: Arc::new(prepared),
+            expected_state_id: prepared.inspection.expected_state_id,
+            handle: Some(prepared.handle),
+            generation,
             attempted: false,
         });
         Ok(result)
     }
 
+    #[cfg(test)]
     fn select(
         &self,
         confirmation: &Confirmation,
@@ -68,14 +132,57 @@ impl CompositionSession {
         let issued = guard.as_mut().ok_or(StoreError::WorkspaceChanged)?;
         if issued.attempted
             || issued.id != confirmation.preview_id
-            || issued.prepared.expected_state_id != confirmation.expected_state_id
+            || issued.expected_state_id != confirmation.expected_state_id
         {
             return Err(StoreError::WorkspaceChanged);
         }
         // Claim before entering storage. A lost response or failed transaction
         // cannot reuse this confirmation even if the database state is unchanged.
         issued.attempted |= claim;
-        Ok(Arc::clone(&issued.prepared))
+        match issued.handle.as_ref() {
+            Some(CompositionHandle::Legacy(prepared)) => Ok(Arc::clone(prepared)),
+            _ => Err(StoreError::WorkspaceChanged),
+        }
+    }
+
+    pub(super) fn claim(
+        &self,
+        confirmation: &Confirmation,
+    ) -> Result<CompositionHandle, StoreError> {
+        if !confirmation.acknowledged {
+            return Err(StoreError::CompositionAcknowledgmentRequired);
+        }
+        let mut guard = self.0.lock().map_err(|_| StoreError::Unavailable)?;
+        let issued = guard.as_mut().ok_or(StoreError::WorkspaceChanged)?;
+        if issued.attempted
+            || issued.id != confirmation.preview_id
+            || issued.expected_state_id != confirmation.expected_state_id
+        {
+            return Err(StoreError::WorkspaceChanged);
+        }
+        if !issued
+            .generation
+            .as_ref()
+            .is_some_and(|generation| generation.is_current().unwrap_or(false))
+        {
+            *guard = None;
+            return Err(StoreError::Unavailable);
+        }
+        issued.attempted = true;
+        issued.handle.take().ok_or(StoreError::WorkspaceChanged)
+    }
+
+    pub(super) fn purge(&self) -> bool {
+        match self.0.lock() {
+            Ok(mut guard) => {
+                *guard = None;
+                true
+            }
+            Err(error) => {
+                *error.into_inner() = None;
+                false
+            }
+        }
     }
 
     #[cfg(test)]
@@ -94,6 +201,7 @@ impl CompositionSession {
         })
     }
 
+    #[cfg(test)]
     fn apply_with(
         &self,
         confirmation: &Confirmation,
@@ -116,11 +224,11 @@ impl CompositionSession {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct Confirmation {
+pub(super) struct Confirmation {
     schema_version: String,
-    preview_id: String,
-    expected_state_id: String,
-    acknowledged: bool,
+    pub(super) preview_id: String,
+    pub(super) expected_state_id: String,
+    pub(super) acknowledged: bool,
 }
 
 fn raw_bytes(body: &InvokeBody, limit: usize) -> Result<&[u8], StoreError> {
@@ -130,12 +238,12 @@ fn raw_bytes(body: &InvokeBody, limit: usize) -> Result<&[u8], StoreError> {
     }
 }
 
-fn decode_preview(body: &InvokeBody) -> Result<application::Request, StoreError> {
+pub(super) fn decode_preview(body: &InvokeBody) -> Result<application::Request, StoreError> {
     application::decode_request_json(raw_bytes(body, application::MAX_REQUEST_BYTES)?)
         .map_err(|_| StoreError::CompositionInvalid)
 }
 
-fn decode_confirmation(body: &InvokeBody) -> Result<Confirmation, StoreError> {
+pub(super) fn decode_confirmation(body: &InvokeBody) -> Result<Confirmation, StoreError> {
     let confirmation: Confirmation =
         serde_json::from_slice(raw_bytes(body, MAX_CONFIRMATION_BYTES)?)
             .map_err(|_| StoreError::CompositionInvalid)?;
@@ -175,7 +283,7 @@ pub enum CompositionResult {
     },
 }
 
-fn failure(error: StoreError) -> CompositionResult {
+pub(super) fn failure(error: StoreError) -> CompositionResult {
     let (code, message) = if error == StoreError::Unavailable {
         (
             "workspace_unavailable",
@@ -189,7 +297,7 @@ fn failure(error: StoreError) -> CompositionResult {
     }
 }
 
-fn busy() -> CompositionResult {
+pub(super) fn busy() -> CompositionResult {
     CompositionResult::Failed {
         error: PublicError {
             code: "workspace_busy",
@@ -205,31 +313,11 @@ pub async fn preview_composition(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<CompositionResult, ()> {
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return Ok(busy());
-        }
-        Err(AdmissionError::Unavailable) => {
-            return Ok(failure(StoreError::Unavailable));
-        }
-    };
     let draft = match decode_preview(request.body()) {
         Ok(draft) => draft,
         Err(error) => return Ok(failure(error)),
     };
-    Ok(tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        match workspace(&app)
-            .and_then(|store| store.preview_composition(&draft))
-            .and_then(|prepared| app.state::<CompositionSession>().stage(prepared))
-        {
-            Ok(result) => result,
-            Err(error) => failure(error),
-        }
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable)))
+    Ok(app.state::<SourceAccess>().preview_composition(draft).await)
 }
 
 #[tauri::command]
@@ -237,32 +325,14 @@ pub async fn commit_composition(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<CompositionResult, ()> {
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return Ok(busy());
-        }
-        Err(AdmissionError::Unavailable) => {
-            return Ok(failure(StoreError::Unavailable));
-        }
-    };
     let confirmation = match decode_confirmation(request.body()) {
         Ok(confirmation) => confirmation,
         Err(error) => return Ok(failure(error)),
     };
-    Ok(tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        match app
-            .state::<CompositionSession>()
-            .apply_with(&confirmation, |prepared| {
-                workspace(&app)?.apply_composition(prepared, confirmation.acknowledged)
-            }) {
-            Ok(receipt) => CompositionResult::Committed { receipt },
-            Err(error) => failure(error),
-        }
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable)))
+    Ok(app
+        .state::<SourceAccess>()
+        .commit_composition(confirmation)
+        .await)
 }
 
 #[cfg(test)]

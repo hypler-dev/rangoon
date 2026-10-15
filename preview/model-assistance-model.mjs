@@ -242,6 +242,7 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
   const routeStates = { local: null, cloud: { status: available ? 'idle' : 'unavailable', pending: null, draining: false, activeRunId: null, generation: null, profile: { ...DEFAULT_CLOUD_MODEL_PROFILE }, session: null, prepared: null, check: null, completion: null, error: null, message: available ? 'Cloud profile is session-only. No credential or provider was inspected.' : EMPTY_MODEL_ASSISTANCE_STATE.message } };
   let epoch = 0;
   let selectionEpoch = 0;
+  let lockEpoch = Symbol('model-assistance');
   let pollTimer = null;
   const publish = () => onChange(clone(state));
   const set = changes => { state = { ...state, ...changes }; publish(); };
@@ -249,7 +250,7 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
   const raw = value => encoder.encode(JSON.stringify(value));
   const cloud = () => state.endpoint === 'cloud';
   const names = () => cloud() ? { get: 'get_cloud_model_profile', configure: 'configure_cloud_model', clear: 'clear_cloud_model', prepare: 'prepare_cloud_model', check: 'check_cloud_model', send: 'send_cloud_model', cancel: 'cancel_cloud_model', profileSchema: 'rangoon.cloud-profile-request.v1', selectionSchema: 'rangoon.cloud-selection.v1', sendSchema: 'rangoon.cloud-send.v1', cancelSchema: 'rangoon.cloud-cancel.v1' } : { get: 'get_local_model_profile', configure: 'configure_local_model', clear: 'clear_local_model', prepare: 'prepare_local_model', check: 'check_local_model', send: 'send_local_model', cancel: 'cancel_local_model', profileSchema: 'rangoon.local-profile-request.v1', selectionSchema: 'rangoon.local-selection.v1', sendSchema: 'rangoon.local-send.v1', cancelSchema: 'rangoon.local-cancel.v1' };
-  const call = async (command, payload, bytes = false) => { try { return await invoke(command, bytes ? raw(payload) : payload); } catch { return failedEnvelope(); } };
+  const call = async (command, payload, bytes, identity) => { if (identity !== lockEpoch) return failedEnvelope(); try { return await invoke(command, bytes ? raw(payload) : payload); } catch { return failedEnvelope(); } };
   const unavailable = () => !available;
   const invalidated = (message = 'Selection changed. Prepare a new request.') => {
     ++selectionEpoch;
@@ -259,8 +260,9 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
   const poll = async () => {
     if ((!state.pending && !state.draining) || unavailable()) return stopPoll();
     const local = epoch;
-    const result = (cloud() ? cloudEnvelope : envelope)(await call(names().get));
-    if (local !== epoch || (!state.pending && !state.draining)) return;
+    const lock = lockEpoch;
+    const result = (cloud() ? cloudEnvelope : envelope)(await call(names().get, undefined, false, lock));
+    if (local !== epoch || lock !== lockEpoch || (!state.pending && !state.draining)) return;
     if (result && ['configured', 'unconfigured', 'cleared'].includes(result.outcome)) {
       const active = result.session.active;
       const drained = state.draining && !active;
@@ -273,13 +275,14 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
       }
       if (drained && !state.pending) return stopPoll();
     }
+    if (local !== epoch || lock !== lockEpoch || (!state.pending && !state.draining)) return;
     pollTimer = setTimeout(poll, 250); pollTimer.unref?.();
   };
   const startPoll = () => { stopPoll(); void poll(); };
-  const accept = (result, localEpoch, pending) => {
+  const accept = (result, localEpoch, pending, lock) => {
     const value = (cloud() ? cloudEnvelope : envelope)(result);
-    if (localEpoch !== epoch || !value) {
-      if (localEpoch === epoch && !value) set({ status: 'failed', pending: null, error: { code: 'session_unavailable' }, message: 'Native result unavailable. Prepare a new request.' });
+    if (localEpoch !== epoch || lock !== lockEpoch || !value) {
+      if (localEpoch === epoch && lock === lockEpoch && !value) set({ status: 'failed', pending: null, error: { code: 'session_unavailable' }, message: 'Native result unavailable. Prepare a new request.' });
       return null;
     }
     if (state.generation !== null && value.generation !== null && value.generation !== state.generation && value.outcome !== 'configured' && value.outcome !== 'cleared') return null;
@@ -292,9 +295,10 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
     async load() {
       if (unavailable() || state.pending || state.draining) return;
       const local = ++epoch;
+      const lock = lockEpoch;
       set({ status: 'loading', pending: 'load', error: null, message: 'Loading saved inputs and session profile…', requestId: state.requestId + 1 });
-      const [profileResult, snapshotsResult, capabilitiesResult] = await Promise.all([call(names().get), call('list_snapshots'), call('list_capabilities')]);
-      if (local !== epoch) return;
+      const [profileResult, snapshotsResult, capabilitiesResult] = await Promise.all([call(names().get, undefined, false, lock), call('list_snapshots', undefined, false, lock), call('list_capabilities', undefined, false, lock)]);
+      if (local !== epoch || lock !== lockEpoch) return;
       const profile = (cloud() ? cloudEnvelope : envelope)(profileResult);
       const snapshotsValid = snapshotsResult?.outcome === 'listed' && Array.isArray(snapshotsResult.snapshots) && snapshotsResult.snapshots.length <= 128 && snapshotsResult.snapshots.every(snapshot) && new Set(snapshotsResult.snapshots.map(item => item.sourceId)).size === snapshotsResult.snapshots.length;
       const capabilitiesValid = capabilitiesResult?.outcome === 'listed' && Array.isArray(capabilitiesResult.capabilities) && capabilitiesResult.capabilities.length <= 128 && capabilitiesResult.capabilities.every(validateCapabilitySummary) && new Set(capabilitiesResult.capabilities.map(item => item.id)).size === capabilitiesResult.capabilities.length;
@@ -306,10 +310,11 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
     async configure(profile) {
       if (unavailable() || state.pending || !(cloud() ? cloudProfileValid(profile) : profileValid(profile))) return set({ error: { code: 'invalid_profile' }, message: 'Profile is invalid. No model request was made.' });
       const local = ++epoch;
+      const lock = lockEpoch;
       ++selectionEpoch;
       stopPoll();
       set({ pending: 'configure', prepared: null, completion: null, check: null, error: null, profile: { ...profile }, message: `Configuring session-only ${cloud() ? 'cloud' : 'local'} profile…` });
-      const result = accept(await call(names().configure, { schemaVersion: names().profileSchema, ...profile }, true), local, 'configure');
+      const result = accept(await call(names().configure, { schemaVersion: names().profileSchema, ...profile }, true, lock), local, 'configure', lock);
       if (!result) return;
       if (result.outcome !== 'configured') return set({ status: 'failed', pending: null, error: { code: result.code ?? 'invalid_profile' }, message: 'Profile was not configured. Prepare a new request.' });
       set({ status: 'ready', pending: null, session: clone(result.session), generation: result.generation, error: null, message: `${cloud() ? 'Cloud' : 'Local'} profile configured for this session only.` });
@@ -317,10 +322,11 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
     async clear() {
       if (unavailable()) return;
       const local = ++epoch;
+      const lock = lockEpoch;
       ++selectionEpoch;
       stopPoll();
       set({ pending: 'clear', prepared: null, completion: null, check: null, error: null, activeRunId: null, message: 'Clearing local model session…' });
-      const result = accept(await call(names().clear), local, 'clear');
+      const result = accept(await call(names().clear, undefined, false, lock), local, 'clear', lock);
       if (!result) return;
       if (result.outcome !== 'cleared') return set({ status: 'failed', pending: null, error: { code: result.code ?? 'session_unavailable' }, message: 'Session clear could not finish.' });
       const draining = Boolean(result.session.active);
@@ -341,8 +347,9 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
     async selectCapability(capabilityId, revisionId = null) {
       if (unavailable() || state.pending || !CAPABILITY.test(capabilityId) || (revisionId !== null && !REVISION.test(revisionId))) return;
       const local = epoch;
-      const result = await call('open_capability', { capabilityId, revisionId });
-      if (local !== epoch || result?.outcome !== 'opened') return;
+      const lock = lockEpoch;
+      const result = await call('open_capability', { capabilityId, revisionId }, false, lock);
+      if (local !== epoch || lock !== lockEpoch || result?.outcome !== 'opened') return;
       const detail = validateCapabilityDetail(result.capability);
       if (!detail || detail.id !== capabilityId || (revisionId !== null && detail.revision.id !== revisionId)) return;
       const selectedCapabilities = { ...state.selectedCapabilities, [capabilityId]: detail };
@@ -363,9 +370,9 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
     },
     async prepare() {
       if (unavailable() || state.pending || !(cloud() ? cloudProfileValid(state.profile) : profileValid(state.profile)) || state.inputs.length < 1 || state.inputs.length > 16 || (state.task === 'compare_v1' && (state.inputs.length !== 2 || state.inputs.some(input => input.kind !== 'capability')))) return;
-      const local = ++epoch; const visible = selectionEpoch; const task = state.task; const inputs = clone(state.inputs); const profile = { ...state.profile };
-      set({ pending: 'prepare', prepared: null, completion: null, check: null, error: null, message: `Preparing exact ${cloud() ? 'cloud' : 'local'} request…` }); startPoll();
-      const result = accept(await call(names().prepare, { schemaVersion: names().selectionSchema, task, inputs: inputs.map(selectedInput) }, true), local, 'prepare');
+      const local = ++epoch; const lock = lockEpoch; const visible = selectionEpoch; const task = state.task; const inputs = clone(state.inputs); const profile = { ...state.profile };
+      set({ pending: 'prepare', prepared: null, completion: null, check: null, error: null, message: `Preparing exact ${cloud() ? 'cloud' : 'local'} request…` }); if (local !== epoch || lock !== lockEpoch) return; startPoll();
+      const result = accept(await call(names().prepare, { schemaVersion: names().selectionSchema, task, inputs: inputs.map(selectedInput) }, true, lock), local, 'prepare', lock);
       if (!result) return;
       const profileSha256 = state.session?.profile?.profileSha256 ?? null;
       if (result.outcome !== 'prepared' || (cloud() ? !profileSha256 || !cloudPreparedMatches(result.prepared, profile, profileSha256, task, inputs) : !preparedMatches(result.prepared, profile, task, inputs))) return set({ status: 'failed', pending: null, error: { code: result.code ?? 'pack_invalid' }, message: 'Request preparation failed. Prepare a new request.' });
@@ -374,8 +381,8 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
     },
     async check() {
       if (unavailable() || state.pending) return;
-      const local = ++epoch; const profileSha256 = state.session?.profile?.profileSha256 ?? null; set({ pending: 'check', check: null, error: null, message: `Checking source-free ${cloud() ? 'cloud model visibility' : 'local protocol'}…` }); startPoll();
-      const result = accept(await call(names().check, {}, false), local, 'check');
+      const local = ++epoch; const lock = lockEpoch; const profileSha256 = state.session?.profile?.profileSha256 ?? null; set({ pending: 'check', check: null, error: null, message: `Checking source-free ${cloud() ? 'cloud model visibility' : 'local protocol'}…` }); if (local !== epoch || lock !== lockEpoch) return; startPoll();
+      const result = accept(await call(names().check, {}, false, lock), local, 'check', lock);
       if (!result) return;
       if (result.outcome === 'cancelled') return set({ status: 'ready', pending: null, check: null, activeRunId: null, error: null, message: `${cloud() ? 'Cloud' : 'Local'} check cancelled. No source text was sent.` });
       if (result.outcome !== 'checked' || !profileSha256 || result.check.profileSha256 !== profileSha256 || (cloud() && result.check.observedModel !== state.profile.model)) return set({ status: 'failed', pending: null, error: { code: result.code ?? 'connection_failed' }, message: 'Protocol check failed. No source text was sent.' });
@@ -384,8 +391,8 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
     async send() {
       const preparedView = state.prepared;
       if (unavailable() || state.pending || !preparedView) return;
-      const local = ++epoch; const visible = selectionEpoch; const profileSha256 = state.session?.profile?.profileSha256 ?? null; const task = state.task; set({ pending: 'send', completion: null, error: null, message: 'Native review or request in progress. Cancel remains available until terminal result.' }); startPoll();
-      const result = accept(await call(names().send, { schemaVersion: names().sendSchema, preparedId: preparedView.preparedId, requestId: preparedView.requestId }, true), local, 'send');
+      const local = ++epoch; const lock = lockEpoch; const visible = selectionEpoch; const profileSha256 = state.session?.profile?.profileSha256 ?? null; const task = state.task; set({ pending: 'send', completion: null, error: null, message: 'Native review or request in progress. Cancel remains available until terminal result.' }); if (local !== epoch || lock !== lockEpoch) return; startPoll();
+      const result = accept(await call(names().send, { schemaVersion: names().sendSchema, preparedId: preparedView.preparedId, requestId: preparedView.requestId }, true, lock), local, 'send', lock);
       if (!result) return;
       if (result.outcome === 'completed') {
         if (!profileSha256 || (cloud() ? !cloudCompletionMatches(result.completion, preparedView, profileSha256, task) : result.completion.requestId !== preparedView.requestId || result.completion.packId !== preparedView.pack.packId || result.completion.profileSha256 !== profileSha256 || result.completion.observedModel !== preparedView.model || result.completion.proposals.task !== task)) return set({ status: 'failed', pending: null, prepared: null, activeRunId: null, error: { code: 'proposal_invalid' }, message: 'Native review or request failed. Prepare a new request.' });
@@ -398,7 +405,8 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
     async cancel() {
       if (unavailable() || (!state.pending && !state.draining) || !(cloud() ? CLOUD_RUN : RUN).test(state.activeRunId ?? '')) return;
       const local = epoch;
-      const result = accept(await call(names().cancel, { schemaVersion: names().cancelSchema, runId: state.activeRunId }, true), local, null);
+      const lock = lockEpoch;
+      const result = accept(await call(names().cancel, { schemaVersion: names().cancelSchema, runId: state.activeRunId }, true, lock), local, null, lock);
       if (!result || result.outcome !== 'cancel_requested') return;
       set({ session: clone(result.session), generation: result.generation, message: `${cloud() ? 'Cloud' : 'Local'} cancellation requested. Bytes already dispatched cannot be recalled.` });
     },
@@ -411,6 +419,22 @@ export function createModelAssistanceController({ invoke, onChange = () => {} } 
     },
     setTab(tab) { if (['payload', 'coverage', 'facts'].includes(tab)) set({ tab }); },
     invalidate() { invalidated(); },
+    purgeForWorkspaceLock() {
+      ++epoch;
+      ++selectionEpoch;
+      lockEpoch = Symbol('model-assistance');
+      stopPoll();
+      routeStates.local = null;
+      routeStates.cloud = null;
+      state = {
+        ...EMPTY_MODEL_ASSISTANCE_STATE,
+        bridgeAvailable: available,
+        status: available ? 'idle' : 'unavailable',
+        message: available ? 'Configure a session-only local profile, then choose saved inputs.' : EMPTY_MODEL_ASSISTANCE_STATE.message,
+        requestId: state.requestId + 1,
+      };
+      publish();
+    },
   };
   return controller;
 }

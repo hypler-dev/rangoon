@@ -1,34 +1,42 @@
 use rangoon_domain::AnalysisReport;
 use std::sync::Mutex;
 
-#[derive(Default)]
 struct Current {
-    generation: u64,
+    generation: Option<u64>,
     report: Option<AnalysisReport>,
+}
+impl Default for Current {
+    fn default() -> Self {
+        Self {
+            generation: Some(0),
+            report: None,
+        }
+    }
 }
 #[derive(Default)]
 pub struct Session(Mutex<Current>);
 impl Session {
     pub fn generation(&self) -> Option<u64> {
-        self.0.lock().ok().map(|s| s.generation)
+        self.0.lock().ok().and_then(|s| s.generation)
     }
     pub fn accept(&self, generation: u64, report: &AnalysisReport) -> bool {
         let Ok(mut current) = self.0.lock() else {
             return false;
         };
-        if current.generation != generation {
+        if current.generation != Some(generation) {
             return false;
         }
         current.report = Some(report.clone());
         true
     }
     pub fn clear(&self) -> bool {
-        let Ok(mut current) = self.0.lock() else {
-            return false;
+        let (mut current, healthy) = match self.0.lock() {
+            Ok(current) => (current, true),
+            Err(error) => (error.into_inner(), false),
         };
-        current.generation = current.generation.wrapping_add(1);
+        current.generation = current.generation.and_then(|value| value.checked_add(1));
         current.report = None;
-        true
+        healthy && current.generation.is_some()
     }
     pub fn snapshot(&self, source_id: &str) -> Option<AnalysisReport> {
         self.0
@@ -38,6 +46,20 @@ impl Session {
             .as_ref()
             .filter(|r| r.source.id == source_id)
             .cloned()
+    }
+    #[cfg(test)]
+    pub(super) fn seed_generation(&self, value: u64) {
+        let mut current = self.0.lock().unwrap();
+        current.generation = Some(value);
+        current.report = None;
+    }
+    #[cfg(test)]
+    pub(super) fn poison_for_test(&self) {
+        let _ = std::panic::catch_unwind(|| {
+            let mut current = self.0.lock().unwrap();
+            current.report = None;
+            panic!("synthetic source session poison");
+        });
     }
 }
 #[cfg(test)]

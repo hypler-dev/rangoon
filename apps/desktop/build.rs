@@ -1,6 +1,9 @@
 fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "get_workspace_close_state",
+            "begin_workspace_close",
+            "acknowledge_workspace_purge",
             "select_and_analyze",
             "list_snapshots",
             "save_analysis",

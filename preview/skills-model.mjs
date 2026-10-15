@@ -5,6 +5,7 @@ const MAX_TITLE_BYTES = 160;
 const MAX_CONTENT_BYTES = 256 * 1024;
 const MAX_COMPOSITION_INPUTS = 16;
 const MAX_COMPOSITION_OUTPUTS = 16;
+const MAX_LIBRARY_QUERY_CODE_POINTS = 128;
 const object = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 const utf8 = value => new TextEncoder().encode(value).length;
 const hasOnly = (value, keys) => object(value) && Object.keys(value).every(key => keys.has(key));
@@ -122,9 +123,44 @@ export function validateCapabilityDetail(value) {
   return value;
 }
 
+export function validLibraryQuery(value) {
+  return typeof value === 'string'
+    && Array.from(value).length <= MAX_LIBRARY_QUERY_CODE_POINTS
+    && !/[\p{Cc}\u2028\u2029]/u.test(value);
+}
+
+function normalizedLibraryText(value) {
+  return value.normalize('NFKC').toLowerCase();
+}
+
+function validReviewFilter(value) {
+  return value === 'all' || value === 'reviewed' || value === 'unreviewed';
+}
+
+function validOriginFilter(value) {
+  return value === 'all' || value === 'source' || value === 'composition';
+}
+
+export function filterSavedSkills(capabilities, { query = '', reviewFilter = 'all', originFilter = 'all' } = {}) {
+  if (!Array.isArray(capabilities) || !validLibraryQuery(query) || !validReviewFilter(reviewFilter) || !validOriginFilter(originFilter)) return null;
+  const normalizedQuery = normalizedLibraryText(query);
+  return capabilities.filter(item => {
+    if (!validateCapabilitySummary(item)) return false;
+    if (reviewFilter === 'reviewed' && !item.reviewed) return false;
+    if (reviewFilter === 'unreviewed' && item.reviewed) return false;
+    if (originFilter !== 'all' && item.origin.kind !== originFilter) return false;
+    if (!normalizedQuery) return true;
+    const identifiers = item.origin.kind === 'source'
+      ? [item.id, item.origin.sourceId, item.origin.fragmentId]
+      : [item.id, item.origin.compositionId];
+    return [item.title, ...identifiers].some(value => normalizedLibraryText(value).includes(normalizedQuery));
+  });
+}
+
 export const EMPTY_SKILLS_STATE = Object.freeze({
   bridgeAvailable: false, listStatus: 'idle', capabilities: [], selected: null, viewedRevisionId: null,
   draft: null, pending: null, error: null, needsReload: false, source: null, createTitle: '', requestId: 0,
+  query: '', reviewFilter: 'all', originFilter: 'all',
   message: 'Open the desktop app to use local skills.',
 });
 
@@ -134,6 +170,7 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
   let actionEpoch = 0;
   let openingCapabilityId = null;
   let listEpoch = 0;
+  let workspaceIdentity = Symbol('skills-workspace');
   const drafts = new Map();
   const creationTitles = new Map();
   const sourceKey = source => source ? `${source.sourceId}/${source.fragmentId}` : null;
@@ -155,7 +192,23 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
     return { detail, alreadyApplied: result.alreadyApplied, action };
   }
   const controller = {
+    purgeForWorkspaceLock() {
+      ++actionEpoch;
+      ++listEpoch;
+      workspaceIdentity = Symbol('skills-workspace');
+      openingCapabilityId = null;
+      drafts.clear();
+      creationTitles.clear();
+      set({
+        ...EMPTY_SKILLS_STATE,
+        bridgeAvailable,
+        listStatus: bridgeAvailable ? 'idle' : 'unavailable',
+        requestId: state.requestId + 1,
+        message: bridgeAvailable ? 'Skill data cleared from this view.' : EMPTY_SKILLS_STATE.message,
+      });
+    },
     hasUnsavedDraft: capabilityId => Boolean(drafts.get(capabilityId)?.dirty || (state.draft?.capabilityId === capabilityId && state.draft.dirty)),
+    hasUnsavedDrafts: () => [...drafts.values()].some(draft => draft.dirty),
     forgetDeleted(capabilityId) {
       drafts.delete(capabilityId);
       ++listEpoch;
@@ -173,6 +226,17 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
       set(changes);
     },
     getState: () => ({ ...state, capabilities: [...state.capabilities], selected: state.selected ? structuredClone(state.selected) : null, draft: state.draft ? { ...state.draft } : null }),
+    setLibraryFilters(filters = {}) {
+      if (!object(filters)) return false;
+      const { query = state.query, reviewFilter = state.reviewFilter, originFilter = state.originFilter } = filters;
+      if (!validLibraryQuery(query) || !validReviewFilter(reviewFilter) || !validOriginFilter(originFilter)) return false;
+      if (query === state.query && reviewFilter === state.reviewFilter && originFilter === state.originFilter) return true;
+      set({ query, reviewFilter, originFilter });
+      return true;
+    },
+    clearLibraryFilters({ queryOnly = false } = {}) {
+      return controller.setLibraryFilters({ query: '', reviewFilter: queryOnly ? state.reviewFilter : 'all', originFilter: queryOnly ? state.originFilter : 'all' });
+    },
     setSourceContext({ report = null, snapshots = [], snapshotsStatus = 'idle' } = {}) {
       const sourceId = typeof report?.source?.id === 'string' ? report.source.id : null;
       const fragment = report?.fragments?.find(item => item.id === report?.selectedFragmentId) ?? report?.fragments?.[0] ?? null;
@@ -188,9 +252,11 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
     async list() {
       if (unavailable()) { set({ listStatus: 'unavailable', capabilities: [], error: null }); return; }
       const localRequest = ++listEpoch;
+      const identity = workspaceIdentity;
       set({ listStatus: 'loading' });
+      if (identity !== workspaceIdentity) return;
       const result = await call('list_capabilities');
-      if (localRequest !== listEpoch) return;
+      if (identity !== workspaceIdentity || localRequest !== listEpoch) return;
       const unique = new Set(result?.capabilities?.map?.(item => item?.id));
       if (result?.outcome === 'listed' && Array.isArray(result.capabilities) && result.capabilities.length <= 128 && unique.size === result.capabilities.length && result.capabilities.every(validateCapabilitySummary)) {
         set({ listStatus: 'ready', capabilities: result.capabilities });
@@ -208,10 +274,12 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
     async open(capabilityId, revisionId = null, { preserveDraft = null } = {}) {
       if (unavailable() || state.pending || !id(capabilityId, 'capability:') || (revisionId !== null && !id(revisionId, 'revision:'))) return;
       const localRequest = ++actionEpoch;
+      const identity = workspaceIdentity;
       openingCapabilityId = capabilityId;
       set({ pending: 'open', error: null, message: 'Opening local capability…' });
+      if (identity !== workspaceIdentity) return;
       const result = await call('open_capability', { capabilityId, revisionId });
-      if (localRequest !== actionEpoch) return;
+      if (identity !== workspaceIdentity || localRequest !== actionEpoch) return;
       openingCapabilityId = null;
       const opened = acceptOpened(result, 'open');
       if (!opened || opened.detail.id !== capabilityId || opened.detail.revision.id !== (revisionId ?? opened.detail.latestRevisionId)) { set({ pending: null, error: failure(result), message: failure(result).message }); return; }
@@ -235,22 +303,26 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
       if (!canMutate() || !state.source?.saved || !validCapabilityTitle(title)) return;
       const source = state.source;
       const localRequest = ++actionEpoch;
+      const identity = workspaceIdentity;
       set({ pending: 'create', error: null, message: 'Creating local capability draft…' });
+      if (identity !== workspaceIdentity) return;
       const result = await call('create_capability', { sourceId: source.sourceId, fragmentId: source.fragmentId, title });
-      if (localRequest !== actionEpoch) return;
+      if (identity !== workspaceIdentity || localRequest !== actionEpoch) return;
       const opened = acceptOpened(result, 'create');
       if (!opened || opened.detail.origin.kind !== 'source' || opened.detail.origin.sourceId !== source.sourceId || opened.detail.origin.fragmentId !== source.fragmentId) { set({ pending: null, error: failure(result), message: failure(result).message }); return; }
       selectDraft(opened.detail);
       set({ selected: opened.detail, viewedRevisionId: opened.detail.latestRevisionId, pending: null, needsReload: false, error: null, message: opened.alreadyApplied ? 'Existing matching skill opened.' : 'Draft capability created from the saved source section.' });
-      void controller.list();
+      if (identity === workspaceIdentity && localRequest === actionEpoch) void controller.list();
     },
     async save() {
       const draft = state.draft;
       if (!canMutate() || !state.selected || !draft || !draft.dirty || state.viewedRevisionId !== state.selected.latestRevisionId || !validCapabilityTitle(draft.title) || !validCapabilityContent(draft.content)) return;
       const localRequest = ++actionEpoch;
+      const identity = workspaceIdentity;
       set({ pending: 'save', error: null, message: 'Saving local revision…' });
+      if (identity !== workspaceIdentity) return;
       const result = await call('revise_capability', { capabilityId: state.selected.id, expectedRevisionId: draft.baseRevisionId, title: draft.title, content: draft.content });
-      if (localRequest !== actionEpoch) return;
+      if (identity !== workspaceIdentity || localRequest !== actionEpoch) return;
       const opened = acceptOpened(result, 'save');
       if (!opened || opened.detail.id !== state.selected.id || opened.detail.revision.id !== opened.detail.latestRevisionId || opened.detail.revision.title !== draft.title || opened.detail.revision.content !== draft.content) {
         const issue = failure(result);
@@ -260,15 +332,17 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
       state.draft = { capabilityId: opened.detail.id, baseRevisionId: opened.detail.latestRevisionId, title: opened.detail.revision.title, content: opened.detail.revision.content, dirty: false };
       drafts.set(opened.detail.id, state.draft);
       set({ selected: opened.detail, viewedRevisionId: opened.detail.latestRevisionId, pending: null, error: null, needsReload: false, message: opened.alreadyApplied ? 'Matching revision already saved.' : 'Revision saved. Local review is still required.' });
-      void controller.list();
+      if (identity === workspaceIdentity && localRequest === actionEpoch) void controller.list();
     },
     async review() {
       const draft = state.draft;
       if (!canMutate() || !state.selected || !draft || draft.dirty || state.viewedRevisionId !== state.selected.latestRevisionId || state.selected.revision.review || !validCapabilityTitle(draft.title) || !validCapabilityContent(draft.content)) return;
       const localRequest = ++actionEpoch;
+      const identity = workspaceIdentity;
       set({ pending: 'review', error: null, message: 'Recording local content review…' });
+      if (identity !== workspaceIdentity) return;
       const result = await call('review_capability', { capabilityId: state.selected.id, expectedRevisionId: state.selected.latestRevisionId });
-      if (localRequest !== actionEpoch) return;
+      if (identity !== workspaceIdentity || localRequest !== actionEpoch) return;
       const opened = acceptOpened(result, 'review');
       if (!opened || opened.detail.id !== state.selected.id || opened.detail.latestRevisionId !== state.selected.latestRevisionId || opened.detail.revision.id !== state.selected.latestRevisionId || !opened.detail.revision.review) {
         const issue = failure(result);
@@ -277,7 +351,7 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
       }
       selectDraft(opened.detail);
       set({ selected: opened.detail, viewedRevisionId: opened.detail.latestRevisionId, pending: null, error: null, needsReload: false, message: opened.alreadyApplied ? 'This revision was already locally reviewed.' : 'Local content review recorded. Authority remains none.' });
-      void controller.list();
+      if (identity === workspaceIdentity && localRequest === actionEpoch) void controller.list();
     },
   };
   // The host starts list loading after controller bindings exist.

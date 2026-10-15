@@ -1,10 +1,6 @@
 //! Local content operations only. Imported or edited instructions are inert data.
-use super::{
-    AdmissionError, AppHandle, Gate, PublicError, StoreError, Workspace, begin_operation,
-    dispatch_read, workspace,
-};
+use super::{AppHandle, PublicError, workspace_source_access::SourceAccess};
 use rangoon_domain::capability_v1::{CapabilityDetail, CapabilitySummary};
-use rangoon_store::CapabilityReceiptV1 as CapabilityReceipt;
 use serde::Serialize;
 use tauri::Manager;
 
@@ -26,70 +22,10 @@ pub enum CapabilityResult {
         error: PublicError,
     },
 }
-fn failure(error: StoreError) -> CapabilityResult {
-    let (code, message) = error.public();
-    CapabilityResult::Failed {
-        error: PublicError { code, message },
-    }
-}
-fn receipt(result: Result<CapabilityReceipt, StoreError>) -> CapabilityResult {
-    match result {
-        Ok(receipt) => CapabilityResult::Opened {
-            capability: Box::new(receipt.capability),
-            already_applied: receipt.already_applied,
-        },
-        Err(error) => failure(error),
-    }
-}
-async fn mutate<F>(app: AppHandle, action: F) -> CapabilityResult
-where
-    F: FnOnce(Workspace) -> Result<CapabilityReceipt, StoreError> + Send + 'static,
-{
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return CapabilityResult::Failed {
-                error: PublicError {
-                    code: "workspace_busy",
-                    message: "Finish the current local workspace operation first. Your draft remains available.",
-                },
-            };
-        }
-        Err(AdmissionError::Unavailable) => {
-            return failure(StoreError::Unavailable);
-        }
-    };
-    tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        receipt(workspace(&app).and_then(action))
-    })
-    .await
-    .unwrap_or_else(|_| failure(StoreError::Unavailable))
-}
-
 #[tauri::command]
 pub async fn list_capabilities(app: AppHandle) -> CapabilityResult {
-    let gate = app.state::<Gate>().inner().clone();
-    let worker = match dispatch_read(&gate, move || {
-        match workspace(&app).and_then(|w| w.list_capabilities_v1()) {
-            Ok(capabilities) => CapabilityResult::Listed { capabilities },
-            Err(error) => failure(error),
-        }
-    }) {
-        Ok(worker) => worker,
-        Err(AdmissionError::Busy) => {
-            return CapabilityResult::Failed {
-                error: PublicError {
-                    code: "workspace_busy",
-                    message: "Finish the current local workspace operation first.",
-                },
-            };
-        }
-        Err(AdmissionError::Unavailable) => return failure(StoreError::Unavailable),
-    };
-    worker
-        .await
-        .unwrap_or_else(|_| failure(StoreError::Unavailable))
+    let access = app.state::<SourceAccess>().inner().clone();
+    access.list_capabilities().await
 }
 #[tauri::command]
 pub async fn open_capability(
@@ -97,32 +33,8 @@ pub async fn open_capability(
     capability_id: String,
     revision_id: Option<String>,
 ) -> CapabilityResult {
-    let gate = app.state::<Gate>().inner().clone();
-    let worker = match dispatch_read(&gate, move || {
-        match workspace(&app)
-            .and_then(|w| w.open_capability_v1(&capability_id, revision_id.as_deref()))
-        {
-            Ok(capability) => CapabilityResult::Opened {
-                capability: Box::new(capability),
-                already_applied: false,
-            },
-            Err(error) => failure(error),
-        }
-    }) {
-        Ok(worker) => worker,
-        Err(AdmissionError::Busy) => {
-            return CapabilityResult::Failed {
-                error: PublicError {
-                    code: "workspace_busy",
-                    message: "Finish the current local workspace operation first.",
-                },
-            };
-        }
-        Err(AdmissionError::Unavailable) => return failure(StoreError::Unavailable),
-    };
-    worker
-        .await
-        .unwrap_or_else(|_| failure(StoreError::Unavailable))
+    let access = app.state::<SourceAccess>().inner().clone();
+    access.open_capability(capability_id, revision_id).await
 }
 #[tauri::command]
 pub async fn create_capability(
@@ -131,10 +43,10 @@ pub async fn create_capability(
     fragment_id: String,
     title: String,
 ) -> CapabilityResult {
-    mutate(app, move |w| {
-        w.create_capability_v1(&source_id, &fragment_id, &title)
-    })
-    .await
+    let access = app.state::<SourceAccess>().inner().clone();
+    access
+        .create_capability(source_id, fragment_id, title)
+        .await
 }
 #[tauri::command]
 pub async fn revise_capability(
@@ -144,10 +56,10 @@ pub async fn revise_capability(
     title: String,
     content: String,
 ) -> CapabilityResult {
-    mutate(app, move |w| {
-        w.revise_capability_v1(&capability_id, &expected_revision_id, &title, &content)
-    })
-    .await
+    let access = app.state::<SourceAccess>().inner().clone();
+    access
+        .revise_capability(capability_id, expected_revision_id, title, content)
+        .await
 }
 #[tauri::command]
 pub async fn review_capability(
@@ -155,10 +67,10 @@ pub async fn review_capability(
     capability_id: String,
     expected_revision_id: String,
 ) -> CapabilityResult {
-    mutate(app, move |w| {
-        w.review_capability_v1(&capability_id, &expected_revision_id)
-    })
-    .await
+    let access = app.state::<SourceAccess>().inner().clone();
+    access
+        .review_capability(capability_id, expected_revision_id)
+        .await
 }
 
 #[cfg(test)]

@@ -95,7 +95,9 @@ export function bindModelAssistanceView(root, controller, cloudController = null
   let wasBusy = false;
   let cloudReturnFocus = null;
   let cloudWasBusy = false;
+  let disposed = false;
   const render = () => {
+    if (disposed) return;
     const state = controller.getState();
     const cloudBusy = Boolean(cloudController?.getState().pending);
     const active = root.ownerDocument?.activeElement;
@@ -135,6 +137,7 @@ export function bindModelAssistanceView(root, controller, cloudController = null
     wasBusy = busy(state);
   };
   const click = event => {
+    if (disposed) return;
     const target = event.target.closest('button');
     if (!target || target.disabled) return;
     if (cloudController && cloudCredentialAction(target, cloudController)) return;
@@ -151,6 +154,7 @@ export function bindModelAssistanceView(root, controller, cloudController = null
     }
   };
   const change = event => {
+    if (disposed) return;
     if (event.target.matches('[name="model-endpoint"]')) return action(controller, 'setEndpoint', event.target.value);
     if (event.target.matches('#model-task')) return action(controller, 'setTask', event.target.value);
     const revision = event.target.dataset.modelRevision;
@@ -169,6 +173,7 @@ export function bindModelAssistanceView(root, controller, cloudController = null
     if (item.kind === 'capability') return action(controller, 'toggleRevision', item.capabilityId, item.revisionId);
   };
   const submit = event => {
+    if (disposed) return;
     if (!event.target.matches('#model-profile-form')) return;
     event.preventDefault();
     const form = new FormData(event.target);
@@ -176,6 +181,7 @@ export function bindModelAssistanceView(root, controller, cloudController = null
     action(controller, 'configure', controller.getState().endpoint === 'cloud' ? base : { ...base, host: String(form.get('host') ?? ''), port: Number(form.get('port')) });
   };
   const keydown = event => {
+    if (disposed) return;
     const tabs = [...root.querySelectorAll('[data-model-tab]')];
     if (!event.target.matches('[data-model-tab]') || !['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
@@ -190,5 +196,11 @@ export function bindModelAssistanceView(root, controller, cloudController = null
   root.addEventListener('submit', submit);
   root.addEventListener('keydown', keydown);
   render();
-  return { render, dispose: () => { root.removeEventListener('click', click); root.removeEventListener('change', change); root.removeEventListener('submit', submit); root.removeEventListener('keydown', keydown); } };
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    lastGeneration = null; lastEndpoint = null; returnFocus = null; wasBusy = false; cloudReturnFocus = null; cloudWasBusy = false;
+    root.removeEventListener('click', click); root.removeEventListener('change', change); root.removeEventListener('submit', submit); root.removeEventListener('keydown', keydown);
+  };
+  return { render, dispose, purgeForWorkspaceLock: dispose };
 }

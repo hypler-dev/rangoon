@@ -1,0 +1,17 @@
+{
+  "schema": "rangoon.authority-assets.v1",
+  "reviewedOn": "2026-10-09",
+  "assets": [
+    {
+      "id": "lnsat",
+      "path": "preview/assets/authority/lnsat-mark.webp",
+      "sourceAsset": "hypler.com/Hypler/client/public/assets/lnsat-mark-v1.webp",
+      "sourceUse": "client/src/components/ProjectBrand.tsx",
+      "owner": "HYPLER LLC",
+      "sha256": "bd6dd1e91e99319b8ff5e1b134ec154dfb583a529aaff6fbf0cdef04ed577c68",
+      "bytes": 6112,
+      "purpose": "Local product identification only; not adapter support, endorsement or enforcement evidence.",
+      "rights": "Existing Hypler LNSAT brand identity supplied for requested identification. Brand and trademark rights remain separate from Apache-2.0 source licensing."
+    }
+  ]
+}

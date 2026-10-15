@@ -1,5 +1,5 @@
 //! One native model flight, sharing drain custody with workspace operations.
-use rangoon_desktop::workspace_lifecycle::{Error, Gate, Lane, Lease};
+use rangoon_desktop::workspace_lifecycle::{Error, Gate, GenerationWitness, Lane, Lease};
 use rangoon_model_session::Diagnostic;
 
 #[derive(Clone, Default)]
@@ -10,12 +10,26 @@ pub struct ModelFlight(Gate);
 pub struct ModelLease {
     _lease: Lease,
 }
+impl ModelLease {
+    pub fn is_current(&self) -> bool {
+        self._lease.is_current().unwrap_or(false)
+    }
+    pub fn witness(&self) -> GenerationWitness {
+        self._lease.witness()
+    }
+}
 impl ModelFlight {
     pub fn with_gate(gate: Gate) -> Self {
         Self(gate)
     }
     pub fn begin(&self) -> Result<ModelLease, Diagnostic> {
-        let lease = self.0.begin(Lane::Model).map_err(|error| match error {
+        self.admit(Lane::Model)
+    }
+    pub fn read(&self) -> Result<ModelLease, Diagnostic> {
+        self.admit(Lane::Read)
+    }
+    fn admit(&self, lane: Lane) -> Result<ModelLease, Diagnostic> {
+        let lease = self.0.begin(lane).map_err(|error| match error {
             Error::Busy => Diagnostic::Busy,
             Error::Closed | Error::Stale | Error::Unavailable | Error::Exhausted => {
                 Diagnostic::SessionUnavailable

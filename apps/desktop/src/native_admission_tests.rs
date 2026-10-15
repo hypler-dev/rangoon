@@ -165,3 +165,53 @@ fn factory_shares_model_exclusive_and_dispatched_read_custody() {
     assert!(gate.resume(&drain).is_ok());
     assert!(model.begin().is_ok());
 }
+
+#[test]
+fn source_factory_uses_admission_state_gate_and_drain_closes_source_access() {
+    let (gate, model) = admission_state();
+    let sources = source_state(&gate, Err(StoreError::Unavailable));
+    let picker = sources.begin_selection().unwrap();
+    let model_lease = model.begin().unwrap();
+
+    let drain = gate.request_drain().unwrap();
+    assert!(!picker.is_current());
+    assert!(!drain.is_quiescent().unwrap());
+    assert!(matches!(
+        sources.begin_selection(),
+        Err(AdmissionError::Unavailable)
+    ));
+    match tauri::async_runtime::block_on(sources.list_snapshots()) {
+        WorkspaceResult::Failed { error } => assert_eq!(error.code, "workspace_unavailable"),
+        _ => panic!("expected closed source admission"),
+    }
+    drop(picker);
+    drop(model_lease);
+    assert!(drain.is_quiescent().unwrap());
+}
+
+#[test]
+fn dropped_source_picker_waiter_keeps_selection_custody_until_result_drops() {
+    let (gate, _) = admission_state();
+    let sources = source_state(&gate, Err(StoreError::Unavailable));
+    let operation = sources.begin_selection().unwrap();
+    let (started_tx, started_rx) = mpsc::channel();
+    let (release_tx, release_rx) = mpsc::channel();
+    let (completion_tx, completion_rx) = mpsc::channel();
+
+    let waiter = tauri::async_runtime::spawn_blocking(move || {
+        assert!(started_tx.send(()).is_ok());
+        assert!(release_rx.recv_timeout(WAIT).is_ok());
+        (
+            operation.complete(SelectionResult::Cancelled),
+            CompletionDrop(completion_tx),
+        )
+    });
+
+    assert!(started_rx.recv_timeout(WAIT).is_ok());
+    drop(waiter);
+    let drain = gate.request_drain().unwrap();
+    assert_quiescent(&drain, false);
+    assert!(release_tx.send(()).is_ok());
+    assert!(completion_rx.recv_timeout(WAIT).is_ok());
+    assert_quiescent(&drain, true);
+}

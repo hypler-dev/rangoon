@@ -1,0 +1,81 @@
+{
+  "schema": "rangoon.target-loader-discovery.v1",
+  "recordType": "documentary-discovery-receipt",
+  "recordedAt": "2026-10-07",
+  "status": "discovery_complete_qualification_open",
+  "authority": {
+    "intent": "docs/intent.md#product-value-priority-continuation--october-7-2026",
+    "packet": "docs/export-handoff.md"
+  },
+  "scope": {
+    "targets": ["codex", "claude"],
+    "osObserved": "macOS",
+    "targetProcessLaunched": false,
+    "targetRuntimeNetworkAttempted": false,
+    "targetModelCalled": false,
+    "targetCredentialsUsed": false,
+    "publicDocumentationRetrieved": true,
+    "projectInstalled": false,
+    "sourceChanged": false,
+    "frozenDescriptorsChanged": false
+  },
+  "codex": {
+    "packageVersion": "0.159.0-alpha.12.1",
+    "target": "aarch64-apple-darwin",
+    "metadataPath": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/codex-package.json",
+    "metadataSha256": "663d734fec63c905ce4f4ed360639a45d9c0511b25181a038c0be7ce6be3b798",
+    "executablePath": "/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+    "executableSha256": "1180e2d56ea06ec583092acd933345685da3441cb1769a436d76dbf320613e75",
+    "loaderPresence": "unknown",
+    "qualification": "untested",
+    "candidateCommand": "codex debug prompt-input",
+    "candidateQualification": "open_upstream_startup_isolation_unaudited"
+  },
+  "claude": {
+    "path": "~/.local/bin/claude",
+    "resolvedPath": "~/.local/share/claude/versions/2.1.92",
+    "versionEvidence": "path_name_only",
+    "fileType": "Mach-O arm64",
+    "sizeBytes": 198736976,
+    "sha256": "6d1b9657727dce81332b3cda11bfe0a8c83e2392e3c062a31022e10b0e71cdd1",
+    "signatureIdentifier": "com.anthropic.claude-code",
+    "loaderPresence": "unknown",
+    "qualification": "untested",
+    "candidateFlags": ["-p", "--bare", "--no-session-persistence"],
+    "candidateQualification": "no_comparable_standalone_offline_loader_verified"
+  },
+  "claims": {
+    "loaderPresence": "unknown_for_both",
+    "instructionLoading": "unknown_for_both",
+    "modelAdherence": "unknown_for_both",
+    "offlineReadOnlyIsolation": "unknown_for_both",
+    "compatibility": "gated_pending_native_qualification"
+  },
+  "publicEvidence": [
+    "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+    "https://learn.chatgpt.com/docs/developer-commands",
+    "https://raw.githubusercontent.com/openai/codex/main/codex-rs/cli/src/main.rs",
+    "https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/src/prompt_debug.rs",
+    "https://code.claude.com/docs/en/memory",
+    "https://code.claude.com/docs/en/cli-reference"
+  ],
+  "futureProtocol": {
+    "status": "proposed_not_accepted",
+    "requires": [
+      "exact pinned executable/version/digest per OS",
+      "OS enforced network, credential, config, hook, and write isolation",
+      "synthetic root/subdirectory/override/import/encoding/limit corpus",
+      "observed loaded/omitted bytes and diagnostics",
+      "failure and historical replay",
+      "separate macOS Windows Linux results",
+      "loader presence separated from model adherence"
+    ]
+  },
+  "notEstablished": [
+    "runtime compatibility",
+    "native loader execution",
+    "offline safety",
+    "model adherence",
+    "released OS support"
+  ]
+}

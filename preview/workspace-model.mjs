@@ -222,6 +222,7 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
     status: bridgeAvailable ? 'idle' : 'unavailable',
     message: bridgeAvailable ? 'Load local data to review saved records.' : EMPTY_WORKSPACE_STATE.message,
   };
+  let purgeEpoch = Symbol('workspace');
   const publish = () => onChange({
     ...state,
     workspace: clone(state.workspace),
@@ -234,7 +235,8 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
     state = { ...state, ...changes };
     publish();
   };
-  const call = async (command, args) => {
+  const call = async (command, args, identity) => {
+    if (identity !== purgeEpoch) return failed();
     try {
       return await invoke(command, args);
     } catch {
@@ -269,6 +271,7 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
     async load({ preserveMessage = false, allowPending = false } = {}) {
       if (!bridgeAvailable || (state.pending && !allowPending)) return;
       const requestId = state.requestId + 1;
+      const purge = purgeEpoch;
       set({
         status: state.workspace ? 'ready' : 'loading',
         pending: allowPending ? 'refresh' : 'load',
@@ -276,8 +279,8 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
         requestId,
         message: preserveMessage ? state.message : 'Loading saved local data…',
       });
-      const result = await call('get_workspace_data');
-      if (state.requestId !== requestId) return;
+      const result = await call('get_workspace_data', undefined, purge);
+      if (state.requestId !== requestId || purge !== purgeEpoch) return;
       const workspace = result?.outcome === 'loaded' ? validateWorkspaceData(result.workspace) : null;
       if (!workspace) {
         if (!preserveMessage) return setError(result);
@@ -309,9 +312,10 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
     async confirmExport() {
       if (!readyFor('export') || state.dialog?.kind !== 'export-warning') return;
       const requestId = state.requestId + 1;
+      const purge = purgeEpoch;
       set({ pending: 'export', dialog: null, error: null, requestId, message: 'Choose a new backup destination…' });
-      const result = await call('export_workspace_backup');
-      if (state.requestId !== requestId) return;
+      const result = await call('export_workspace_backup', undefined, purge);
+      if (state.requestId !== requestId || purge !== purgeEpoch) return;
       if (result?.outcome === 'cancelled') return set({ status: 'ready', pending: null, message: 'Backup export cancelled. Saved records are unchanged.' });
       if (!hasOnly(result, new Set(['outcome', 'backupId', 'byteLength']))
         || result?.outcome !== 'exported'
@@ -323,9 +327,10 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
     async prepareRestore() {
       if (!readyFor('restore-preview')) return;
       const requestId = state.requestId + 1;
+      const purge = purgeEpoch;
       set({ pending: 'restore-preview', error: null, requestId, message: 'Choose one Rangoon backup to inspect…' });
-      const result = await call('prepare_workspace_restore');
-      if (state.requestId !== requestId) return;
+      const result = await call('prepare_workspace_restore', undefined, purge);
+      if (state.requestId !== requestId || purge !== purgeEpoch) return;
       if (result?.outcome === 'cancelled') {
         return set({
           status: state.workspace ? 'ready' : 'idle',
@@ -342,19 +347,23 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
       const plan = state.restorePlan;
       if (!readyFor('restore') || state.dialog?.kind !== 'restore' || !plan || emptyCounts(plan.add)) return;
       const requestId = state.requestId + 1;
+      const purge = purgeEpoch;
       set({ pending: 'restore', dialog: { kind: 'pending', action: 'restore' }, restorePlan: null, error: null, requestId, message: 'Restoring missing local records…' });
-      const result = await call('restore_workspace_backup', { backupId: plan.backupId, expectedStateId: plan.expectedStateId });
-      if (state.requestId !== requestId) return;
+      const result = await call('restore_workspace_backup', { backupId: plan.backupId, expectedStateId: plan.expectedStateId }, purge);
+      if (state.requestId !== requestId || purge !== purgeEpoch) return;
       const receipt = hasOnly(result, new Set(['outcome', 'plan'])) && result?.outcome === 'restored' ? restorePlan(result.plan) : null;
       if (!receipt || !sameRestorePlan(receipt, plan)) return setError(result);
       set({ status: 'ready', pending: 'refresh', dialog: null, error: null, message: 'Restore completed. Refreshing saved local data…' });
+      if (purge !== purgeEpoch) return;
       let callbackFailed = false;
       try {
         await onMutation({ kind: 'restore' });
       } catch {
         callbackFailed = true;
       }
+      if (purge !== purgeEpoch) return;
       await controller.load({ preserveMessage: true, allowPending: true });
+      if (purge !== purgeEpoch) return;
       if (callbackFailed && !state.error) {
         set({ error: { code: 'workspace_refresh_failed', message: 'Local data changed, but related local views could not refresh.' }, message: 'Restore completed. Related local views could not refresh.' });
       } else if (!state.error) {
@@ -364,12 +373,14 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
     async inspectDeletion(kind, id, deletionIntent = false) {
       if (!readyFor('delete-preview') || !['source', 'capability', 'workflow'].includes(kind) || !recordId(id, kind + ':')) return;
       const requestId = state.requestId + 1;
+      const purge = purgeEpoch;
       set({ pending: 'delete-preview', error: null, requestId, message: 'Inspecting deletion impact…' });
-      const result = await call('inspect_workspace_deletion', { kind, id });
-      if (state.requestId !== requestId) return;
+      const result = await call('inspect_workspace_deletion', { kind, id }, purge);
+      if (state.requestId !== requestId || purge !== purgeEpoch) return;
       const plan = hasOnly(result, new Set(['outcome', 'plan'])) && result?.outcome === 'deletion_ready' ? deletionPlan(result.plan) : null;
       if (!plan || plan.kind !== kind || plan.id !== id) return setError(result);
       const warning = kind === 'capability' ? getDraftWarning(kind, id) : null;
+      if (purge !== purgeEpoch || state.requestId !== requestId) return;
       const blockers = plan.capabilityDependencies.length + plan.workflowDependencies.length;
       set({
         status: 'ready',
@@ -389,26 +400,41 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
       const blocked = plan && (plan.capabilityDependencies.length || plan.workflowDependencies.length);
       if (!readyFor('delete') || state.dialog?.kind !== 'delete' || state.dialog?.mode !== 'confirm' || !plan || blocked) return;
       const requestId = state.requestId + 1;
+      const purge = purgeEpoch;
       set({ pending: 'delete', dialog: { kind: 'pending', action: 'delete' }, deletionPlan: null, error: null, requestId, message: 'Removing the selected local record…' });
-      const result = await call('delete_workspace_record', { kind: plan.kind, id: plan.id, expectedStateId: plan.expectedStateId });
-      if (state.requestId !== requestId) return;
+      const result = await call('delete_workspace_record', { kind: plan.kind, id: plan.id, expectedStateId: plan.expectedStateId }, purge);
+      if (state.requestId !== requestId || purge !== purgeEpoch) return;
       if (!hasOnly(result, new Set(['outcome', 'kind', 'id']))
         || result?.outcome !== 'deleted'
         || result.kind !== plan.kind
         || result.id !== plan.id) return setError(result);
       set({ status: 'ready', pending: 'refresh', dialog: null, error: null, message: 'Local record removed. Refreshing saved data…' });
+      if (purge !== purgeEpoch) return;
       let callbackFailed = false;
       try {
         await onMutation({ kind: 'delete', recordKind: plan.kind, id: plan.id });
       } catch {
         callbackFailed = true;
       }
+      if (purge !== purgeEpoch) return;
       await controller.load({ preserveMessage: true, allowPending: true });
+      if (purge !== purgeEpoch) return;
       if (callbackFailed && !state.error) {
         set({ error: { code: 'workspace_refresh_failed', message: 'Local data changed, but related local views could not refresh.' }, message: 'Local record removed. Related local views could not refresh.' });
       } else if (!state.error) {
         set({ message: 'Local record removed. Local data refreshed.' });
       }
+    },
+    purgeForWorkspaceLock() {
+      purgeEpoch = Symbol('workspace');
+      state = {
+        ...EMPTY_WORKSPACE_STATE,
+        bridgeAvailable,
+        status: bridgeAvailable ? 'idle' : 'unavailable',
+        message: bridgeAvailable ? 'Load local data to review saved records.' : EMPTY_WORKSPACE_STATE.message,
+        requestId: state.requestId + 1,
+      };
+      publish();
     },
   };
   return controller;

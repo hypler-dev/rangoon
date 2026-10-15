@@ -185,7 +185,10 @@ test('shows blocked and review-required reports, ordered diagnostics, historical
   assert.match(html, /1\. instruction_semantics_unverified[\s\S]*2\. unsupported_requirement[\s\S]*3\. possible_include_syntax/);
   assert.match(html, /&lt;needs &amp; hostile&gt;/);
   assert.match(html, /Historical revision/);
-  assert.match(html, /Observed current head/);
+  assert.match(html, /Latest saved revision observed/);
+  assert.match(html, /data-term-help-group="compile"/);
+  assert.match(html, /Generates instruction text from one saved version/);
+  assert.match(html, /Writes an unencrypted \(plaintext\) file/);
   const reviewRequired = renderCompilationPage(state({ report: nativeReport({ compilation: { ...candidate, readiness: 'review_required', reviewObservation: null, candidate: null }, candidateManifestJson: null }) }));
   assert.match(reviewRequired, /Local review required/);
   assert.match(reviewRequired, /No candidate manifest/);

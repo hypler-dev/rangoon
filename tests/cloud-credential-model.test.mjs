@@ -78,3 +78,22 @@ test('uncertain result requires successful explicit inspection before another ch
   await controller.edit();
   assert.deepEqual(calls,['edit_cloud_credential','inspect_cloud_credential','edit_cloud_credential']);
 });
+
+
+test('changed custody requires reinspection without claiming a requested write failed or succeeded', async () => {
+  const calls = [];
+  const outcomes = [result('stored'), result('failed', { code: 'changed' }), result('missing')];
+  const controller = createCloudCredentialController({ invoke: async command => { calls.push(command); return outcomes.shift(); } });
+  await controller.inspect();
+  assert.equal(await controller.edit(), false);
+  assert.equal(controller.getState().revision, null);
+  assert.equal(controller.getState().status, 'unknown');
+  assert.equal(controller.getState().message, 'Credential state changed. Inspect again before relying on custody state.');
+  assert.equal(controller.getState().needsInspection, true);
+  assert.equal(await controller.edit(), false);
+  assert.equal(await controller.remove(), false);
+  assert.deepEqual(calls, ['inspect_cloud_credential', 'edit_cloud_credential']);
+  await controller.inspect();
+  assert.equal(controller.getState().status, 'missing');
+  assert.equal(controller.getState().needsInspection, false);
+});

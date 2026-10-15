@@ -7,7 +7,7 @@
 
 pub mod cloud;
 mod inputs;
-pub use inputs::{Dependency, Selector, Task};
+pub use inputs::{Dependency, InputReader, Selector, Task};
 use inputs::{Packed, Selection};
 use rangoon_model_assistance::ContextPack;
 use rangoon_model_local::{Cancellation, LocalProfile, PreparedRequest};
@@ -63,7 +63,7 @@ pub struct SessionView {
     pub authority: &'static str,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreparedView {
     pub generation: String,
@@ -126,6 +126,17 @@ impl LocalSession {
         let mut state = self.lock()?;
         invalidate(&mut state)?;
         Ok(view(&state))
+    }
+
+    /// Cleanup after workspace admission closes. Poison remains sticky; recovery
+    /// is permitted only to discard retained data and cancel existing work.
+    pub fn purge_for_workspace_close(&self) -> bool {
+        let (mut state, healthy) = match self.0.lock() {
+            Ok(state) => (state, true),
+            Err(error) => (error.into_inner(), false),
+        };
+        let invalidated = invalidate(&mut state).is_ok();
+        healthy && invalidated
     }
 
     pub fn cancel(&self, raw: &[u8]) -> Result<(), Diagnostic> {
@@ -334,6 +345,16 @@ impl Preparation {
 
     /// Validated saved-record reads only; no network or database writes.
     pub fn prepare(self, store: &Workspace) -> Result<PreparedView, Diagnostic> {
+        Ok(self
+            .prepare_with_inputs(&mut inputs::WorkspaceReader(store))?
+            .into_view())
+    }
+
+    /// Retains the exact staged payload until the native host publishes it.
+    pub fn prepare_with_inputs(
+        self,
+        store: &mut dyn InputReader,
+    ) -> Result<RetainedPreparation, Diagnostic> {
         self.operation.ensure_current()?;
         let packed = inputs::prepare(store, &self.selection, self.operation.profile())?;
         self.operation.ensure_current()?;
@@ -358,7 +379,67 @@ impl Preparation {
             id,
             packed: Arc::new(packed),
         });
-        Ok(result)
+        drop(state);
+        Ok(RetainedPreparation {
+            operation: self.operation,
+            view: Some(result),
+            published: false,
+        })
+    }
+}
+
+pub struct RetainedPreparation {
+    operation: Operation,
+    view: Option<PreparedView>,
+    published: bool,
+}
+impl RetainedPreparation {
+    pub fn view(&self) -> &PreparedView {
+        self.view.as_ref().expect("retained preparation has a view")
+    }
+    pub fn ensure_current(&self) -> Result<(), Diagnostic> {
+        let state = self.operation.session.lock()?;
+        self.operation.check(&state)?;
+        if state.prepared.as_ref().is_none_or(|p| {
+            p.id != self.view().prepared_id
+                || p.packed.request.request_id() != self.view().request_id
+        }) {
+            return Err(Diagnostic::StalePrepared);
+        }
+        Ok(())
+    }
+    /// Only a checked native delivery should publish retained custody.
+    pub fn publish(&mut self) -> Result<(), Diagnostic> {
+        self.ensure_current()?;
+        self.published = true;
+        Ok(())
+    }
+    pub fn into_view(mut self) -> PreparedView {
+        self.published = true;
+        self.view.take().expect("retained preparation has a view")
+    }
+}
+impl Drop for RetainedPreparation {
+    fn drop(&mut self) {
+        if self.published {
+            return;
+        }
+        // Poison recovery is cleanup-only; the session remains poisoned and
+        // cannot admit subsequent model work.
+        let mut state = self
+            .operation
+            .session
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if state.generation == self.operation.generation
+            && state.prepared.as_ref().is_some_and(|p| {
+                p.id == self.view().prepared_id
+                    && p.packed.request.request_id() == self.view().request_id
+            })
+        {
+            state.prepared = None;
+        }
     }
 }
 
@@ -395,6 +476,12 @@ impl Transmission {
     /// Run under the native workspace guard immediately before dispatch and again
     /// after response. This method does not acquire that guard or approve sending.
     pub fn freshness(&self, store: &Workspace) -> Result<Freshness, Diagnostic> {
+        self.freshness_with_inputs(&mut inputs::WorkspaceReader(store))
+    }
+    pub fn freshness_with_inputs(
+        &self,
+        store: &mut dyn InputReader,
+    ) -> Result<Freshness, Diagnostic> {
         self.operation.ensure_current()?;
         let mut freshness = Freshness::Current;
         for original in &self.packed.inputs {
@@ -464,6 +551,41 @@ fn handle_with(
 mod tests {
     use super::*;
     const PROFILE: &[u8] = br#"{"schemaVersion":"rangoon.local-profile-request.v1","profileId":"local","host":"127.0.0.1","port":11434,"model":"fixture:v1","maxOutputTokens":1024}"#;
+
+    #[test]
+    fn workspace_close_purge_cancels_real_operation_and_keeps_poison_sticky() {
+        for poison in [false, true] {
+            let session = LocalSession::default();
+            session.configure(PROFILE).unwrap();
+            let operation = session.begin_check().unwrap();
+            if poison {
+                let _ = std::panic::catch_unwind(|| {
+                    let _guard = session.0.lock().unwrap();
+                    panic!("synthetic local session poison");
+                });
+            }
+            assert_eq!(session.purge_for_workspace_close(), !poison);
+            assert!(operation.cancellation().is_cancelled());
+            assert!(operation.ensure_current().is_err());
+            let guard = session
+                .0
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            assert!(guard.profile.is_none());
+            assert!(guard.prepared.is_none());
+            drop(guard);
+            drop(operation);
+            if poison {
+                assert!(matches!(
+                    session.inspect(),
+                    Err(Diagnostic::SessionUnavailable)
+                ));
+                assert!(session.configure(PROFILE).is_err());
+            } else {
+                assert!(session.inspect().unwrap().active.is_none());
+            }
+        }
+    }
 
     #[test]
     fn entropy_failure_leaves_no_active_operation() {
