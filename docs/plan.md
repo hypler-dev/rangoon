@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Active encrypted adoption completion
+
+Authority: [accepted October 15 continuation](intent.md#encrypted-adoption-completion--october-15-2026). [E1c-1](encrypted-workspace.md#durable-operation-protocol-e1c-1) is implemented and independently source-qualified using the existing Owner/services and exact sixteen-path ownership; the [receipt](development.md#durable-encrypted-recovery-e1c-1--october-15-2026) owns validation and limits. Root produces protected source and documentation; independent review checks protocol before code and final behavior after named validators. Do not add a replacement encryption architecture. Then freeze explicit setup/unlock, failure-driven close/reload, Legacy import and native qualification in separate exact packets before mounting. Graph gestures wait behind the user's storage priority. The completed whole-system audit remains available as a historical source snapshot.
+
 ## October 15 audit completion sequence
 
 Authority: [accepted whole-system audit](intent.md#whole-system-audit-with-glm--october-15-2026); assessment: [current system audit](system-audit.md#october-15-whole-system-audit-and-completion-map); evidence: [development receipt](development.md#whole-system-audit-with-glm--october-15-2026). This is proposed sequencing within the accepted architecture, not acceptance of every listed implementation. Earlier dated packet plans remain historical. Existing routing, callbacks, close/drain/purge, compact navigation and draft-recovery implementations must be reused.

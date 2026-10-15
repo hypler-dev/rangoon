@@ -700,74 +700,84 @@ fn fixed_unicode_mutation_matrix_refuses_without_retry_or_key_write() {
 
 #[cfg(feature = "encrypted-workspace")]
 #[test]
-fn post_commit_fault_returns_no_receipt_and_reopen_proves_no_rollback_claim() {
-    for route in 0..3 {
-        let mut fixture = Fixture::new();
-        let before = fixture.state();
-        let vault_writes = fixture.vault.writes(&fixture.workspace_id);
-        fixture.owner.inject_fault(Fault::AfterCapabilityMutation);
-        let title = format!("Committed then uncertain {route}");
-        let result = match route {
-            0 => fixture
-                .owner
-                .create_capability(
-                    &fixture.vault,
+fn post_commit_and_terminal_faults_hide_receipts_and_preserve_committed_capabilities() {
+    for (fault, requires_reconciliation) in [
+        (Fault::AfterCapabilityMutation, true),
+        (Fault::BeforeCompletionWrite, true),
+        (Fault::BeforeCompletionSync, false),
+        (Fault::BeforeCompletionReadback, false),
+    ] {
+        for route in 0..3 {
+            let mut fixture = Fixture::new();
+            let before = fixture.state();
+            let vault_writes = fixture.vault.writes(&fixture.workspace_id);
+            fixture.owner.inject_fault(fault);
+            let title = format!("Committed then uncertain {route}");
+            let result = match route {
+                0 => fixture
+                    .owner
+                    .create_capability(
+                        &fixture.vault,
+                        &fixture.source_id,
+                        &fixture.fragment_id,
+                        &title,
+                    )
+                    .map(|receipt| receipt.capability.id),
+                1 => fixture
+                    .owner
+                    .revise_capability(
+                        &fixture.vault,
+                        &fixture.target_id,
+                        &fixture.target_head,
+                        &title,
+                        "Committed revision bytes",
+                    )
+                    .map(|receipt| receipt.capability.id),
+                _ => fixture
+                    .owner
+                    .review_capability(&fixture.vault, &fixture.target_id, &fixture.target_head)
+                    .map(|receipt| receipt.capability.id),
+            };
+            assert_error(result, Error::WriteUncertain);
+            assert_recovery(&mut fixture.owner);
+            assert_ne!(fixture.state().database, before.database, "route {route}");
+            assert_eq!(fixture.vault.writes(&fixture.workspace_id), vault_writes);
+
+            let capability_id = if route == 0 {
+                rangoon_domain::capability::capability_id(
                     &fixture.source_id,
                     &fixture.fragment_id,
                     &title,
                 )
-                .map(|receipt| receipt.capability.id),
-            1 => fixture
-                .owner
-                .revise_capability(
-                    &fixture.vault,
-                    &fixture.target_id,
-                    &fixture.target_head,
-                    &title,
-                    "Committed revision bytes",
-                )
-                .map(|receipt| receipt.capability.id),
-            _ => fixture
-                .owner
-                .review_capability(&fixture.vault, &fixture.target_id, &fixture.target_head)
-                .map(|receipt| receipt.capability.id),
-        };
-        assert_error(result, Error::WriteUncertain);
-        assert_recovery(&mut fixture.owner);
-        assert_ne!(fixture.state().database, before.database, "route {route}");
-        assert_eq!(fixture.vault.writes(&fixture.workspace_id), vault_writes);
-
-        let capability_id = if route == 0 {
-            rangoon_domain::capability::capability_id(
-                &fixture.source_id,
-                &fixture.fragment_id,
-                &title,
-            )
-        } else {
-            fixture.target_id.clone()
-        };
-        drop(fixture.owner);
-        let mut reopened = Owner::acquire(fixture.root.0.clone()).unwrap();
-        let preview = reopened.prepare_unlock().unwrap();
-        reopened.confirm(&preview.id, &fixture.vault).unwrap();
-        let trusted =
-            Fixture::trusted_workspace(&fixture.root, &fixture.vault, &fixture.workspace_id);
-        let committed = reopened
-            .open_capability(&fixture.vault, &capability_id, None)
-            .unwrap();
-        assert_eq!(committed.id, capability_id);
-        match route {
-            0 => assert_eq!(committed.revision.title, title),
-            1 => {
-                assert_eq!(committed.revision.title, title);
-                assert_eq!(committed.revision.content, "Committed revision bytes");
+            } else {
+                fixture.target_id.clone()
+            };
+            drop(fixture.owner);
+            let mut reopened = Owner::acquire(fixture.root.0.clone()).unwrap();
+            if requires_reconciliation {
+                reconcile_uncertain(&mut reopened, &fixture.vault);
             }
-            _ => assert!(committed.revision.review.is_some()),
+            let preview = reopened.prepare_unlock().unwrap();
+            reopened.confirm(&preview.id, &fixture.vault).unwrap();
+            let trusted =
+                Fixture::trusted_workspace(&fixture.root, &fixture.vault, &fixture.workspace_id);
+            let committed = reopened
+                .open_capability(&fixture.vault, &capability_id, None)
+                .unwrap();
+            assert_eq!(committed.id, capability_id);
+            match route {
+                0 => assert_eq!(committed.revision.title, title),
+                1 => {
+                    assert_eq!(committed.revision.title, title);
+                    assert_eq!(committed.revision.content, "Committed revision bytes");
+                }
+                _ => assert!(committed.revision.review.is_some()),
+            }
+            assert_eq!(
+                committed,
+                trusted.open_capability_v1(&capability_id, None).unwrap()
+            );
         }
-        assert_eq!(
-            committed,
-            trusted.open_capability_v1(&capability_id, None).unwrap()
-        );
     }
 }
 

@@ -639,56 +639,66 @@ fn fixed_expected_state_matrix_fences_store_refusals_without_retry() {
 
 #[cfg(feature = "encrypted-workspace")]
 #[test]
-fn post_commit_fault_returns_no_receipt_then_reacquire_reads_committed_revision() {
-    let mut fixture = Fixture::complete();
-    let candidate = workflow_revision(
-        0xB4,
-        fixture.workflow_head.as_deref(),
-        SaveIntent::Draft,
-        "Committed then uncertain",
-        Some((
-            fixture.capability_id.as_ref().unwrap(),
-            fixture.capability_head.as_ref().unwrap(),
-        )),
-    );
-    let plan = fixture
-        .owner
-        .inspect_workflow_save(&fixture.vault, &candidate)
-        .unwrap();
-    let before = fixture.state();
-    let writes = fixture.vault.writes(&fixture.workspace_id);
-    let opens = fixture.vault.opens();
-    fixture.owner.inject_fault(Fault::AfterWorkflowSave);
-    assert_error(
-        fixture
+fn post_commit_and_terminal_faults_hide_receipts_and_preserve_committed_revision() {
+    for (fault, requires_reconciliation) in [
+        (Fault::AfterWorkflowSave, true),
+        (Fault::BeforeCompletionWrite, true),
+        (Fault::BeforeCompletionSync, false),
+        (Fault::BeforeCompletionReadback, false),
+    ] {
+        let mut fixture = Fixture::complete();
+        let candidate = workflow_revision(
+            0xB4,
+            fixture.workflow_head.as_deref(),
+            SaveIntent::Draft,
+            "Committed then uncertain",
+            Some((
+                fixture.capability_id.as_ref().unwrap(),
+                fixture.capability_head.as_ref().unwrap(),
+            )),
+        );
+        let plan = fixture
             .owner
-            .save_workflow(&fixture.vault, &candidate, &plan.expected_state_id),
-        Error::WriteUncertain,
-    );
-    assert_recovery(&mut fixture.owner);
-    assert_ne!(fixture.state().database, before.database);
-    assert_eq!(fixture.vault.opens(), opens + 1);
-    assert_eq!(fixture.vault.writes(&fixture.workspace_id), writes);
+            .inspect_workflow_save(&fixture.vault, &candidate)
+            .unwrap();
+        let before = fixture.state();
+        let writes = fixture.vault.writes(&fixture.workspace_id);
+        let opens = fixture.vault.opens();
+        fixture.owner.inject_fault(fault);
+        assert_error(
+            fixture
+                .owner
+                .save_workflow(&fixture.vault, &candidate, &plan.expected_state_id),
+            Error::WriteUncertain,
+        );
+        assert_recovery(&mut fixture.owner);
+        assert_ne!(fixture.state().database, before.database);
+        assert_eq!(fixture.vault.opens(), opens + 1);
+        assert_eq!(fixture.vault.writes(&fixture.workspace_id), writes);
 
-    let workflow_id = candidate.workflow_id().to_owned();
-    let Fixture {
-        root,
-        vault,
-        workspace_id,
-        owner,
-        ..
-    } = fixture;
-    drop(owner);
-    let mut reopened = Owner::acquire(root.0.clone()).unwrap();
-    let preview = reopened.prepare_unlock().unwrap();
-    reopened.confirm(&preview.id, &vault).unwrap();
-    let reopened_detail = reopened.open_workflow(&vault, &workflow_id, None).unwrap();
-    let trusted = trusted_workspace(&root, &vault, &workspace_id)
-        .open_workflow(&workflow_id, None)
-        .unwrap();
-    assert_eq!(reopened_detail, trusted);
-    assert_eq!(
-        reopened_detail.revision.serialized_bytes().unwrap(),
-        candidate.serialized_bytes().unwrap()
-    );
+        let workflow_id = candidate.workflow_id().to_owned();
+        let Fixture {
+            root,
+            vault,
+            workspace_id,
+            owner,
+            ..
+        } = fixture;
+        drop(owner);
+        let mut reopened = Owner::acquire(root.0.clone()).unwrap();
+        if requires_reconciliation {
+            reconcile_uncertain(&mut reopened, &vault);
+        }
+        let preview = reopened.prepare_unlock().unwrap();
+        reopened.confirm(&preview.id, &vault).unwrap();
+        let reopened_detail = reopened.open_workflow(&vault, &workflow_id, None).unwrap();
+        let trusted = trusted_workspace(&root, &vault, &workspace_id)
+            .open_workflow(&workflow_id, None)
+            .unwrap();
+        assert_eq!(reopened_detail, trusted);
+        assert_eq!(
+            reopened_detail.revision.serialized_bytes().unwrap(),
+            candidate.serialized_bytes().unwrap()
+        );
+    }
 }

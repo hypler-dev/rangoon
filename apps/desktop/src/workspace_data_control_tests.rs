@@ -172,14 +172,6 @@ fn save_workflow(workspace: &rangoon_store::Workspace, revision: &WorkflowRevisi
 }
 
 #[cfg(feature = "encrypted-workspace")]
-fn reopen(root: &TestRoot, vault: &FakeVault) -> Owner {
-    let mut owner = Owner::acquire(root.0.clone()).unwrap();
-    let preview = owner.prepare_unlock().unwrap();
-    owner.confirm(&preview.id, vault).unwrap();
-    owner
-}
-
-#[cfg(feature = "encrypted-workspace")]
 fn lcg(mut value: u64, steps: usize) -> u64 {
     for _ in 0..=steps {
         value = value.wrapping_mul(6364136223846793005).wrapping_add(1);
@@ -374,87 +366,113 @@ fn dependency_blocked_and_successful_deletion_keep_exact_store_rules() {
 
 #[cfg(feature = "encrypted-workspace")]
 #[test]
-fn restore_and_deletion_faults_hide_receipts_then_reacquire_committed_state() {
+fn restore_and_deletion_terminal_faults_hide_receipts_and_preserve_commits() {
     let mut origin = Fixture::source_only("data-controls-fault-origin");
     let incoming = source(b"# Incoming backup source\r\nCommit before fault.\r\n");
     origin.workspace().save_v1(&incoming).unwrap();
     let archive = origin.owner.export_workflow_backup(&origin.vault).unwrap();
     let backup = rangoon_store::WorkspaceBackup::decode(&archive).unwrap();
 
-    let mut restore = Fixture::source_only("data-controls-fault-restore");
-    let prepared = restore
-        .owner
-        .prepare_workflow_restore(&restore.vault, &backup)
-        .unwrap();
-    let before = restore.state();
-    let restore_opens = restore.vault.opens();
-    let restore_writes = restore.vault.writes(&restore.workspace_id);
-    restore.owner.inject_fault(Fault::AfterRestore);
-    assert_error(
-        restore
+    for (fault, requires_reconciliation) in [
+        (Fault::AfterRestore, true),
+        (Fault::BeforeCompletionWrite, true),
+        (Fault::BeforeCompletionSync, false),
+        (Fault::BeforeCompletionReadback, false),
+    ] {
+        let mut restore = Fixture::source_only("data-controls-fault-restore");
+        let prepared = restore
             .owner
-            .restore_workflow_backup(&restore.vault, &backup, &prepared),
-        Error::WriteUncertain,
-    );
-    assert_ne!(restore.state().database, before.database);
-    assert_eq!(restore.vault.opens(), restore_opens + 1);
-    assert_eq!(restore.vault.writes(&restore.workspace_id), restore_writes);
-    assert!(!restore.owner.is_unlocked());
-    assert_error(restore.owner.prepare_unlock(), Error::RecoveryRequired);
-    let Fixture {
-        root, vault, owner, ..
-    } = restore;
-    drop(owner);
-    let mut reopened = reopen(&root, &vault);
-    assert_eq!(reopened.workflow_data(&vault).unwrap().records.sources, 2);
-    assert_eq!(
-        reopened.open(&vault, &incoming.source.id).unwrap(),
-        incoming
-    );
+            .prepare_workflow_restore(&restore.vault, &backup)
+            .unwrap();
+        let before = restore.state();
+        let restore_opens = restore.vault.opens();
+        let restore_writes = restore.vault.writes(&restore.workspace_id);
+        restore.owner.inject_fault(fault);
+        assert_error(
+            restore
+                .owner
+                .restore_workflow_backup(&restore.vault, &backup, &prepared),
+            Error::WriteUncertain,
+        );
+        assert_ne!(restore.state().database, before.database);
+        assert_eq!(restore.vault.opens(), restore_opens + 1);
+        assert_eq!(restore.vault.writes(&restore.workspace_id), restore_writes);
+        assert!(!restore.owner.is_unlocked());
+        restore.owner.lock();
+        assert_error(restore.owner.prepare_unlock(), Error::RecoveryRequired);
+        let Fixture {
+            root, vault, owner, ..
+        } = restore;
+        drop(owner);
+        let mut reopened = Owner::acquire(root.0.clone()).unwrap();
+        if requires_reconciliation {
+            reconcile_uncertain(&mut reopened, &vault);
+        }
+        let unlock = reopened.prepare_unlock().unwrap();
+        reopened.confirm(&unlock.id, &vault).unwrap();
+        assert_eq!(reopened.workflow_data(&vault).unwrap().records.sources, 2);
+        assert_eq!(
+            reopened.open(&vault, &incoming.source.id).unwrap(),
+            incoming
+        );
+    }
 
-    let mut deletion = Fixture::source_only("data-controls-fault-delete");
-    let capability = deletion
-        .workspace()
-        .create_capability_v1(
-            &deletion.report.source.id,
-            &deletion.report.fragments[0].id,
-            "Fault deletion capability",
-        )
-        .unwrap()
-        .capability;
-    let plan = deletion
-        .owner
-        .inspect_workflow_deletion(
-            &deletion.vault,
-            rangoon_store::WorkflowRecordKind::Capability,
-            &capability.id,
-        )
-        .unwrap();
-    let deletion_opens = deletion.vault.opens();
-    let deletion_writes = deletion.vault.writes(&deletion.workspace_id);
-    deletion.owner.inject_fault(Fault::AfterDeletion);
-    assert_error(
-        deletion
+    for (fault, requires_reconciliation) in [
+        (Fault::AfterDeletion, true),
+        (Fault::BeforeCompletionWrite, true),
+        (Fault::BeforeCompletionSync, false),
+        (Fault::BeforeCompletionReadback, false),
+    ] {
+        let mut deletion = Fixture::source_only("data-controls-fault-delete");
+        let capability = deletion
+            .workspace()
+            .create_capability_v1(
+                &deletion.report.source.id,
+                &deletion.report.fragments[0].id,
+                "Fault deletion capability",
+            )
+            .unwrap()
+            .capability;
+        let plan = deletion
             .owner
-            .delete_workflow_record(&deletion.vault, &plan),
-        Error::WriteUncertain,
-    );
-    assert_eq!(deletion.vault.opens(), deletion_opens + 1);
-    assert_eq!(
-        deletion.vault.writes(&deletion.workspace_id),
-        deletion_writes
-    );
-    assert!(!deletion.owner.is_unlocked());
-    assert_error(deletion.owner.prepare_unlock(), Error::RecoveryRequired);
-    let Fixture {
-        root, vault, owner, ..
-    } = deletion;
-    drop(owner);
-    let mut reopened = reopen(&root, &vault);
-    assert_eq!(
-        reopened.workflow_data(&vault).unwrap().records.capabilities,
-        0
-    );
+            .inspect_workflow_deletion(
+                &deletion.vault,
+                rangoon_store::WorkflowRecordKind::Capability,
+                &capability.id,
+            )
+            .unwrap();
+        let deletion_opens = deletion.vault.opens();
+        let deletion_writes = deletion.vault.writes(&deletion.workspace_id);
+        deletion.owner.inject_fault(fault);
+        assert_error(
+            deletion
+                .owner
+                .delete_workflow_record(&deletion.vault, &plan),
+            Error::WriteUncertain,
+        );
+        assert_eq!(deletion.vault.opens(), deletion_opens + 1);
+        assert_eq!(
+            deletion.vault.writes(&deletion.workspace_id),
+            deletion_writes
+        );
+        assert!(!deletion.owner.is_unlocked());
+        deletion.owner.lock();
+        assert_error(deletion.owner.prepare_unlock(), Error::RecoveryRequired);
+        let Fixture {
+            root, vault, owner, ..
+        } = deletion;
+        drop(owner);
+        let mut reopened = Owner::acquire(root.0.clone()).unwrap();
+        if requires_reconciliation {
+            reconcile_uncertain(&mut reopened, &vault);
+        }
+        let unlock = reopened.prepare_unlock().unwrap();
+        reopened.confirm(&unlock.id, &vault).unwrap();
+        assert_eq!(
+            reopened.workflow_data(&vault).unwrap().records.capabilities,
+            0
+        );
+    }
 }
 
 #[cfg(feature = "encrypted-workspace")]

@@ -781,50 +781,60 @@ fn fixed_seed_public_preview_tamper_matrix_refuses_without_retry_or_key_write() 
 
 #[cfg(feature = "encrypted-workspace")]
 #[test]
-fn post_commit_fault_returns_no_receipt_then_reacquire_unlock_reads_committed_output() {
-    let mut fixture = Fixture::source_only("composition-post-commit-fault");
-    let request = source_request(&fixture.report);
-    let prepared = fixture
-        .owner
-        .preview_composition(&fixture.vault, &request)
-        .unwrap();
-    let capability_id = prepared.preview.applied_outputs[0].capability_id.clone();
-    let before = fixture.state();
-    let writes = fixture.vault.writes(&fixture.workspace_id);
-    let opens = fixture.vault.opens();
-    fixture.owner.inject_fault(Fault::AfterCompositionApply);
-    assert_error(
-        fixture
+fn post_commit_and_terminal_faults_hide_receipts_and_preserve_committed_output() {
+    for (fault, requires_reconciliation) in [
+        (Fault::AfterCompositionApply, true),
+        (Fault::BeforeCompletionWrite, true),
+        (Fault::BeforeCompletionSync, false),
+        (Fault::BeforeCompletionReadback, false),
+    ] {
+        let mut fixture = Fixture::source_only("composition-post-commit-fault");
+        let request = source_request(&fixture.report);
+        let prepared = fixture
             .owner
-            .apply_composition(&fixture.vault, &prepared, true)
-            .map(|_| ()),
-        Error::WriteUncertain,
-    );
-    assert_recovery(&mut fixture.owner);
-    assert_ne!(fixture.state().database, before.database);
-    assert_eq!(fixture.vault.opens(), opens + 1);
-    assert_eq!(fixture.vault.writes(&fixture.workspace_id), writes);
+            .preview_composition(&fixture.vault, &request)
+            .unwrap();
+        let capability_id = prepared.preview.applied_outputs[0].capability_id.clone();
+        let before = fixture.state();
+        let writes = fixture.vault.writes(&fixture.workspace_id);
+        let opens = fixture.vault.opens();
+        fixture.owner.inject_fault(fault);
+        assert_error(
+            fixture
+                .owner
+                .apply_composition(&fixture.vault, &prepared, true)
+                .map(|_| ()),
+            Error::WriteUncertain,
+        );
+        assert_recovery(&mut fixture.owner);
+        assert_ne!(fixture.state().database, before.database);
+        assert_eq!(fixture.vault.opens(), opens + 1);
+        assert_eq!(fixture.vault.writes(&fixture.workspace_id), writes);
 
-    let Fixture {
-        root,
-        vault,
-        workspace_id,
-        owner,
-        ..
-    } = fixture;
-    drop(owner);
-    let mut reopened = Owner::acquire(root.0.clone()).unwrap();
-    let unlock = reopened.prepare_unlock().unwrap();
-    reopened.confirm(&unlock.id, &vault).unwrap();
-    let committed = reopened
-        .open_capability(&vault, &capability_id, None)
-        .unwrap();
-    let trusted = trusted_workspace(&root, &vault, &workspace_id)
-        .open_capability_v1(&capability_id, None)
-        .unwrap();
-    assert_eq!(committed, trusted);
-    assert_eq!(
-        committed.revision.content,
-        "\u{feff}# Rules\r\nKeep exact 🦀 bytes.\r\n"
-    );
+        let Fixture {
+            root,
+            vault,
+            workspace_id,
+            owner,
+            ..
+        } = fixture;
+        drop(owner);
+        let mut reopened = Owner::acquire(root.0.clone()).unwrap();
+        if requires_reconciliation {
+            reconcile_uncertain(&mut reopened, &vault);
+        }
+        let unlock = reopened.prepare_unlock().unwrap();
+        reopened.confirm(&unlock.id, &vault).unwrap();
+        let committed = reopened
+            .open_capability(&vault, &capability_id, None)
+            .unwrap();
+        let trusted = trusted_workspace(&root, &vault, &workspace_id)
+            .open_capability_v1(&capability_id, None)
+            .unwrap();
+        assert_eq!(committed, trusted);
+        assert_eq!(
+            committed.revision.content,
+            "\u{feff}# Rules\r\nKeep exact 🦀 bytes.\r\n"
+        );
+    }
 }

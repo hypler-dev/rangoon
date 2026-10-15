@@ -3,6 +3,9 @@ use super::*;
 #[path = "workspace_empty_tests.rs"]
 mod empty;
 
+#[path = "workspace_recovery_tests.rs"]
+mod recovery;
+
 #[path = "workspace_confirmation_tests.rs"]
 mod confirmations;
 
@@ -752,6 +755,7 @@ fn same_owner_write_uncertain_is_sticky_and_post_save_keeps_actual_bytes() {
     drop(owner);
 
     let mut fresh = Owner::acquire(root.0.clone()).unwrap();
+    reconcile_uncertain(&mut fresh, &vault);
     let preview = fresh.prepare_unlock().unwrap();
     fresh.confirm(&preview.id, &vault).unwrap();
     assert_eq!(fresh.open(&vault, &changed.source.id).unwrap(), changed);
@@ -794,10 +798,12 @@ fn creation_faults_never_retry_and_fresh_owner_inspects_retained_binding() {
             }
             ExpectedBinding::Provisioning => {
                 assert_eq!(retained, binding(0, &preview.workspace_id));
-                assert_error(fresh.prepare_unlock(), Error::RecoveryRequired)
+                assert_error(fresh.prepare_unlock(), Error::RecoveryRequired);
+                reconcile_uncertain(&mut fresh, &vault)
             }
             ExpectedBinding::Ready => {
                 assert_eq!(retained, binding(1, &preview.workspace_id));
+                reconcile_uncertain(&mut fresh, &vault);
                 let unlock = fresh.prepare_unlock().unwrap();
                 fresh.confirm(&unlock.id, &vault).unwrap();
                 assert!(fresh.is_unlocked());
@@ -817,4 +823,209 @@ fn owner_and_key_types_do_not_expose_sensitive_debug_clone_or_raw_handles() {
         preview.source_id.as_deref(),
         Some(selected_source().source.id.as_str())
     );
+}
+
+#[cfg(feature = "encrypted-workspace")]
+fn reconcile_uncertain(owner: &mut Owner, vault: &FakeVault) {
+    let opens = vault.opens();
+    assert_error(owner.prepare_unlock(), Error::RecoveryRequired);
+    assert_eq!(vault.opens(), opens);
+    let inspection = owner.inspect_recovery(vault).unwrap();
+    let writes = vault.writes(&inspection.workspace_id);
+    assert_eq!(inspection.outcome, "unknown");
+    assert!(!owner.is_unlocked());
+    owner.confirm_recovery(&inspection.id, vault).unwrap();
+    assert!(!owner.is_unlocked());
+    assert_eq!(vault.writes(&inspection.workspace_id), writes);
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn interrupted_reconciliation_preserves_pending_until_ready_is_verified() {
+    for empty in [false, true] {
+        for fault in [
+            Fault::BeforeReconcileReadyWrite,
+            Fault::BeforeReconcileReadySync,
+            Fault::BeforeReconcileReadyReadback,
+        ] {
+            let root = TestRoot::new("reconcile-ready-fault");
+            let vault = FakeVault::default();
+            let mut owner = Owner::acquire(root.0.clone()).unwrap();
+            let preview = if empty {
+                owner.prepare_create_empty().unwrap()
+            } else {
+                owner.prepare_create(&selected_source()).unwrap()
+            };
+            owner.inject_fault(Fault::BeforeReadyWrite);
+            assert_error(owner.confirm(&preview.id, &vault), Error::WriteUncertain);
+            let database = database_path(&root, &preview.workspace_id);
+            let before = fs::read(&database).unwrap();
+            let pending = root.0.join("encrypted-workspace.operation.pending");
+            let pending_before = fs::read(&pending).unwrap();
+            let writes = vault.writes(&preview.workspace_id);
+            drop(owner);
+            let mut owner = Owner::acquire(root.0.clone()).unwrap();
+            let inspected = owner.inspect_recovery(&vault).unwrap();
+            owner.inject_fault(fault);
+            assert_error(
+                owner.confirm_recovery(&inspected.id, &vault),
+                Error::WriteUncertain,
+            );
+            assert!(owner.requires_recovery());
+            assert!(!owner.is_unlocked());
+            assert_eq!(fs::read(&pending).unwrap(), pending_before);
+            assert!(
+                !root
+                    .0
+                    .join("encrypted-workspace.operation.terminal")
+                    .exists()
+            );
+            assert_eq!(fs::read(&database).unwrap(), before);
+            assert_eq!(vault.writes(&preview.workspace_id), writes);
+            drop(owner);
+            let mut owner = Owner::acquire(root.0.clone()).unwrap();
+            reconcile_uncertain(&mut owner, &vault);
+            let unlock = owner.prepare_unlock().unwrap();
+            owner.confirm(&unlock.id, &vault).unwrap();
+            assert_eq!(owner.list(&vault).unwrap().len(), usize::from(!empty));
+            assert_eq!(fs::read(database).unwrap(), before);
+        }
+    }
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn reconciliation_terminal_faults_never_replay_or_replace_the_key() {
+    for fault in [
+        Fault::BeforeCompletionWrite,
+        Fault::BeforeCompletionSync,
+        Fault::BeforeCompletionReadback,
+    ] {
+        let root = TestRoot::new("reconcile-terminal-fault");
+        let vault = FakeVault::default();
+        let (mut owner, preview) = create_ready(&root, &vault, &selected_source());
+        let changed = source(b"# Retain once\nNo replay on recovery.\n");
+        owner.inject_fault(Fault::AfterSave);
+        assert_error(owner.save(&vault, &changed), Error::WriteUncertain);
+        drop(owner);
+        let mut owner = Owner::acquire(root.0.clone()).unwrap();
+        let inspected = owner.inspect_recovery(&vault).unwrap();
+        let database = database_path(&root, &preview.workspace_id);
+        let before = fs::read(&database).unwrap();
+        let writes = vault.writes(&preview.workspace_id);
+        owner.inject_fault(fault);
+        assert_error(
+            owner.confirm_recovery(&inspected.id, &vault),
+            Error::WriteUncertain,
+        );
+        assert!(!owner.is_unlocked());
+        assert_error(owner.prepare_unlock(), Error::RecoveryRequired);
+        drop(owner);
+        let mut owner = Owner::acquire(root.0.clone()).unwrap();
+        if fault == Fault::BeforeCompletionWrite {
+            reconcile_uncertain(&mut owner, &vault);
+        }
+        let unlock = owner.prepare_unlock().unwrap();
+        owner.confirm(&unlock.id, &vault).unwrap();
+        assert_eq!(owner.open(&vault, &changed.source.id).unwrap(), changed);
+        assert_eq!(fs::read(database).unwrap(), before);
+        assert_eq!(vault.writes(&preview.workspace_id), writes);
+    }
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn orphaned_managed_parent_cannot_be_adopted_as_fresh_empty_setup() {
+    let root = TestRoot::new("recovery-orphan");
+    fs::create_dir(root.encrypted_root()).unwrap();
+    let orphan = root.encrypted_root().join("preserve-this-artifact");
+    fs::write(&orphan, b"not a new workspace").unwrap();
+    let vault = FakeVault::default();
+    let mut owner = Owner::acquire(root.0.clone()).unwrap();
+    assert_error(owner.prepare_create_empty(), Error::RecoveryRequired);
+    assert_error(
+        owner.prepare_create(&selected_source()),
+        Error::RecoveryRequired,
+    );
+    assert_eq!(vault.opens(), 0);
+    assert_eq!(fs::read(orphan).unwrap(), b"not a new workspace");
+    assert!(!root.binding().exists());
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn exhausted_operation_sequence_refuses_before_store_or_key_write() {
+    let root = TestRoot::new("operation-counter-exhaustion");
+    let vault = FakeVault::default();
+    let (mut owner, preview) = create_ready(&root, &vault, &selected_source());
+    let sequence_start = b"rangoon.workspace-operation.v1\0".len() + 2;
+    let mut observed = Vec::new();
+    for name in [
+        "encrypted-workspace.operation.pending",
+        "encrypted-workspace.operation.terminal",
+    ] {
+        let path = root.0.join(name);
+        let mut bytes = fs::read(&path).unwrap();
+        bytes[sequence_start..sequence_start + 8].copy_from_slice(&u64::MAX.to_be_bytes());
+        fs::write(&path, &bytes).unwrap();
+        observed.push((path, bytes));
+    }
+    let database = database_path(&root, &preview.workspace_id);
+    let before = fs::read(&database).unwrap();
+    let writes = vault.writes(&preview.workspace_id);
+    assert_error(
+        owner.save(&vault, &source(b"# Refused\n")),
+        Error::RecoveryRequired,
+    );
+    assert!(!owner.is_unlocked());
+    assert_eq!(fs::read(database).unwrap(), before);
+    assert_eq!(vault.writes(&preview.workspace_id), writes);
+    for (path, bytes) in observed {
+        assert_eq!(fs::read(path).unwrap(), bytes);
+    }
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn source_mutation_intent_and_completion_faults_preserve_actual_outcomes() {
+    for (fault, committed, pending) in [
+        (Fault::BeforeIntentWrite, false, false),
+        (Fault::BeforeIntentSync, false, true),
+        (Fault::BeforeIntentReadback, false, true),
+        (Fault::BeforeCompletionWrite, true, true),
+        (Fault::BeforeCompletionSync, true, false),
+        (Fault::BeforeCompletionReadback, true, false),
+    ] {
+        let root = TestRoot::new("source-mutation-record-fault");
+        let vault = FakeVault::default();
+        let (mut owner, preview) = create_ready(&root, &vault, &selected_source());
+        let database = database_path(&root, &preview.workspace_id);
+        let before = fs::read(&database).unwrap();
+        let changed = source(b"\xef\xbb\xbf# One attempted save\r\nNo automatic replay.\r\n");
+        owner.inject_fault(fault);
+        assert_error(owner.save(&vault, &changed), Error::WriteUncertain);
+        assert!(!owner.is_unlocked());
+        assert_error(owner.prepare_unlock(), Error::RecoveryRequired);
+        if committed {
+            assert_ne!(fs::read(&database).unwrap(), before);
+        } else {
+            assert_eq!(fs::read(&database).unwrap(), before);
+        }
+        assert_eq!(vault.writes(&preview.workspace_id), 1);
+        drop(owner);
+        let mut owner = Owner::acquire(root.0.clone()).unwrap();
+        if pending {
+            reconcile_uncertain(&mut owner, &vault);
+        }
+        let unlock = owner.prepare_unlock().unwrap();
+        owner.confirm(&unlock.id, &vault).unwrap();
+        assert_eq!(
+            owner.list(&vault).unwrap().len(),
+            if committed { 2 } else { 1 }
+        );
+        if committed {
+            assert_eq!(owner.open(&vault, &changed.source.id).unwrap(), changed);
+        }
+        assert_eq!(vault.writes(&preview.workspace_id), 1);
+    }
 }

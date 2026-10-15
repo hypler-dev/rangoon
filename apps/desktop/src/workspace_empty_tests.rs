@@ -134,7 +134,7 @@ fn wrong_key_cannot_unlock_empty_workspace_or_change_ciphertext() {
 
 #[cfg(feature = "encrypted-workspace")]
 #[test]
-fn empty_creation_faults_preserve_binding_evidence_and_expose_ready_reopen_limit() {
+fn empty_creation_faults_preserve_evidence_and_require_explicit_reconciliation() {
     enum ExpectedBinding {
         Empty,
         Provisioning,
@@ -167,11 +167,11 @@ fn empty_creation_faults_preserve_binding_evidence_and_expose_ready_reopen_limit
             ExpectedBinding::Provisioning => {
                 assert_eq!(retained, binding(0, &preview.workspace_id));
                 assert_error(fresh.prepare_unlock(), Error::RecoveryRequired);
+                reconcile_uncertain(&mut fresh, &vault);
             }
             ExpectedBinding::Ready => {
                 assert_eq!(retained, binding(1, &preview.workspace_id));
-                // This in-process fixture records current source behavior only.
-                // It is not a durable recovery or crash-proof acceptance claim.
+                reconcile_uncertain(&mut fresh, &vault);
                 let unlock = fresh.prepare_unlock().unwrap();
                 fresh.confirm(&unlock.id, &vault).unwrap();
                 assert!(fresh.list(&vault).unwrap().is_empty());

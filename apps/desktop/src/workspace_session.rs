@@ -19,6 +19,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[path = "workspace_recovery.rs"]
+mod recovery;
+pub use recovery::{Operation as RecoveryOperation, RecoveryPreview};
+
 const MARKER: &[u8] = b"rangoon.workspace-binding.v1\0";
 const BINDING_BYTES: usize = 94;
 const CONTROL: &str = "encrypted-workspace.lock";
@@ -138,6 +142,7 @@ enum PendingKind {
     Create(Creation),
     Unlock {
         observed: Vec<u8>,
+        operation: recovery::Checkpoint,
         directories: Box<Directories>,
     },
 }
@@ -175,6 +180,7 @@ pub struct Owner {
     retained_composition: Option<RetainedComposition>,
     opened: Option<Opened>,
     recovery: bool,
+    reconciliation: Option<recovery::Retained>,
     #[cfg(all(test, feature = "encrypted-workspace"))]
     fault: Option<Fault>,
 }
@@ -192,6 +198,15 @@ enum Fault {
     AfterCompositionApply,
     AfterRestore,
     AfterDeletion,
+    BeforeIntentWrite,
+    BeforeIntentSync,
+    BeforeIntentReadback,
+    BeforeCompletionWrite,
+    BeforeCompletionSync,
+    BeforeCompletionReadback,
+    BeforeReconcileReadyWrite,
+    BeforeReconcileReadySync,
+    BeforeReconcileReadyReadback,
 }
 
 enum DataMutation {
@@ -234,6 +249,7 @@ impl Owner {
             retained_composition: None,
             opened: None,
             recovery: false,
+            reconciliation: None,
             #[cfg(all(test, feature = "encrypted-workspace"))]
             fault: None,
         };
@@ -262,15 +278,23 @@ impl Owner {
         if self.recovery {
             return Err(Error::RecoveryRequired);
         }
-        if self.opened.is_some() || self.pending.is_some() {
+        if self.opened.is_some() || self.pending.is_some() || self.reconciliation.is_some() {
             return Err(Error::Busy);
         }
         self.check_control()
     }
     fn absent_binding(&self) -> Result<(), Error> {
         match fs::symlink_metadata(self.root.join(BINDING)) {
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+            Ok(_) => return Err(Error::AlreadyExists),
+            Err(_) => return Err(Error::Unavailable),
+        }
+        if self.read_operation()?.is_some() {
+            return Err(Error::RecoveryRequired);
+        }
+        match fs::symlink_metadata(self.root.join(PARENT)) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Ok(_) => Err(Error::AlreadyExists),
+            Ok(_) => Err(Error::RecoveryRequired),
             Err(_) => Err(Error::Unavailable),
         }
     }
@@ -409,6 +433,7 @@ impl Owner {
         if !binding.ready {
             return Err(Error::RecoveryRequired);
         }
+        let operation = self.terminal_operation(&binding)?;
         let directories = self.directories(&binding)?;
         self.database(&binding)?;
         self.unchanged_directories(&binding, &directories)?;
@@ -426,6 +451,7 @@ impl Owner {
             binding,
             kind: PendingKind::Unlock {
                 observed,
+                operation,
                 directories: Box::new(directories),
             },
         });
@@ -461,9 +487,15 @@ impl Owner {
             }
             PendingKind::Unlock {
                 observed,
+                operation,
                 directories,
             } => {
-                if self.read_binding().map_err(|_| Error::Stale)? != observed {
+                if self.read_binding().map_err(|_| Error::Stale)? != observed
+                    || self
+                        .terminal_operation(&pending.binding)
+                        .map_err(|_| Error::Stale)?
+                        != operation
+                {
                     return Err(Error::Stale);
                 }
                 self.opened = Some(self.unlock(pending.binding, *directories, vault)?);
@@ -486,6 +518,13 @@ impl Owner {
         creation: Creation,
         vault: &impl Vault,
     ) -> Result<Opened, Error> {
+        self.begin_operation(
+            &binding,
+            match &creation {
+                Creation::Source(_) => RecoveryOperation::CreateSource,
+                Creation::Empty => RecoveryOperation::CreateEmpty,
+            },
+        )?;
         let parent = self.root.join(PARENT);
         match fs::symlink_metadata(&parent) {
             Ok(_) => {
@@ -567,12 +606,14 @@ impl Owner {
             return Err(Error::WriteUncertain);
         }
         self.unchanged_directories(&binding, &directories)?;
-        Ok(Opened {
+        let opened = Opened {
             binding,
             retained,
             workspace,
             directories,
-        })
+        };
+        self.observe_operation(&opened)?;
+        Ok(opened)
     }
     fn unlock(
         &self,
@@ -614,6 +655,7 @@ impl Owner {
             }
             let opened = self.opened.as_ref().ok_or(Error::Locked)?;
             self.check_control()?;
+            self.terminal_operation(&opened.binding)?;
             if self.read_binding()? != opened.binding.bytes() {
                 return Err(Error::InvalidBinding);
             }
@@ -791,6 +833,7 @@ impl Owner {
         expected_state_id: &str,
     ) -> Result<WorkflowSaveReceipt, Error> {
         let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::SaveWorkflow)?;
         let result = self
             .opened
             .as_ref()
@@ -811,14 +854,7 @@ impl Owner {
             self.recovery = true;
             return Err(Error::WriteUncertain);
         }
-        match self.finish_read(result, previous) {
-            Ok(receipt) => Ok(receipt),
-            Err(_) => {
-                self.lock();
-                self.recovery = true;
-                Err(Error::WriteUncertain)
-            }
-        }
+        self.finish_mutation(result, previous)
     }
 
     /// Returns the existing plaintext archive into trusted host memory only.
@@ -858,6 +894,7 @@ impl Owner {
         prepared: &WorkflowRestorePlan,
     ) -> Result<WorkflowWorkspaceData, Error> {
         let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::Restore)?;
         let result = self
             .opened
             .as_ref()
@@ -891,6 +928,7 @@ impl Owner {
         prepared: &WorkflowDeletionPlan,
     ) -> Result<WorkflowWorkspaceData, Error> {
         let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::Delete)?;
         let result = self
             .opened
             .as_ref()
@@ -918,14 +956,7 @@ impl Owner {
                 return Err(Error::WriteUncertain);
             }
         }
-        match self.finish_read(result, previous) {
-            Ok(receipt) => Ok(receipt),
-            Err(_) => {
-                self.lock();
-                self.recovery = true;
-                Err(Error::WriteUncertain)
-            }
-        }
+        self.finish_mutation(result, previous)
     }
 
     /// Previews exact saved inputs; the returned record grants no authority.
@@ -1018,6 +1049,7 @@ impl Owner {
         acknowledged: bool,
     ) -> Result<CompositionReceipt, Error> {
         let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::Compose)?;
         let result = self
             .opened
             .as_ref()
@@ -1038,14 +1070,7 @@ impl Owner {
             self.recovery = true;
             return Err(Error::WriteUncertain);
         }
-        match self.finish_read(result, previous) {
-            Ok(receipt) => Ok(receipt),
-            Err(_) => {
-                self.lock();
-                self.recovery = true;
-                Err(Error::WriteUncertain)
-            }
-        }
+        self.finish_mutation(result, previous)
     }
 
     /// Derives source-born content under managed custody without review authority.
@@ -1057,6 +1082,7 @@ impl Owner {
         title: &str,
     ) -> Result<CapabilityReceiptV1, Error> {
         let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::CreateCapability)?;
         let result = self
             .opened
             .as_ref()
@@ -1076,6 +1102,7 @@ impl Owner {
         content: &str,
     ) -> Result<CapabilityReceiptV1, Error> {
         let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::ReviseCapability)?;
         let result = self
             .opened
             .as_ref()
@@ -1093,6 +1120,7 @@ impl Owner {
         expected_revision_id: &str,
     ) -> Result<CapabilityReceiptV1, Error> {
         let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::ReviewCapability)?;
         let result = self
             .opened
             .as_ref()
@@ -1113,14 +1141,7 @@ impl Owner {
             self.recovery = true;
             return Err(Error::WriteUncertain);
         }
-        match self.finish_read(result, previous) {
-            Ok(receipt) => Ok(receipt),
-            Err(_) => {
-                self.lock();
-                self.recovery = true;
-                Err(Error::WriteUncertain)
-            }
-        }
+        self.finish_mutation(result, previous)
     }
 
     pub fn save(
@@ -1129,6 +1150,7 @@ impl Owner {
         source: &AnalysisReport,
     ) -> Result<SaveReceipt, Error> {
         let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::SaveSource)?;
         let result = self
             .opened
             .as_ref()
@@ -1141,19 +1163,13 @@ impl Owner {
             self.recovery = true;
             return Err(Error::WriteUncertain);
         }
-        match self.finish_read(result, previous) {
-            Ok(receipt) => Ok(receipt),
-            Err(_) => {
-                self.lock();
-                self.recovery = true;
-                Err(Error::WriteUncertain)
-            }
-        }
+        self.finish_mutation(result, previous)
     }
     pub fn lock(&mut self) {
         self.retained_composition = None;
         self.advance_composition_generation();
         self.pending = None;
+        self.reconciliation = None;
         self.opened = None;
     }
     fn advance_composition_generation(&mut self) {
@@ -1164,7 +1180,7 @@ impl Owner {
     pub fn is_unlocked(&self) -> bool {
         self.opened.is_some()
     }
-    /// In-memory status only. Closing must preserve an existing recovery fence.
+    /// Current-process fence. Durable operation evidence also survives reacquisition.
     pub fn requires_recovery(&self) -> bool {
         self.recovery
     }
