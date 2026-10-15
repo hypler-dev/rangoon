@@ -280,3 +280,6 @@ fn unwinding_callback_releases_its_lane() {
     assert!(unwind.is_err());
     assert!(gate.begin(Lane::Exclusive).is_ok());
 }
+
+#[path = "workspace_lifecycle_closed_tests.rs"]
+mod closed_controls;

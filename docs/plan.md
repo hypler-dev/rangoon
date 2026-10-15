@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Active closed-control prerequisite
+
+The [accepted E1c-2a continuation](intent.md#e1c-2a-closed-native-control-custody) has completed the source implementation and independent validation of [closed-control Gate custody](encrypted-workspace.md#closed-native-control-custody-e1c-2a) atop `250fcf4`. Root owns protected source; a separate literal fixture writer owns one new test file; pre-code and final independent review plus all seven native gates pass, as recorded in the [receipt](development.md#closed-native-control-custody-e1c-2a--october-15-2026). Then integrate the supervisor's cancel/drain/reset/resume protocol before setup/unlock commands and the separately designed protection overlay. Preserve existing typed routing, Owner, durable recovery and renderer purge. Do not activate encryption by changing a constructor before native lifecycle and platform qualification.
+
 ## Active encrypted adoption completion
 
 Authority: [accepted October 15 continuation](intent.md#encrypted-adoption-completion--october-15-2026). [E1c-1](encrypted-workspace.md#durable-operation-protocol-e1c-1) is implemented and independently source-qualified using the existing Owner/services and exact sixteen-path ownership; the [receipt](development.md#durable-encrypted-recovery-e1c-1--october-15-2026) owns validation and limits. Root produces protected source and documentation; independent review checks protocol before code and final behavior after named validators. Do not add a replacement encryption architecture. Then freeze explicit setup/unlock, failure-driven close/reload, Legacy import and native qualification in separate exact packets before mounting. Graph gestures wait behind the user's storage priority. The completed whole-system audit remains available as a historical source snapshot.

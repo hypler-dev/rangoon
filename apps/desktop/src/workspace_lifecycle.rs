@@ -74,10 +74,11 @@ struct State {
     readers: usize,
     exclusive: bool,
     model: bool,
+    closed_controls: usize,
 }
 impl State {
     fn idle(&self) -> bool {
-        self.readers == 0 && !self.exclusive && !self.model
+        self.readers == 0 && !self.exclusive && !self.model && self.closed_controls == 0
     }
     fn advance(&mut self) -> Result<(), Error> {
         match self.generation.checked_add(1) {
@@ -103,6 +104,34 @@ pub struct Lease {
 
 /// Trusted host custody only. Dropping this token never reopens admission.
 pub struct Drain {
+    gate: Gate,
+    generation: u64,
+}
+
+/// Trusted native custody while ordinary workspace admission remains closed.
+/// Retain it in the actual prompt/callback and any retained recovery inspection.
+/// Cancellation invalidates current permission but never releases this custody.
+///
+/// ```compile_fail
+/// use rangoon_desktop::workspace_lifecycle::Gate;
+/// let gate = Gate::new();
+/// let drain = gate.request_drain().unwrap();
+/// let lease = gate.begin_closed(&drain).unwrap();
+/// let duplicate = lease.clone();
+/// ```
+/// ```compile_fail
+/// use rangoon_desktop::workspace_lifecycle::Gate;
+/// let gate = Gate::new();
+/// let drain = gate.request_drain().unwrap();
+/// println!("{:?}", gate.begin_closed(&drain).unwrap());
+/// ```
+/// ```compile_fail
+/// use rangoon_desktop::workspace_lifecycle::Gate;
+/// let gate = Gate::new();
+/// let drain = gate.request_drain().unwrap();
+/// serde_json::to_string(&gate.begin_closed(&drain).unwrap()).unwrap();
+/// ```
+pub struct ClosedLease {
     gate: Gate,
     generation: u64,
 }
@@ -140,6 +169,47 @@ impl Gate {
         }
         state.advance()?;
         state.phase = Phase::Draining;
+        Ok(Drain {
+            gate: self.clone(),
+            generation: state.generation,
+        })
+    }
+    /// Admit one trusted native control without reopening ordinary lanes.
+    /// The host must separately verify completed purge, consent and key policy.
+    pub fn begin_closed(&self, drain: &Drain) -> Result<ClosedLease, Error> {
+        if !Arc::ptr_eq(&self.0, &drain.gate.0) {
+            return Err(Error::Stale);
+        }
+        let mut state = self.state()?;
+        if state.phase == Phase::Exhausted {
+            return Err(Error::Exhausted);
+        }
+        if state.phase != Phase::Draining || state.generation != drain.generation {
+            return Err(Error::Stale);
+        }
+        if !state.idle() {
+            return Err(Error::Busy);
+        }
+        state.closed_controls += 1;
+        Ok(ClosedLease {
+            gate: self.clone(),
+            generation: state.generation,
+        })
+    }
+    /// Invalidate permission to reopen while retaining all actual callback counts.
+    /// The supervisor must replace its old close cycle and discard old memos.
+    pub fn renew_drain(&self, drain: &Drain) -> Result<Drain, Error> {
+        if !Arc::ptr_eq(&self.0, &drain.gate.0) {
+            return Err(Error::Stale);
+        }
+        let mut state = self.state()?;
+        if state.phase == Phase::Exhausted {
+            return Err(Error::Exhausted);
+        }
+        if state.phase != Phase::Draining || state.generation != drain.generation {
+            return Err(Error::Stale);
+        }
+        state.advance()?;
         Ok(Drain {
             gate: self.clone(),
             generation: state.generation,
@@ -250,6 +320,21 @@ impl Drain {
             return Err(Error::Stale);
         }
         Ok(state.idle())
+    }
+}
+
+impl ClosedLease {
+    pub fn is_current(&self) -> Result<bool, Error> {
+        let state = self.gate.state()?;
+        Ok(state.phase == Phase::Draining && state.generation == self.generation)
+    }
+}
+impl Drop for ClosedLease {
+    fn drop(&mut self) {
+        // A stale callback still owns its real count. Poison stays closed.
+        if let Ok(mut state) = self.gate.state() {
+            state.closed_controls -= 1;
+        }
     }
 }
 
