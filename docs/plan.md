@@ -4,7 +4,46 @@
 Status: proposed
 Authority: [intent.md](intent.md), including the accepted provider-independent continuation; detailed future stage proposals are not implementation or release acceptance
 Owner: Jeff
-Last updated: 2026-10-13
+Last updated: 2026-10-15
+
+## October 15 audit completion sequence
+
+Authority: [accepted whole-system audit](intent.md#whole-system-audit-with-glm--october-15-2026); assessment: [current system audit](system-audit.md#october-15-whole-system-audit-and-completion-map); evidence: [development receipt](development.md#whole-system-audit-with-glm--october-15-2026). This is proposed sequencing within the accepted architecture, not acceptance of every listed implementation. Earlier dated packet plans remain historical. Existing routing, callbacks, close/drain/purge, compact navigation and draft-recovery implementations must be reused.
+
+### Five completion phases
+
+| Phase | Complete or improve | Gate and dependency |
+| --- | --- | --- |
+| 1. Close the storage adoption gap | E1c durable uncertainty evidence and explicit reconciliation; then first-run empty setup/unlock, failure-driven native close/reload, encrypted recovery and safe Legacy handling | Source-only protocol review before code. Complete callback/purge and existing Owner services are prerequisites already implemented. No automatic normal-workspace migration or default switch. Preserve usable clean restart. |
+| 2. Qualify the real local journey | Disposable source → save → derive/revise/review → compose → compile → export/inspect → restart; workflow save/history/reopen separately; all three OSs and actual vault/GUI | Keep isolated source fixtures, real platform primitives, native GUI and release evidence separate. Target-loader qualification is a distinct accepted/pinned test lane; lack of broad provider support never blocks core authoring. |
+| 3. Finish the working UX and intake | Eligible connection targets/refused-attempt recovery, named keyboard canvas, compact selection/details travel; then explicit-root discovery and durable organization | Reuse the existing material-editor grammar and skill-library contract. Discovery/categorization cannot bypass encrypted custody or create another database. No new sample dashboards. |
+| 4. Prove portability and one integration | Bounded SKILL/support-file/effective-layer profile; offline OpenRig inspector if selected; attributed model proposal save; one Cerbos read-only adapter after separate qualification | Separate formats, harness observations, models and authority providers. Keep canonical contracts; freeze one target/version and privacy/peer contract. Do not activate every candidate or executable plugin at once. |
+| 5. Finalize distribution, then operational expansion | Signed installers, update/rollback/recovery, maintenance/security policy and documented support; later authenticated approval/telemetry/live-evidence ingress and confined extension SDK | The accepted first desktop release still covers macOS, Windows and Linux. A thin local milestone is not full V1. Live operations require a real source and per-operation coverage; enterprise tenancy/identity/hosted service remain separate. |
+
+### Smallest next implementation packet
+
+**E1c protocol freeze, followed by one reviewed source implementation.** The [existing recovery contract](encrypted-workspace.md#e1c-provisioning-recovery-and-outcome-reconciliation) controls behavior. First specify bounded record bytes, attempt/workspace identity, durable observation versus result delivery, terminal and uncertain states, read-only reconciliation, counter checks, clean restart and platform limits. Include bounded repeated interrupted attempts without discarding sole unresolved evidence. Do not promise perfect caller-result knowledge under arbitrary filesystem failure.
+
+Root owns protected production code and architecture. Current candidate ownership is exactly `apps/desktop/src/workspace_session.rs`, `apps/desktop/src/workspace_session_tests.rs`, and `apps/desktop/src/workspace_empty_tests.rs`, plus canonical documentation named in the next packet. A private recovery module or new independent fixture requires an explicit path amendment before work. A native bounded fixture worker may own only that named new file; a fresh read-only reviewer must be independent of producer. This audit assigns no implementation worker and changes no production source.
+
+Acceptance: source and empty setup; four existing provisioning fault points; dropped result and new Owner/process; malformed/mismatched/unknown recovery state; pre-/post-persistence and terminal-write ambiguity; explicit read-only reconciliation; successful clean restart. Refusal must not open/write vault or regenerate keys, change DB bytes, replay mutation or fall back to plaintext. Verify exact vault/key-generation counters. Fixing provisioning does not close later capability/workflow/composition/restore/deletion interruption cases.
+
+Named validators: pinned Rust 1.98 native formatting, default/encrypted all-target tests, both Clippy modes with `-D warnings`, privacy doctests and encrypted build; authored references/whitespace and outside-owned identity preservation. Use disposable roots/fake vaults. Real process-kill/disk-full, real OS custody and three-OS durability remain explicit later evidence. Rollback is the exact owned incremental patch, never reset/stash of the preserved working tree.
+
+### Other bounded follow-up packets
+
+| Proposed packet | Exact initial ownership | Acceptance / validator |
+| --- | --- | --- |
+| Encrypted CI coverage | Root: `.github/workflows/source-checks.yml`; docs receipt separately | Exercise optional encrypted portable and native features on the declared OS matrix with pinned toolchains/locked dependencies. Distinguish build/test from GUI/vault/install qualification; maintain pinned actions and read permissions. Hosted checks must actually run before claiming their result. |
+| Workflow connection guidance | One frontend writer: `preview/workflow-model.mjs`, `preview/workflow-view.mjs`, `preview/workflow.css`, `tests/workflow-model.test.mjs`, `tests/workflow-view.test.mjs`; amendment before any new shared helper/test | Same predicate/reasons as current graph rules; source retained after invalid destination; keyboard/touch/cancel/occupied/self/type cases, undo and pending-field guard preserved. Name the flat canvas without an unnecessary application role. Focused workflow tests, `npm run build:check`, actual 320/768/1440 both-theme/keyboard/reduced-motion review and fresh independent UI review. |
+| Native lifecycle qualification | Root owns disposable environment and evidence; no source writer until a defect has exact paths | Current source-to-export/restart and workflow history; stale selection, cancel, collision, uncertain outcome, dependency refusal and recovery. Reuse existing instruction/workflow qualification records; no normal DB/vault or live provider. Do not count browser-only fixtures as native proof. |
+| Target-loader qualification | Root owns exact profile/corpus/isolation acceptance under `docs/target-loader-qualification.md` and `docs/export-handoff.md`; freeze source/test files before any change | Pinned executable/version/digest/OS; independent network/credential/config/hook isolation; loaded/omitted/overridden/imported/truncated/rejected bytes. No model turn, account or active project install. Compare against manual authoring on sanitized tasks without claiming demand or savings in advance. |
+| Skill discovery/organization | Root freezes exact native/fixture paths from `docs/skill-library.md`; none assigned by this audit | Explicit chosen root, limits and cancellation; revalidated exact candidates; no ambient network/home scan or script execution; partial results labeled. Persistent metadata includes schema, archive, retention/conflict/deletion review through existing services. |
+| First adapter / SDK | Root first freezes Cerbos self-hosted PDP product/version/transport/peer/consent and evidence contract in `docs/provider-interoperability.md`; no adapter code assigned yet | Read-only decision evidence, no auto authority; absent/unsupported/disconnected/error/stale/timeout cases. Offline fixtures first; no ambient credentials or endpoint discovery. R9 descriptor/reference-worker comes before executable plugin runtime; public SDK/registry follows two real qualified adapters. |
+
+### Decisions that remain open
+
+Choose the exact E1c reconciliation protocol and platform primitives; encrypted archive recovery/rotation and Legacy adoption policy; disposable native OS runners; the first target-loader corpus and isolation mechanism; retained model-proposal save behavior; first skill package profile/support-file policy; and, later, exact Cerbos pin/peer and a real operations source. Root recommends these boundaries; Jeff retains product/release decisions. Preserve existing ISO/NIST/OpenSSF evidence requirements without claiming certification. No account, provider install/call, normal data/vault, execution, publication, deployment or release is opened by this audit plan.
 
 
 ## UI-U2 shared-navigation implementation
