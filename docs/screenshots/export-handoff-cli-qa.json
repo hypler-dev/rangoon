@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "rangoon.export-handoff-cli-qa.v1",
+  "date": "2026-10-07",
+  "platform": "macOS local development CLI",
+  "sourceReceipt": "r4-bundle-native-qa.json",
+  "inputOrigin": "existing controller-authored synthetic exports from the isolated unsigned native QA app; input hashes rechecked",
+  "checks": [
+    {
+      "file": "Agents-QA.rangoon-instructions",
+      "bundleSha256": "312d690d20df6ddf49c46d3cba142be3499eb7ecbd1c2e11effd5a7ca0313a90",
+      "artifactPath": "AGENTS.md",
+      "artifactBytes": 61,
+      "artifactSha256": "6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb",
+      "inspectExit": 0,
+      "artifactExit": 0,
+      "noticeMatches": true,
+      "runtimeQualification": "untested",
+      "authority": "none"
+    },
+    {
+      "file": "Claude-QA.rangoon-instructions",
+      "bundleSha256": "3332656377f22e1985f83e9d4e1c2fbc6e7707b6191de35934ed5571e7259325",
+      "artifactPath": "CLAUDE.md",
+      "artifactBytes": 61,
+      "artifactSha256": "6260ebd4896999520c95f6c03e048e0fccce8928a0f27f4d2be6fb9d8ef251eb",
+      "inspectExit": 0,
+      "artifactExit": 0,
+      "noticeMatches": true,
+      "runtimeQualification": "untested",
+      "authority": "none"
+    }
+  ],
+  "limitations": [
+    "No new native GUI run",
+    "No Codex/Claude loader or agent invocation",
+    "No target project or workspace writes",
+    "No Windows/Linux runtime qualification",
+    "Internal consistency only; not authentication or semantic equivalence"
+  ]
+}

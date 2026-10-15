@@ -67,6 +67,13 @@ const MAX_DATABASE_BYTES: u64 = 64 * 1024 * 1024;
 const APPLICATION_ID: i64 = 0x52474e31;
 const SCHEMA: &str = "CREATE TABLE snapshots (source_id TEXT PRIMARY KEY NOT NULL, display_name TEXT NOT NULL, sha256 TEXT NOT NULL, content BLOB NOT NULL, saved_at_ms INTEGER NOT NULL)";
 
+#[cfg(test)]
+type ReservationProbe = Box<dyn FnOnce()>;
+#[cfg(test)]
+std::thread_local! {
+    static RESERVATION_PROBE: std::cell::RefCell<Option<ReservationProbe>> = const { std::cell::RefCell::new(None) };
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SnapshotMetadata {
@@ -253,6 +260,32 @@ impl Workspace {
             key: Some(Arc::new(key)),
         })
     }
+
+    /// Exclusively initializes a keyed, empty workspace using the canonical schema.
+    /// Existing files are never adopted, repaired or replaced. Failed attempts
+    /// remain on disk for host-managed recovery; this does not migrate plaintext.
+    pub fn initialize_empty_encrypted(&self) -> Result<(), StoreError> {
+        let key = self.key.as_ref().ok_or(StoreError::EncryptionUnavailable)?;
+        encryption::verify_backend(key)?;
+        let mut db = self
+            .connect_mode(true, false, false, true, true)?
+            .ok_or(StoreError::Unavailable)?;
+        let tx = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        initialize_or_verify(&tx)?;
+        composition_records::Records::load_complete(&tx)?;
+        tx.commit()?;
+        drop(db);
+        // Authenticate a separate read-only connection before host ready/cutover.
+        let inventory = self.workflow_data()?;
+        if inventory.database_bytes == 0
+            || !inventory.sources.is_empty()
+            || !inventory.capabilities.is_empty()
+            || !inventory.workflows.is_empty()
+        {
+            return Err(StoreError::Corrupt);
+        }
+        Ok(())
+    }
     fn path(&self) -> PathBuf {
         self.directory.join("workspace.sqlite3")
     }
@@ -374,14 +407,14 @@ impl Workspace {
         create: bool,
         allow_empty: bool,
     ) -> Result<Option<Connection>, StoreError> {
-        self.connect_mode(create, allow_empty, false, false)
+        self.connect_mode(create, allow_empty, false, false, false)
     }
 
     fn connect_complete_read_only(
         &self,
         allow_empty: bool,
     ) -> Result<Option<Connection>, StoreError> {
-        self.connect_mode(false, allow_empty, true, true)
+        self.connect_mode(false, allow_empty, true, true, false)
     }
 
     fn connect_complete_with_empty(
@@ -389,13 +422,13 @@ impl Workspace {
         create: bool,
         allow_empty: bool,
     ) -> Result<Option<Connection>, StoreError> {
-        self.connect_mode(create, allow_empty, false, true)
+        self.connect_mode(create, allow_empty, false, true, false)
     }
 
     // Only complete-state APIs may use this path. Legacy DTOs retain their
     // schema rejection through connect()/connect_with_empty().
     fn connect_complete(&self, create: bool) -> Result<Option<Connection>, StoreError> {
-        self.connect_mode(create, false, false, true)
+        self.connect_mode(create, false, false, true, false)
     }
 
     fn connect_mode(
@@ -404,6 +437,7 @@ impl Workspace {
         allow_empty: bool,
         read_only: bool,
         allow_workflows: bool,
+        require_new: bool,
     ) -> Result<Option<Connection>, StoreError> {
         match fs::symlink_metadata(&self.directory) {
             Ok(meta) if !linked(&meta) && meta.is_dir() => (),
@@ -426,6 +460,7 @@ impl Workspace {
         for suffix in ["", "-journal", "-wal", "-shm"] {
             let candidate = self.directory.join(format!("workspace.sqlite3{suffix}"));
             match fs::symlink_metadata(&candidate) {
+                Ok(_) if require_new => return Err(StoreError::Unavailable),
                 Ok(meta) if linked(&meta) || !meta.is_file() => {
                     return Err(StoreError::Unavailable);
                 }
@@ -449,9 +484,23 @@ impl Workspace {
             }
             match options.open(&path) {
                 Ok(_) => created = true,
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => (),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && !require_new => (),
                 Err(_) => return Err(StoreError::Unavailable),
             }
+        }
+        if require_new {
+            if !created {
+                return Err(StoreError::Unavailable);
+            }
+            #[cfg(test)]
+            RESERVATION_PROBE.with(|probe| {
+                if let Some(probe) = probe.borrow_mut().take() {
+                    probe();
+                }
+            });
+            // Refuse a sidecar appearing during exclusive reservation before
+            // SQLite can inspect a journal or recover another destination.
+            self.require_absent_sidecars()?;
         }
         // No CREATE flag: only explicit Save/Restore creates the file above.
         let db = Connection::open_with_flags(
@@ -519,6 +568,59 @@ impl Workspace {
             )?;
         }
         Ok(Some(db))
+    }
+
+    fn require_absent_sidecars(&self) -> Result<(), StoreError> {
+        for suffix in ["-journal", "-wal", "-shm"] {
+            let path = self.directory.join(format!("workspace.sqlite3{suffix}"));
+            match fs::symlink_metadata(path) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+                _ => return Err(StoreError::Unavailable),
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(all(test, feature = "encrypted-sqlite"))]
+mod empty_reservation_tests {
+    use super::*;
+
+    #[test]
+    fn sidecar_appearing_after_reservation_refuses_before_database_write() {
+        for suffix in ["-journal", "-wal", "-shm"] {
+            let directory = std::env::temp_dir().join(format!(
+                "rangoon-empty-reservation-{}-{}-{suffix}",
+                std::process::id(),
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            let workspace =
+                Workspace::encrypted(directory.clone(), WorkspaceKey::from_bytes([0x63; 32]))
+                    .unwrap();
+            let sidecar = directory.join(format!("workspace.sqlite3{suffix}"));
+            let staged = sidecar.clone();
+            RESERVATION_PROBE.with(|probe| {
+                *probe.borrow_mut() = Some(Box::new(move || {
+                    fs::write(staged, b"concurrent sidecar").unwrap()
+                }));
+            });
+            assert_eq!(
+                workspace.initialize_empty_encrypted(),
+                Err(StoreError::Unavailable)
+            );
+            assert_eq!(fs::read(workspace.path()).unwrap(), b"");
+            assert_eq!(fs::read(sidecar).unwrap(), b"concurrent sidecar");
+            // A second attempt preserves the reserved file; it never adopts it.
+            assert_eq!(
+                workspace.initialize_empty_encrypted(),
+                Err(StoreError::Unavailable)
+            );
+            assert_eq!(fs::read(workspace.path()).unwrap(), b"");
+            fs::remove_dir_all(directory).unwrap();
+        }
     }
 }
 

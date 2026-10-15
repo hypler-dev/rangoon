@@ -6,6 +6,9 @@
   ],
   "local": true,
   "permissions": [
+    "allow-get-workspace-close-state",
+    "allow-begin-workspace-close",
+    "allow-acknowledge-workspace-purge",
     "allow-select-and-analyze",
     "allow-list-snapshots",
     "allow-save-analysis",

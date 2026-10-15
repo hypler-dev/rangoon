@@ -33,6 +33,7 @@ const initial = available => ({
 export function createCloudCredentialController({ invoke, onChange = () => {} } = {}) {
   const available = typeof invoke === 'function';
   let state = initial(available);
+  let epoch = Symbol('cloud-credential');
   const publish = next => { state = next; onChange(state); };
   const failClosed = (pending, message, code = 'unavailable') => publish({
     ...state, status: 'unknown', backend: null, revision: null, pending: null, outcome: 'failed',
@@ -46,16 +47,22 @@ export function createCloudCredentialController({ invoke, onChange = () => {} } 
     } else if (result.outcome === 'cancelled') {
       publish({ ...state, pending: null, outcome: 'cancelled', error: null, message: 'Credential operation cancelled. Previous custody state remains unverified.' });
     } else {
-      failClosed(pending, 'Credential operation failed. Inspect again before relying on custody state.', result.code);
+      failClosed(pending, result.code === 'changed' ? 'Credential state changed. Inspect again before relying on custody state.' : 'Credential operation failed. Inspect again before relying on custody state.', result.code);
     }
   };
   const run = async (pending, command) => {
     if (!available) { failClosed(pending, 'Native credential custody is unavailable in browser preview. No provider check or send was made.'); return false; }
     if (state.pending || (pending !== 'inspect' && state.needsInspection)) return false;
     if (pending === 'remove' && state.status !== 'stored') return false;
+    const local = epoch;
     publish({ ...state, pending, outcome: null, error: null, message: pending === 'inspect' ? 'Inspecting native credential custody…' : pending === 'remove' ? 'Waiting for native remove decision…' : 'Opening isolated credential entry…' });
+    if (local !== epoch) return false;
     let result;
-    try { result = await invoke(command); } catch { failClosed(pending, 'Credential operation was unavailable. Inspect again before relying on custody state.'); return false; }
+    try { result = await invoke(command); } catch {
+      if (local !== epoch) return false;
+      failClosed(pending, 'Credential operation was unavailable. Inspect again before relying on custody state.'); return false;
+    }
+    if (local !== epoch) return false;
     const valid = validateCloudCustody(result);
     if (!valid) { failClosed(pending, 'Credential operation returned an unrecognized result. Inspect again before relying on custody state.', 'invalid_request'); return false; }
     apply(valid, pending);
@@ -66,5 +73,9 @@ export function createCloudCredentialController({ invoke, onChange = () => {} } 
     inspect: () => run('inspect', 'inspect_cloud_credential'),
     edit: () => run('edit', 'edit_cloud_credential'),
     remove: () => run('remove', 'remove_cloud_credential'),
+    purgeForWorkspaceLock() {
+      epoch = Symbol('cloud-credential');
+      publish(initial(available));
+    },
   };
 }

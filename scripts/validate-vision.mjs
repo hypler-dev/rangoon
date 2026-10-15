@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { renderWorkbenchNavigation } from '../preview/workbench-navigation.mjs';
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { renderModelAssistanceView } from '../preview/model-assistance-view.mjs';
@@ -70,7 +71,7 @@ assert.match(css, /prefers-reduced-motion/);
 assert.match(css, /forced-colors/);
 const cascade = (await Promise.all(sheets.map(sheet => read(`preview/${sheet}`)))).join('\n');
 assert.match(cascade, /focus-visible/);
-assert.match(await read('preview/analyze.mjs'), /Sample design preview/, 'Keep fixtures distinct from native workspace.');
+assert.match(renderWorkbenchNavigation({ area: 'analysis', surface: 'workbench', theme: 'dark' }), /Sample design preview/, 'Keep fixtures distinct from native workspace through the shared navigation.');
 
 const disabled = (markup, id) => {
   const tags = [...markup.matchAll(/<button\b[^>]*>/g)].map(match => match[0]);

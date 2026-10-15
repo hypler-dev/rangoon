@@ -2,8 +2,16 @@
 //! No production command or renderer is mounted here. Raw trusted-host key
 //! primitives remain outside this owner's guarantees until native adoption.
 use crate::workspace_keys::{self, RetainedKey, Store, WorkspaceId};
+use rangoon_compose::application::Request as CompositionRequest;
 use rangoon_domain::AnalysisReport;
-use rangoon_store::{SaveReceipt, SnapshotMetadata, Workspace};
+use rangoon_domain::capability_v1::{CapabilityDetail, CapabilitySummary};
+use rangoon_store::{
+    CapabilityReceiptV1, CompositionPreview, CompositionReceipt, SaveReceipt, SnapshotMetadata,
+    WorkflowDeletionPlan, WorkflowDetail, WorkflowRecordKind, WorkflowRestorePlan,
+    WorkflowSavePlan, WorkflowSaveReceipt, WorkflowSummary, WorkflowWorkspaceData, Workspace,
+    WorkspaceBackup, WorkspaceCompilation,
+};
+use rangoon_workflow::records::WorkflowRevision;
 use serde::Serialize;
 use std::{
     fs::{self, File, Metadata, OpenOptions, TryLockError},
@@ -32,6 +40,7 @@ pub enum Error {
     InvalidBinding,
     RecoveryRequired,
     Stale,
+    ConsentRequired,
     Locked,
     AlreadyExists,
     WriteUncertain,
@@ -44,6 +53,7 @@ pub enum Error {
 #[serde(rename_all = "snake_case")]
 pub enum Action {
     Create,
+    CreateEmpty,
     Unlock,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -53,6 +63,30 @@ pub struct Preview {
     pub kind: Action,
     pub workspace_id: String,
     pub source_id: Option<String>,
+}
+
+/// An inspection copy only; confirmation never accepts its mutable fields.
+/// This record is not authenticated human consent or execution authority.
+///
+/// ```compile_fail
+/// use rangoon_desktop::workspace_session::CompositionConfirmation;
+/// fn requires_deserialization<T: for<'de> serde::Deserialize<'de>>() {}
+/// requires_deserialization::<CompositionConfirmation>();
+/// ```
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompositionConfirmation {
+    pub id: String,
+    pub generation: String,
+    pub workspace_id: String,
+    pub inspection: CompositionPreview,
+}
+
+struct RetainedComposition {
+    token: String,
+    generation: u64,
+    workspace_id: String,
+    prepared: CompositionPreview,
 }
 
 struct Binding {
@@ -94,9 +128,18 @@ struct Directories {
 struct Pending {
     token: String,
     binding: Binding,
-    source: Option<AnalysisReport>,
-    observed: Option<Vec<u8>>,
-    directories: Option<Directories>,
+    kind: PendingKind,
+}
+enum Creation {
+    Source(Box<AnalysisReport>),
+    Empty,
+}
+enum PendingKind {
+    Create(Creation),
+    Unlock {
+        observed: Vec<u8>,
+        directories: Box<Directories>,
+    },
 }
 struct Opened {
     binding: Binding,
@@ -128,6 +171,8 @@ pub struct Owner {
     root_metadata: Metadata,
     control: File,
     pending: Option<Pending>,
+    composition_generation: Option<u64>,
+    retained_composition: Option<RetainedComposition>,
     opened: Option<Opened>,
     recovery: bool,
     #[cfg(all(test, feature = "encrypted-workspace"))]
@@ -142,6 +187,16 @@ enum Fault {
     BeforeReadySync,
     BeforeReadyReadback,
     AfterSave,
+    AfterCapabilityMutation,
+    AfterWorkflowSave,
+    AfterCompositionApply,
+    AfterRestore,
+    AfterDeletion,
+}
+
+enum DataMutation {
+    Restore,
+    Delete,
 }
 
 impl Owner {
@@ -175,6 +230,8 @@ impl Owner {
             root_metadata,
             control,
             pending: None,
+            composition_generation: Some(0),
+            retained_composition: None,
             opened: None,
             recovery: false,
             #[cfg(all(test, feature = "encrypted-workspace"))]
@@ -313,9 +370,35 @@ impl Owner {
                 ready: false,
                 identity,
             },
-            source: Some(checked),
-            observed: None,
-            directories: None,
+            kind: PendingKind::Create(Creation::Source(Box::new(checked))),
+        });
+        Ok(preview)
+    }
+
+    /// Prepares explicit empty setup without a source, key lookup or database write.
+    pub fn prepare_create_empty(&mut self) -> Result<Preview, Error> {
+        self.available()?;
+        self.absent_binding()?;
+        let identity = WorkspaceId::generate().map_err(|_| Error::Unavailable)?;
+        let token = WorkspaceId::generate()
+            .map_err(|_| Error::Unavailable)?
+            .as_hex();
+        if token == identity.as_hex() {
+            return Err(Error::Unavailable);
+        }
+        let preview = Preview {
+            id: token.clone(),
+            kind: Action::CreateEmpty,
+            workspace_id: identity.as_hex(),
+            source_id: None,
+        };
+        self.pending = Some(Pending {
+            token,
+            binding: Binding {
+                ready: false,
+                identity,
+            },
+            kind: PendingKind::Create(Creation::Empty),
         });
         Ok(preview)
     }
@@ -341,9 +424,10 @@ impl Owner {
         self.pending = Some(Pending {
             token,
             binding,
-            source: None,
-            observed: Some(observed),
-            directories: Some(directories),
+            kind: PendingKind::Unlock {
+                observed,
+                directories: Box::new(directories),
+            },
         });
         Ok(preview)
     }
@@ -359,31 +443,33 @@ impl Owner {
         }
         let pending = self.pending.take().ok_or(Error::Stale)?;
         self.check_control().map_err(|_| Error::Stale)?;
-        if let Some(source) = pending.source {
-            self.absent_binding().map_err(|_| Error::Stale)?;
-            if fs::symlink_metadata(self.directory(&pending.binding)).is_ok() {
-                return Err(Error::Stale);
-            }
-            match self.create(pending.binding, source, vault) {
-                Ok(opened) => self.opened = Some(opened),
-                Err(_) => {
-                    self.lock();
-                    self.recovery = true;
-                    return Err(Error::WriteUncertain);
+        match pending.kind {
+            PendingKind::Create(creation) => {
+                self.absent_binding().map_err(|_| Error::Stale)?;
+                match fs::symlink_metadata(self.directory(&pending.binding)) {
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => (),
+                    _ => return Err(Error::Stale),
+                }
+                match self.create(pending.binding, creation, vault) {
+                    Ok(opened) => self.opened = Some(opened),
+                    Err(_) => {
+                        self.lock();
+                        self.recovery = true;
+                        return Err(Error::WriteUncertain);
+                    }
                 }
             }
-        } else {
-            if self.read_binding().map_err(|_| Error::Stale)?
-                != pending.observed.ok_or(Error::Stale)?
-            {
-                return Err(Error::Stale);
+            PendingKind::Unlock {
+                observed,
+                directories,
+            } => {
+                if self.read_binding().map_err(|_| Error::Stale)? != observed {
+                    return Err(Error::Stale);
+                }
+                self.opened = Some(self.unlock(pending.binding, *directories, vault)?);
             }
-            self.opened = Some(self.unlock(
-                pending.binding,
-                pending.directories.ok_or(Error::StoreInvalid)?,
-                vault,
-            )?);
         }
+        self.advance_composition_generation();
         Ok(())
     }
 
@@ -397,7 +483,7 @@ impl Owner {
     fn create(
         &self,
         mut binding: Binding,
-        source: AnalysisReport,
+        creation: Creation,
         vault: &impl Vault,
     ) -> Result<Opened, Error> {
         let parent = self.root.join(PARENT);
@@ -442,9 +528,16 @@ impl Owner {
         let workspace =
             workspace_keys::verified_workspace(&slot, &retained, self.directory(&binding))
                 .map_err(Error::Key)?;
-        workspace
-            .save_v1(&source)
-            .map_err(|_| Error::StoreInvalid)?;
+        match creation {
+            Creation::Source(source) => {
+                workspace
+                    .save_v1(&source)
+                    .map_err(|_| Error::StoreInvalid)?;
+            }
+            Creation::Empty => workspace
+                .initialize_empty_encrypted()
+                .map_err(|_| Error::StoreInvalid)?,
+        }
         let previous = self.database(&binding)?;
         workspace.workflow_data().map_err(|_| Error::StoreInvalid)?;
         self.unchanged_database(&binding, &previous)?;
@@ -583,6 +676,453 @@ impl Owner {
             .open(source_id);
         self.finish_read(result, previous)
     }
+    /// Inspects complete capability state without exposing the managed store.
+    pub fn list_capabilities(
+        &mut self,
+        vault: &impl Vault,
+    ) -> Result<Vec<CapabilitySummary>, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .list_capabilities_v1();
+        self.finish_read(result, previous)
+    }
+
+    /// Resolves an exact historical revision or the currently observed head.
+    pub fn open_capability(
+        &mut self,
+        vault: &impl Vault,
+        capability_id: &str,
+        revision_id: Option<&str>,
+    ) -> Result<CapabilityDetail, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .open_capability_v1(capability_id, revision_id);
+        self.finish_read(result, previous)
+    }
+
+    /// Compiles owned saved bytes; the result grants no installation authority.
+    pub fn compile_capability(
+        &mut self,
+        vault: &impl Vault,
+        capability_id: &str,
+        revision_id: &str,
+        profile: rangoon_compile::Profile,
+    ) -> Result<WorkspaceCompilation, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .compile_capability(capability_id, revision_id, profile);
+        self.finish_read(result, previous)
+    }
+
+    /// Returns validated inventory, including workflow history and source data.
+    pub fn workflow_data(&mut self, vault: &impl Vault) -> Result<WorkflowWorkspaceData, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .workflow_data();
+        self.finish_read(result, previous)
+    }
+
+    /// Lists validated workflow summaries without advancing their revisions.
+    pub fn list_workflows(&mut self, vault: &impl Vault) -> Result<Vec<WorkflowSummary>, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .list_workflows();
+        self.finish_read(result, previous)
+    }
+
+    /// Opens owned workflow evidence; historical selection preserves its head.
+    pub fn open_workflow(
+        &mut self,
+        vault: &impl Vault,
+        workflow_id: &str,
+        revision_id: Option<&str>,
+    ) -> Result<WorkflowDetail, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .open_workflow(workflow_id, revision_id);
+        self.finish_read(result, previous)
+    }
+
+    /// Inspects a workflow candidate without reserving state or execution authority.
+    pub fn inspect_workflow_save(
+        &mut self,
+        vault: &impl Vault,
+        candidate: &WorkflowRevision,
+    ) -> Result<WorkflowSavePlan, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .inspect_workflow_save(candidate);
+        self.finish_read(result, previous)
+    }
+
+    /// Saves an immutable workflow under the store's exact state and head rules.
+    pub fn save_workflow(
+        &mut self,
+        vault: &impl Vault,
+        candidate: &WorkflowRevision,
+        expected_state_id: &str,
+    ) -> Result<WorkflowSaveReceipt, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .save_workflow(candidate, expected_state_id);
+        self.finish_workflow_save(result, previous)
+    }
+
+    fn finish_workflow_save(
+        &mut self,
+        result: Result<WorkflowSaveReceipt, rangoon_store::StoreError>,
+        previous: Metadata,
+    ) -> Result<WorkflowSaveReceipt, Error> {
+        #[cfg(all(test, feature = "encrypted-workspace"))]
+        if self.fail_at(Fault::AfterWorkflowSave).is_err() {
+            self.lock();
+            self.recovery = true;
+            return Err(Error::WriteUncertain);
+        }
+        match self.finish_read(result, previous) {
+            Ok(receipt) => Ok(receipt),
+            Err(_) => {
+                self.lock();
+                self.recovery = true;
+                Err(Error::WriteUncertain)
+            }
+        }
+    }
+
+    /// Returns the existing plaintext archive into trusted host memory only.
+    /// This is not encrypted recovery or consent to write/export these bytes.
+    pub fn export_workflow_backup(&mut self, vault: &impl Vault) -> Result<Vec<u8>, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .export_workflow_backup();
+        self.finish_read(result, previous)
+    }
+
+    /// Prepares the existing additive restore against exact complete state.
+    pub fn prepare_workflow_restore(
+        &mut self,
+        vault: &impl Vault,
+        backup: &WorkspaceBackup,
+    ) -> Result<WorkflowRestorePlan, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .prepare_workflow_restore(backup);
+        self.finish_read(result, previous)
+    }
+
+    /// Attempts one exact retained restore; failures do not prove no commit.
+    pub fn restore_workflow_backup(
+        &mut self,
+        vault: &impl Vault,
+        backup: &WorkspaceBackup,
+        prepared: &WorkflowRestorePlan,
+    ) -> Result<WorkflowWorkspaceData, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .restore_workflow_backup(backup, prepared);
+        self.finish_data_mutation(result, previous, DataMutation::Restore)
+    }
+
+    /// Returns an exact dependency-aware logical deletion plan, not authority.
+    pub fn inspect_workflow_deletion(
+        &mut self,
+        vault: &impl Vault,
+        kind: WorkflowRecordKind,
+        id: &str,
+    ) -> Result<WorkflowDeletionPlan, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .inspect_workflow_deletion(kind, id);
+        self.finish_read(result, previous)
+    }
+
+    /// Attempts logical deletion once; this does not establish secure erasure.
+    pub fn delete_workflow_record(
+        &mut self,
+        vault: &impl Vault,
+        prepared: &WorkflowDeletionPlan,
+    ) -> Result<WorkflowWorkspaceData, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .delete_workflow_record(prepared);
+        self.finish_data_mutation(result, previous, DataMutation::Delete)
+    }
+
+    fn finish_data_mutation(
+        &mut self,
+        result: Result<WorkflowWorkspaceData, rangoon_store::StoreError>,
+        previous: Metadata,
+        _mutation: DataMutation,
+    ) -> Result<WorkflowWorkspaceData, Error> {
+        #[cfg(all(test, feature = "encrypted-workspace"))]
+        {
+            let fault = match _mutation {
+                DataMutation::Restore => Fault::AfterRestore,
+                DataMutation::Delete => Fault::AfterDeletion,
+            };
+            if self.fail_at(fault).is_err() {
+                self.lock();
+                self.recovery = true;
+                return Err(Error::WriteUncertain);
+            }
+        }
+        match self.finish_read(result, previous) {
+            Ok(receipt) => Ok(receipt),
+            Err(_) => {
+                self.lock();
+                self.recovery = true;
+                Err(Error::WriteUncertain)
+            }
+        }
+    }
+
+    /// Previews exact saved inputs; the returned record grants no authority.
+    pub fn preview_composition(
+        &mut self,
+        vault: &impl Vault,
+        request: &CompositionRequest,
+    ) -> Result<CompositionPreview, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .preview_composition(request);
+        self.finish_read(result, previous)
+    }
+
+    /// Prepares one private commit record and returns an inspection-only copy.
+    /// Supersession occurs before custody checks, including failed preparation.
+    pub fn prepare_composition_confirmation(
+        &mut self,
+        vault: &impl Vault,
+        request: &CompositionRequest,
+    ) -> Result<CompositionConfirmation, Error> {
+        self.retained_composition = None;
+        self.advance_composition_generation();
+        let generation = self.composition_generation.ok_or(Error::Unavailable)?;
+        let prepared = self.preview_composition(vault, request)?;
+        let workspace_id = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .binding
+            .identity
+            .as_hex();
+        let nonce = WorkspaceId::generate().map_err(|_| Error::Unavailable)?;
+        let token = format!("{generation}:{}", nonce.as_hex());
+        let inspection = CompositionConfirmation {
+            id: token.clone(),
+            generation: generation.to_string(),
+            workspace_id: workspace_id.clone(),
+            inspection: prepared.clone(),
+        };
+        self.retained_composition = Some(RetainedComposition {
+            token,
+            generation,
+            workspace_id,
+            prepared,
+        });
+        Ok(inspection)
+    }
+
+    /// Consumes an exact retained action before acknowledgement or custody work.
+    /// Native adoption must establish explicit user consent separately.
+    pub fn confirm_composition(
+        &mut self,
+        vault: &impl Vault,
+        confirmation_id: &str,
+        acknowledged: bool,
+    ) -> Result<CompositionReceipt, Error> {
+        if !self
+            .retained_composition
+            .as_ref()
+            .is_some_and(|retained| retained.token == confirmation_id)
+        {
+            return Err(Error::Stale);
+        }
+        let retained = self.retained_composition.take().ok_or(Error::Stale)?;
+        if self.composition_generation != Some(retained.generation)
+            || !self
+                .opened
+                .as_ref()
+                .is_some_and(|opened| opened.binding.identity.as_hex() == retained.workspace_id)
+        {
+            return Err(Error::Stale);
+        }
+        if !acknowledged {
+            return Err(Error::ConsentRequired);
+        }
+        self.apply_composition(vault, &retained.prepared, true)
+    }
+
+    /// Trusted-host typed service, not a renderer confirmation endpoint.
+    /// Applies a store-issued preview under its retained state and exact recheck.
+    pub fn apply_composition(
+        &mut self,
+        vault: &impl Vault,
+        prepared: &CompositionPreview,
+        acknowledged: bool,
+    ) -> Result<CompositionReceipt, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .apply_composition(prepared, acknowledged);
+        self.finish_composition_apply(result, previous)
+    }
+
+    fn finish_composition_apply(
+        &mut self,
+        result: Result<CompositionReceipt, rangoon_store::StoreError>,
+        previous: Metadata,
+    ) -> Result<CompositionReceipt, Error> {
+        #[cfg(all(test, feature = "encrypted-workspace"))]
+        if self.fail_at(Fault::AfterCompositionApply).is_err() {
+            self.lock();
+            self.recovery = true;
+            return Err(Error::WriteUncertain);
+        }
+        match self.finish_read(result, previous) {
+            Ok(receipt) => Ok(receipt),
+            Err(_) => {
+                self.lock();
+                self.recovery = true;
+                Err(Error::WriteUncertain)
+            }
+        }
+    }
+
+    /// Derives source-born content under managed custody without review authority.
+    pub fn create_capability(
+        &mut self,
+        vault: &impl Vault,
+        source_id: &str,
+        fragment_id: &str,
+        title: &str,
+    ) -> Result<CapabilityReceiptV1, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .create_capability_v1(source_id, fragment_id, title);
+        self.finish_capability_mutation(result, previous)
+    }
+
+    /// Preserves exact expected-head and immutable content-revision semantics.
+    pub fn revise_capability(
+        &mut self,
+        vault: &impl Vault,
+        capability_id: &str,
+        expected_revision_id: &str,
+        title: &str,
+        content: &str,
+    ) -> Result<CapabilityReceiptV1, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .revise_capability_v1(capability_id, expected_revision_id, title, content);
+        self.finish_capability_mutation(result, previous)
+    }
+
+    /// Records local content review; it grants no approval or execution authority.
+    pub fn review_capability(
+        &mut self,
+        vault: &impl Vault,
+        capability_id: &str,
+        expected_revision_id: &str,
+    ) -> Result<CapabilityReceiptV1, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .review_capability_v1(capability_id, expected_revision_id);
+        self.finish_capability_mutation(result, previous)
+    }
+
+    fn finish_capability_mutation(
+        &mut self,
+        result: Result<CapabilityReceiptV1, rangoon_store::StoreError>,
+        previous: Metadata,
+    ) -> Result<CapabilityReceiptV1, Error> {
+        #[cfg(all(test, feature = "encrypted-workspace"))]
+        if self.fail_at(Fault::AfterCapabilityMutation).is_err() {
+            self.lock();
+            self.recovery = true;
+            return Err(Error::WriteUncertain);
+        }
+        match self.finish_read(result, previous) {
+            Ok(receipt) => Ok(receipt),
+            Err(_) => {
+                self.lock();
+                self.recovery = true;
+                Err(Error::WriteUncertain)
+            }
+        }
+    }
+
     pub fn save(
         &mut self,
         vault: &impl Vault,
@@ -611,11 +1151,22 @@ impl Owner {
         }
     }
     pub fn lock(&mut self) {
+        self.retained_composition = None;
+        self.advance_composition_generation();
         self.pending = None;
         self.opened = None;
     }
+    fn advance_composition_generation(&mut self) {
+        self.composition_generation = self
+            .composition_generation
+            .and_then(|generation| generation.checked_add(1));
+    }
     pub fn is_unlocked(&self) -> bool {
         self.opened.is_some()
+    }
+    /// In-memory status only. Closing must preserve an existing recovery fence.
+    pub fn requires_recovery(&self) -> bool {
+        self.recovery
     }
     #[cfg(all(test, feature = "encrypted-workspace"))]
     fn inject_fault(&mut self, fault: Fault) {

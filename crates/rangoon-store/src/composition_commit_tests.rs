@@ -125,6 +125,87 @@ fn acknowledgment_forged_preview_and_stale_state_fail_without_migration() {
     assert_unchanged(&dir, &committed);
 }
 
+fn assert_preview_state_substitution_refused(with_workflow: bool) {
+    let dir = TestDir::new();
+    source(&dir);
+    let store = dir.store();
+    if with_workflow {
+        use rangoon_workflow::records::{SaveIntent, prepare_revision, workflow_id_from_nonce};
+        let definition = serde_json::json!({
+            "schemaVersion": "rangoon.workflow-definition.v1",
+            "title": "Retained workflow",
+            "nodes": [], "controlEdges": [], "dataEdges": []
+        });
+        let candidate = prepare_revision(
+            &workflow_id_from_nonce(&[0xB5; 32]),
+            None,
+            SaveIntent::Draft,
+            &serde_json::to_vec(&definition).unwrap(),
+            br#"{"positions":[]}"#,
+        )
+        .unwrap();
+        let plan = store.inspect_workflow_save(&candidate).unwrap();
+        store
+            .save_workflow(&candidate, &plan.expected_state_id)
+            .unwrap();
+    }
+    let issued = store.preview_composition(&fixture_request()).unwrap();
+    let other = analyze(
+        "unrelated.md",
+        b"# Unrelated\nChanges state, not composition inputs.\n",
+    )
+    .unwrap();
+    store.save_v1(&other).unwrap();
+    let fresh = store.preview_composition(&fixture_request()).unwrap();
+    assert_ne!(issued.expected_state_id, fresh.expected_state_id);
+    // An unrelated change does not alter the recomputed application preview.
+    assert_eq!(issued.preview, fresh.preview);
+    let mut substituted = issued.clone();
+    substituted.expected_state_id = fresh.expected_state_id.clone();
+    let wire = serde_json::to_value(&substituted).unwrap();
+    let object = wire.as_object().unwrap();
+    assert_eq!(object.len(), 2);
+    assert!(object.contains_key("expectedStateId") && object.contains_key("preview"));
+    let before = fs::read(store.path()).unwrap();
+    let version = if with_workflow { 4 } else { 1 };
+    assert_eq!(
+        store.apply_composition(&substituted, true).unwrap_err(),
+        StoreError::CompositionInvalid
+    );
+    assert_unchanged(&dir, &before);
+    assert_eq!(
+        store.apply_composition(&issued, true).unwrap_err(),
+        StoreError::WorkspaceChanged
+    );
+    assert_eq!(
+        store.apply_composition(&substituted, false).unwrap_err(),
+        StoreError::CompositionAcknowledgmentRequired
+    );
+    assert_unchanged(&dir, &before);
+    assert_eq!(
+        dir.db()
+            .pragma_query_value::<i64, _>(None, "user_version", |r| r.get(0))
+            .unwrap(),
+        version
+    );
+    let receipt = store.apply_composition(&fresh, true).unwrap();
+    assert_eq!(receipt.authority, Authority::None);
+    assert_eq!(store.open(&other.source.id).unwrap(), other);
+    if with_workflow {
+        assert_eq!(store.list_workflows().unwrap().len(), 1);
+    }
+}
+
+#[test]
+fn source_preview_state_cannot_be_rebound_to_fresh_public_id() {
+    assert_preview_state_substitution_refused(false);
+}
+
+#[test]
+fn workflow_preview_state_cannot_be_rebound_to_fresh_public_id() {
+    assert_preview_state_substitution_refused(true);
+}
+
 #[test]
 fn incomplete_draft_remains_editable_but_cannot_commit() {
     let dir = TestDir::new();

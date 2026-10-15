@@ -12,7 +12,11 @@ name = "rangoon"
 path = "src/main.rs"
 
 [dependencies]
+rangoon-compile.workspace = true
 rangoon-engine = { path = "../rangoon-engine" }
 rangoon-import.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+
+[dev-dependencies]
+rangoon-domain.workspace = true

@@ -1,6 +1,8 @@
 import { escapeText } from './analysis-model.mjs';
 import { icon } from './icons.mjs';
 import { byteRangeText, textareaSelectionRange } from './composition-model.mjs';
+import { createWorkspaceLayout } from './editor-workspace-layout.mjs';
+import { renderTermHelp } from './term-help.mjs';
 
 export { byteRangeText, textareaSelectionRange };
 
@@ -16,12 +18,25 @@ const rangeLabel = range => range ? `Input ${Number(range.inputIndex) + 1}, byte
 const pending = state => Boolean(state.pending);
 const disabled = state => pending(state) || !state.bridgeAvailable;
 const targetLabel = (target, detail) => target?.kind === 'append'
-  ? `Update ${detail?.revision?.title ?? detail?.title ?? short(target.capabilityId)} · current head ${short(target.expectedRevisionId)}`
+  ? `Update ${detail?.revision?.title ?? detail?.title ?? short(target.capabilityId)} · latest saved revision ${short(target.expectedRevisionId)}`
   : 'Create new skill';
 const inputKind = input => input?.reference?.kind ?? input?.kind;
 const inputTitle = input => input?.title ?? (inputKind(input) === 'source' ? 'Saved source' : 'Saved skill revision');
 const inputIdentity = input => input?.reference?.sourceId ?? input?.reference?.revisionId ?? input?.sourceId ?? input?.revisionId ?? 'Unavailable';
+const normalizedFilter = value => String(value ?? '').trim().toLocaleLowerCase();
+const matchesFilter = (query, ...values) => !query || values.some(value => String(value ?? '').toLocaleLowerCase().includes(query));
 const bindingState = new WeakMap();
+const clearRetainedCache = retained => {
+  if (!retained) return;
+  for (const key of Object.keys(retained)) {
+    if (retained[key] instanceof Map) retained[key].clear();
+    retained[key] = null;
+  }
+};
+export const purgeCompositionViewCache = controller => {
+  clearRetainedCache(bindingState.get(controller));
+  bindingState.delete(controller);
+};
 const localFormSelector = '[data-composition-range-reason],[data-composition-range-content],[data-composition-add-authored],[data-composition-add-authored-reason],[data-composition-piece-content],[data-composition-piece-reason],[data-composition-annotation-reason],[data-composition-conflict-title],[data-composition-conflict-context],[data-composition-conflict-resolution]';
 const compositionDataKey = node => {
   const name = node.getAttributeNames().find(attribute => attribute.startsWith('data-composition-'));
@@ -79,22 +94,33 @@ function option(value, selected, title) {
 }
 
 function capabilityOptions(state, target) {
-  return ['<option value="">Create new skill</option>', ...(state.capabilities ?? []).map(item => option(item.id, target?.kind === 'append' ? target.capabilityId : '', `${item.title} · current ${short(item.latestRevisionId)}`))].join('');
+  return ['<option value="">Create new skill</option>', ...(state.capabilities ?? []).map(item => option(item.id, target?.kind === 'append' ? target.capabilityId : '', `${item.title} · latest saved revision ${short(item.latestRevisionId)}`))].join('');
 }
 
 const previewCore = state => state.preview?.preview?.core ?? null;
 const previewOutput = (state, outputIndex) => previewCore(state)?.outputs?.find(item => item.outputIndex === outputIndex) ?? null;
 const previewCoverage = state => previewCore(state)?.coverage ?? [];
 
-function inputPicker(state) {
-  const sourceRows = (state.sources ?? []).map(item => `<button class="composition-picker__item" type="button" data-composition-add-source="${text(item.id ?? item.sourceId)}" ${disabled(state) || state.draft ? 'disabled' : ''}><strong>${icon('source', { size: 16 })}${text(item.displayName ?? item.title ?? 'Saved source')}</strong><small>${text(short(item.id ?? item.sourceId))} · ${Number(item.byteLength ?? 0).toLocaleString()} bytes</small></button>`).join('');
-  const capabilityRows = (state.capabilities ?? []).map(item => {
+function inputPicker(state, ui = {}) {
+  const filterValue = String(ui.inputFilter ?? '');
+  const filter = normalizedFilter(filterValue);
+  const sources = state.sources ?? [];
+  const capabilities = state.capabilities ?? [];
+  const sourceRows = sources.filter(item => matchesFilter(filter, item.displayName, item.title, item.id, item.sourceId)).map(item => `<button class="composition-picker__item" type="button" data-composition-add-source="${text(item.id ?? item.sourceId)}" ${disabled(state) || state.draft ? 'disabled' : ''}><strong>${icon('source', { size: 16 })}${text(item.displayName ?? item.title ?? 'Saved source')}</strong><small>${text(short(item.id ?? item.sourceId))} · ${Number(item.byteLength ?? 0).toLocaleString()} bytes</small></button>`).join('');
+  const capabilityRows = capabilities.map(item => {
     const history = item.history ?? [];
     const revisions = history.length ? history : [{ id: item.latestRevisionId, title: item.title, current: true }];
-    return `<details class="composition-capability"><summary>${icon('skill', { size: 15 })}${text(item.title)} <small>${text(short(item.latestRevisionId))}</small></summary><div>${revisions.map(revision => `<button class="composition-picker__revision" type="button" data-composition-add-revision="${text(item.id)}" data-composition-revision="${text(revision.id)}" ${disabled(state) || state.draft ? 'disabled' : ''}>${text(revision.title ?? item.title)}${revision.id === item.latestRevisionId ? ' · current' : ' · historical'}<small>${text(short(revision.id))}</small></button>`).join('')}</div></details>`;
+    const matchedItem = matchesFilter(filter, item.title, item.id, item.latestRevisionId);
+    const shownRevisions = matchedItem ? revisions : revisions.filter(revision => matchesFilter(filter, revision.title, revision.id));
+    return shownRevisions.length ? `<details class="composition-capability" ${filter ? 'open' : ''}><summary>${icon('skill', { size: 15 })}${text(item.title)} <small>${text(short(item.latestRevisionId))}</small></summary><div>${shownRevisions.map(revision => `<button class="composition-picker__revision" type="button" data-composition-add-revision="${text(item.id)}" data-composition-revision="${text(revision.id)}" ${disabled(state) || state.draft ? 'disabled' : ''}>${text(revision.title ?? item.title)}${revision.id === item.latestRevisionId ? ' · latest saved revision' : ' · historical'}<small>${text(short(revision.id))}</small></button>`).join('')}</div></details>` : '';
   }).join('');
   const empty = state.status === 'unavailable' ? 'Open this route in Rangoon desktop app. Browser preview cannot invent saved records.' : state.status === 'loading' ? 'Loading saved workspace records…' : state.status === 'failed' ? 'Saved records unavailable. Existing draft stays in memory.' : 'No saved records available yet.';
-  return `<aside class="composition-picker" aria-label="Composition input picker"><header><p class="analysis-kicker">INPUTS</p><h2>Saved records</h2></header>${state.status === 'ready' && !sourceRows && !capabilityRows ? `<p class="composition-note">${empty}</p>` : state.status !== 'ready' ? `<p class="composition-note">${empty}</p>` : ''}${state.operation === 'decompose' ? sourceRows : capabilityRows}</aside>`;
+  const sourceMode = state.operation === 'decompose';
+  const total = sourceMode ? sources.length : capabilities.length;
+  const rows = sourceMode ? sourceRows : capabilityRows;
+  const noMatch = state.status === 'ready' && total > 0 && !rows && filter ? `No saved ${sourceMode ? 'source' : 'revision'} matches “${text(filterValue)}”.` : '';
+  const filterLabel = sourceMode ? 'Find saved source' : 'Find saved revision';
+  return `<aside class="composition-picker" aria-label="Composition input picker"><header><p class="analysis-kicker">INPUTS</p><h2>Saved records</h2></header><label class="composition-picker__filter" for="composition-picker-filter"><span>${filterLabel}</span><input id="composition-picker-filter" type="search" data-composition-picker-filter value="${text(filterValue)}" placeholder="${filterLabel}" autocomplete="off" spellcheck="false"></label>${state.status === 'ready' && !rows ? `<p class="composition-note" role="status">${noMatch || empty}</p>` : state.status !== 'ready' ? `<p class="composition-note" role="status">${empty}</p>` : ''}${rows}</aside>`;
 }
 
 function selectedInputs(state) {
@@ -103,7 +129,7 @@ function selectedInputs(state) {
   const countText = state.operation === 'decompose' ? 'Choose one saved source.' : state.operation === 'merge' ? 'Choose 2–16 pinned revisions.' : 'Choose one pinned revision.';
   const validInputCount = state.operation === 'merge' ? values.length >= 2 && values.length <= 16 : values.length === 1;
   const action = locked ? '<p class="composition-note">Inputs locked after draft start. Discard draft to change them.</p>' : `<button id="composition-start" class="analysis-button analysis-button--primary" type="button" ${validInputCount && !disabled(state) ? '' : 'disabled'}>${pending(state) ? 'Working…' : 'Start draft'}</button>`;
-  return `<section class="composition-inputs" aria-label="Chosen composition inputs"><header><div><p class="analysis-kicker">PINNED INPUTS</p><h2>${text(countText)}</h2></div>${action}</header>${values.length ? `<ol>${values.map((item, index) => `<li><div><strong>${text(inputTitle(item))}</strong><small>${inputKind(item) === 'revision' && item.latestRevisionId && item.reference?.revisionId !== item.latestRevisionId ? 'Historical · ' : ''}${text(short(inputIdentity(item)))} · ${Number(item.content ? bytes(item.content) : item.byteLength ?? 0).toLocaleString()} bytes</small>${inputKind(item) === 'revision' && item.history?.length ? `<label class="composition-revision-choice">Revision <select data-composition-replace-revision="${index}" ${disabled(state) || locked ? 'disabled' : ''}>${item.history.map(revision => option(revision.id, item.reference?.revisionId, `${revision.title ?? item.title}${revision.id === item.latestRevisionId ? ' · current' : ' · historical'}`)).join('')}</select></label>` : ''}</div>${locked ? '' : `<div class="composition-row-actions"><button type="button" class="analysis-button analysis-button--small" data-composition-move-input="${index}" data-composition-delta="-1" ${disabled(state) || index === 0 ? 'disabled' : ''}>Move up</button><button type="button" class="analysis-button analysis-button--small" data-composition-move-input="${index}" data-composition-delta="1" ${disabled(state) || index === values.length - 1 ? 'disabled' : ''}>Move down</button><button type="button" class="analysis-button analysis-button--small" data-composition-remove-input="${index}" ${disabled(state) ? 'disabled' : ''}>Remove</button></div>`}</li>`).join('')}</ol>` : `<p class="composition-note">${text(countText)} Exact selected revisions remain pinned; no latest revision is substituted silently.</p>`}</section>`;
+  return `<section class="composition-inputs" aria-label="Chosen composition inputs"><header><div><p class="analysis-kicker">PINNED INPUTS</p><h2>${text(countText)}</h2></div>${action}</header>${values.length ? `<ol>${values.map((item, index) => `<li><div><strong>${text(inputTitle(item))}</strong><small>${inputKind(item) === 'revision' && item.latestRevisionId && item.reference?.revisionId !== item.latestRevisionId ? 'Historical · ' : ''}${text(short(inputIdentity(item)))} · ${Number(item.content ? bytes(item.content) : item.byteLength ?? 0).toLocaleString()} bytes</small>${inputKind(item) === 'revision' && item.history?.length ? `<label class="composition-revision-choice">Revision <select data-composition-replace-revision="${index}" ${disabled(state) || locked ? 'disabled' : ''}>${item.history.map(revision => option(revision.id, item.reference?.revisionId, `${revision.title ?? item.title}${revision.id === item.latestRevisionId ? ' · latest saved revision' : ' · historical'}`)).join('')}</select></label>` : ''}</div>${locked ? '' : `<div class="composition-row-actions"><button type="button" class="analysis-button analysis-button--small" data-composition-move-input="${index}" data-composition-delta="-1" ${disabled(state) || index === 0 ? 'disabled' : ''}>Move up</button><button type="button" class="analysis-button analysis-button--small" data-composition-move-input="${index}" data-composition-delta="1" ${disabled(state) || index === values.length - 1 ? 'disabled' : ''}>Move down</button><button type="button" class="analysis-button analysis-button--small" data-composition-remove-input="${index}" ${disabled(state) ? 'disabled' : ''}>Remove</button></div>`}</li>`).join('')}</ol>` : `<p class="composition-note">${text(countText)} Exact selected revisions remain pinned; no latest revision is substituted silently.</p>`}</section>`;
 }
 
 function rangeActions(state) {
@@ -128,7 +154,7 @@ function piece(piece, outputIndex, pieceIndex, state) {
 
 function outputCards(state) {
   const outputs = state.draft?.outputs ?? [];
-  return `<section class="composition-output-list" aria-label="Composition output recipes"><header><div><p class="analysis-kicker">RECIPES</p><h2>Output skills</h2></div><button type="button" class="analysis-button analysis-button--small" id="composition-add-output" ${disabled(state) || state.operation === 'merge' || outputs.length >= 16 ? 'disabled' : ''}>Add output</button></header>${outputs.map((output, index) => { const after = previewOutput(state, index); const before = state.targetDetails?.[index]?.revision?.content; return `<article class="composition-output" data-composition-output="${index}"><header><span>${icon('skill', { size: 16 })} Output ${index + 1}</span><div class="composition-row-actions"><button type="button" class="analysis-button analysis-button--small" data-composition-move-output="${index}" data-composition-delta="-1" ${disabled(state) || index === 0 ? 'disabled' : ''}>Move up</button><button type="button" class="analysis-button analysis-button--small" data-composition-move-output="${index}" data-composition-delta="1" ${disabled(state) || index === outputs.length - 1 ? 'disabled' : ''}>Move down</button><button type="button" class="analysis-button analysis-button--small" data-composition-remove-output="${index}" ${disabled(state) ? 'disabled' : ''}>Remove</button></div></header><label>Output title <input data-composition-output-title="${index}" maxlength="160" value="${text(output.title ?? '')}" ${disabled(state) ? 'disabled' : ''}></label><label>Destination <select data-composition-target="${index}" ${disabled(state) ? 'disabled' : ''}>${capabilityOptions(state, state.targets?.[index])}</select></label><p class="composition-target-state">${text(targetLabel(state.targets?.[index], state.targetDetails?.[index]))}${state.targets?.[index]?.kind === 'append' ? ` <button type="button" class="composition-link-button" data-composition-refresh-target="${index}" ${disabled(state) ? 'disabled' : ''}>Refresh current head</button>` : ''}</p>${state.targets?.[index]?.kind === 'append' ? `<details class="composition-before-after"><summary>Target before / proposed after</summary><h4>Current pinned text</h4><pre>${text(before ?? 'Current target detail unavailable.')}</pre><h4>Native preview output</h4><pre>${text(after?.content ?? 'Prepare a native preview to inspect exact after text.')}</pre></details>` : ''}<label>New authored piece <textarea data-composition-add-authored="${index}" maxlength="262144" placeholder="New prose or an explicit merge separator" ${disabled(state) ? 'disabled' : ''}></textarea></label><label>Reason <input data-composition-add-authored-reason="${index}" maxlength="1024" placeholder="Why this new text belongs here" ${disabled(state) ? 'disabled' : ''}></label><div class="composition-row-actions"><button type="button" class="analysis-button analysis-button--small" data-composition-add-authored-button="${index}" ${disabled(state) ? 'disabled' : ''}>Add authored piece</button><button type="button" class="analysis-button analysis-button--small" data-composition-clear-authored="${index}" ${disabled(state) ? 'disabled' : ''}>Cancel</button></div><ol class="composition-pieces">${(output.pieces ?? []).map((value, pieceIndex) => piece(value, index, pieceIndex, state)).join('') || '<li class="composition-note">No pieces. This output cannot be saved empty.</li>'}</ol></article>`; }).join('')}</section>`;
+  return `<section class="composition-output-list" aria-label="Composition output recipes"><header><div><p class="analysis-kicker">RECIPES</p><h2>Output skills</h2></div><button type="button" class="analysis-button analysis-button--small" id="composition-add-output" ${disabled(state) || state.operation === 'merge' || outputs.length >= 16 ? 'disabled' : ''}>Add output</button></header>${outputs.map((output, index) => { const after = previewOutput(state, index); const before = state.targetDetails?.[index]?.revision?.content; return `<article class="composition-output" data-composition-output="${index}"><header><span>${icon('skill', { size: 16 })} Output ${index + 1}</span><div class="composition-row-actions"><button type="button" class="analysis-button analysis-button--small" data-composition-move-output="${index}" data-composition-delta="-1" ${disabled(state) || index === 0 ? 'disabled' : ''}>Move up</button><button type="button" class="analysis-button analysis-button--small" data-composition-move-output="${index}" data-composition-delta="1" ${disabled(state) || index === outputs.length - 1 ? 'disabled' : ''}>Move down</button><button type="button" class="analysis-button analysis-button--small" data-composition-remove-output="${index}" ${disabled(state) ? 'disabled' : ''}>Remove</button></div></header><label>Output title <input data-composition-output-title="${index}" maxlength="160" value="${text(output.title ?? '')}" ${disabled(state) ? 'disabled' : ''}></label><label>Destination <select data-composition-target="${index}" ${disabled(state) ? 'disabled' : ''}>${capabilityOptions(state, state.targets?.[index])}</select></label><p class="composition-target-state">${text(targetLabel(state.targets?.[index], state.targetDetails?.[index]))}${state.targets?.[index]?.kind === 'append' ? ` <button type="button" class="composition-link-button" data-composition-refresh-target="${index}" ${disabled(state) ? 'disabled' : ''}>Refresh latest saved revision</button>` : ''}</p>${state.targets?.[index]?.kind === 'append' ? `<details class="composition-before-after"><summary>Target before / proposed after</summary><h4>Pinned text</h4><pre>${text(before ?? 'Pinned target detail unavailable.')}</pre><h4>Native preview output</h4><pre>${text(after?.content ?? 'Prepare a native preview to inspect exact after text.')}</pre></details>` : ''}<label>New authored piece <textarea data-composition-add-authored="${index}" maxlength="262144" placeholder="New prose or an explicit merge separator" ${disabled(state) ? 'disabled' : ''}></textarea></label><label>Reason <input data-composition-add-authored-reason="${index}" maxlength="1024" placeholder="Why this new text belongs here" ${disabled(state) ? 'disabled' : ''}></label><div class="composition-row-actions"><button type="button" class="analysis-button analysis-button--small" data-composition-add-authored-button="${index}" ${disabled(state) ? 'disabled' : ''}>Add authored piece</button><button type="button" class="analysis-button analysis-button--small" data-composition-clear-authored="${index}" ${disabled(state) ? 'disabled' : ''}>Cancel</button></div><ol class="composition-pieces">${(output.pieces ?? []).map((value, pieceIndex) => piece(value, index, pieceIndex, state)).join('') || '<li class="composition-note">No pieces. This output cannot be saved empty.</li>'}</ol></article>`; }).join('')}</section>`;
 }
 
 function graphSourceSections(state, inputIndex) {
@@ -193,25 +219,29 @@ function coveragePanel(state) {
 export function renderCompositionView(state, graphUi = {}) {
   const operation = state.operation ?? 'decompose';
   const phase = state.draft ? 'recipe' : 'inputs';
-  return `<section class="composition-page" aria-labelledby="composition-title" aria-busy="${pending(state)}"><header class="composition-hero"><p class="analysis-kicker">${icon(operation === 'merge' ? 'merge' : 'decompose', { size: 16 })} LOCAL COMPOSITION / ${text(operation.toUpperCase())}</p><h1 id="composition-title" tabindex="-1">${text(label(operation))} <em>saved content.</em></h1><p>${operation === 'decompose' ? 'Turn one saved source into explicitly covered local skills.' : operation === 'merge' ? 'Combine pinned saved revisions with explicit provenance and separators.' : 'Divide one pinned saved revision into explicit output recipes.'} No provider, engine, file scan or execution runs here.</p><p class="composition-status${state.error ? ' composition-status--error' : ''}" role="status">${text(state.message ?? '')}</p></header>${!state.draft ? `<div class="composition-start-grid">${inputPicker(state)}${selectedInputs(state)}</div>` : `<nav class="composition-tabs" aria-label="Composition editor tabs"><button type="button" data-composition-tab="source" aria-selected="true">Source</button><button type="button" data-composition-tab="recipe" aria-selected="false">Recipe</button><button type="button" data-composition-tab="graph" aria-selected="false">Graph</button><span>${state.dirty ? 'Unsaved draft' : 'Saved local result'}</span><div class="composition-history"><button type="button" class="analysis-button analysis-button--small" data-composition-undo ${disabled(state) || !state.canUndo ? 'disabled' : ''}>Undo</button><button type="button" class="analysis-button analysis-button--small" data-composition-redo ${disabled(state) || !state.canRedo ? 'disabled' : ''}>Redo</button></div><button type="button" id="composition-reset" class="analysis-button analysis-button--small" ${disabled(state) ? 'disabled' : ''}>Discard draft</button></nav><div class="composition-workbench"><aside class="composition-left">${selectedInputs(state)}${coveragePanel(state)}</aside><main class="composition-main"><div data-composition-panel="source">${sourcePane(state)}</div><div data-composition-panel="recipe" hidden>${outputCards(state)}</div><div data-composition-panel="graph" hidden>${graph(state, graphUi)}</div></main><aside class="composition-inspector"><header><p class="analysis-kicker">INSPECTOR</p><h2>Recipe details</h2></header><p>Original input remains read-only. Reasons and annotations remain visible with every preview.</p>${annotationList(state)}</aside></div>${previewPanel(state)}`}</section>`;
+  const layout = graphUi.workspaceLayout ?? { desktop: false, left: 240, right: 320, leftCollapsed: false, rightCollapsed: false };
+  const dock = (side, label, body, needsRestore = false) => `<div class="workspace-dock workspace-dock--${side}${layout[`${side}Collapsed`] ? ' workspace-dock--collapsed' : ''}" data-workspace-dock="${side}"><button type="button" class="workspace-expand" data-workspace-expand="${side}" ${layout[`${side}Collapsed`] ? '' : 'hidden'}>Expand ${label}</button><button type="button" class="workspace-collapse" data-workspace-collapse="${side}" ${layout.desktop && !layout[`${side}Collapsed`] ? '' : 'hidden'}>Collapse ${label}</button><button type="button" class="workspace-resize" data-workspace-resize="${side}" role="separator" tabindex="0" aria-label="Resize ${label}" aria-orientation="vertical" aria-valuemin="${side === 'left' ? 208 : 280}" aria-valuemax="${layout[`${side}Max`] ?? (side === 'left' ? 360 : 440)}" aria-valuenow="${layout[side]}" aria-valuetext="${layout[side]} pixels" ${layout.desktop && !layout[`${side}Collapsed`] ? '' : 'hidden'}></button>${needsRestore && layout[`${side}Collapsed`] ? '<button type="button" class="analysis-button analysis-button--small" data-workspace-expand="right">Restore unsaved recipe fields</button>' : ''}${body.replace('<aside ', `<aside ${layout[`${side}Collapsed`] ? 'hidden ' : ''}`)}</div>`;
+  const draftWorkbench = `<div class="composition-workbench" data-workspace-workbench data-workspace-desktop="${layout.desktop}" style="--workspace-palette-width:${layout.left}px;--workspace-inspector-width:${layout.right}px;--workspace-palette-track:${layout.leftCollapsed ? 44 : layout.left}px;--workspace-inspector-track:${layout.rightCollapsed ? 44 : layout.right}px">${dock('left', 'inputs', `<aside class="composition-left">${selectedInputs(state)}${coveragePanel(state)}</aside>`)}<main class="composition-main"><div data-composition-panel="source">${sourcePane(state)}</div><div data-composition-panel="recipe" hidden>${outputCards(state)}</div><div data-composition-panel="graph" hidden>${graph(state, graphUi)}</div></main>${dock('right', 'inspector', `<aside class="composition-inspector"><header><p class="analysis-kicker">INSPECTOR</p><h2>Recipe details</h2></header><p>Original input remains read-only. Reasons and annotations remain visible with every preview.</p>${annotationList(state)}</aside>`, true)}</div>`;
+  return `<section class="composition-page" aria-labelledby="composition-title" aria-busy="${pending(state)}"><header class="composition-hero"><p class="analysis-kicker">${icon(operation === 'merge' ? 'merge' : 'decompose', { size: 16 })} LOCAL COMPOSITION / ${text(operation.toUpperCase())}</p><h1 id="composition-title" tabindex="-1">${text(label(operation))} <em>saved content.</em></h1><p>${operation === 'decompose' ? 'Turn one saved source into explicitly covered local skills.' : operation === 'merge' ? 'Combine pinned saved revisions with explicit provenance and separators.' : 'Divide one pinned saved revision into explicit output recipes.'} No provider, engine, file scan or execution runs here.</p><p class="composition-status${state.error ? ' composition-status--error' : ''}" role="status">${text(state.message ?? '')}</p></header>${renderTermHelp('composition', ['recipe', 'coverage', 'preview', 'revision'])}${!state.draft ? `<div class="composition-start-grid">${inputPicker(state, graphUi)}${selectedInputs(state)}</div>` : `<nav class="composition-tabs" aria-label="Composition editor views"><button type="button" data-composition-tab="source" aria-pressed="true">Source</button><button type="button" data-composition-tab="recipe" aria-pressed="false">Recipe</button><button type="button" data-composition-tab="graph" aria-pressed="false">Graph</button><span>${state.dirty ? 'Unsaved draft' : 'Saved local result'}</span><div class="composition-history"><button type="button" class="analysis-button analysis-button--small" data-composition-undo ${disabled(state) || !state.canUndo ? 'disabled' : ''}>Undo</button><button type="button" class="analysis-button analysis-button--small" data-composition-redo ${disabled(state) || !state.canRedo ? 'disabled' : ''}>Redo</button></div><button type="button" class="analysis-button analysis-button--small" data-workspace-reset>Reset workspace</button><button type="button" id="composition-reset" class="analysis-button analysis-button--small" ${disabled(state) ? 'disabled' : ''}>Discard draft</button></nav>${draftWorkbench}${previewPanel(state)}`}</section>`;
 }
 
 export function bindCompositionView(root, controller, { onOpenSkill = () => {} } = {}) {
-  const retained = bindingState.get(controller) ?? { tab: 'source', sourceInputIndex: 0, selectedRange: null, focus: null, nextFocus: null, conflictRanges: [], scroll: new Map(), formDrafts: new Map(), formBaseline: new Map(), reveal: null, menu: null, connectFrom: null, notice: '', drag: null, menuFocus: null, cacheLayout: null, draftVersion: null };
-  let { tab, sourceInputIndex, selectedRange, conflictRanges, focus, nextFocus, scroll, formDrafts, formBaseline = new Map(), reveal, menu, connectFrom, notice, drag, menuFocus, cacheLayout: retainedCacheLayout = null, draftVersion: retainedDraftVersion = null } = retained;
+  const retained = bindingState.get(controller) ?? { tab: 'source', sourceInputIndex: 0, selectedRange: null, focus: null, nextFocus: null, conflictRanges: [], scroll: new Map(), formDrafts: new Map(), formBaseline: new Map(), reveal: null, menu: null, connectFrom: null, notice: '', drag: null, menuFocus: null, cacheLayout: null, draftVersion: null, inputFilter: '' };
+  let { tab, sourceInputIndex, selectedRange, conflictRanges, focus, nextFocus, scroll, formDrafts, formBaseline = new Map(), reveal, menu, connectFrom, notice, drag, menuFocus, cacheLayout: retainedCacheLayout = null, draftVersion: retainedDraftVersion = null, inputFilter = '' } = retained;
   const clearDraftKeys = new Set();
   let discardFormDrafts = false;
   let graphResizeObserver = null;
+  let disposed = false;
   let lastCacheLayout = retainedCacheLayout;
   let lastDraftVersion = retainedDraftVersion;
-  const invoke = action => { Promise.resolve(action()).finally(render); };
-  const invokeClear = (action, keys) => { Promise.resolve(action()).then(result => { if (result) keys.forEach(key => clearDraftKeys.add(key)); }).finally(render); };
+  const invoke = action => { if (disposed) return; Promise.resolve(action()).finally(() => { if (!disposed) render(); }); };
+  const invokeClear = (action, keys) => { if (disposed) return; Promise.resolve(action()).then(result => { if (!disposed && result) keys.forEach(key => clearDraftKeys.add(key)); }).finally(() => { if (!disposed) render(); }); };
   const formValueChanged = node => {
     const key = compositionDataKey(node); const baseline = formBaseline.get(key);
     return baseline ? node.value !== baseline.value : Boolean(node.value.length);
   };
   const hasPendingFormEdits = (ignored = new Set()) => [...root.querySelectorAll(localFormSelector)].some(node => !ignored.has(compositionDataKey(node)) && formValueChanged(node));
-  const invokeStructural = action => { Promise.resolve(action()).then(result => { if (result) discardFormDrafts = true; }).finally(render); };
+  const invokeStructural = action => { if (disposed) return; Promise.resolve(action()).then(result => { if (!disposed && result) discardFormDrafts = true; }).finally(() => { if (!disposed) render(); }); };
   const guardStructural = action => {
     if (hasPendingFormEdits()) { notice = structuralNotice; tab = 'graph'; menu = null; render(); return; }
     notice = ''; invokeStructural(action);
@@ -235,6 +265,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     root.querySelectorAll('[data-composition-scroll]').forEach(node => scroll.set(node.dataset.compositionScroll, { top: node.scrollTop, left: node.scrollLeft }));
   };
   const drawGraphEdges = () => {
+    if (disposed) return;
     const canvas = root.querySelector('.composition-canvas');
     const wires = root.querySelector('[data-composition-wires]');
     const sources = root.querySelector('.composition-canvas__sources');
@@ -273,15 +304,22 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     }));
   };
   const observeGraphEdges = () => {
+    if (disposed) return;
     graphResizeObserver?.disconnect(); graphResizeObserver = null;
     const canvas = root.querySelector('.composition-canvas');
     if (!canvas || tab !== 'graph') return;
     drawGraphEdges();
     const Observer = root.ownerDocument.defaultView?.ResizeObserver;
-    if (Observer) { graphResizeObserver = new Observer(drawGraphEdges); graphResizeObserver.observe(canvas); }
+    if (Observer) { graphResizeObserver = new Observer(() => { if (!disposed) drawGraphEdges(); }); graphResizeObserver.observe(canvas); }
   };
+  const workspace = createWorkspaceLayout({ requestFrame: callback => root.ownerDocument.defaultView?.requestAnimationFrame(timestamp => { if (!disposed) callback(timestamp); }) ?? setTimeout(() => { if (!disposed) callback(); }, 16), cancelFrame: frame => root.ownerDocument.defaultView?.cancelAnimationFrame?.(frame) ?? clearTimeout(frame), onChange: () => { if (!disposed) { applyWorkspaceLayout(); drawGraphEdges(); } } });
+  const workspaceBounds = () => ({ viewportWidth: root.ownerDocument.defaultView?.innerWidth ?? 0, workbenchWidth: root.querySelector('[data-workspace-workbench]')?.clientWidth ?? 0 });
+  const applyWorkspaceLayout = () => { const bench = root.querySelector('[data-workspace-workbench]'); const layout = workspace.getState(); if (!bench?.style) return; bench.dataset.workspaceDesktop = String(layout.desktop); bench.style.setProperty('--workspace-palette-width', `${layout.left}px`); bench.style.setProperty('--workspace-inspector-width', `${layout.right}px`); bench.style.setProperty('--workspace-palette-track', `${layout.leftCollapsed ? 44 : layout.left}px`); bench.style.setProperty('--workspace-inspector-track', `${layout.rightCollapsed ? 44 : layout.right}px`); root.querySelectorAll('[data-workspace-resize]').forEach(node => { const side = node.dataset.workspaceResize; node.setAttribute('aria-valuenow', String(layout[side])); node.setAttribute('aria-valuemax', String(layout[`${side}Max`])); node.setAttribute('aria-valuetext', `${layout[side]} pixels`); }); };
+  const syncWorkspaceBounds = () => { if (disposed) return; const before = workspace.getState(); workspace.setBounds(workspaceBounds()); if (before.desktop !== workspace.getState().desktop) render(); };
   const render = () => {
+    if (disposed) return;
     graphResizeObserver?.disconnect(); graphResizeObserver = null;
+    workspace.cancel();
     const renderState = controller.getState();
     const nextLayout = cacheLayout(renderState);
     if (lastDraftVersion !== null && cacheLayoutChanged(lastCacheLayout, nextLayout, lastDraftVersion, Number(renderState.draftVersion ?? 0))) {
@@ -291,15 +329,16 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     remember();
     const requestedFocus = nextFocus;
     nextFocus = null;
-    root.innerHTML = renderCompositionView(renderState, { menu, connectFrom, notice });
+    root.innerHTML = renderCompositionView(renderState, { menu, connectFrom, notice, inputFilter, workspaceLayout: workspace.getState() });
     root.querySelectorAll('[data-composition-panel]').forEach(node => { node.hidden = node.dataset.compositionPanel !== tab; });
-    root.querySelectorAll('[data-composition-tab]').forEach(node => node.setAttribute('aria-selected', String(node.dataset.compositionTab === tab)));
+    root.querySelectorAll('[data-composition-tab]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.compositionTab === tab)));
     const textarea = root.querySelector('[data-composition-source]');
     const item = renderState.inputs?.[sourceInputIndex];
     if (textarea && item) textarea.value = item.content ?? '';
     const inputSelect = root.querySelector('[data-composition-source-input]');
     if (inputSelect) inputSelect.value = String(sourceInputIndex);
     observeGraphEdges();
+    syncWorkspaceBounds();
     formBaseline = new Map([...root.querySelectorAll(localFormSelector)].map(node => [compositionDataKey(node), { value: node.value }]));
     root.querySelectorAll(localFormSelector).forEach(node => {
       const key = compositionDataKey(node);
@@ -321,7 +360,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
       reveal = null;
     } else if (requestedFocus ?? focus) {
       const next = requestedFocus ?? focus;
-      const node = root.querySelector(next.selector);
+      const node = workspace.getState().rightCollapsed && next.selector?.startsWith('[data-composition-') ? root.querySelector('[data-workspace-expand="right"]') : root.querySelector(next.selector);
       node?.focus({ preventScroll: true });
       if (node && Number.isInteger(next.start) && Number.isInteger(next.end) && 'setSelectionRange' in node) node.setSelectionRange(next.start, next.end);
     }
@@ -329,6 +368,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     lastCacheLayout = nextLayout; lastDraftVersion = Number(renderState.draftVersion ?? 0);
   };
   const selection = () => {
+    if (disposed) return null;
     const area = root.querySelector('[data-composition-source]');
     const item = controller.getState().inputs?.[sourceInputIndex];
     if (!area || !item) return null;
@@ -346,6 +386,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
   const revealRange = range => { selectedRange = range; sourceInputIndex = range.inputIndex; tab = 'source'; reveal = range; nextFocus = { selector: '[data-composition-source]' }; menu = null; connectFrom = null; render(); };
   const openMenu = (next, origin) => { menu = { ...next, version: next.version ?? (next.range ? Number(controller.getState().draftVersion ?? 0) : undefined), origin }; menuFocus = true; render(); };
   const closeMenu = () => { const origin = menu?.origin; menu = null; if (origin) nextFocus = { selector: origin }; render(); };
+  const dismissMenu = () => { if (!menu) return; menu = null; menuFocus = null; root.querySelector('[data-composition-context]')?.remove(); };
   const focusSelector = node => {
     if (!node) return null;
     if (node.id) return `#${CSS.escape(node.id)}`;
@@ -375,8 +416,12 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     notice = ''; connectFrom = null; menu = null; nextFocus = { selector: `[data-composition-graph-output-button="${outputIndex}"]` }; invokeStructural(() => controller.applyRange(range, { kind: 'assign', outputIndex }));
   };
   const clicked = event => {
+    if (disposed) return;
     const target = event.target.closest('button,select');
     if (!target) return;
+    if (target.dataset.workspaceReset !== undefined) { workspace.reset(); render(); root.querySelector('[data-workspace-reset]')?.focus({ preventScroll: true }); return; }
+    if (target.dataset.workspaceCollapse) { workspace.toggle(target.dataset.workspaceCollapse); render(); return root.querySelector(`[data-workspace-expand="${target.dataset.workspaceCollapse}"]`)?.focus({ preventScroll: true }); }
+    if (target.dataset.workspaceExpand) { workspace.toggle(target.dataset.workspaceExpand); render(); return root.querySelector(`[data-workspace-collapse="${target.dataset.workspaceExpand}"]`)?.focus({ preventScroll: true }); }
     if (target.tagName !== 'SELECT' && !target.closest('[data-composition-context]') && menu && !target.matches('[data-composition-graph-source], [data-composition-graph-section], [data-composition-graph-piece], [data-composition-graph-output-button], [data-composition-graph-output-actions], [data-composition-graph-piece-actions]')) menu = null;
     if (target.dataset.compositionTab) { tab = target.dataset.compositionTab; return render(); }
     if (target.hasAttribute('data-composition-undo')) return guardStructural(() => typeof controller.undo === 'function' ? controller.undo() : false);
@@ -385,9 +430,10 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     if (target.matches('#composition-reset')) {
       if (!root.ownerDocument.defaultView?.confirm('Discard this in-memory composition draft? Selected inputs remain.')) return;
       return Promise.resolve(controller.resetDraft()).then(result => {
+        if (disposed) return;
         if (!result) return;
         discardFormDrafts = true; formDrafts.clear(); selectedRange = null; conflictRanges = []; connectFrom = null; drag = null; menu = null; notice = ''; nextFocus = null;
-      }).finally(render);
+      }).finally(() => { if (!disposed) render(); });
     }
     if (target.dataset.compositionAddSource) return invoke(() => controller.addSource(target.dataset.compositionAddSource));
     if (target.dataset.compositionAddRevision) return invoke(() => controller.addRevision(target.dataset.compositionAddRevision, target.dataset.compositionRevision));
@@ -463,6 +509,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     }
   };
   const changed = event => {
+    if (disposed) return;
     const target = event.target;
     if (target.matches('[data-composition-source-input]')) { sourceInputIndex = Number(target.value); selectedRange = null; return render(); }
     if (target.dataset.compositionReplaceRevision) return invoke(() => controller.replaceRevision(Number(target.dataset.compositionReplaceRevision), target.value));
@@ -470,7 +517,16 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     if (target.dataset.compositionTarget) return invoke(() => controller.setTarget(Number(target.dataset.compositionTarget), target.value || null));
     if (target.matches('[data-composition-ack]')) return invoke(() => controller.acknowledge(target.checked));
   };
+  const input = event => {
+    if (disposed) return;
+    if (!event.target.matches('[data-composition-picker-filter]')) return;
+    inputFilter = event.target.value;
+    render();
+  };
   const key = event => {
+    if (disposed) return;
+    if (event.target.matches?.('[data-workspace-resize]') && workspace.key(event.target.dataset.workspaceResize, event)) return;
+    if (event.key === 'Escape' && event.target.matches?.('[data-composition-picker-filter]')) { event.preventDefault(); event.stopPropagation(); if (inputFilter) { inputFilter = ''; return render(); } return; }
     if ((event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) && event.target.matches?.('[data-composition-graph-piece], [data-composition-graph-section], [data-composition-graph-output-button], [data-composition-graph-source]')) {
       event.preventDefault();
       if (event.target.dataset.compositionGraphPiece) { const [outputIndex, pieceIndex] = event.target.dataset.compositionGraphPiece.split(':').map(Number); return openMenu({ kind: 'piece', outputIndex, pieceIndex }, `[data-composition-graph-piece="${event.target.dataset.compositionGraphPiece}"]`); }
@@ -478,8 +534,8 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
       if (event.target.dataset.compositionGraphOutputButton !== undefined) return openMenu({ kind: 'output', outputIndex: Number(event.target.dataset.compositionGraphOutputButton) }, `[data-composition-graph-output-button="${event.target.dataset.compositionGraphOutputButton}"]`);
       return openMenu({ kind: 'source', inputIndex: Number(event.target.dataset.compositionGraphSource), range: null }, `[data-composition-graph-source="${event.target.dataset.compositionGraphSource}"]`);
     }
+    if (event.key === 'Escape' && workspace.cancel()) { event.preventDefault(); event.stopPropagation?.(); return; }
     if (event.key === 'Escape') { if (menu) return closeMenu(); connectFrom = null; selectedRange = null; notice = ''; return render(); }
-    if (event.key === 'Tab' && menu) { event.preventDefault(); nextFocus = { selector: tabExitTarget(event.shiftKey) }; menu = null; return render(); }
     if (menu && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
       const items = [...root.querySelectorAll('[data-composition-context] button:not(:disabled)')]; const current = items.indexOf(root.ownerDocument.activeElement); if (!items.length) return;
       event.preventDefault(); const index = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length; items[index].focus(); return;
@@ -487,6 +543,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     if (event.key === 'Enter' && (event.metaKey || event.ctrlKey) && event.target.matches('[data-composition-source]')) selection();
   };
   const context = event => {
+    if (disposed) return;
     const target = event.target.closest('[data-composition-graph-piece], [data-composition-graph-section], [data-composition-graph-output-button], [data-composition-graph-source]');
     if (!target) return;
     event.preventDefault();
@@ -496,6 +553,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     return openMenu({ kind: 'source', inputIndex: Number(target.dataset.compositionGraphSource), range: null }, `[data-composition-graph-source="${target.dataset.compositionGraphSource}"]`);
   };
   const dragstart = event => {
+    if (disposed) return;
     const target = event.target.closest('[data-composition-graph-piece], [data-composition-graph-section]');
     drag = null;
     if (!target || hasPendingFormEdits()) { if (hasPendingFormEdits()) notice = structuralNotice; return; }
@@ -504,8 +562,9 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     event.dataTransfer?.setDragImage?.(target, 8, 8);
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
   };
-  const dragover = event => { if (drag && event.target.closest('[data-composition-drop-output], [data-composition-drop-piece]')) event.preventDefault(); };
+  const dragover = event => { if (!disposed && drag && event.target.closest('[data-composition-drop-output], [data-composition-drop-piece]')) event.preventDefault(); };
   const drop = event => {
+    if (disposed) return;
     const target = event.target.closest('[data-composition-drop-output], [data-composition-drop-piece]');
     if (!target) return;
     if (!drag || event.dataTransfer?.files?.length || [...(event.dataTransfer?.types ?? [])].includes('Files')) { drag = null; event.preventDefault(); return; }
@@ -518,26 +577,60 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     if (target.dataset.compositionDropPiece) { const [, pieceIndex] = target.dataset.compositionDropPiece.split(':').map(Number); return movePieceTo(current.outputIndex, current.pieceIndex, outputIndex, pieceIndex, current.version); }
     return movePieceTo(current.outputIndex, current.pieceIndex, outputIndex, null, current.version);
   };
-  const dragend = () => { drag = null; };
+  const dragend = () => { if (!disposed) drag = null; };
   const documentClick = event => {
+    if (disposed) return;
     if (!menu) return;
     const target = event.target;
     if (!(target instanceof root.ownerDocument.defaultView.Element)) return;
     if (target.closest('[data-composition-context], [data-composition-graph-source], [data-composition-graph-section], [data-composition-graph-piece], [data-composition-graph-output-button], [data-composition-graph-output-actions], [data-composition-graph-piece-actions]')) return;
-    menu = null; render();
+    dismissMenu();
   };
+  const menuFocusout = event => {
+    if (disposed) return;
+    if (!menu || !event.target.closest?.('[data-composition-context]')) return;
+    const next = event.relatedTarget;
+    if (next?.closest?.('[data-composition-context]')) return;
+    dismissMenu();
+  };
+  const pointerdown = event => { if (disposed) return; const resize = event.target.closest?.('[data-workspace-resize]'); if (resize && workspace.start(resize.dataset.workspaceResize, event, resize)) event.preventDefault(); };
+  const pointermove = event => { if (!disposed) workspace.move(event); };
+  const pointerup = event => { if (!disposed) workspace.finish(event); };
+  const pointercancel = event => { if (!disposed) workspace.cancel(event.pointerId); };
+  const lostpointercapture = event => { if (!disposed) workspace.cancel(event.pointerId); };
+  const workspaceResizeObserver = root.ownerDocument.defaultView?.ResizeObserver ? new root.ownerDocument.defaultView.ResizeObserver(() => { if (!disposed) syncWorkspaceBounds(); }) : null;
+  const workspaceWindowResize = () => { if (!disposed) syncWorkspaceBounds(); };
   root.addEventListener('click', clicked);
   root.addEventListener('change', changed);
+  root.addEventListener('input', input);
   root.addEventListener('keyup', selection);
   root.addEventListener('keydown', key);
   root.addEventListener('contextmenu', context);
+  root.addEventListener('focusout', menuFocusout);
   root.addEventListener('dragstart', dragstart);
   root.addEventListener('dragover', dragover);
   root.addEventListener('drop', drop);
   root.addEventListener('dragend', dragend);
+  root.addEventListener('pointerdown', pointerdown);
+  root.addEventListener('pointermove', pointermove);
+  root.addEventListener('pointerup', pointerup);
+  root.addEventListener('pointercancel', pointercancel);
+  root.addEventListener('lostpointercapture', lostpointercapture);
   root.ownerDocument.addEventListener('click', documentClick);
   render();
-  return { render, dispose: () => { drag = null; graphResizeObserver?.disconnect(); graphResizeObserver = null; bindingState.set(controller, { tab, sourceInputIndex, selectedRange, conflictRanges, focus, nextFocus, scroll, formDrafts, formBaseline, reveal, menu, connectFrom, notice, drag, menuFocus, cacheLayout: lastCacheLayout, draftVersion: lastDraftVersion }); root.removeEventListener('click', clicked); root.removeEventListener('change', changed); root.removeEventListener('keyup', selection); root.removeEventListener('keydown', key); root.removeEventListener('contextmenu', context); root.removeEventListener('dragstart', dragstart); root.removeEventListener('dragover', dragover); root.removeEventListener('drop', drop); root.removeEventListener('dragend', dragend); root.ownerDocument.removeEventListener('click', documentClick); } };
+  workspaceResizeObserver?.observe(root);
+  root.ownerDocument.defaultView?.addEventListener?.('resize', workspaceWindowResize);
+  const dispose = ({ preserveCache = true } = {}) => {
+    if (disposed) return;
+    disposed = true;
+    drag = null; workspace.dispose(); workspaceResizeObserver?.disconnect(); root.ownerDocument.defaultView?.removeEventListener?.('resize', workspaceWindowResize); graphResizeObserver?.disconnect(); graphResizeObserver = null;
+    if (preserveCache) bindingState.set(controller, { tab, sourceInputIndex, selectedRange, conflictRanges: [...conflictRanges], focus, nextFocus, scroll: new Map(scroll), formDrafts: new Map(formDrafts), formBaseline: new Map(formBaseline), reveal, menu, connectFrom, notice, drag: null, menuFocus, cacheLayout: lastCacheLayout, draftVersion: lastDraftVersion, inputFilter });
+    else purgeCompositionViewCache(controller);
+    clearRetainedCache(retained); retainedCacheLayout = null; retainedDraftVersion = null; inputFilter = '';
+    scroll.clear(); formDrafts.clear(); formBaseline.clear(); clearDraftKeys.clear(); conflictRanges = []; selectedRange = null; focus = null; nextFocus = null; reveal = null; menu = null; connectFrom = null; notice = ''; menuFocus = null; lastCacheLayout = null; lastDraftVersion = null;
+    root.removeEventListener('click', clicked); root.removeEventListener('change', changed); root.removeEventListener('input', input); root.removeEventListener('keyup', selection); root.removeEventListener('keydown', key); root.removeEventListener('contextmenu', context); root.removeEventListener('focusout', menuFocusout); root.removeEventListener('dragstart', dragstart); root.removeEventListener('dragover', dragover); root.removeEventListener('drop', drop); root.removeEventListener('dragend', dragend); root.removeEventListener('pointerdown', pointerdown); root.removeEventListener('pointermove', pointermove); root.removeEventListener('pointerup', pointerup); root.removeEventListener('pointercancel', pointercancel); root.removeEventListener('lostpointercapture', lostpointercapture); root.ownerDocument.removeEventListener('click', documentClick);
+  };
+  return { render, dispose, purgeForWorkspaceLock: () => dispose({ preserveCache: false }) };
 }
 
 function normalizedOffsetForByte(content, byte) {

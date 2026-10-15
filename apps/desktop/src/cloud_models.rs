@@ -1,11 +1,10 @@
 //! Native cloud orchestration. A retained request is never transfer permission.
 use crate::{
-    AdmissionError, begin_operation,
+    AdmissionError,
     cloud_custody::{Custody, Lease, Phase},
     cloud_model_consent::{Consent, Decision, Purpose, REVIEW_WINDOW, Review},
     cloud_store::{self, OsStore, Secret},
     model_flight::{ModelFlight, ModelLease},
-    workspace,
 };
 use rangoon_model_cloud::{Cancellation, CheckRequest, CheckResult, CloudClient, Completion};
 use rangoon_model_session::{
@@ -22,7 +21,7 @@ use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
 
 #[derive(Default)]
 pub struct NativeCloud {
-    state: Mutex<State>,
+    state: Arc<Mutex<State>>,
     consent: Consent<Flow>,
 }
 #[derive(Default)]
@@ -36,6 +35,22 @@ struct Envelope {
     secret: Secret,
 }
 impl NativeCloud {
+    pub(super) fn purge_for_workspace_close(&self) -> crate::workspace_close::Cleanup {
+        let (session, state_healthy) = {
+            let (mut state, healthy) = match self.state.lock() {
+                Ok(state) => (state, true),
+                Err(error) => (error.into_inner(), false),
+            };
+            state.staged = None;
+            (state.session.purge_for_workspace_close(), healthy)
+        };
+        // Drop the envelope/state lock before consent can drop a Flow owner.
+        let consent = self.consent.purge();
+        crate::workspace_close::Cleanup {
+            healthy: state_healthy && session && consent.healthy,
+            keep_parent: consent.keep_parent,
+        }
+    }
     fn lock(&self) -> Result<MutexGuard<'_, State>, Diagnostic> {
         self.state
             .lock()
@@ -51,15 +66,19 @@ impl NativeCloud {
         Ok(view)
     }
     fn clear(&self) -> Result<SessionView, Diagnostic> {
-        let mut state = self.lock()?;
-        state.staged = None;
-        state.session.clear()
+        let result = self.lock().and_then(|mut state| {
+            state.staged = None;
+            state.session.clear()
+        });
+        self.consent.purge();
+        result
     }
     fn resolution(&self, raw: &[u8]) -> Result<Resolution, Diagnostic> {
         let mut state = self.lock()?;
         state.staged = None;
         state.session.begin_resolution(raw)
     }
+    #[cfg(test)]
     fn stage(
         &self,
         ready: rangoon_model_session::cloud::RetainedPreparation,
@@ -79,6 +98,34 @@ impl NativeCloud {
         // The portable operation is released only after pairing, while the native
         // lock still excludes clear/configure/competing preparation/claim.
         Ok(ready.into_view())
+    }
+    fn stage_input(
+        &self,
+        custody: &mut CloudPreparationCustody,
+    ) -> Result<PreparedView, Diagnostic> {
+        custody
+            .resources
+            .ensure_current()
+            .map_err(|_| Diagnostic::Cancelled)?;
+        let mut state = self.lock()?;
+        custody.ready.ensure_current()?;
+        let view = custody.ready.view();
+        let secret = custody.secret.take().ok_or(Diagnostic::StalePrepared)?;
+        if view.credential_revision != secret.revision() {
+            return Err(Diagnostic::StalePrepared);
+        }
+        state.staged = Some(Envelope {
+            prepared_id: view.prepared_id.clone(),
+            request_id: view.request_id.clone(),
+            secret,
+        });
+        custody.envelope = Some(EnvelopeCustody {
+            state: Arc::clone(&self.state),
+            prepared_id: view.prepared_id.clone(),
+            request_id: view.request_id.clone(),
+            published: false,
+        });
+        Ok(view.clone())
     }
     fn claim(&self, raw: &[u8]) -> Result<(Transmission, Secret), Diagnostic> {
         #[derive(Deserialize)]
@@ -128,6 +175,48 @@ impl NativeCloud {
     }
 }
 
+struct CloudPreparationCustody {
+    ready: rangoon_model_session::cloud::RetainedPreparation,
+    envelope: Option<EnvelopeCustody>,
+    secret: Option<Secret>,
+    resources: Arc<Resources>,
+}
+impl CloudPreparationCustody {
+    fn publish(&mut self) -> Result<(), Diagnostic> {
+        let envelope = self.envelope.as_mut().ok_or(Diagnostic::StalePrepared)?;
+        self.resources
+            .ensure_current()
+            .map_err(|_| Diagnostic::Cancelled)?;
+        self.ready.publish()?;
+        envelope.published = true;
+        Ok(())
+    }
+}
+struct EnvelopeCustody {
+    state: Arc<Mutex<State>>,
+    prepared_id: String,
+    request_id: String,
+    published: bool,
+}
+impl Drop for EnvelopeCustody {
+    fn drop(&mut self) {
+        if self.published {
+            return;
+        }
+        // Cleanup may forget an exact envelope in a poisoned state; poison is
+        // retained, so this cannot make the native session usable again.
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if state.staged.as_ref().is_some_and(|entry| {
+            entry.prepared_id == self.prepared_id && entry.request_id == self.request_id
+        }) {
+            state.staged = None;
+        }
+    }
+}
+
 struct Resources {
     _flight: ModelLease,
     credential: Lease,
@@ -146,7 +235,7 @@ impl Resources {
         }))
     }
     fn ensure_current(&self) -> Result<(), Code> {
-        if self.credential.is_current() {
+        if self._flight.is_current() && self.credential.is_current() {
             Ok(())
         } else {
             Err(Code::Session(Diagnostic::Cancelled))
@@ -388,7 +477,17 @@ pub fn get_cloud_model_profile(
     allowed(window.label(), "main")?;
     let model = app.state::<NativeCloud>();
     Ok(if empty(request.body()) {
-        profile_result(&model)
+        match app.state::<ModelFlight>().read() {
+            Ok(lease) => {
+                let result = profile_result(&model);
+                if lease.is_current() {
+                    result
+                } else {
+                    Stamp::idle(&model).error(Code::Session(Diagnostic::SessionUnavailable))
+                }
+            }
+            Err(error) => Stamp::idle(&model).error(Code::Session(error)),
+        }
     } else {
         Stamp::idle(&model).error(Code::Session(Diagnostic::InvalidRequest))
     })
@@ -402,8 +501,15 @@ pub fn configure_cloud_model(
     allowed(window.label(), "main")?;
     let model = app.state::<NativeCloud>();
     let result = raw(request.body(), 1024).and_then(|bytes| {
-        let _flight = app.state::<ModelFlight>().begin()?;
-        model.configure(bytes)
+        let flight = app.state::<ModelFlight>().begin()?;
+        if !flight.is_current() {
+            return Err(Diagnostic::SessionUnavailable);
+        }
+        let result = model.configure(bytes)?;
+        if !flight.is_current() {
+            return Err(Diagnostic::SessionUnavailable);
+        }
+        Ok(result)
     });
     Ok(match result {
         Ok(session) => Stamp {
@@ -476,41 +582,53 @@ pub async fn prepare_cloud_model(
         Ok(value) => value,
         Err(error) => return Ok(stamp.error(error)),
     };
-    let failure = stamp.clone();
-    Ok(tauri::async_runtime::spawn_blocking(move || {
-        let result = (|| {
-            resources.ensure_current()?;
-            resolution
-                .operation()
-                .ensure_current()
-                .map_err(Code::Session)?;
-            let secret = read_secret(&app)?;
-            resources.ensure_current()?;
-            let preparation = resolution
-                .with_credential_revision(&secret.revision())
-                .map_err(Code::Session)?;
-            let _guard = begin_operation(&app).map_err(|error| match error {
+    let worker_app = app.clone();
+    let completed = tauri::async_runtime::spawn_blocking(move || {
+        resources.ensure_current()?;
+        resolution
+            .operation()
+            .ensure_current()
+            .map_err(Code::Session)?;
+        let secret = read_secret(&worker_app)?;
+        resources.ensure_current()?;
+        let preparation = resolution
+            .with_credential_revision(&secret.revision())
+            .map_err(Code::Session)?;
+        let guard = worker_app
+            .state::<super::SourceAccess>()
+            .begin_model_inputs()
+            .map_err(|error| match error {
                 AdmissionError::Busy => Code::Native(NativeCode::WorkspaceBusy),
                 AdmissionError::Unavailable => Code::Session(Diagnostic::SessionUnavailable),
             })?;
-            let store = workspace(&app).map_err(|_| Code::Session(Diagnostic::InputUnavailable))?;
-            let ready = preparation
-                .prepare_retained(&store)
-                .map_err(Code::Session)?;
-            resources.ensure_current()?;
-            app.state::<NativeCloud>()
-                .stage(ready, secret)
-                .map_err(Code::Session)
-        })();
-        match result {
-            Ok(prepared) => stamp.result(Outcome::Prepared {
-                prepared: Box::new(prepared),
-            }),
-            Err(error) => stamp.error(error),
-        }
+        Ok::<_, Code>(guard.with_inputs(|reader| {
+            preparation
+                .prepare_retained_with_inputs(reader)
+                .map(|ready| CloudPreparationCustody {
+                    ready,
+                    envelope: None,
+                    secret: Some(secret),
+                    resources,
+                })
+        }))
     })
-    .await
-    .unwrap_or_else(|_| failure.error(Code::Session(Diagnostic::SessionUnavailable))))
+    .await;
+    let result = match completed {
+        Ok(Ok(completed)) => completed
+            .deliver_using(
+                |custody| app.state::<NativeCloud>().stage_input(custody),
+                CloudPreparationCustody::publish,
+            )
+            .map_err(Code::Session),
+        Ok(Err(error)) => Err(error),
+        Err(_) => Err(Code::Session(Diagnostic::SessionUnavailable)),
+    };
+    Ok(match result {
+        Ok(prepared) => stamp.result(Outcome::Prepared {
+            prepared: Box::new(prepared),
+        }),
+        Err(error) => stamp.error(error),
+    })
 }
 
 #[tauri::command]
@@ -593,36 +711,36 @@ pub async fn send_cloud_model(
 }
 
 async fn freshness(app: AppHandle, flow: Arc<Flow>) -> Result<Freshness, Code> {
-    let guard = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return Err(Code::Native(NativeCode::WorkspaceBusy));
-        }
-        Err(AdmissionError::Unavailable) => {
-            return Err(Code::Session(Diagnostic::SessionUnavailable));
-        }
-    };
-    tauri::async_runtime::spawn_blocking(move || {
-        let _guard = guard;
-        flow.ensure_current()?;
-        let Work::Analysis(send) = &flow.work else {
-            return Err(Code::Session(Diagnostic::InvalidRequest));
-        };
-        let store = workspace(&app).map_err(|_| Code::Session(Diagnostic::InputUnavailable))?;
-        send.freshness(&store).map_err(Code::Session)
+    let guard = app
+        .state::<super::SourceAccess>()
+        .begin_model_inputs()
+        .map_err(|error| match error {
+            AdmissionError::Busy => Code::Native(NativeCode::WorkspaceBusy),
+            AdmissionError::Unavailable => Code::Session(Diagnostic::SessionUnavailable),
+        })?;
+    let completed = tauri::async_runtime::spawn_blocking(move || {
+        guard.with_inputs(|reader| {
+            flow.ensure_current().map_err(|_| Diagnostic::Cancelled)?;
+            let Work::Analysis(send) = &flow.work else {
+                return Err(Diagnostic::InvalidRequest);
+            };
+            send.freshness_with_inputs(reader)
+        })
     })
     .await
-    .map_err(|_| Code::Session(Diagnostic::SessionUnavailable))?
+    .map_err(|_| Code::Session(Diagnostic::SessionUnavailable))?;
+    completed.deliver().map_err(Code::Session)
 }
 async fn run_flow(app: AppHandle, flow: Arc<Flow>) -> Result<Outcome, Code> {
     flow.ensure_current()?;
     let decision = app
         .state::<NativeCloud>()
         .consent
-        .install(
+        .install_guarded(
             flow.review(),
             flow.operation().cancellation().clone(),
             Arc::clone(&flow),
+            flow.resources._flight.witness(),
         )
         .ok_or(Code::Native(NativeCode::ConfirmationUnavailable))?;
     let review_guard = ReviewGuard {
@@ -885,3 +1003,216 @@ pub fn window_event(window: &tauri::Window, event: &WindowEvent) {
 #[cfg(test)]
 #[path = "cloud_models_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod input_custody_tests {
+    use super::*;
+    use crate::workspace_source_access::SourceAccess;
+    use rangoon_desktop::workspace_lifecycle::Gate;
+
+    struct Root(std::path::PathBuf);
+    impl Root {
+        fn new() -> Self {
+            let mut nonce = [0; 32];
+            getrandom::fill(&mut nonce).unwrap();
+            let root = std::env::temp_dir().canonicalize().unwrap().join(format!(
+                "rangoon-cloud-input-{}",
+                rangoon_domain::byte_digest(&nonce)
+            ));
+            std::fs::create_dir(&root).unwrap();
+            Self(root)
+        }
+    }
+    impl Drop for Root {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    fn prepare(
+        root: &Root,
+        model: &NativeCloud,
+        gate: &Gate,
+    ) -> (
+        super::super::workspace_source_access::ModelInputCompletion<CloudPreparationCustody>,
+        Vec<u8>,
+    ) {
+        let source =
+            rangoon_import::analyze("fixture.md", b"# Exact cloud input\nNo provider call\n")
+                .unwrap();
+        rangoon_store::Workspace::new(root.0.clone())
+            .save_v1(&source)
+            .unwrap();
+        model.configure(br#"{"schemaVersion":"rangoon.cloud-profile-request.v1","profileId":"fixture.input","model":"synthetic","maxOutputTokens":128}"#).unwrap();
+        let raw = serde_json::to_vec(&serde_json::json!({"schemaVersion":"rangoon.cloud-selection.v1","task":"classify_v1","inputs":[{"kind":"source","sourceId":source.source.id}]})).unwrap();
+        let secret = Secret::new(b"synthetic-input-key").unwrap();
+        let preparation = model
+            .resolution(&raw)
+            .unwrap()
+            .with_credential_revision(&secret.revision())
+            .unwrap();
+        let custody = Custody::default();
+        let (credential, receiver) = custody.begin(Phase::Using).unwrap();
+        drop(receiver);
+        let resources = Arc::new(Resources {
+            _flight: ModelFlight::with_gate(gate.clone()).begin().unwrap(),
+            credential,
+        });
+        let mut claim = None;
+        let completed = SourceAccess::legacy(gate.clone(), Ok(root.0.clone()))
+            .begin_model_inputs()
+            .unwrap()
+            .with_inputs(|reader| {
+                let ready = preparation.prepare_retained_with_inputs(reader)?;
+                claim = Some(serde_json::to_vec(&serde_json::json!({"schemaVersion":"rangoon.cloud-send.v1","preparedId":ready.view().prepared_id,"requestId":ready.view().request_id})).unwrap());
+                Ok(CloudPreparationCustody { ready, envelope: None, secret: Some(secret), resources })
+            });
+        (completed, claim.unwrap())
+    }
+
+    #[test]
+    fn cloud_stage_closed_during_delivery_drops_matching_payload_and_envelope_before_drain() {
+        let root = Root::new();
+        let model = NativeCloud::default();
+        let gate = Gate::new();
+        let (completed, core_claim) = prepare(&root, &model, &gate);
+        let mut drain = None;
+        let mut claim = None;
+        let result = completed.deliver_using(|custody| {
+            let view = model.stage_input(custody)?;
+            claim = Some(serde_json::to_vec(&serde_json::json!({"schemaVersion":"rangoon.cloud-send.v1","preparedId":view.prepared_id,"requestId":view.request_id})).unwrap());
+            drain = Some(gate.request_drain().unwrap());
+            assert!(!drain.as_ref().unwrap().is_quiescent().unwrap());
+            Ok(view)
+        }, CloudPreparationCustody::publish);
+        assert!(matches!(result, Err(Diagnostic::Cancelled)));
+        assert!(model.lock().unwrap().staged.is_none());
+        assert!(matches!(
+            model.lock().unwrap().session.begin_send(&core_claim),
+            Err(Diagnostic::StalePrepared)
+        ));
+        assert!(matches!(
+            model.claim(&claim.unwrap()),
+            Err(Diagnostic::StalePrepared)
+        ));
+        assert!(drain.unwrap().is_quiescent().unwrap());
+    }
+
+    #[test]
+    fn unobserved_and_panicking_cloud_preparations_never_leave_claimable_envelopes() {
+        for panic_after_stage in [false, true] {
+            let root = Root::new();
+            let model = NativeCloud::default();
+            let gate = Gate::new();
+            let (completed, core_claim) = prepare(&root, &model, &gate);
+            if panic_after_stage {
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let _: Result<(), Diagnostic> = completed.deliver_using(
+                        |custody| {
+                            model.stage_input(custody)?;
+                            panic!("synthetic cloud staging callback panic");
+                        },
+                        CloudPreparationCustody::publish,
+                    );
+                }));
+                assert!(result.is_err());
+            } else {
+                drop(completed);
+            }
+            assert!(model.lock().unwrap().staged.is_none());
+            assert!(matches!(
+                model.lock().unwrap().session.begin_send(&core_claim),
+                Err(Diagnostic::StalePrepared)
+            ));
+            let drain = gate.request_drain().unwrap();
+            assert!(drain.is_quiescent().unwrap());
+        }
+    }
+    #[test]
+    fn native_close_drops_real_staged_envelope_even_after_poison() {
+        for poison in [false, true] {
+            let root = Root::new();
+            let model = NativeCloud::default();
+            let gate = Gate::new();
+            let (completed, _) = prepare(&root, &model, &gate);
+            let view = completed
+                .deliver_using(
+                    |custody| model.stage_input(custody),
+                    CloudPreparationCustody::publish,
+                )
+                .unwrap();
+            assert!(model.lock().unwrap().staged.is_some());
+            if poison {
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let _state = model.state.lock().unwrap();
+                    panic!("synthetic native cloud state poison");
+                }));
+            }
+            let drain = gate.request_drain().unwrap();
+            let status = model.purge_for_workspace_close();
+            assert_eq!(status.healthy, !poison);
+            assert!(!status.keep_parent);
+            let state = model
+                .state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            assert!(state.staged.is_none());
+            assert!(state.session.inspect().unwrap().profile.is_none());
+            assert!(state.session.inspect().unwrap().active.is_none());
+            drop(state);
+            let claim = serde_json::to_vec(&serde_json::json!({"schemaVersion":"rangoon.cloud-send.v1","preparedId":view.prepared_id,"requestId":view.request_id})).unwrap();
+            assert!(model.claim(&claim).is_err());
+            assert!(drain.is_quiescent().unwrap());
+            if poison {
+                assert!(model.state.lock().is_err());
+            }
+        }
+    }
+    #[test]
+    fn native_close_retains_prompt_parent_and_actual_leases_until_dialog_finishes() {
+        let gate = Gate::new();
+        let model = NativeCloud::default();
+        model.configure(br#"{"schemaVersion":"rangoon.cloud-profile-request.v1","profileId":"fixture.close","model":"synthetic","maxOutputTokens":128}"#).unwrap();
+        let operation = model.lock().unwrap().session.begin_check().unwrap();
+        let secret = Secret::new(b"synthetic-close-prompt-key").unwrap();
+        let request = CheckRequest::new(operation.profile(), &secret.revision()).unwrap();
+        let custody = Custody::with_gate(gate.clone());
+        let (credential, receiver) = custody.begin(Phase::Using).unwrap();
+        drop(receiver);
+        let flow = Arc::new(Flow {
+            work: Work::Check {
+                operation,
+                request: Box::new(request),
+            },
+            secret,
+            resources: Arc::new(Resources {
+                _flight: ModelFlight::with_gate(gate.clone()).begin().unwrap(),
+                credential,
+            }),
+        });
+        let review = flow.review();
+        let mut decision_receiver = model
+            .consent
+            .install_guarded(
+                review.clone(),
+                flow.operation().cancellation().clone(),
+                Arc::clone(&flow),
+                flow.resources._flight.witness(),
+            )
+            .unwrap();
+        let decision = Decision::parse(&serde_json::to_vec(&serde_json::json!({"schemaVersion":"rangoon.cloud-review-decision.v1","runId":review.run_id,"requestId":review.request_id})).unwrap()).unwrap();
+        model.consent.prompt(&decision).unwrap();
+        drop(flow);
+        let drain = gate.request_drain().unwrap();
+        let status = model.purge_for_workspace_close();
+        assert!(status.healthy);
+        assert!(status.keep_parent);
+        assert!(!drain.is_quiescent().unwrap());
+        assert!(decision_receiver.try_recv().is_err());
+        assert!(model.consent.finish_prompt(&review.run_id, true));
+        assert_eq!(decision_receiver.try_recv(), Ok(false));
+        assert!(drain.is_quiescent().unwrap());
+        let status = model.purge_for_workspace_close();
+        assert!(status.healthy);
+        assert!(!status.keep_parent);
+    }
+}

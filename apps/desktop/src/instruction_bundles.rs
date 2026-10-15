@@ -1,8 +1,11 @@
 //! Native picker-only portable bundles; external evidence never enters the workspace.
-use super::{AdmissionError, AppHandle, PublicError, StoreError, begin_operation, workspace};
+#[cfg(test)]
+use super::StoreError;
+use super::{AdmissionError, AppHandle, PublicError, SourceAccess};
 use rangoon_compile::{BundleInspection, Profile, encode_bundle, inspect_bundle};
 use rangoon_domain::{Authority, capability};
 use rangoon_host::{read_selected_instruction_bundle, write_selected_instruction_bundle};
+#[cfg(test)]
 use rangoon_store::Workspace;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use std::path::{Path, PathBuf};
@@ -15,12 +18,12 @@ const INSPECT_REQUEST: &str = "rangoon.instruction-bundle-inspect-request.v1";
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ExportRequest {
+pub(super) struct ExportRequest {
     schema_version: String,
-    capability_id: String,
-    revision_id: String,
-    profile: Profile,
-    expected_candidate_id: String,
+    pub(super) capability_id: String,
+    pub(super) revision_id: String,
+    pub(super) profile: Profile,
+    pub(super) expected_candidate_id: String,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -57,7 +60,7 @@ fn decode<T: DeserializeOwned>(body: &InvokeBody) -> Result<T, PublicError> {
         _ => Err(invalid_request()),
     }
 }
-fn decode_export(body: &InvokeBody) -> Result<ExportRequest, PublicError> {
+pub(super) fn decode_export(body: &InvokeBody) -> Result<ExportRequest, PublicError> {
     let request: ExportRequest = decode(body)?;
     if request.schema_version != EXPORT_REQUEST
         || !capability::valid_id(&request.capability_id, "capability:")
@@ -108,7 +111,7 @@ pub enum BundleResult {
         output_state: OutputState,
     },
 }
-fn failure(error: PublicError) -> BundleResult {
+pub(super) fn failure(error: PublicError) -> BundleResult {
     BundleResult::Failed {
         error,
         output_state: OutputState::NotCreated,
@@ -125,6 +128,7 @@ fn writer_failure(error: PublicError) -> BundleResult {
         output_state,
     }
 }
+#[cfg(test)]
 fn store_failure(error: StoreError) -> BundleResult {
     if matches!(error, StoreError::CapabilityNotFound | StoreError::NotFound) {
         return failure(candidate_changed());
@@ -140,6 +144,7 @@ fn bundle_failure(error: rangoon_compile::BundleError) -> BundleResult {
 }
 
 /// Picker precedes workspace resolution; the write sees only the newly compiled object.
+#[cfg(test)]
 fn export_selected(
     request: &ExportRequest,
     pick: impl FnOnce() -> Result<Option<PathBuf>, PublicError>,
@@ -161,6 +166,15 @@ fn export_selected(
         Ok(result) => result.compilation,
         Err(error) => return store_failure(error),
     };
+    export_compiled(request, &path, compiled, write)
+}
+
+pub(super) fn export_compiled(
+    request: &ExportRequest,
+    path: &Path,
+    compiled: rangoon_compile::CompilationReport,
+    write: impl FnOnce(&Path, &[u8]) -> Result<(), PublicError>,
+) -> BundleResult {
     if compiled
         .candidate
         .as_ref()
@@ -173,7 +187,7 @@ fn export_selected(
         Ok(bundle) => bundle,
         Err(error) => return bundle_failure(error),
     };
-    if let Err(error) = write(&path, &bundle.bytes) {
+    if let Err(error) = write(path, &bundle.bytes) {
         return writer_failure(error);
     }
     BundleResult::Exported {
@@ -186,6 +200,7 @@ fn export_selected(
     }
 }
 
+#[cfg(test)]
 fn inspect_selected(pick: impl FnOnce() -> Result<Option<PathBuf>, PublicError>) -> BundleResult {
     let path = match pick() {
         Ok(Some(path)) => path,
@@ -196,7 +211,10 @@ fn inspect_selected(pick: impl FnOnce() -> Result<Option<PathBuf>, PublicError>)
         Ok(bytes) => bytes,
         Err(error) => return failure(error),
     };
-    let inspection = match inspect_bundle(&bytes) {
+    inspect_bytes(&bytes)
+}
+pub(super) fn inspect_bytes(bytes: &[u8]) -> BundleResult {
+    let inspection = match inspect_bundle(bytes) {
         Ok(inspection) => inspection,
         Err(error) => return bundle_failure(error),
     };
@@ -241,7 +259,7 @@ fn busy() -> BundleResult {
         "Finish the current local operation before using instruction bundles.",
     ))
 }
-fn join_failure(exporting: bool) -> BundleResult {
+pub(super) fn join_failure(exporting: bool) -> BundleResult {
     BundleResult::Failed {
         error: public(
             "instruction_bundle_unavailable",
@@ -259,60 +277,65 @@ fn join_failure(exporting: bool) -> BundleResult {
     }
 }
 
+fn admission(error: AdmissionError) -> BundleResult {
+    match error {
+        AdmissionError::Busy => busy(),
+        AdmissionError::Unavailable => failure(PublicError {
+            code: "workspace_unavailable",
+            message: "Reopen the workspace before using instruction bundles.",
+        }),
+    }
+}
 #[tauri::command]
 pub async fn export_instruction_bundle(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<BundleResult, ()> {
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return Ok(busy());
-        }
-        Err(AdmissionError::Unavailable) => {
-            return Ok(store_failure(StoreError::Unavailable));
-        }
-    };
     let request = match decode_export(request.body()) {
         Ok(request) => request,
         Err(error) => return Ok(failure(error)),
     };
-    Ok(tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        export_selected(
-            &request,
-            || pick(&app, true),
-            || workspace(&app),
-            write_selected_instruction_bundle,
-        )
-    })
-    .await
-    .unwrap_or_else(|_| join_failure(true)))
+    let operation = match app.state::<SourceAccess>().begin_file() {
+        Ok(operation) => operation,
+        Err(error) => return Ok(admission(error)),
+    };
+    Ok(
+        match tauri::async_runtime::spawn_blocking(move || {
+            operation.export_instruction(
+                request,
+                || pick(&app, true),
+                write_selected_instruction_bundle,
+            )
+        })
+        .await
+        {
+            Ok(completed) => completed.deliver(),
+            Err(_) => join_failure(true),
+        },
+    )
 }
-
 #[tauri::command]
 pub async fn inspect_instruction_bundle(
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<BundleResult, ()> {
-    let pending = match begin_operation(&app) {
-        Ok(lease) => lease,
-        Err(AdmissionError::Busy) => {
-            return Ok(busy());
-        }
-        Err(AdmissionError::Unavailable) => {
-            return Ok(store_failure(StoreError::Unavailable));
-        }
-    };
     if let Err(error) = decode_inspect(request.body()) {
         return Ok(failure(error));
     }
-    Ok(tauri::async_runtime::spawn_blocking(move || {
-        let _pending = pending;
-        inspect_selected(|| pick(&app, false))
-    })
-    .await
-    .unwrap_or_else(|_| join_failure(false)))
+    let operation = match app.state::<SourceAccess>().begin_file() {
+        Ok(operation) => operation,
+        Err(error) => return Ok(admission(error)),
+    };
+    Ok(
+        match tauri::async_runtime::spawn_blocking(move || {
+            operation.inspect_instruction(|| pick(&app, false), read_selected_instruction_bundle)
+        })
+        .await
+        {
+            Ok(completed) => completed.deliver(),
+            Err(_) => join_failure(false),
+        },
+    )
 }
 
 #[cfg(test)]

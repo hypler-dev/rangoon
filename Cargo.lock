@@ -304,6 +304,8 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 name = "rangoon-cli"
 version = "0.1.0-dev"
 dependencies = [
+ "rangoon-compile",
+ "rangoon-domain",
  "rangoon-engine",
  "rangoon-import",
  "serde",
@@ -362,6 +364,15 @@ name = "rangoon-import"
 version = "0.1.0-dev"
 dependencies = [
  "rangoon-domain",
+ "serde_json",
+]
+
+[[package]]
+name = "rangoon-integrations"
+version = "0.1.0-dev"
+dependencies = [
+ "rangoon-domain",
+ "serde",
  "serde_json",
 ]
 

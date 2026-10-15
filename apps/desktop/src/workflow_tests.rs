@@ -591,7 +591,7 @@ fn exact_local_permissions_and_command_registration_cover_only_main_workbench() 
             assert!(!restricted.contains(&permission));
         }
     }
-    assert!(main.contains(".manage(WorkflowSession::default())"));
+    assert!(!main.contains(".manage(WorkflowSession::default())"));
 }
 
 #[test]

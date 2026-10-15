@@ -183,7 +183,45 @@ impl Gate {
     }
 }
 
+/// Non-owning observation of one admitted workspace generation. This cannot
+/// retain callback custody, open admission, or serve as consent.
+/// ```compile_fail
+/// use rangoon_desktop::workspace_lifecycle::{Gate, Lane};
+/// let witness = Gate::new().begin(Lane::Read).unwrap().witness();
+/// let copy = witness.clone();
+/// ```
+/// ```compile_fail
+/// use rangoon_desktop::workspace_lifecycle::{Gate, Lane};
+/// let witness = Gate::new().begin(Lane::Read).unwrap().witness();
+/// println!("{:?}", witness);
+/// ```
+/// ```compile_fail
+/// use rangoon_desktop::workspace_lifecycle::{Gate, Lane};
+/// let witness = Gate::new().begin(Lane::Read).unwrap().witness();
+/// serde_json::to_string(&witness).unwrap();
+/// ```
+/// ```compile_fail
+/// use rangoon_desktop::workspace_lifecycle::{Gate, GenerationWitness};
+/// let witness = GenerationWitness { gate: Gate::new(), generation: 0 };
+/// ```
+pub struct GenerationWitness {
+    gate: Gate,
+    generation: u64,
+}
+impl GenerationWitness {
+    pub fn is_current(&self) -> Result<bool, Error> {
+        let state = self.gate.state()?;
+        Ok(state.phase == Phase::Open && state.generation == self.generation)
+    }
+}
+
 impl Lease {
+    pub fn witness(&self) -> GenerationWitness {
+        GenerationWitness {
+            gate: self.gate.clone(),
+            generation: self.generation,
+        }
+    }
     pub fn is_current(&self) -> Result<bool, Error> {
         let state = self.gate.state()?;
         Ok(state.phase == Phase::Open && state.generation == self.generation)

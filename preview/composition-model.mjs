@@ -161,6 +161,7 @@ export function createCompositionController({ operation, invoke, onChange = () =
   const bridgeAvailable = typeof invoke === 'function';
   let state = { ...EMPTY_COMPOSITION_STATE, operation, bridgeAvailable, status: bridgeAvailable ? 'idle' : 'unavailable', message: bridgeAvailable ? 'Load saved local content to begin composition.' : EMPTY_COMPOSITION_STATE.message };
   let epoch = 0;
+  let workspaceIdentity = Symbol('composition-workspace');
   let undoHistory = [];
   let redoHistory = [];
   const publish = () => onChange(clone(state));
@@ -213,13 +214,28 @@ export function createCompositionController({ operation, invoke, onChange = () =
   const resetPreview = message => ({ preview: state.preview, previewStale: Boolean(state.preview), acknowledged: false, results: state.results, message });
 
   const controller = {
+    purgeForWorkspaceLock() {
+      ++epoch;
+      workspaceIdentity = Symbol('composition-workspace');
+      clearHistory();
+      set({
+        ...EMPTY_COMPOSITION_STATE,
+        operation,
+        bridgeAvailable,
+        status: bridgeAvailable ? 'idle' : 'unavailable',
+        requestId: state.requestId + 1,
+        message: bridgeAvailable ? 'Composition data cleared from this view.' : EMPTY_COMPOSITION_STATE.message,
+      });
+    },
     getState: () => clone(state),
     async load() {
       if (!bridgeAvailable || state.pending) return false;
       const request = ++epoch;
+      const identity = workspaceIdentity;
       set({ status: state.sources.length || state.capabilities.length ? 'ready' : 'loading', pending: 'load', error: null, message: 'Loading saved local content…' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('get_workspace_data');
-      if (request !== epoch) return false;
+      if (identity !== workspaceIdentity || request !== epoch) return false;
       const workspace = result?.outcome === 'loaded' ? validateWorkspace(result.workspace) : null;
       if (!workspace) { fail(result); return false; }
       set({ status: 'ready', pending: null, error: null, sources: clone(workspace.sources), capabilities: clone(workspace.capabilities), message: workspace.sources.length || workspace.capabilities.length ? 'Saved local content is ready.' : 'No saved local content is available yet.' });
@@ -227,9 +243,10 @@ export function createCompositionController({ operation, invoke, onChange = () =
     },
     async addSource(sourceId) {
       if (!mutationAllowed() || operation !== 'decompose' || state.draft || !validId(sourceId, 'source:') || !state.sources.some(source => source.sourceId === sourceId)) return false;
-      const request = ++epoch; set({ pending: 'source', error: null, message: 'Opening saved source…' });
+      const request = ++epoch; const identity = workspaceIdentity; set({ pending: 'source', error: null, message: 'Opening saved source…' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('read_composition_source', { sourceId });
-      if (request !== epoch) return false;
+      if (identity !== workspaceIdentity || request !== epoch) return false;
       const input = result?.outcome === 'analyzed' ? reportInput(result.report) : null;
       if (!input || input.reference.sourceId !== sourceId) { fail(result); return false; }
       set({ pending: null, inputs: [input], message: 'Saved source selected. Start a draft to edit its proposed partition.' });
@@ -239,9 +256,10 @@ export function createCompositionController({ operation, invoke, onChange = () =
       if (!mutationAllowed() || operation === 'decompose' || state.draft || !validId(capabilityId, 'capability:') || (revisionId !== null && !validId(revisionId, 'revision:'))) return false;
       const max = operation === 'merge' ? 16 : 1;
       if (state.inputs.length >= max) return false;
-      const request = ++epoch; set({ pending: 'revision', error: null, message: 'Opening saved skill revision…' });
+      const request = ++epoch; const identity = workspaceIdentity; set({ pending: 'revision', error: null, message: 'Opening saved skill revision…' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('open_capability', { capabilityId, revisionId });
-      if (request !== epoch) return false;
+      if (identity !== workspaceIdentity || request !== epoch) return false;
       const input = result?.outcome === 'opened' ? revisionInput(result.capability) : null;
       if (!input || input.reference.capabilityId !== capabilityId || (revisionId ? input.reference.revisionId !== revisionId : input.reference.revisionId !== input.latestRevisionId) || state.inputs.some(item => item.reference.kind === 'revision' && item.reference.capabilityId === input.reference.capabilityId && item.reference.revisionId === input.reference.revisionId)) { fail(result); return false; }
       set({ pending: null, inputs: [...state.inputs, input], message: 'Saved skill revision selected.' });
@@ -250,9 +268,10 @@ export function createCompositionController({ operation, invoke, onChange = () =
     async replaceRevision(inputIndex, revisionId) {
       if (!mutationAllowed() || state.draft || !whole(inputIndex) || !validId(revisionId, 'revision:') || state.inputs[inputIndex]?.reference.kind !== 'revision') return false;
       const prior = state.inputs[inputIndex];
-      const request = ++epoch; set({ pending: 'revision', error: null, message: 'Opening saved skill revision…' });
+      const request = ++epoch; const identity = workspaceIdentity; set({ pending: 'revision', error: null, message: 'Opening saved skill revision…' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('open_capability', { capabilityId: prior.reference.capabilityId, revisionId });
-      if (request !== epoch) return false;
+      if (identity !== workspaceIdentity || request !== epoch) return false;
       const replacement = result?.outcome === 'opened' ? revisionInput(result.capability) : null;
       if (!replacement || replacement.reference.capabilityId !== prior.reference.capabilityId || replacement.reference.revisionId !== revisionId || state.inputs.some((item, index) => index !== inputIndex && item.reference.kind === 'revision' && item.reference.capabilityId === replacement.reference.capabilityId && item.reference.revisionId === replacement.reference.revisionId)) { fail(result); return false; }
       set({ pending: null, inputs: state.inputs.map((item, index) => index === inputIndex ? replacement : item), message: 'Saved skill revision replaced.' });
@@ -303,9 +322,10 @@ export function createCompositionController({ operation, invoke, onChange = () =
         if (state.targets[outputIndex]?.kind === 'new' && state.targetDetails[outputIndex] === null) return false;
         const targets = clone(state.targets); const details = clone(state.targetDetails); targets[outputIndex] = newTarget(); details[outputIndex] = null; return applyDraftEdit({ targets, targetDetails: details });
       }
-      const request = ++epoch; set({ pending: 'target', error: null, message: 'Opening current target head…' });
+      const request = ++epoch; const identity = workspaceIdentity; set({ pending: 'target', error: null, message: 'Opening current target head…' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('open_capability', { capabilityId, revisionId: null });
-      if (request !== epoch) return false;
+      if (identity !== workspaceIdentity || request !== epoch) return false;
       const detail = result?.outcome === 'opened' ? validateCapabilityDetail(result.capability) : null;
       if (!detail || detail.id !== capabilityId || detail.revision.id !== detail.latestRevisionId || state.targets.some((target, index) => index !== outputIndex && target.kind === 'append' && target.capabilityId === capabilityId)) { fail(result); return false; }
       const targets = clone(state.targets); const details = clone(state.targetDetails); targets[outputIndex] = { kind: 'append', capabilityId, expectedRevisionId: detail.latestRevisionId }; details[outputIndex] = detail;
@@ -405,10 +425,11 @@ export function createCompositionController({ operation, invoke, onChange = () =
     },
     async requestPreview() {
       if (!mutationAllowed() || !state.draft || state.targets.length !== state.draft.outputs.length || !state.targets.every(validateTarget)) return false;
-      const request = ++epoch; const payload = { schemaVersion: 'rangoon.composition-application-request.v0', draft: state.draft, targets: state.targets };
+      const request = ++epoch; const identity = workspaceIdentity; const payload = { schemaVersion: 'rangoon.composition-application-request.v0', draft: state.draft, targets: state.targets };
       set({ pending: 'preview', error: null, previewStale: Boolean(state.preview), acknowledged: false, message: 'Preparing native composition preview…' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('preview_composition', encoder.encode(JSON.stringify(payload)));
-      if (request !== epoch) return false;
+      if (identity !== workspaceIdentity || request !== epoch) return false;
       let preview = null;
       try { preview = validatePreviewEnvelope(result, state.draft, state.targets, state.inputs); } catch { preview = null; }
       if (!preview) { set({ pending: null, error: failure(result), previewStale: Boolean(state.preview), acknowledged: false, message: failure(result).message }); return false; }
@@ -420,16 +441,19 @@ export function createCompositionController({ operation, invoke, onChange = () =
     },
     async save() {
       if (!bridgeAvailable || state.pending || !state.preview || state.previewStale || !state.preview.preview.saveable || !state.acknowledged) return false;
-      const preview = state.preview; const request = ++epoch;
+      const preview = state.preview; const request = ++epoch; const identity = workspaceIdentity;
       const payload = { schemaVersion: 'rangoon.composition-confirmation.v0', previewId: preview.previewId, expectedStateId: preview.expectedStateId, acknowledged: true };
       set({ pending: 'save', error: null, message: 'Saving exact acknowledged composition locally…' });
+      if (identity !== workspaceIdentity) return false;
       const result = await call('commit_composition', encoder.encode(JSON.stringify(payload)));
+      if (identity !== workspaceIdentity || request !== epoch) return false;
       let receipt = null;
       try { receipt = result?.outcome === 'committed' ? validateReceipt(result.receipt, preview.preview) : null; } catch { receipt = null; }
       if (!receipt) { set({ pending: null, error: failure(result), previewStale: true, acknowledged: false, message: 'Save outcome needs a new preview and readback. Draft retained. ' + failure(result).message }); return false; }
       clearHistory();
       set({ pending: null, results: receipt.capabilities, dirty: false, acknowledged: false, previewStale: false, error: null, message: 'Composition saved locally. Returned skills remain unreviewed.' });
-      try { await onCommitted(clone(receipt)); } catch { set({ message: 'Composition saved locally. Related view refresh failed.' }); }
+      if (identity !== workspaceIdentity || request !== epoch) return false;
+      try { await onCommitted(clone(receipt)); } catch { if (identity === workspaceIdentity && request === epoch) set({ message: 'Composition saved locally. Related view refresh failed.' }); }
       return true;
     },
     invalidatePreview(message = 'Saved workspace changed. Prepare a new native preview before saving.') {

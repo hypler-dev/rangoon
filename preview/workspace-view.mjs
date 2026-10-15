@@ -99,6 +99,7 @@ export function bindWorkspaceView(root, controller) {
   let lastFocus = null;
   let dialogInitiator = null;
   let activeDialog = false;
+  let disposed = false;
   const selectors = 'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])';
   const focusSelector = element => {
     if (!element || !root.contains(element)) return null;
@@ -110,6 +111,7 @@ export function bindWorkspaceView(root, controller) {
     return null;
   };
   const render = () => {
+    if (disposed) return;
     const prior = root.ownerDocument?.activeElement;
     const priorSelector = focusSelector(prior);
     if (priorSelector) lastFocus = priorSelector;
@@ -138,8 +140,9 @@ export function bindWorkspaceView(root, controller) {
       (target?.matches('button:not([disabled]), [href], input:not([disabled])') ? target : root.querySelector('#workspace-title'))?.focus({ preventScroll: true });
     }
   };
-  const invoke = action => { void action(); };
+  const invoke = action => { if (!disposed) void action(); };
   const click = event => {
+    if (disposed) return;
     const initiator = event.target.closest('button');
     const initiatorSelector = focusSelector(initiator);
     if (initiatorSelector) {
@@ -158,6 +161,7 @@ export function bindWorkspaceView(root, controller) {
     if (item) return invoke(() => controller.inspectDeletion(item.dataset.workspaceInspect, item.dataset.workspaceId, item.dataset.workspaceIntent === 'delete'));
   };
   const keydown = event => {
+    if (disposed) return;
     const dialogNode = root.querySelector('[data-workspace-dialog]');
     if (!dialogNode) return;
     if (event.key === 'Escape') {
@@ -173,11 +177,18 @@ export function bindWorkspaceView(root, controller) {
     if (!event.shiftKey && root.ownerDocument.activeElement === last) { event.preventDefault(); first.focus(); }
   };
   const cancel = event => {
+    if (disposed) return;
     if (event.target.matches?.('[data-workspace-dialog]')) event.preventDefault();
   };
   root.addEventListener('click', click);
   root.addEventListener('keydown', keydown);
   root.addEventListener('cancel', cancel, true);
   render();
-  return { render, dispose: () => { root.removeEventListener('click', click); root.removeEventListener('keydown', keydown); root.removeEventListener('cancel', cancel, true); } };
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    lastFocus = null; dialogInitiator = null; activeDialog = false;
+    root.removeEventListener('click', click); root.removeEventListener('keydown', keydown); root.removeEventListener('cancel', cancel, true);
+  };
+  return { render, dispose, purgeForWorkspaceLock: dispose };
 }

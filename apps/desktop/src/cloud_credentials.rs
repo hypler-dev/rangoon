@@ -1,6 +1,6 @@
 //! OS credential commands; this module cannot call any model/provider transport.
 use crate::{
-    cloud_custody::{Custody, Decision, EDIT_WINDOW, Phase, parse_submission},
+    cloud_custody::{Custody, Decision, EDIT_WINDOW, Lease, Phase, parse_submission},
     cloud_store::{self, Error, OsStore},
 };
 use serde::Serialize;
@@ -42,6 +42,85 @@ fn receipt(outcome: Outcome) -> Receipt {
 fn failed(code: Error) -> Receipt {
     receipt(Outcome::Failed { code })
 }
+/// Result custody outlives the blocking worker and remains held through the
+/// final generation check or unobserved discard. Owned results drop first.
+struct CredentialCompletion {
+    result: Result<Outcome, Error>,
+    lease: Lease,
+    mutation: bool,
+}
+impl CredentialCompletion {
+    fn read(lease: Lease, result: Result<Outcome, Error>) -> Self {
+        Self {
+            result,
+            lease,
+            mutation: false,
+        }
+    }
+    fn mutation(lease: Lease, result: Result<Outcome, Error>) -> Self {
+        Self {
+            result,
+            lease,
+            mutation: true,
+        }
+    }
+    fn deliver(self) -> Receipt {
+        if !self.lease.workspace_is_current() {
+            return failed(if matches!(self.result, Err(Error::WriteUncertain)) {
+                Error::WriteUncertain
+            } else if self.mutation {
+                Error::Changed
+            } else {
+                Error::Unavailable
+            });
+        }
+        if !self.lease.is_current()
+            && !matches!(
+                self.result,
+                Ok(Outcome::Cancelled) | Err(Error::WriteUncertain)
+            )
+        {
+            return failed(Error::Unavailable);
+        }
+        match self.result {
+            Ok(outcome) => receipt(outcome),
+            Err(error) => failed(error),
+        }
+    }
+}
+
+fn inspect_with(
+    lease: Lease,
+    lookup: impl FnOnce() -> Result<Option<cloud_store::Secret>, Error>,
+) -> CredentialCompletion {
+    let result = if lease.is_current() {
+        lookup().map(|value| match value {
+            Some(secret) => Outcome::Stored {
+                revision: secret.revision(),
+            },
+            None => Outcome::Missing,
+        })
+    } else {
+        Err(Error::Unavailable)
+    };
+    CredentialCompletion::read(lease, result)
+}
+
+/// Distinguish workspace invalidation from explicit local cancellation before
+/// beginning credential lookup. None means no lookup was started.
+fn mutation_read<T>(
+    lease: &Lease,
+    lookup: impl FnOnce() -> Result<T, Error>,
+) -> Result<Option<T>, Error> {
+    if !lease.workspace_is_current() {
+        return Err(Error::Changed);
+    }
+    if !lease.is_current() {
+        return Ok(None);
+    }
+    lookup().map(Some)
+}
+
 fn backend() -> &'static str {
     #[cfg(target_os = "macos")]
     {
@@ -168,17 +247,16 @@ pub async fn inspect_cloud_credential(
         Err(e) => return Ok(failed(e)),
     };
     let identifier = app.config().identifier.clone();
-    // The blocking worker owns the lease even if its awaiting future disappears.
+    // The result retains custody after the worker exits, including waiter loss.
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let _lease = lease;
-        let store = OsStore::open(&identifier)?;
-        cloud_store::inspect(&store).map(|value| value.map(|s| s.revision()))
+        inspect_with(lease, || {
+            let store = OsStore::open(&identifier)?;
+            cloud_store::inspect(&store)
+        })
     })
     .await;
     Ok(match result {
-        Ok(Ok(Some(revision))) => receipt(Outcome::Stored { revision }),
-        Ok(Ok(None)) => receipt(Outcome::Missing),
-        Ok(Err(e)) => failed(e),
+        Ok(completed) => completed.deliver(),
         Err(_) => failed(Error::Unavailable),
     })
 }
@@ -200,17 +278,30 @@ pub async fn edit_cloud_credential(
     };
     let identifier = app.config().identifier.clone();
     let initial = tauri::async_runtime::spawn_blocking(move || {
-        let result = OsStore::open(&identifier).and_then(|s| cloud_store::inspect(&s));
+        let result = mutation_read(&lease, || {
+            OsStore::open(&identifier).and_then(|s| cloud_store::inspect(&s))
+        });
         (lease, result)
     })
     .await;
     let (lease, expected) = match initial {
-        Ok((lease, Ok(expected))) => (lease, expected),
-        Ok((_, Err(e))) => return Ok(failed(e)),
+        Ok((lease, result)) => {
+            if !lease.workspace_is_current() {
+                return Ok(failed(Error::Changed));
+            }
+            if !lease.is_current() {
+                return Ok(receipt(Outcome::Cancelled));
+            }
+            match result {
+                Ok(Some(expected)) => (lease, expected),
+                Ok(None) => return Ok(receipt(Outcome::Cancelled)),
+                Err(e) => return Ok(failed(e)),
+            }
+        }
         Err(_) => return Ok(failed(Error::Unavailable)),
     };
     if !custody.advance(&lease.id, Phase::Editing) {
-        return Ok(receipt(Outcome::Cancelled));
+        return Ok(CredentialCompletion::mutation(lease, Ok(Outcome::Cancelled)).deliver());
     }
     let editor = match open_editor(&app, &lease.id) {
         Ok(value) => value,
@@ -219,31 +310,32 @@ pub async fn edit_cloud_credential(
     let cleanup = EditorCleanup(app.clone());
     let secret = match receiver.await {
         Ok(Some(value)) => value,
-        _ => return Ok(receipt(Outcome::Cancelled)),
+        _ => return Ok(CredentialCompletion::mutation(lease, Ok(Outcome::Cancelled)).deliver()),
     };
     if !custody.advance(&lease.id, Phase::Prompting) {
-        return Ok(receipt(Outcome::Cancelled));
+        return Ok(CredentialCompletion::mutation(lease, Ok(Outcome::Cancelled)).deliver());
     }
     // One blocking owner retains the lease and parent through the OS question,
     // pre-write cancellation check, mutation and verification, even if the IPC
     // future disappears. No callback can resurrect a cancelled operation.
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let _lease = lease;
         let _cleanup = cleanup;
-        if !confirm(app.clone(), editor, true)? {
-            return Ok(None);
-        }
-        if !custody.advance(&_lease.id, Phase::Storage) {
-            return Ok(None);
-        }
-        let store = OsStore::open(&app.config().identifier)?;
-        cloud_store::save(&store, &secret, expected.as_ref()).map(Some)
+        let result = (|| {
+            if !lease.is_current() || !confirm(app.clone(), editor, true)? {
+                return Ok(Outcome::Cancelled);
+            }
+            if !custody.advance(&lease.id, Phase::Storage) || !lease.is_current() {
+                return Ok(Outcome::Cancelled);
+            }
+            let store = OsStore::open(&app.config().identifier)?;
+            cloud_store::save(&store, &secret, expected.as_ref())
+                .map(|revision| Outcome::Saved { revision })
+        })();
+        CredentialCompletion::mutation(lease, result)
     })
     .await;
     Ok(match result {
-        Ok(Ok(Some(revision))) => receipt(Outcome::Saved { revision }),
-        Ok(Ok(None)) => receipt(Outcome::Cancelled),
-        Ok(Err(e)) => failed(e),
+        Ok(completed) => completed.deliver(),
         Err(_) => failed(Error::WriteUncertain),
     })
 }
@@ -264,27 +356,35 @@ pub async fn remove_cloud_credential(
         Err(e) => return Ok(failed(e)),
     };
     let result = tauri::async_runtime::spawn_blocking(move || {
-        let _lease = lease;
-        let store = OsStore::open(&app.config().identifier)?;
-        let Some(expected) = cloud_store::inspect(&store)? else {
-            return Ok(Outcome::Missing);
-        };
-        if !custody.advance(&_lease.id, Phase::Prompting) {
-            return Ok(Outcome::Cancelled);
-        }
-        if !confirm(app, window, false)? {
-            return Ok(Outcome::Cancelled);
-        }
-        if !custody.advance(&_lease.id, Phase::Storage) {
-            return Ok(Outcome::Cancelled);
-        }
-        cloud_store::remove(&store, &expected)?;
-        Ok(Outcome::Removed)
+        let result = (|| {
+            let Some((store, expected)) = mutation_read(&lease, || {
+                let store = OsStore::open(&app.config().identifier)?;
+                let expected = cloud_store::inspect(&store)?;
+                Ok((store, expected))
+            })?
+            else {
+                return Ok(Outcome::Cancelled);
+            };
+            let Some(expected) = expected else {
+                return Ok(Outcome::Missing);
+            };
+            if !custody.advance(&lease.id, Phase::Prompting) || !lease.is_current() {
+                return Ok(Outcome::Cancelled);
+            }
+            if !confirm(app, window, false)? {
+                return Ok(Outcome::Cancelled);
+            }
+            if !custody.advance(&lease.id, Phase::Storage) || !lease.is_current() {
+                return Ok(Outcome::Cancelled);
+            }
+            cloud_store::remove(&store, &expected)?;
+            Ok(Outcome::Removed)
+        })();
+        CredentialCompletion::mutation(lease, result)
     })
     .await;
     Ok(match result {
-        Ok(Ok(outcome)) => receipt(outcome),
-        Ok(Err(e)) => failed(e),
+        Ok(completed) => completed.deliver(),
         Err(_) => failed(Error::WriteUncertain),
     })
 }
@@ -475,3 +575,7 @@ mod cancellation_command_tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "workspace_credential_access_tests.rs"]
+mod credential_access;

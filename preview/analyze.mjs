@@ -1,25 +1,33 @@
 import { createAnalysisController, escapeText } from './analysis-model.mjs';
 import { createEngineController } from './engine-model.mjs';
 import { renderEngineView } from './engine-view.mjs';
+import { createAuthorityController, parseAuthorityHash } from './authority-catalog.mjs';
+import { bindAuthorityView, renderAuthorityContext } from './authority-view.mjs';
 import { createSkillsController, validCapabilityContent, validCapabilityTitle } from './skills-model.mjs';
 import { renderSkillsView } from './skills-view.mjs';
 import { createWorkspaceController } from './workspace-model.mjs';
 import { bindWorkspaceView } from './workspace-view.mjs';
 import { createCompositionController } from './composition-model.mjs';
-import { bindCompositionView } from './composition-view.mjs';
+import { bindCompositionView, purgeCompositionViewCache } from './composition-view.mjs';
 import { createWorkflowController } from './workflow-model.mjs';
 import { bindWorkflowView } from './workflow-view.mjs';
 import { createCompilationController } from './compilation-model.mjs';
 import { renderCompilationPage } from './compilation-view.mjs';
+import { bindTermHelp, renderTermHelp } from './term-help.mjs';
 import { createModelAssistanceController } from './model-assistance-model.mjs';
 import { bindModelAssistanceView } from './model-assistance-view.mjs';
 import { createCloudCredentialController } from './cloud-credential-model.mjs';
 import { icon } from './icons.mjs';
 import { createStartupSplash } from './launch.mjs';
+import { bindWorkbenchNavigation, renderWorkbenchNavigation } from './workbench-navigation.mjs';
+import { createWorkspaceLockController } from './workspace-lock-model.mjs';
+import { renderWorkspaceGuard, renderWorkspaceLockDialog, renderWorkspaceCloseShell, workspaceCloseAnnouncement } from './workspace-lock-view.mjs';
 
 const app = document.querySelector('#analysis-app');
 const announcer = document.querySelector('#analysis-announcer');
 const startupSplash = createStartupSplash({ container: document.querySelector('#startup-splash'), app });
+const termHelp = bindTermHelp(app);
+const workbenchNavigation = bindWorkbenchNavigation(app, { window, document });
 const rawBridge = typeof window.__TAURI__?.core?.invoke === 'function'
   ? (command, args) => window.__TAURI__.core.invoke(command, args)
   : undefined;
@@ -29,39 +37,47 @@ let modelController = null;
 let modelView = null;
 let cloudCredentialController = null;
 let workflowController = null;
+let authorityView = null;
 let nativeOperations = 0;
+let workspaceLock = null;
+let controller = null;
+let lockDialog = null;
+let closeShellStatus = null;
+const sourceBlocked = () => !analysisReady || workspaceLock?.isBlocked();
 const workspaceWrites = new Set(['save_analysis', 'create_capability', 'revise_capability', 'review_capability', 'restore_workspace_backup', 'delete_workspace_record']);
 function invalidateCompositions(message, except = null) {
   for (const [operation, composition] of compositionControllers) {
     if (operation !== except) composition.invalidatePreview(message);
   }
 }
-const bridge = rawBridge ? async (command, args) => {
-  if (workspaceWrites.has(command)) invalidateCompositions('Workspace data may have changed. Preview this retained draft again before saving.');
-  if (workspaceWrites.has(command) || command === 'commit_composition') workflowController?.invalidate('Workspace data may have changed. Inspect this retained workflow draft again before saving.');
-  if (command === 'commit_workflow_save') invalidateCompositions('A workflow save may change workspace state. Preview this retained draft again before saving.');
-  if (workspaceWrites.has(command) || command === 'commit_composition' || command === 'commit_workflow_save') { compilationController?.invalidate(); modelController?.invalidate(); }
-  nativeOperations += 1;
-  if (compilationController && route === 'compile') renderCompilation();
-  try { return await rawBridge(command, args); }
-  finally {
-    nativeOperations -= 1;
+workspaceLock = createWorkspaceLockController({
+  invoke: rawBridge,
+  beforeInvoke(command) {
+    if (workspaceWrites.has(command)) invalidateCompositions('Workspace data may have changed. Preview this retained draft again before saving.');
+    if (workspaceWrites.has(command) || command === 'commit_composition') workflowController?.invalidate('Workspace data may have changed. Inspect this retained workflow draft again before saving.');
+    if (command === 'commit_workflow_save') invalidateCompositions('A workflow save may change workspace state. Preview this retained draft again before saving.');
+    if (workspaceWrites.has(command) || command === 'commit_composition' || command === 'commit_workflow_save') { compilationController?.invalidate(); modelController?.invalidate(); }
+    nativeOperations += 1;
     if (compilationController && route === 'compile') renderCompilation();
-  }
-} : undefined;
+    return () => {
+      nativeOperations = Math.max(0, nativeOperations - 1);
+      if (!sourceBlocked() && compilationController && route === 'compile') renderCompilation();
+    };
+  },
+  purge: purgeWorkspaceRenderer,
+  onChange: state => {
+    if (state.blocked) renderClosedWorkspace(state);
+    else document.querySelector('[data-workspace-guard]')?.replaceWith(markupElement(renderWorkspaceGuard(state)));
+  },
+});
+const bridge = workspaceLock.bridge;
 const compositionRoutes = new Set(['decompose', 'merge', 'split']);
 const routeFromHash = () => {
+  if (parseAuthorityHash(location.hash).matched) return 'authority-engines';
   const name = location.hash.slice(1);
   return ['analysis', 'skills', 'workflows', 'compile', 'workspace', 'model-assistance', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
 };
 
-const compactNavigation = window.matchMedia('(max-width:760px)');
-compactNavigation.addEventListener('change', event => {
-  const drawer = document.querySelector('.analysis-nav-drawer');
-  if (!drawer) return;
-  if (event.matches && drawer.contains(document.activeElement)) drawer.querySelector('summary')?.focus();
-  drawer.open = !event.matches;
-});
 let theme = 'dark';
 try {
   const savedTheme = localStorage.getItem('rangoon-theme');
@@ -102,18 +118,14 @@ const savedAt = snapshot => {
 
 function renderRail() {
   const sameRoute = document.querySelector('.analysis-shell')?.dataset.area === route;
-  const drawerOpen = !compactNavigation.matches || (sameRoute && document.querySelector('.analysis-nav-drawer')?.open === true);
-  const groups = [
-    ['Discover', [['analysis','import','Import &amp; Analyze'],['decompose','decompose','Decompose'],['merge','merge','Merge'],['split','decompose','Split']]],
-    ['Build', [['skills','skill','Skills'],['workflows','workflow','Workflows'],['compile','bundle','Compile']]],
-    ['Connect', [['model-assistance','research','Model assistance'],['engine','gate','Engine integration']]],
-    ['Workspace', [['workspace','bundle','Data']]],
-  ];
-  const item = ([name, symbol, label]) => `<a href="#${name}" ${route === name ? 'aria-current="page"' : ''}>${icon(symbol,{size:16})}<span>${label}</span></a>`;
-  return `<aside class="analysis-rail"><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon</span></a><nav class="analysis-nav" aria-label="Desktop areas"><details class="analysis-nav-drawer" ${drawerOpen ? 'open' : ''}><summary>Navigate areas</summary><div class="analysis-nav-groups">${groups.map(([label, links]) => `<section class="analysis-nav-group" aria-label="${label}"><p>${label}</p>${links.map(item).join('')}</section>`).join('')}<section class="analysis-nav-group analysis-nav-group--sample" aria-label="Preview"><p>Preview</p><a href="index.html">${icon('command',{size:16})}<span>Sample design preview</span></a></section></div></details></nav><div class="analysis-companion"><img src="assets/mascot.webp" width="90" height="60" alt=""><p>Small pieces.<br>Greater possibilities.</p></div><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}</button></aside>`;
+  const state = sameRoute ? workbenchNavigation.capture() : { open: false, focus: null };
+  const markup = renderWorkbenchNavigation({ area: route, surface: 'workbench', theme, open: workbenchNavigation.compact() ? state.open : true, supplementary: () => renderAuthorityContext(route), workspaceGuard: () => renderWorkspaceGuard(workspaceLock.getState()) });
+  queueMicrotask(() => { if (!sourceBlocked()) workbenchNavigation.restore(state); });
+  return markup;
 }
 
 function renderModelAssistance() {
+  if (sourceBlocked()) return;
   if (!modelController) return;
   if (!document.querySelector('#model-assistance-root')) {
     modelView?.dispose();
@@ -131,6 +143,7 @@ function renderModelAssistance() {
 }
 
 function renderComposition() {
+  if (sourceBlocked()) return;
   const composition = compositionControllers.get(route);
   if (!composition) return;
   if (!document.querySelector('#composition-root') || compositionViewRoute !== route) {
@@ -138,7 +151,7 @@ function renderComposition() {
     app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="composition-root"></div></main></div>`;
     compositionViewRoute = route;
     compositionView = bindCompositionView(document.querySelector('#composition-root'), composition, {
-      onOpenSkill: id => { location.hash = '#skills'; void skillsController.open(id); },
+      onOpenSkill: id => { if (sourceBlocked()) return; location.hash = '#skills'; void skillsController.open(id); },
     });
   } else compositionView.render();
   routeEntry = false;
@@ -153,6 +166,7 @@ function renderComposition() {
 }
 
 function renderWorkspace() {
+  if (sourceBlocked()) return;
   if (!document.querySelector('#workspace-root')) {
     workspaceView?.dispose();
     app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="workspace-root"></div></main></div>`;
@@ -170,6 +184,7 @@ function renderWorkspace() {
 }
 
 function renderWorkflow() {
+  if (sourceBlocked()) return;
   if (!workflowController) return;
   if (!document.querySelector('#workflow-root')) {
     workflowView?.dispose();
@@ -276,7 +291,9 @@ function revealSelectedLine() {
 }
 
 function render(state) {
-  document.title = route === 'workflows' ? 'Rangoon — Workflows' : route === 'model-assistance' ? 'Rangoon — Model assistance' : compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'compile' ? 'Rangoon — Compile inspection' : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
+  if (sourceBlocked()) return;
+  if (route !== 'authority-engines') { authorityView?.dispose(); authorityView = null; }
+  document.title = route === 'authority-engines' ? 'Rangoon — Authority engines' : route === 'workflows' ? 'Rangoon — Workflows' : route === 'model-assistance' ? 'Rangoon — Model assistance' : compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'compile' ? 'Rangoon — Compile inspection' : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
   if (route === 'workflows') {
     compositionView?.dispose();
     compositionView = null;
@@ -303,6 +320,7 @@ function render(state) {
   workspaceView = null;
   if (route === 'compile') { renderCompilation(); return; }
   if (compositionRoutes.has(route)) { renderComposition(); return; }
+  if (route === 'authority-engines') { renderAuthority(); return; }
   if (route === 'engine') {
     renderEngine();
     return;
@@ -331,6 +349,7 @@ function render(state) {
     <main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">
       <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1 id="analysis-title" tabindex="-1">Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${icon('import',{size:16})}${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${icon('clear',{size:16})}${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${icon('save',{size:16})}${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
       <section class="analysis-truth" aria-label="Analysis boundaries"><span>Native picker only</span><span>No scan or upload</span><span>Local save available</span><span>Sections are proposals, not semantic skills</span></section>
+      ${renderTermHelp('analysis', ['source', 'saved-source', 'sections'])}
       ${snapshotsView(state)}
       ${reportView(state)}
     </main>
@@ -362,11 +381,13 @@ function render(state) {
 }
 
 function retainSourceScroll() {
+  if (sourceBlocked()) return;
   const source = document.querySelector('.analysis-code');
   if (source) retainedSourceScroll = { top: source.scrollTop, left: source.scrollLeft };
 }
 
 function renderEngine() {
+  if (sourceBlocked()) return;
   const existingDetails = document.querySelectorAll('.engine-capabilities details[open]');
   openEngineDetails = new Set([...existingDetails].map(detail => detail.dataset.operation).filter(Boolean));
   const state = engineController.getState();
@@ -384,6 +405,7 @@ function renderEngine() {
 }
 
 function renderSkills() {
+  if (sourceBlocked()) return;
   const active = document.activeElement;
   const focus = active?.id ? `#${CSS.escape(active.id)}`
     : active?.dataset?.capability ? `[data-capability="${CSS.escape(active.dataset.capability)}"]`
@@ -420,9 +442,36 @@ function renderSkills() {
   }
 }
 
+function renderAuthority() {
+  if (sourceBlocked()) return;
+  const entering = routeEntry;
+  if (!document.querySelector('#authority-root')) {
+    authorityView?.dispose();
+    app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="authority-root"></div></main></div>`;
+    authorityView = bindAuthorityView({
+      container: document.querySelector('#authority-root'),
+      controller: authorityController,
+      navigate: hash => {
+        if (sourceBlocked()) return;
+        if (location.hash === hash) {
+          document.querySelector('#authority-inspector-title')?.focus({ preventScroll: false });
+        } else location.hash = hash;
+      },
+    });
+  } else authorityView.render();
+  const themeControl = document.querySelector('#analysis-theme');
+  if (themeControl) themeControl.innerHTML = `${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}`;
+  if (routeFocusPending === 'authority-engines') {
+    document.querySelector(entering ? '#authority-title' : '#authority-inspector-title')?.focus({ preventScroll: entering });
+    routeFocusPending = null;
+  }
+  routeEntry = false;
+}
+
 function loadingEngineStatus(state) { return state.status === 'loading'; }
 
 function renderCompilation() {
+  if (sourceBlocked()) return;
   if (!compilationController) return;
   const state = compilationController.getState();
   const active = document.activeElement;
@@ -452,20 +501,27 @@ function renderCompilation() {
   }
 }
 
-modelController = createModelAssistanceController({ invoke: bridge, onChange: () => { if (route === 'model-assistance') renderModelAssistance(); } });
+modelController = createModelAssistanceController({ invoke: bridge, onChange: () => { if (sourceBlocked()) return; if (route === 'model-assistance') renderModelAssistance(); } });
 workflowController = createWorkflowController({
   bridge,
-  onChange: () => { if (route === 'workflows') renderWorkflow(); },
+  onChange: () => { if (sourceBlocked()) return; if (route === 'workflows') renderWorkflow(); },
   onSaved: async () => {
+    if (sourceBlocked()) return;
     const [, refreshed] = await Promise.all([skillsController.list(), workflowController.load()]);
     if (!refreshed) throw new Error('The saved workflow library could not be refreshed.');
   },
 });
-cloudCredentialController = createCloudCredentialController({ invoke: bridge, onChange: () => { if (route === 'model-assistance') renderModelAssistance(); } });
+cloudCredentialController = createCloudCredentialController({ invoke: bridge, onChange: () => { if (sourceBlocked()) return; if (route === 'model-assistance') renderModelAssistance(); } });
+const authorityController = createAuthorityController({
+  onChange: () => { if (sourceBlocked()) return; if (route === 'authority-engines') authorityView?.render(); },
+});
+authorityController.setRoute(location.hash);
 const engineController = createEngineController({ invoke: bridge, onChange: () => {
+  if (sourceBlocked()) return;
   if (route === 'engine') renderEngine();
 } });
 const skillsController = createSkillsController({ invoke: bridge, onChange: () => {
+  if (sourceBlocked()) return;
   if (route === 'skills') renderSkills();
   else if (analysisReady && route === 'compile') renderCompilation();
   else if (analysisReady && route === 'analysis') {
@@ -484,9 +540,10 @@ compilationController = createCompilationController({ invoke: bridge, onChange: 
 } });
 const workspaceController = createWorkspaceController({
   invoke: bridge,
-  onChange: () => { if (route === 'workspace') renderWorkspace(); },
+  onChange: () => { if (sourceBlocked()) return; if (route === 'workspace') renderWorkspace(); },
   getDraftWarning: (kind, id) => kind === 'capability' && skillsController.hasUnsavedDraft(id),
   onMutation: async event => {
+    if (sourceBlocked()) return;
     if (event.kind === 'delete') {
       if (event.recordKind === 'capability') skillsController.forgetDeleted(event.id);
       else if (event.recordKind === 'source') controller.noteSnapshotDeleted(event.id);
@@ -494,39 +551,66 @@ const workspaceController = createWorkspaceController({
     await Promise.all([controller.listSnapshots(), skillsController.list()]);
   },
 });
-const controller = createAnalysisController({ invoke: bridge, onChange: state => {
-  skillsController.setSourceContext({
-    report: state.report ? { ...state.report, selectedFragmentId: state.selectedFragmentId } : null,
-    snapshots: state.snapshots,
-    snapshotsStatus: state.snapshotsStatus,
-  });
-  render(state);
-  startupSplash.sync(state);
-} });
 for (const operation of compositionRoutes) {
   compositionControllers.set(operation, createCompositionController({
     operation,
     invoke: bridge ? async (command, args) => {
+      if (sourceBlocked()) throw new Error('Workspace access is closed.');
       if (command === 'preview_composition' || command === 'commit_composition') {
         invalidateCompositions('Another composition used the native preview session. Preview this retained draft again before saving.', operation);
       }
       return bridge(command, args);
     } : undefined,
-    onChange: () => { if (route === operation) renderComposition(); },
+    onChange: () => { if (sourceBlocked()) return; if (route === operation) renderComposition(); },
     onCommitted: async () => {
+      if (sourceBlocked()) return;
       invalidateCompositions('Composition saved. Preview other retained drafts against the current workspace before saving.', operation);
       await skillsController.list();
     },
   }));
 }
-analysisReady = true;
-startupSplash.setRetry(() => controller.listSnapshots());
-render(controller.getState());
-void skillsController.list();
-if (route === 'compile') void compilationController.refresh();
-if (route === 'model-assistance') void modelController.load();
+// The analysis constructor starts a saved-source read. Construct it only after metadata qualifies.
+async function startWorkbench() {
+  renderClosedWorkspace(workspaceLock.getState());
+  await workspaceLock.initialize();
+  if (workspaceLock.isBlocked()) return;
+  controller = createAnalysisController({ invoke: bridge, onChange: state => {
+      if (sourceBlocked()) return;
+    skillsController.setSourceContext({
+      report: state.report ? { ...state.report, selectedFragmentId: state.selectedFragmentId } : null,
+      snapshots: state.snapshots,
+      snapshotsStatus: state.snapshotsStatus,
+    });
+    render(state);
+    startupSplash.sync(state);
+  } });
+  analysisReady = true;
+  startupSplash.setRetry(() => { if (!sourceBlocked()) return controller.listSnapshots(); });
+  render(controller.getState());
+  startupSplash.sync(controller.getState());
+  if (document.querySelector('#startup-splash')?.hidden) {
+    const skip = document.querySelector('#analysis-skip');
+    skip?.removeAttribute('inert');
+    if (skip) skip.hidden = false;
+  }
+  void skillsController.list();
+  if (route === 'compile') void compilationController.refresh();
+  if (route === 'model-assistance') void modelController.load();
+}
+void startWorkbench();
 
 app.addEventListener('click', event => {
+  if (event.target.closest('#analysis-theme')) {
+    theme = theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem('rangoon-theme', theme); } catch {}
+    if (sourceBlocked()) renderClosedWorkspace(workspaceLock.getState(), { force: true, focus: false });
+    else { requestedFocus = 'theme'; render(controller.getState()); }
+    document.querySelector('#analysis-theme')?.focus({ preventScroll: true });
+    return;
+  }
+  if (sourceBlocked()) return;
+  if (event.target.closest('#workspace-lock-open')) { openWorkspaceLockDialog(); return; }
   const compileControl = event.target.closest('#compile-refresh, #compile-generate, #compile-open-skills, #compile-export, #compile-inspect, #compile-inspect-external, [data-compile-capability], [data-compile-revision], [data-compile-profile], [data-compile-tab]');
   if (compileControl) {
     if (compileControl.disabled) return;
@@ -536,6 +620,7 @@ app.addEventListener('click', event => {
     if (compileControl.id === 'compile-export') {
       compilationActionFocus = '#compile-export';
       return compilationController.exportBundle().then(exported => {
+        if (sourceBlocked()) return;
         if (route !== 'compile') return;
         const target = document.querySelector(exported ? '#compile-export-title' : '#compile-export');
         (target?.disabled ? document.querySelector('#compile-refresh') : target)?.focus({ preventScroll: true });
@@ -545,6 +630,7 @@ app.addEventListener('click', event => {
       const launcher = `#${compileControl.id}`;
       compilationActionFocus = launcher;
       return compilationController.inspectBundle().then(inspected => {
+        if (sourceBlocked()) return;
         if (route === 'compile') document.querySelector(inspected ? '#compile-external-title' : launcher)?.focus({ preventScroll: true });
       });
     }
@@ -555,6 +641,7 @@ app.addEventListener('click', event => {
     if (compileControl.id === 'compile-generate') {
       compilationActionFocus = '#compile-generate';
       return compilationController.compile().then(() => {
+        if (sourceBlocked()) return;
         if (route === 'compile' && compilationController.getState().report && !compilationController.getState().error) document.querySelector('#compile-artifact-title')?.focus({ preventScroll: true });
       });
     }
@@ -562,6 +649,7 @@ app.addEventListener('click', event => {
       const selected = state.selected;
       location.hash = '#skills';
       return skillsController.open(selected.id, selected.revision.id).then(() => {
+        if (sourceBlocked()) return;
         if (route === 'skills') document.querySelector('#skills-editor-title')?.focus({ preventScroll: true });
       });
     }
@@ -576,6 +664,7 @@ app.addEventListener('click', event => {
   if (event.target.closest('#skills-save')) { skillsActionFocus = '#skills-save'; return skillsController.save(); }
   if (event.target.closest('#skills-review')) { skillsActionFocus = '#skills-review'; return skillsController.review(); }
   if (event.target.closest('#skills-reload-list')) return skillsController.list();
+  if (event.target.closest('#skills-clear-library-filters')) return skillsController.clearLibraryFilters();
   if (event.target.closest('#skills-return-current') || event.target.closest('#skills-reload-current')) {
     skillsActionFocus = '#skills-editor-title';
     if (event.target.closest('#skills-reload-current')) { skillsSavedOpen = true; document.querySelector('.skills-saved')?.setAttribute('open', ''); return skillsController.reloadCurrent(); }
@@ -591,17 +680,15 @@ app.addEventListener('click', event => {
   if (event.target.closest('#analysis-clear')) { requestedFocus = 'choose'; return controller.clear(); }
   if (event.target.closest('#analysis-save')) { requestedFocus = 'save'; return controller.save(); }
   if (event.target.closest('#analysis-retry-snapshots')) return controller.listSnapshots();
-  if (event.target.closest('#analysis-theme')) {
-    requestedFocus = 'theme';
-    theme = theme === 'light' ? 'dark' : 'light';
-    document.documentElement.dataset.theme = theme;
-    try { localStorage.setItem('rangoon-theme', theme); } catch {}
-    render(controller.getState());
-    document.querySelector('#analysis-theme')?.focus({ preventScroll: true });
-  }
+
 });
 
 app.addEventListener('keydown', event => {
+  if (sourceBlocked()) return;
+  if (event.key === 'Escape' && event.target.matches('#skills-library-query')) {
+    skillsController.clearLibraryFilters({ queryOnly: true });
+    return;
+  }
   const tab = event.target.closest('[data-compile-tab]');
   if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault();
@@ -614,6 +701,13 @@ app.addEventListener('keydown', event => {
 });
 
 app.addEventListener('input', event => {
+  if (sourceBlocked()) return;
+  if (event.target.matches('#skills-library-query')) {
+    if (!skillsController.setLibraryFilters({ query: event.target.value })) {
+      event.target.value = skillsController.getState().query;
+    }
+    return;
+  }
   if (event.target.matches('#skills-create-title')) {
     skillsController.updateCreateTitle(event.target.value);
     const state = skillsController.getState();
@@ -638,7 +732,18 @@ app.addEventListener('input', event => {
   if (draftStatus) draftStatus.textContent = draft?.dirty ? 'Unsaved edits. Save a revision before review.' : 'Local content review does not validate, publish or authorize execution.';
 });
 
+app.addEventListener('change', event => {
+  if (sourceBlocked()) return;
+  if (!event.target.matches('#skills-review-filter, #skills-origin-filter')) return;
+  const state = skillsController.getState();
+  const filters = event.target.matches('#skills-review-filter')
+    ? { reviewFilter: event.target.value, originFilter: state.originFilter }
+    : { reviewFilter: state.reviewFilter, originFilter: event.target.value };
+  if (!skillsController.setLibraryFilters(filters)) event.target.value = event.target.matches('#skills-review-filter') ? state.reviewFilter : state.originFilter;
+});
+
 window.addEventListener('hashchange', () => {
+  if (sourceBlocked()) return;
   retainSourceScroll();
   const nextRoute = routeFromHash();
   routeEntry = route !== nextRoute;
@@ -648,6 +753,7 @@ window.addEventListener('hashchange', () => {
   engineCheckFocusPending = false;
   skillsActionFocus = null;
   compilationActionFocus = null;
+  authorityController.setRoute(location.hash);
   render(controller.getState());
   if (route === 'workspace') void workspaceController.load();
   if (route === 'workflows') void workflowController.load();
@@ -657,7 +763,114 @@ window.addEventListener('hashchange', () => {
 });
 
 window.addEventListener('beforeunload', event => {
-  if (!workflowController.getState().dirty && !workflowController.getState().fieldEdit && ![...compositionControllers.values()].some(composition => composition.getState().dirty)) return;
+  if (sourceBlocked()) return;
+  if (!skillsController.hasUnsavedDrafts() && !workflowController.getState().dirty && !workflowController.getState().fieldEdit && ![...compositionControllers.values()].some(composition => composition.getState().dirty)) return;
   event.preventDefault();
   event.returnValue = '';
+});
+
+function markupElement(markup) {
+  const template = document.createElement('template');
+  template.innerHTML = markup;
+  return template.content.firstElementChild;
+}
+
+function scrubDOM(root) {
+  if (!root) return;
+  // Clear values and text before detachment, including nodes held by old event closures.
+  const walk = node => {
+    for (const child of [...node.childNodes]) walk(child);
+    if (node.nodeType === 3) node.nodeValue = '';
+    if (node.nodeType === 1) {
+      if ('value' in node) node.value = '';
+      if ('defaultValue' in node) node.defaultValue = '';
+      for (const attribute of [...node.attributes]) node.removeAttribute(attribute.name);
+    }
+  };
+  for (const child of [...root.childNodes]) walk(child);
+  root.replaceChildren();
+}
+
+function removeLockDialog() {
+  if (!lockDialog) return;
+  const dialog = lockDialog;
+  lockDialog = null;
+  if (dialog.open) dialog.close();
+  scrubDOM(dialog);
+  dialog.remove();
+}
+
+function openWorkspaceLockDialog() {
+  if (!workspaceLock.openConfirmation()) return;
+  lockDialog = markupElement(renderWorkspaceLockDialog());
+  const dialog = lockDialog;
+  const cancel = () => {
+    if (!workspaceLock.cancelConfirmation()) return;
+    removeLockDialog();
+    document.querySelector('#workspace-lock-open')?.focus({ preventScroll: true });
+  };
+  dialog.addEventListener('cancel', event => { event.preventDefault(); cancel(); });
+  dialog.addEventListener('keydown', event => {
+    if (sourceBlocked() || event.key !== 'Tab') return;
+    const first = dialog.querySelector('#workspace-lock-cancel');
+    const last = dialog.querySelector('#workspace-lock-confirm');
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  });
+  dialog.addEventListener('click', event => {
+    if (sourceBlocked()) return;
+    if (event.target.closest('#workspace-lock-cancel')) cancel();
+    else if (event.target.closest('#workspace-lock-confirm')) void workspaceLock.confirmClose();
+  });
+  document.body.append(dialog);
+  try { dialog.showModal(); dialog.querySelector('#workspace-lock-cancel')?.focus(); }
+  catch { cancel(); }
+}
+
+function purgeWorkspaceRenderer() {
+  let healthy = true;
+  const attempt = callback => { try { if (callback() === false) healthy = false; } catch { healthy = false; } };
+  // Detach subscriptions before controllers publish their empty states.
+  for (const binding of [compositionView, workflowView, workspaceView, modelView]) attempt(() => binding?.purgeForWorkspaceLock());
+  attempt(() => authorityView?.dispose());
+  compositionView = workflowView = workspaceView = modelView = authorityView = null;
+  for (const composition of compositionControllers.values()) attempt(() => purgeCompositionViewCache(composition));
+  for (const family of [controller, skillsController, workflowController, compilationController, workspaceController, modelController, cloudCredentialController, ...compositionControllers.values()]) attempt(() => family?.purgeForWorkspaceLock());
+  attempt(() => authorityController.clearFilters());
+  attempt(() => authorityController.setRoute('#authority-engines'));
+  requestedFocus = renderedSourceId = retainedSourceScroll = routeFocusPending = skillsActionFocus = compilationActionFocus = compositionViewRoute = null;
+  skillsOriginalOpen = skillsSavedOpen = skillsCreateFocusPending = engineCheckFocusPending = workflowVisited = routeEntry = false;
+  route = '';
+  attempt(() => openEngineDetails.clear());
+  attempt(() => workbenchNavigation.dispose());
+  attempt(() => termHelp.dispose());
+  attempt(() => startupSplash.purgeForWorkspaceLock());
+  attempt(() => removeLockDialog());
+  attempt(() => document.getSelection()?.removeAllRanges());
+  attempt(() => { announcer.textContent = ''; });
+  attempt(() => scrubDOM(app));
+  return healthy;
+}
+
+function renderClosedWorkspace(state, { force = false, focus = true } = {}) {
+  if (!force && closeShellStatus === state.status) return;
+  closeShellStatus = state.status;
+  app.innerHTML = renderWorkspaceCloseShell(state, { theme });
+  app.inert = false;
+  app.removeAttribute('aria-hidden');
+  document.title = 'Rangoon — Workspace';
+  if (state.status !== 'checking') startupSplash.openWorkbench();
+  const skip = document.querySelector('#analysis-skip');
+  skip?.setAttribute('inert', '');
+  if (skip) skip.hidden = true;
+  announcer.textContent = workspaceCloseAnnouncement(state);
+  if (focus) document.querySelector('#workspace-close-title')?.focus({ preventScroll: true });
+}
+
+window.addEventListener('pagehide', () => workspaceLock.dispose(), { once: true });
+window.addEventListener('pageshow', event => {
+  if (event.persisted) {
+    workspaceLock.dispose();
+    renderClosedWorkspace(workspaceLock.getState(), { force: true });
+  }
 });

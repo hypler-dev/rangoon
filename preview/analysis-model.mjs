@@ -42,6 +42,7 @@ function boundedSnapshots(snapshots) {
 export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
   let state = { ...EMPTY_STATE, status: typeof invoke === 'function' ? 'idle' : 'unavailable' };
   let snapshotRequestId = 0;
+  let workspaceIdentity = Symbol('analysis-workspace');
 
   const publish = () => onChange({ ...state });
   const setState = changes => {
@@ -54,6 +55,17 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
   const canStart = action => !unavailable() && !state.busyAction && action;
 
   const controller = {
+    purgeForWorkspaceLock() {
+      ++snapshotRequestId;
+      workspaceIdentity = Symbol('analysis-workspace');
+      const requestId = state.requestId + 1;
+      setState({
+        ...EMPTY_STATE,
+        status: unavailable() ? 'unavailable' : 'idle',
+        requestId,
+        message: unavailable() ? EMPTY_STATE.message : 'Analysis data cleared from this view.',
+      });
+    },
     noteSnapshotDeleted(sourceId) {
       ++snapshotRequestId;
       setState({
@@ -68,14 +80,16 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
         return;
       }
       const requestId = ++snapshotRequestId;
+      const identity = workspaceIdentity;
       setState({ snapshotsStatus: 'loading', snapshotsError: null });
+      if (identity !== workspaceIdentity) return;
       let result;
       try {
         result = await invoke('list_snapshots');
       } catch {
         result = failedResult();
       }
-      if (requestId !== snapshotRequestId) return;
+      if (identity !== workspaceIdentity || requestId !== snapshotRequestId) return;
       if (result?.outcome === 'listed' && Array.isArray(result.snapshots)) {
         setState({ snapshotsStatus: 'ready', snapshots: boundedSnapshots(result.snapshots), snapshotsError: null });
       } else {
@@ -91,14 +105,16 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
     async choose() {
       if (!canStart('choose')) return;
       const requestId = state.requestId + 1;
+      const identity = workspaceIdentity;
       setState({ status: 'pending', busyAction: 'choose', requestId, errorCode: null, message: 'Waiting for selection and analysis…' });
+      if (identity !== workspaceIdentity) return;
       let result;
       try {
         result = await invoke('select_and_analyze');
       } catch {
         result = failedResult();
       }
-      if (state.requestId !== requestId) return;
+      if (identity !== workspaceIdentity || state.requestId !== requestId) return;
       if (result?.outcome === 'analyzed' && result.report) {
         setState({
           status: 'analyzed',
@@ -120,14 +136,16 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
       const sourceId = state.report?.source?.id;
       if (!sourceId || !canStart('save')) return;
       const requestId = state.requestId + 1;
+      const identity = workspaceIdentity;
       setState({ status: 'pending', busyAction: 'save', requestId, errorCode: null, message: 'Saving this source on this computer…' });
+      if (identity !== workspaceIdentity) return;
       let result;
       try {
         result = await invoke('save_analysis', { sourceId });
       } catch {
         result = failedResult();
       }
-      if (state.requestId !== requestId) return;
+      if (identity !== workspaceIdentity || state.requestId !== requestId) return;
       if (result?.outcome === 'saved' && result.snapshot) {
         setState({
           status: 'analyzed',
@@ -135,7 +153,7 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
           errorCode: null,
           message: result.alreadySaved ? 'Already saved locally.' : 'Saved locally on this computer.',
         });
-        await controller.listSnapshots();
+        if (identity === workspaceIdentity && state.requestId === requestId) await controller.listSnapshots();
       } else {
         setState({ status: 'failed', busyAction: null, errorCode: resultCode(result), message: resultMessage(result) });
       }
@@ -143,14 +161,16 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
     async openSnapshot(sourceId) {
       if (!sourceId || !canStart('open')) return;
       const requestId = state.requestId + 1;
+      const identity = workspaceIdentity;
       setState({ status: 'pending', busyAction: 'open', requestId, errorCode: null, message: 'Opening saved source…' });
+      if (identity !== workspaceIdentity) return;
       let result;
       try {
         result = await invoke('open_snapshot', { sourceId });
       } catch {
         result = failedResult();
       }
-      if (state.requestId !== requestId) return;
+      if (identity !== workspaceIdentity || state.requestId !== requestId) return;
       if (result?.outcome === 'analyzed' && result.report) {
         setState({
           status: 'analyzed',
@@ -167,14 +187,16 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
     async clear() {
       if (unavailable() || state.busyAction === 'save' || state.busyAction === 'open' || state.busyAction === 'clear') return;
       const requestId = state.requestId + 1;
+      const identity = workspaceIdentity;
       setState({ status: 'pending', busyAction: 'clear', requestId, errorCode: null, message: 'Clearing current analysis…' });
+      if (identity !== workspaceIdentity) return;
       let result;
       try {
         result = await invoke('clear_analysis');
       } catch {
         result = failedResult();
       }
-      if (state.requestId !== requestId) return;
+      if (identity !== workspaceIdentity || state.requestId !== requestId) return;
       if (result?.outcome === 'cleared') {
         setState({
           ...EMPTY_STATE,

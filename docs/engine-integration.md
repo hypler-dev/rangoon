@@ -4,7 +4,11 @@
 Status: accepted
 Intent: [intent.md](intent.md), engine architecture continuation
 Owner: Jeff; primary controller owns architecture, integration and release judgment
-Last updated: 2026-10-05
+Last updated: 2026-10-11
+
+## Reconciliation with optional interoperability
+
+The October 7 [provider-independent continuation](intent.md) confirms that LNSAT is optional, not Rangoon's required backend. This frozen A1 schema and its five unavailable operations remain unchanged. Core startup, persistence, authoring, composition, compilation, export and inspection never wait for an engine. The separate [neutral I1 contract](provider-interoperability.md) is proposed metadata/evidence work, not a replacement `GovernancePort` or permission to enable transport. Provider decision, Rangoon local review, approval and execution outcome remain distinct.
 
 ## Behavior
 
@@ -26,6 +30,26 @@ Reference: public `hypler-dev/LNSAT` commit `e09a6b02634b04a46f861ed8b092acc2c2e
 | Rangoon port schema | `rangoon.engine-status.v0` / `rangoon.engine-unavailable.v0` | Application diagnostics only |
 
 The pinned reference is build-time research evidence, never an observed installed engine. `releaseQualified` remains false. Compatibility, authentication, permission, approval, consumption and consequence evidence are distinct checks; none follows from a matching version.
+
+## October 11 modular source reference
+
+Jeff requested comparison with the latest LNSAT capabilities while refining Rangoon's modular management layer. Read-only GitHub inspection resolved public main to [`5cad4719e89395d4a0c90b7b06aacfe1f83555f5`](https://github.com/hypler-dev/LNSAT/tree/5cad4719e89395d4a0c90b7b06aacfe1f83555f5), committed October 11 at 04:43:09 UTC. The pinned [README](https://github.com/hypler-dev/LNSAT/blob/5cad4719e89395d4a0c90b7b06aacfe1f83555f5/README.md), [Project Status](https://github.com/hypler-dev/LNSAT/blob/5cad4719e89395d4a0c90b7b06aacfe1f83555f5/docs/PROJECT_STATUS.md) and [documentation index](https://github.com/hypler-dev/LNSAT/blob/5cad4719e89395d4a0c90b7b06aacfe1f83555f5/docs/DOCS_INDEX.md) supply this research update. LNSAT remains pre-release `0.1.0`, with separate `lnsat.contracts.v1_0`, product-surface v1/v2 and SQLite schema 17 identities. No LNSAT checkout was edited or run. The October 5 A1 diagnostic reference above stays unchanged in its source contract; this new research pin does not establish installed compatibility or enable it.
+
+| Optional LNSAT responsibility | Pinned evidence and qualification | Rangoon management responsibility |
+| --- | --- | --- |
+| Identity and sessions | Authenticated local owner/operator source routes; explicit bounded session handling, not ambient infrastructure authority | Show exact reported identity and provenance only after a qualified adapter. No credential discovery or identity authority in the current catalog. |
+| Exact proposal and policy | Versioned action/arguments/target/adapter/configuration/audience binding and deterministic policy evidence | Author capabilities and definitions locally. Future inspection must distinguish the authored revision from the provider's exact request and policy version. |
+| Human approval | Authenticated distinct-human approval route and immutable terminal decision; approval does not itself consume authorization or prove execution | Present required material facts and reported decision evidence through a qualified path. A local review or UI click is not an engine approval. |
+| Authorization consumption | Atomic consumption plus operation/attempt claim; private pre-supervisor source verification prerequisites | Show the exact provider-owned authorization and consumption separately. No generic Rangoon permission token or automatic dispatch. |
+| Attempt and consequence | Experimental bounded disposable-Git served proof; exact attempt/receipt and `outcome_unknown` distinctions | Inspect actual admitted records when available. Do not turn animation, request acceptance or a missing response into success. |
+| Recovery and reconciliation | Disconnected-response/restart/readback/reconciliation proof for the bounded Git path; no redispatch. Docker-source/fake-runtime checkpoints remain separate from unfinished real Docker proof. | Keep uncertain outcomes visible, link the exact operation/attempt, and present provider-specific recovery. No blind retries or invented rollback. |
+| Headless configuration | Closed explicit configuration inspection source; private bootstrap/owner/native prerequisites have differing source/design maturity | Future configuration previews belong to an optional provider module. Authoring/export does not apply or activate configuration. |
+| Evidence inspection | Exact-object authenticated approval/audit reads and exact-operation readback source; HCFG-4B snapshot and HCFG-4C watch remain proposed in the pinned index | Prefer an explicit read of a selected exact object before any future live feed. There is no qualified Rangoon evidence adapter, snapshot or watch connection today. |
+| Coverage and limits | Per-packet finite limits are not cumulative quota proof; target/OS isolation and complete mediation need their own evidence | Expose mediated coverage, unsupported paths and gaps. Do not claim universal enforcement or infer complete coverage from a connector. |
+
+These are provider responsibilities, not new Rangoon modules with executable authority. Preserve the existing I1 identity and five-operation contract; preserve the separate five unavailable A1 diagnostics. The authority catalog and comparison provide human-readable research only. All Rangoon provider operations remain unavailable, observed version/compatibility remain unknown, and Rangoon authority remains none. Exact evidence reads, approval, consumption, execution and recovery are distinct semantic slots, not interchangeable plug-ins. Local source provenance, decomposition/composition, revisions, compilation, export and inspection remain usable without LNSAT.
+
+LNSAT's current source does not establish a supported end-to-end V1 artifact, installer, production deployment, real Docker qualification or government certification. This UI/reference update performs no LNSAT operation and opens no runtime, credential, provider-installation, release or deployment gate. The [layered experience contract](product-experience.md#layered-modular-management) defines how to keep these optional responsibilities from overwhelming ordinary authoring.
 
 ## Interfaces and contracts
 

@@ -5,6 +5,8 @@ use rangoon_domain::byte_digest;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
+mod approval_types;
+mod approvals;
 mod decode;
 mod delegation_types;
 mod delegations;
@@ -20,6 +22,14 @@ mod relationship_tests;
 #[cfg(test)]
 mod delegation_tests;
 
+#[cfg(test)]
+mod approval_tests;
+
+pub use approval_types::{
+    APPROVAL_SCHEMA, ApprovalDocument, ApprovalError, ApprovalInspection, MAX_APPROVAL_BYTES,
+    MAX_APPROVAL_MATCHES, MAX_APPROVAL_PATH_STEPS, MAX_APPROVAL_REFERENCES, MAX_APPROVAL_STAGES,
+};
+pub use approvals::inspect_approvals;
 pub use decode::decode_window;
 pub use delegation_types::{
     DELEGATION_SCHEMA, DelegationDocument, DelegationError, DelegationInspection,

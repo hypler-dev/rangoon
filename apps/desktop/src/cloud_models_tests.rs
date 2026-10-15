@@ -1,18 +1,30 @@
 use super::*;
 use serde_json::{Value, json};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 const PROFILE: &[u8] = br#"{"schemaVersion":"rangoon.cloud-profile-request.v1","profileId":"fixture","model":"synthetic-v1","maxOutputTokens":128}"#;
+static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
 struct Fixture(std::path::PathBuf);
 impl Fixture {
     fn new() -> Self {
-        Self(std::env::temp_dir().canonicalize().unwrap().join(format!(
-                "rangoon-cloud-native-{}-{}",
-                std::process::id(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            )))
+        let sequence = NEXT_FIXTURE
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+                value.checked_add(1)
+            })
+            .expect("cloud fixture sequence exhausted");
+        let path = std::env::temp_dir().canonicalize().unwrap().join(format!(
+            "rangoon-cloud-native-{}-{}-{sequence}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        Self::reserve(path).expect("could not reserve a fresh cloud fixture directory")
+    }
+    fn reserve(path: std::path::PathBuf) -> std::io::Result<Self> {
+        std::fs::create_dir(&path)?;
+        Ok(Self(path))
     }
     fn store(&self) -> rangoon_store::Workspace {
         rangoon_store::Workspace::new(self.0.clone())
@@ -34,15 +46,27 @@ fn model() -> NativeCloud {
     model.configure(PROFILE).unwrap();
     model
 }
+#[track_caller]
 fn staged(model: &NativeCloud, fixture: &Fixture) -> PreparedView {
     let secret = Secret::new(b"synthetic-native-key").unwrap();
-    let ready = model
-        .resolution(&fixture.selection())
+    let selected = fixture.selection();
+    let prepared = model
+        .resolution(&selected)
         .unwrap()
         .with_credential_revision(&secret.revision())
         .unwrap()
-        .prepare_retained(&fixture.store())
-        .unwrap();
+        .prepare_retained(&fixture.store());
+    let ready = match prepared {
+        Ok(ready) => ready,
+        Err(error) => {
+            let selection: Value = serde_json::from_slice(&selected).unwrap();
+            let id = selection["inputs"][0]["sourceId"].as_str().unwrap();
+            // A later read is diagnostic evidence, not the original error or a retry.
+            // Only a closed error class is printed, never content, paths or secrets.
+            let read = fixture.store().open(id).map(|_| ());
+            panic!("cloud fixture preparation failed: {error:?}; post-failure read: {read:?}");
+        }
+    };
     model.stage(ready, secret).unwrap()
 }
 fn claim(view: &PreparedView) -> Vec<u8> {
@@ -69,6 +93,94 @@ fn check_flow(gate: &ModelFlight, custody: &Custody) -> Arc<Flow> {
 }
 fn decision(review: &Review) -> Decision {
     Decision::parse(&serde_json::to_vec(&json!({"schemaVersion":"rangoon.cloud-review-decision.v1","runId":review.run_id,"requestId":review.request_id})).unwrap()).unwrap()
+}
+
+#[test]
+fn fixture_reservation_refuses_existing_directory_without_adoption_or_cleanup() {
+    let fixture = Fixture::new();
+    let selection: Value = serde_json::from_slice(&fixture.selection()).unwrap();
+    let id = selection["inputs"][0]["sourceId"].as_str().unwrap();
+    let marker = fixture.0.join("keep-existing");
+    std::fs::write(&marker, b"synthetic marker").unwrap();
+    assert!(Fixture::reserve(fixture.0.clone()).is_err());
+    assert_eq!(std::fs::read(&marker).unwrap(), b"synthetic marker");
+    assert!(fixture.store().open(id).is_ok());
+}
+
+#[test]
+fn parallel_fixture_lifetimes_preserve_the_surviving_saved_input() {
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(8));
+    let workers: Vec<_> = (0..8)
+        .map(|_| {
+            let barrier = std::sync::Arc::clone(&barrier);
+            std::thread::spawn(move || {
+                barrier.wait();
+                let fixture = Fixture::new();
+                fixture.selection();
+                fixture
+            })
+        })
+        .collect();
+    let mut fixtures: Vec<_> = workers
+        .into_iter()
+        .map(|worker| worker.join().unwrap())
+        .collect();
+    let paths: std::collections::HashSet<_> = fixtures.iter().map(|f| f.0.clone()).collect();
+    assert_eq!(paths.len(), fixtures.len());
+    let survivor = fixtures.pop().unwrap();
+    drop(fixtures);
+    let view = staged(&model(), &survivor);
+    assert_eq!(view.inputs.len(), 1);
+}
+
+#[test]
+fn unavailable_saved_input_refuses_preparation_and_cannot_revive_an_old_pair() {
+    for missing in [true, false] {
+        let fixture = Fixture::new();
+        let model = model();
+        let previous = staged(&model, &fixture);
+        let selected = fixture.selection();
+        let selection: Value = serde_json::from_slice(&selected).unwrap();
+        let id = selection["inputs"][0]["sourceId"].as_str().unwrap();
+        let database = fixture.0.join("workspace.sqlite3");
+        if missing {
+            std::fs::remove_file(&database).unwrap();
+        } else {
+            std::fs::write(&database, b"synthetic invalid database").unwrap();
+        }
+        assert_eq!(
+            fixture.store().open(id).err(),
+            Some(if missing {
+                rangoon_store::StoreError::NotFound
+            } else {
+                rangoon_store::StoreError::Unavailable
+            })
+        );
+        let secret = Secret::new(b"synthetic-native-key").unwrap();
+        let preparation = model
+            .resolution(&selected)
+            .unwrap()
+            .with_credential_revision(&secret.revision())
+            .unwrap();
+        assert!(matches!(
+            preparation.prepare_retained(&fixture.store()),
+            Err(Diagnostic::InputUnavailable)
+        ));
+        assert!(model.lock().unwrap().staged.is_none());
+        assert!(matches!(
+            model.claim(&claim(&previous)),
+            Err(Diagnostic::StalePrepared)
+        ));
+        // Refusal must not recreate a missing database or repair an invalid one.
+        if missing {
+            assert!(!database.exists());
+        } else {
+            assert_eq!(
+                std::fs::read(&database).unwrap(),
+                b"synthetic invalid database"
+            );
+        }
+    }
 }
 
 #[test]
