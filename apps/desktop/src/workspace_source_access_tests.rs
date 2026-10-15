@@ -875,3 +875,6 @@ mod workspace_close;
 
 #[path = "workspace_reopen_tests.rs"]
 mod reopen_controls;
+
+#[path = "workspace_close_control_tests.rs"]
+mod supervisor_controls;

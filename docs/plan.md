@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Active native supervisor integration
+
+The [accepted E1c-2c continuation](intent.md#e1c-2c-native-supervisor-control-ownership) integrates typed controls into [the existing native supervisor](encrypted-workspace.md#native-supervisor-control-ownership-e1c-2c), atop `4184aff`. Resolve pre-code race/ownership findings, implement exact twelve-path source scope, validate and obtain fresh independent review. Native commands/consent, protection UI, fresh mounting, Legacy adoption and three-OS qualification follow; no constructor/default switch is opened.
+
 ## Active close-cycle routing prerequisite
 
 The [accepted E1c-2b continuation](intent.md#e1c-2b-typed-close-cycle-control-transitions) completes the source implementation and independent validation of the [private typed control seam](encrypted-workspace.md#typed-close-cycle-control-transitions-e1c-2b) after Gate checkpoint `0930111`; the [receipt](development.md#typed-close-cycle-transitions-e1c-2b--october-15-2026) owns evidence. Root owns protected source; one disjoint fixture writer owns only its new test file. The native coordinator/OS consent/renderer integration follows, reusing this seam and existing purge/ack behavior; no constructor/default switch is opened.

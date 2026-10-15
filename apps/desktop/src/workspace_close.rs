@@ -70,6 +70,9 @@ struct State {
     epoch: u64,
     failed: bool,
     attempt: Option<Arc<Attempt>>,
+    control: Option<control::Retained>,
+    #[cfg(test)]
+    fail_control_after_swap: bool,
 }
 struct Attempt {
     ticket: CloseTicket,
@@ -85,15 +88,16 @@ struct Progress {
     acknowledged: bool,
 }
 
+#[derive(Clone)]
 pub(super) struct WorkspaceClose {
     source: SourceAccess,
-    state: Mutex<State>,
+    state: Arc<Mutex<State>>,
 }
 impl WorkspaceClose {
     pub(super) fn new(source: SourceAccess) -> Self {
         Self {
             source,
-            state: Mutex::new(State::default()),
+            state: Arc::new(Mutex::new(State::default())),
         }
     }
     fn snapshot(&self, diagnostic: Option<&'static str>) -> View {
@@ -140,6 +144,8 @@ impl WorkspaceClose {
                 view.state = if !progress.healthy {
                     view.diagnostic = Some("workspace_close_incomplete");
                     Phase::RecoveryRequired
+                } else if state.control.is_some() {
+                    Phase::Closing
                 } else if progress.native_done && progress.acknowledged {
                     Phase::Locked
                 } else {
@@ -156,6 +162,7 @@ impl WorkspaceClose {
         self.begin_with_entropy(cleanup, |bytes| getrandom::fill(bytes).map_err(|_| ()))
     }
     fn poisoned_cleanup(&self, cleanup: impl FnOnce(bool) -> bool) -> View {
+        self.purge_poisoned_control();
         // Recover no operational capability from poison. Only admission closure,
         // cancellation, retained-data deletion and proven-drained key drop remain.
         let ticket = self.source.request_close().ok();
@@ -189,6 +196,10 @@ impl WorkspaceClose {
             drop(state);
             return self.snapshot(None);
         }
+        if state.control.is_some() {
+            drop(state);
+            return self.cancel_any_control(cleanup);
+        }
         if state.attempt.is_some() {
             drop(state);
             return self.inspect(cleanup);
@@ -203,19 +214,12 @@ impl WorkspaceClose {
                 return self.snapshot(None);
             }
         };
-        let mut bytes = [0; 32];
-        let id = entropy(&mut bytes)
-            .ok()
-            .map(|()| bytes.iter().map(|b| format!("{b:02x}")).collect());
-        let epoch = state.epoch.checked_add(1);
-        if let Some(epoch) = epoch {
-            state.epoch = epoch;
-        }
+        let (id, epoch) = next_identity(&mut state, entropy);
         let healthy = id.is_some() && epoch.is_some();
         let attempt = Arc::new(Attempt {
             ticket,
             id,
-            epoch: epoch.map(|n| n.to_string()),
+            epoch,
             progress: Mutex::new(Progress {
                 initial_done: false,
                 finishing: false,
@@ -322,6 +326,25 @@ impl WorkspaceClose {
     }
 }
 
+// The private control supervisor is not registered as a command yet.
+#[allow(dead_code)]
+#[path = "workspace_close_control.rs"]
+mod control;
+
+fn next_identity(
+    state: &mut State,
+    entropy: impl FnOnce(&mut [u8]) -> Result<(), ()>,
+) -> (Option<String>, Option<String>) {
+    let mut bytes = [0; 32];
+    let id = entropy(&mut bytes)
+        .ok()
+        .map(|()| bytes.iter().map(|b| format!("{b:02x}")).collect());
+    let epoch = state.epoch.checked_add(1);
+    if let Some(epoch) = epoch {
+        state.epoch = epoch;
+    }
+    (id, epoch.map(|n| n.to_string()))
+}
 fn native_cleanup(app: &AppHandle, drained: bool) -> bool {
     let local = app
         .state::<models::NativeModel>()

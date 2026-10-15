@@ -691,6 +691,8 @@ impl CloseTicket {
 #[allow(dead_code)]
 #[path = "workspace_reopen.rs"]
 mod reopen;
+#[allow(unused_imports)]
+pub(super) use reopen::{Control as SourceControl, ControlError, Kind as ControlKind};
 
 #[derive(Clone)]
 pub(super) struct SourceAccess(Arc<Inner>);

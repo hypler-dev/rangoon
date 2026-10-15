@@ -5,13 +5,13 @@ use rangoon_desktop::workspace_lifecycle::ClosedLease;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(super) enum Kind {
+pub(crate) enum Kind {
     CreateEmpty,
     Unlock,
     Recovery,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum ControlError {
+pub(crate) enum ControlError {
     Unavailable,
     Stale,
     Busy,
@@ -32,7 +32,7 @@ enum Phase {
 /// A renderer/IPC waiter must never be its sole owner during a callback.
 /// Dropping a failed, cancelled or unfinished control locks Owner before its
 /// ClosedLease can disappear. It does not fake native/renderer acknowledgment.
-pub(super) struct Control {
+pub(crate) struct Control {
     ticket: CloseTicket,
     lease: Option<ClosedLease>,
     kind: Kind,
@@ -40,7 +40,21 @@ pub(super) struct Control {
     finished: bool,
 }
 impl CloseTicket {
-    pub(super) fn start_control(&self, kind: Kind) -> Result<Control, ControlError> {
+    pub(crate) fn start_control(&self, kind: Kind) -> Result<Control, ControlError> {
+        self.start_control_inner(kind, false)
+    }
+    #[cfg(test)]
+    pub(crate) fn fail_control_after_swap_for_test(
+        &self,
+        kind: Kind,
+    ) -> Result<Control, ControlError> {
+        self.start_control_inner(kind, true)
+    }
+    fn start_control_inner(
+        &self,
+        kind: Kind,
+        _fail_after_swap: bool,
+    ) -> Result<Control, ControlError> {
         let (mut slot, healthy) = self.current_slot().map_err(|_| ControlError::Stale)?;
         if !healthy {
             return Err(ControlError::Unavailable);
@@ -71,6 +85,11 @@ impl CloseTicket {
         });
         // The old memo becomes unreachable before any Backend/key lookup.
         *slot = Some(Arc::clone(&cycle));
+        #[cfg(test)]
+        if _fail_after_swap {
+            cycle.cleanup_failed.store(true, Ordering::SeqCst);
+            return Err(ControlError::Unavailable);
+        }
         let lease = match self.access.0.gate.begin_closed(&cycle.drain) {
             Ok(lease) => lease,
             Err(_) => {
@@ -90,7 +109,7 @@ impl CloseTicket {
         })
     }
     /// Invalidate a callback without releasing any actual callback custody.
-    pub(super) fn renew_control(&self) -> Result<CloseTicket, ControlError> {
+    pub(crate) fn renew_control(&self) -> Result<CloseTicket, ControlError> {
         let (mut slot, healthy) = self.current_slot().map_err(|_| ControlError::Stale)?;
         let drain = self
             .access
@@ -190,7 +209,7 @@ impl Control {
             }
         }
     }
-    pub(super) fn prepare(&mut self) -> Result<ControlPreview, ControlError> {
+    pub(crate) fn prepare(&mut self) -> Result<ControlPreview, ControlError> {
         if self.phase != Phase::New || self.kind == Kind::Recovery {
             self.fail();
             return Err(ControlError::Invalid);
@@ -200,7 +219,7 @@ impl Control {
         self.phase = Phase::Prepared;
         Ok(value)
     }
-    pub(super) fn confirm(&mut self, id: &str) -> Result<(), ControlError> {
+    pub(crate) fn confirm(&mut self, id: &str) -> Result<(), ControlError> {
         if self.phase != Phase::Prepared || self.kind == Kind::Recovery {
             self.fail();
             return Err(ControlError::Invalid);
@@ -209,7 +228,7 @@ impl Control {
         self.phase = Phase::Confirmed;
         Ok(())
     }
-    pub(super) fn inspect_recovery(&mut self) -> Result<RecoveryPreview, ControlError> {
+    pub(crate) fn inspect_recovery(&mut self) -> Result<RecoveryPreview, ControlError> {
         if self.phase != Phase::New || self.kind != Kind::Recovery {
             self.fail();
             return Err(ControlError::Invalid);
@@ -218,7 +237,7 @@ impl Control {
         self.phase = Phase::Inspected;
         Ok(value)
     }
-    pub(super) fn reconcile(&mut self, id: &str) -> Result<(), ControlError> {
+    pub(crate) fn reconcile(&mut self, id: &str) -> Result<(), ControlError> {
         if self.phase != Phase::Inspected || self.kind != Kind::Recovery {
             self.fail();
             return Err(ControlError::Invalid);
@@ -227,11 +246,11 @@ impl Control {
         self.phase = Phase::Reconciled;
         Ok(())
     }
-    pub(super) fn resume(self) -> Result<(), ControlError> {
+    pub(crate) fn resume(self) -> Result<(), ControlError> {
         self.resume_inner(|| {})
     }
     #[cfg(test)]
-    pub(super) fn resume_paused(
+    pub(crate) fn resume_paused(
         self,
         entered: std::sync::mpsc::Sender<()>,
         release: std::sync::mpsc::Receiver<()>,
