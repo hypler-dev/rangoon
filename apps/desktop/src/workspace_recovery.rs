@@ -1,7 +1,7 @@
 //! Bounded write-ahead observations, not authenticated audit or delivery receipts.
 use super::*;
 
-const FILES: [&str; 2] = [
+pub(super) const FILES: [&str; 2] = [
     "encrypted-workspace.operation.pending",
     "encrypted-workspace.operation.terminal",
 ];

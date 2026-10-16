@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Active protection layout inspection
+
+Complete the bounded source gate for [E1c-2h](intent.md#e1c-2h-read-only-encrypted-layout-inspection) using existing Owner metadata verification, after reviewed local checkpoint f99bc31. [The receipt](development.md#read-only-layout-inspection-e1c-2h--october-15-2026) owns acceptance. This closes the read-only absence/locked/recovery distinction before native status routing and source-free protection UI; factory/default activation and explicit plaintext import remain later qualified steps. No status call may prepare an attempt or consult a vault.
+
 ## Active closed-cycle commands
 
 Complete the bounded source gate for [E1c-2g](intent.md#e1c-2g-closed-cycle-setup-and-unlock-commands) under [the native command contract](encrypted-workspace.md#closed-cycle-control-commands-e1c-2g), preserving routing checkpoint 7123800. Bind setup/unlock to exact closed cycles, fresh purge acknowledgment, actual OS consent and retained callback custody. The [ledger](development.md#closed-cycle-control-commands-e1c-2g--october-15-2026) owns acceptance. Pure layout classification, source-free protection UI, native failure wake/reload and qualified factory follow; do not call Owner prepare as a status check.

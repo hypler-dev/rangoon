@@ -1029,3 +1029,6 @@ fn source_mutation_intent_and_completion_faults_preserve_actual_outcomes() {
         assert_eq!(vault.writes(&preview.workspace_id), 1);
     }
 }
+
+#[path = "workspace_protection_tests.rs"]
+mod protection_layout;

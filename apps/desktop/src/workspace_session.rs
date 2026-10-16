@@ -23,11 +23,16 @@ use std::{
 mod recovery;
 pub use recovery::{Operation as RecoveryOperation, RecoveryPreview};
 
+#[path = "workspace_protection.rs"]
+mod protection;
+pub use protection::Layout;
+
 const MARKER: &[u8] = b"rangoon.workspace-binding.v1\0";
 const BINDING_BYTES: usize = 94;
 const CONTROL: &str = "encrypted-workspace.lock";
 const BINDING: &str = "encrypted-workspace.binding";
 const PARENT: &str = "encrypted-workspaces";
+const DATABASE: &str = "workspace.sqlite3";
 const MAX_DATABASE_BYTES: u64 = 64 * 1024 * 1024;
 
 pub trait Vault {
@@ -349,8 +354,8 @@ impl Owner {
         plain_directory(&self.root.join(PARENT)).map_err(|_| Error::StoreInvalid)?;
         let directory = self.directory(binding);
         plain_directory(&directory).map_err(|_| Error::StoreInvalid)?;
-        let metadata = fs::symlink_metadata(directory.join("workspace.sqlite3"))
-            .map_err(|_| Error::StoreInvalid)?;
+        let metadata =
+            fs::symlink_metadata(directory.join(DATABASE)).map_err(|_| Error::StoreInvalid)?;
         regular(&metadata).map_err(|_| Error::StoreInvalid)?;
         if metadata.len() == 0 || metadata.len() > MAX_DATABASE_BYTES {
             return Err(Error::StoreInvalid);
