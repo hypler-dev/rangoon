@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Completed last-window exit hold
+
+E1c-2k now holds ordinary Managed `ExitRequested` through actual native drain, distinguishes proven clean from unproven recovery exit, and keeps weak lifetime and Legacy routing. [The receipt](development.md#last-window-native-exit-hold-e1c-2k--october-15-2026) owns source validation and independent review under [the exit contract](encrypted-workspace.md#last-window-native-exit-hold-e1c-2k). Renderer failure notice/reload, protection UI, encrypted factory and three-OS GUI qualification follow; no production default switch is implied.
+
 ## Completed native close progress
 
 Complete [E1c-2j](intent.md#e1c-2j-native-close-progress-without-a-renderer) under [the native progress contract](encrypted-workspace.md#renderer-independent-native-close-progress-e1c-2j). Explicit close must wake actual callback drain and key release through the weak native supervisor while `App::run` survives; main-window destruction must fence/cancel synchronously, but last-window exit remains an unproven stop. No synthetic acknowledgment or Locked claim follows. [The receipt](development.md#renderer-independent-native-close-progress-e1c-2j--october-15-2026) owns validation and acceptance. A separate exit-hold gate, failure notice/subscription and protection controls follow before encrypted factory/default qualification.

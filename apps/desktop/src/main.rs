@@ -364,6 +364,18 @@ fn main() {
     // SourceAccess retains only a weak host notifier and cannot keep it alive.
     let mut failure_anchor = workspace_close::failure::install(app.handle());
     app.run(move |_, event| {
+        if let tauri::RunEvent::ExitRequested { code, api, .. } = &event
+            && let Some(anchor) = failure_anchor.as_ref()
+        {
+            match anchor.exit_request(*code) {
+                workspace_close::failure::ExitAction::Pass => {}
+                workspace_close::failure::ExitAction::Prevent => api.prevent_exit(),
+                workspace_close::failure::ExitAction::PreventAndStart => {
+                    api.prevent_exit();
+                    anchor.begin_exit_close();
+                }
+            }
+        }
         if matches!(event, tauri::RunEvent::Exit) {
             failure_anchor.take();
         }

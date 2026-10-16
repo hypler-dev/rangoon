@@ -1,7 +1,7 @@
 //! Native-only close progress. A wake is not cleanup or authorization.
 use super::{WorkspaceClose, native_cleanup};
 use std::sync::{
-    Arc, Weak,
+    Arc, Mutex, Weak,
     atomic::{AtomicBool, Ordering},
     mpsc,
 };
@@ -9,6 +9,70 @@ use std::time::Duration;
 use tauri::{AppHandle, Manager};
 
 const INTERVAL: Duration = Duration::from_millis(25);
+pub(crate) const CLEAN_EXIT_CODE: i32 = 0;
+pub(crate) const RECOVERY_EXIT_CODE: i32 = 4;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExitAction {
+    Pass,
+    Prevent,
+    PreventAndStart,
+}
+
+#[derive(Clone, Copy)]
+enum ExitState {
+    Idle,
+    Holding,
+    Sent(i32),
+    Consumed,
+}
+
+/// Tauri provides an exit code, not an event identity. This one-shot guard
+/// permits a matching coordinator code only after native terminal inspection.
+pub(crate) struct ExitCoordinator(Mutex<ExitState>);
+impl ExitCoordinator {
+    pub(crate) fn new() -> Self {
+        Self(Mutex::new(ExitState::Idle))
+    }
+    pub(crate) fn request(&self, code: Option<i32>) -> ExitAction {
+        if code == Some(tauri::RESTART_EXIT_CODE) {
+            return ExitAction::Pass;
+        }
+        let Ok(mut state) = self.0.lock() else {
+            return ExitAction::Prevent;
+        };
+        match *state {
+            ExitState::Idle => {
+                *state = ExitState::Holding;
+                ExitAction::PreventAndStart
+            }
+            ExitState::Holding | ExitState::Consumed => ExitAction::Prevent,
+            ExitState::Sent(expected) if code == Some(expected) => {
+                *state = ExitState::Consumed;
+                ExitAction::Pass
+            }
+            ExitState::Sent(_) => ExitAction::Prevent,
+        }
+    }
+    pub(crate) fn is_holding(&self) -> bool {
+        self.0
+            .lock()
+            .is_ok_and(|state| matches!(*state, ExitState::Holding))
+    }
+    pub(crate) fn send(&self, code: i32) -> bool {
+        if code != CLEAN_EXIT_CODE && code != RECOVERY_EXIT_CODE {
+            return false;
+        }
+        let Ok(mut state) = self.0.lock() else {
+            return false;
+        };
+        if !matches!(*state, ExitState::Holding) {
+            return false;
+        }
+        *state = ExitState::Sent(code);
+        true
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Progress {
@@ -21,6 +85,7 @@ pub(crate) enum Progress {
 
 pub(crate) trait Host: Send + Sync {
     fn progress(&self) -> Progress;
+    fn terminal(&self, _result: Progress) {}
 }
 
 pub(crate) struct Monitor {
@@ -57,39 +122,52 @@ impl Monitor {
             .name("rangoon-workspace-close".into())
             .spawn(move || {
                 loop {
-                    loop {
+                    let terminal = loop {
                         monitor.pending.store(false, Ordering::SeqCst);
                         let Some(host) = monitor.host.upgrade() else {
-                            break;
+                            break Progress::Stopped;
                         };
                         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                             host.progress()
-                        }));
+                        }))
+                        .unwrap_or(Progress::Stopped);
                         drop(host);
-                        if !matches!(result, Ok(Progress::Pending)) {
-                            break;
+                        if result != Progress::Pending {
+                            break result;
                         }
                         std::thread::sleep(INTERVAL);
-                    }
+                    };
                     monitor.running.store(false, Ordering::SeqCst);
-                    if !monitor.pending.swap(false, Ordering::SeqCst)
-                        || monitor
+                    if monitor.pending.swap(false, Ordering::SeqCst)
+                        && monitor
                             .running
                             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-                            .is_err()
+                            .is_ok()
                     {
-                        break;
+                        continue;
                     }
+                    if let Some(host) = monitor.host.upgrade() {
+                        host.terminal(terminal);
+                    }
+                    break;
                 }
             }) {
             Ok(handle) => Some(handle),
             Err(_) => {
-                // Failed dispatch proves no cleanup. The source's terminal failure
-                // still fences admission, and explicit inspection remains closed.
-                self.running.store(false, Ordering::SeqCst);
+                self.dispatch_failed();
                 None
             }
         }
+    }
+    fn dispatch_failed(&self) {
+        self.running.store(false, Ordering::SeqCst);
+        if let Some(host) = self.host.upgrade() {
+            host.terminal(Progress::Stopped);
+        }
+    }
+    #[cfg(all(test, feature = "encrypted-workspace"))]
+    pub(crate) fn dispatch_failed_for_test(&self) {
+        self.dispatch_failed();
     }
 }
 
@@ -97,6 +175,7 @@ struct NativeHost {
     app: Weak<AppHandle>,
     alive: Arc<AtomicBool>,
     main_thread: std::thread::ThreadId,
+    exit: Arc<ExitCoordinator>,
 }
 
 /// Application state keeps no strong host or app lifetime.
@@ -190,6 +269,40 @@ impl Host for NativeHost {
         }
         wait_for_progress(receiver, &self.alive)
     }
+    fn terminal(&self, result: Progress) {
+        if !self.alive.load(Ordering::SeqCst) || !self.exit.is_holding() {
+            return;
+        }
+        let Some(app) = self.app.upgrade() else {
+            return;
+        };
+        let weak_app = self.app.clone();
+        let alive = Arc::clone(&self.alive);
+        let exit = Arc::clone(&self.exit);
+        let queued = app.run_on_main_thread(move || {
+            if !alive.load(Ordering::SeqCst) || !exit.is_holding() {
+                return;
+            }
+            let Some(app) = weak_app.upgrade() else {
+                return;
+            };
+            let clean = result == Progress::Finished
+                && app.state::<WorkspaceClose>().clean_native_completion();
+            let code = if clean {
+                CLEAN_EXIT_CODE
+            } else {
+                RECOVERY_EXIT_CODE
+            };
+            if exit.send(code) {
+                app.exit(code);
+            }
+        });
+        if queued.is_err() && self.exit.send(RECOVERY_EXIT_CODE) {
+            // No callback or cleanup proof exists when main-loop dispatch fails.
+            // Pinned Tauri may force this nonzero exit if request dispatch fails.
+            app.exit(RECOVERY_EXIT_CODE);
+        }
+    }
 }
 
 pub(crate) fn wait_for_progress(
@@ -214,9 +327,21 @@ pub(crate) fn wait_for_result<T>(receiver: mpsc::Receiver<T>, alive: &AtomicBool
 
 /// Held by App::run, never by managed application state or SourceAccess.
 pub(crate) struct Anchor {
-    _app: Arc<AppHandle>,
+    app: Arc<AppHandle>,
     _host: Arc<dyn Host>,
     alive: Arc<AtomicBool>,
+    exit: Arc<ExitCoordinator>,
+}
+impl Anchor {
+    pub(crate) fn exit_request(&self, code: Option<i32>) -> ExitAction {
+        self.exit.request(code)
+    }
+    pub(crate) fn begin_exit_close(&self) {
+        self.app
+            .state::<WorkspaceClose>()
+            .begin(|drained| native_cleanup(&self.app, drained));
+        wake(&self.app);
+    }
 }
 impl Drop for Anchor {
     fn drop(&mut self) {
@@ -230,10 +355,12 @@ pub(crate) fn install(app: &AppHandle) -> Option<Anchor> {
     }
     let app = Arc::new(app.clone());
     let alive = Arc::new(AtomicBool::new(true));
+    let exit = Arc::new(ExitCoordinator::new());
     let native = Arc::new(NativeHost {
         app: Arc::downgrade(&app),
         alive: Arc::clone(&alive),
         main_thread: std::thread::current().id(),
+        exit: Arc::clone(&exit),
     });
     let worker = WorkerCleanup(Arc::downgrade(&native));
     let host: Arc<dyn Host> = native;
@@ -259,8 +386,9 @@ pub(crate) fn install(app: &AppHandle) -> Option<Anchor> {
         return None;
     }
     Some(Anchor {
-        _app: app,
+        app,
         _host: host,
         alive,
+        exit,
     })
 }

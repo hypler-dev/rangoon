@@ -390,6 +390,30 @@ impl WorkspaceClose {
         }
         attempt.ticket.is_quiescent().map(|_| false)
     }
+    /// Private exit proof for this close attempt. A terminal monitor result or
+    /// renderer state alone cannot establish native cleanup and key release.
+    pub(super) fn clean_native_completion(&self) -> bool {
+        if !self.source.encrypted_close_available() || self.source.failure_latched() {
+            return false;
+        }
+        let Ok(state) = self.state.lock() else {
+            return false;
+        };
+        if state.failed || state.control.is_some() {
+            return false;
+        }
+        let Some(attempt) = &state.attempt else {
+            return false;
+        };
+        let Ok(progress) = attempt.progress.lock() else {
+            return false;
+        };
+        progress.initial_done
+            && progress.native_done
+            && !progress.finishing
+            && progress.healthy
+            && !self.source.failure_latched()
+    }
     pub(super) fn acknowledge(&self, raw: &[u8], cleanup: impl FnOnce(bool) -> bool) -> View {
         if !self.source.encrypted_close_available() {
             return self.snapshot(None);
