@@ -198,6 +198,55 @@ The reviewed descriptor must declare publisher and artifact identity, supported 
 
 Enrollment is explicit: select an artifact/profile, validate identity and schema, preview access and data flow, then request narrowly scoped enablement for the implemented operation. No auto-download/install, startup execution, background network discovery or ambient credentials. Permission expansion and updates require renewed review/consent and affected-operation requalification. Disable/uninstall/revocation invalidates pending custody and qualification; an already possible side effect remains outcome-unknown until reconciled. Plugins cannot approve themselves, widen delegation, replace mandatory human review, or convert provider evidence into execution authority. Compatibility colors and plugin permission UI remain planned until their own source/host/OS tests pass.
 
+## OpenShell runtime boundary and adapter sequence
+
+OpenShell is a sandbox/runtime integration target, not an authority-decision
+provider in the eight-entry I1 catalog. The October 16 research baseline is
+NVIDIA's [v0.1.4 supervisor middleware](https://docs.nvidia.com/openshell/v0.1.4/extensibility/supervisor-middleware),
+[supported operations](https://docs.nvidia.com/openshell/v0.1.4/extensibility/supervisor-middleware/operations),
+and [policy schema](https://docs.nvidia.com/openshell/v0.1.4/how-it-works/policies/schema).
+These are research pins, not a tested binary/protocol pin or Rangoon support row.
+The interface is evolving; freeze the exact released artifact, protobuf and
+negotiated capabilities before a live adapter.
+
+The narrow candidate enforcement point is an operator-run supervisor middleware
+service for `HTTP_REQUEST/PRE_CREDENTIALS`: OpenShell admits network traffic
+first, calls matching middleware, then injects provider credentials. An
+OpenShell policy allow is neither LNSAT authorization nor Rangoon approval.
+The middleware sees selected HTTP traffic; it does not mediate every local
+file, process, tool or agent action. WebSocket text, response inspection and
+other operations need separate bindings and coverage tests. Binary WebSocket
+messages and uninspected paths cannot be described as fully mediated.
+
+Build in two distinct products without replacing I1 or A1. Rangoon first owns
+a versioned, read-only runtime descriptor and evidence mapping: declared
+version, sandbox identity, policy revision, middleware binding and coverage,
+provider observation, LNSAT reference when present, and explicit missing or
+uncertain steps. It never produces an execution grant. A later LNSAT-owned
+middleware service may request exact action authorization and consume a
+one-time grant at the intercepted consequence boundary. That service requires
+its own pinned protocol, authenticated OpenShell caller, exact audience and
+sandbox identity, bounded payload digest, fail-closed error behavior, durable
+attempt/receipt/recovery semantics and real runtime proof. Operator-controlled
+registration and `fail_closed` policy attachment are deployment requirements;
+Rangoon cannot silently install or activate them.
+
+Offline conformance must distinguish five cases before any connection claim:
+denied traffic never gains a Rangoon approval; an approved exact request may
+proceed only on the independently qualified LNSAT path; changed body, target,
+sandbox, policy or binding invalidates the grant; repeated use never obtains a
+second consequence; and timeout or post-dispatch uncertainty stays unknown
+without automatic retry. Tests must also show uncovered paths and stale
+OpenShell/LNSAT evidence as incomplete, not green coverage. These fixtures
+establish contract behavior only. A real support row needs a pinned artifact,
+authenticated transport, real OpenShell and LNSAT instances, direct-bypass
+tests, effect-boundary observation and independent outcome reconciliation.
+
+Cerbos remains the first recommended **read-only authorization** adapter under
+the existing I2 sequence. OpenShell is a different runtime track and cannot
+substitute for Cerbos decisions or LNSAT authority. Keep encrypted workspace
+adoption and local core usability ahead of broad integration coverage.
+
 ## First real adapter recommendation
 
 Recommend **Cerbos self-hosted PDP read-only decision inspection** after I1. This is controller judgment, not current support: it fits the existing immutable request/evidence inspection approach and has a bounded documented `CheckResources` API. It avoids starting with gateway interception, tool execution, account provisioning or an approval/recovery protocol. An allow remains a reported policy effect; Cerbos is not asked to invent approvals or receipts. [API](https://docs.cerbos.dev/cerbos/latest/api/index.html)

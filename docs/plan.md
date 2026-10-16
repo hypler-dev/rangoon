@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-16
 
+## OpenShell runtime sequence
+
+Under the [accepted continuation](intent.md#openshell-runtime-boundary-continuation--october-16-2026), keep OpenShell outside the authority-engine catalog. First finish Rangoon's useful local workbench and encrypted-workspace adoption gates while LNSAT separately qualifies its disposable local action loop. Then freeze one exact OpenShell release/protobuf/binding and add a source-only Rangoon runtime descriptor with offline denied/approved/changed/repeated/uncertain and uncovered-path fixtures. Build and qualify any LNSAT-owned supervisor middleware service only after its own execution-time authority, identity, transport, bypass and runtime tests. Finally admit correlated evidence into Rangoon's existing operations records and show a complete or explicitly incomplete operator trace. [Interoperability](provider-interoperability.md#openshell-runtime-boundary-and-adapter-sequence) defines the boundary; no current OpenShell support or live telemetry follows from this plan.
+
 ## Source-free protection UI checkpoint
 
 E1c-2l connects existing native protection/status and setup/unlock commands to a closed, source-free renderer under [its contract](encrypted-workspace.md#source-free-renderer-protection-controls-e1c-2l). The [source/fixture receipt](development.md#source-free-renderer-protection-controls-e1c-2l--october-16-2026) records exact C0/C1 purge/acknowledgment, native-close observation and failure states. Next: qualify a Managed factory on disposable OS-local workspaces, including actual native sheet, failure wake/reload, durable recovery, process lifetime and all-three-OS GUI behavior. Legacy production, migration and encrypted archives remain separate; no default switch follows from a browser fixture.
