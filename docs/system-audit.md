@@ -19,6 +19,34 @@ The fresh UX review identified four P2 presentation defects in the O2/new shared
 
 **Next evidence, in order:** finish O2 rendered 320/768/1440 dark/light, keyboard, forced-colors, reduced-motion, empty/invalid/stale and lock-purge checks with a populated synthetic fixture; qualify one installed local lifecycle on disposable data; then test a disposable Managed factory and OS-specific vault/GUI/recovery paths. Only after these should a consented read-only provider adapter or real live ingress become a user-facing support claim. Preserve model-curation analytics as advisory records with measured error rates; no model or human approval alone bypasses execution-time enforcement.
 
+### October 16 follow-up: contract and handoff coherence
+
+Fresh independent read-only architecture and UI passes checked clean O2
+source head `576ae69`; the separate website checkout and unpublished LNSAT
+branches were not treated as Rangoon source contradictions. The UI pass found
+no new P1/P2/P3 in the current source and exercised dark/light, 320/768/1440,
+native-unavailable and synthetic-playground states. Populated native operations,
+assistive technology, all-three-OS tasks and live ingress remain untested.
+These are review observations, not release qualification.
+
+| Finding | Effect | Resolution or next gate |
+| --- | --- | --- |
+| DA16-01 / P2 handoff drift | Older sections of `continue.md` called the approval branch current and lifecycle inspection pending after the O1 lifecycle source and O2 local view were added. | The October 16 opening status now supersedes those historical sections; the older checkout instructions and operations checkpoint are labeled historical. Do not reopen O1b-2b3 from an old paragraph. |
+| DA16-02 / P2 reported continuity scope | O0's `reported_exact_path` matches six caller-supplied OpenShell fields. It omits selected-header digest and authenticated gateway identity/audience/issuer required by the O1 middleware candidate. No authorization bypass exists because the result remains unverified, `authority=none` and `mayExecute=false`, but a future UI could overread the match label. | [Provider interoperability](provider-interoperability.md#openshell-o0-offline-runtime-continuity-report) now names the limitation and versioned follow-up. Before connected-runtime presentation, require missing/mismatched binding and peer-identity fixtures, private diagnostics and qualified ingress. |
+| DA16-03 / P3 compatibility identity | O0 checks a declared documentation version, not an observed binary or generated protobuf identity. | Keep descriptor `unavailable`; pin and verify a released artifact/binding in a later adapter packet. A documentation version never counts as compatibility proof. |
+
+The local LNSAT `public/main` reference checked during this pass was
+`f669181a`; that source snapshot contains hermetic fake-runtime and durable
+pre-supervisor guard work but does not establish real Docker proof. This is a
+local snapshot, not a fresh
+remote or separate-session acceptance check. Rangoon should continue its
+provider-free source-to-export qualification while LNSAT separately proves its
+own consequence loop. OpenShell's documented middleware is network scoped;
+the current [candidate](provider-interoperability.md#openshell-o1-source-freeze-candidate)
+does not cover every tool, file, process or agent action. The operator record
+must show uncovered and unknown paths as such, not make the graph look complete
+because one middleware chain reports an allow.
+
 ## October 15 whole-system audit and completion map
 
 Authority: [Jeff's accepted audit request](intent.md#whole-system-audit-with-glm--october-15-2026). This section owns the current assessment; the [development receipt](development.md#whole-system-audit-with-glm--october-15-2026) owns validation, review and Git state. Earlier dated assessments below are historical. They must not reopen routing, purge, navigation or draft-recovery work completed since October 12. Recommendations here are proposals, not implementation acceptance, provider activation or release approval.

@@ -21,7 +21,7 @@ a different job. Neither should be recast as a Rangoon authority engine.
 | --- | --- | --- |
 | 1. Useful local workbench | Source-first import, revision, composition, compilation and export exist; desktop/platform and encrypted-default qualification remain incomplete | One disposable source-to-export/restart task passes on macOS, Windows and Linux, including refusal, recovery and no-provider use. Measure setup time and steps. |
 | 2. Consequential action proof | Rangoon's operations records are inert; LNSAT's active Phase 11 source has fake-runtime and guarded-launch work but no real Docker run | In a disposable LNSAT target, prove denial, exact changed action, replay, approval change, authorized effect, lost result and uncertain reconciliation. Verify host-side consequence and durable receipt; show any bypass. Preserve LNSAT's separate acceptance and authorization gates. |
-| 3. Operator record | O1 source inspectors classify reported records without authentication; O2–O4 remain open | Build read-only search, timeline and drill-down across request, evaluation, human/agent approval, authority consumption, actual outcome and evidence. Show unknown, stale, disconnected and advisory coverage. Ingest only authenticated, redacted, bounded events with retention controls; test missing/out-of-order/duplicate events. |
+| 3. Operator record | O1 source inspectors classify reported records without authentication; O2 has a local, read-only first slice on `codex/ops-local-window`, with native GUI qualification still open; O3–O4 remain unbuilt | Qualify the selected-file library, reported timeline/topology and inspector on populated native tasks. Then build authenticated, redacted, bounded event ingress and correlated search across request, evaluation, human/agent approval, authority consumption, actual outcome and evidence. Show unknown, stale, disconnected and advisory coverage; test missing, out-of-order and duplicate events. |
 | 4. Runtime interop | OpenShell O0 is offline descriptor evidence only | Pin one released OpenShell contract. LNSAT owns a fail-closed middleware adapter and execution-time action binding; Rangoon reads qualified evidence without converting runtime policy allow into approval. Test deny, approve, changed payload, repeat and uncertain outcome. Keep absent-adapter workbench useful. |
 | 5. Safe change review | Revisions and provenance exist; no qualified authority-impact preview | Diff capability/policy/connector changes by affected actions, resources, approval duties and adapter coverage. Replay sanitized fixtures and label untested paths. Do not claim formal verification or infer permission from preview. |
 | 6. Integration developer path | Provider descriptors and offline conformance contracts exist; executable plugin SDK does not | Ship versioned adapter test kit with negative fixtures, explicit capability/coverage matrix, consent and secret-handling rules after one real adapter. Public plugin runtime and registry follow two independent qualified adapters. |
@@ -68,9 +68,10 @@ bounded delegation, revocation, failure and adversarial qualification, exact
 effect-time checks and a new accepted LNSAT contract before any such claim.
 Track every policy, model, human, authorization and effect observation as a
 separate event, including abstentions, refusals, expiry, unavailable inputs,
-unknown outcomes and later corrections. O2 first provides scoped offline
-decision counts and drill-down over the current O1 vocabulary; O3 then
-qualifies authenticated, redacted, retained live ingress. A model-advice event
+unknown outcomes and later corrections. The local O2 first slice provides
+scoped offline reported-decision counts and drill-down over the current O1
+vocabulary; O3 must qualify authenticated, redacted, retained live ingress.
+A model-advice event
 needs a new versioned advisory contract, never a disguised policy evaluation
 or approval. The [decision analytics sequence](operations-control-plane.md#decision-ledger-and-analytics-sequence)
 defines denominators and independent labels; a high model score is neither an

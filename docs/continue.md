@@ -13,6 +13,8 @@ owns validation and publication status. Do not turn reported values into
 Rangoon approvals, execution authority, effect proof or model accuracy.
 The [October 16 architecture/UX checkpoint](system-audit.md#october-16-architecture-and-usability-drift-checkpoint)
 found no authority-boundary drift and corrected stale E1 architecture prose.
+This opening status supersedes older sections below that describe O1b-2b3 as
+pending or call an earlier branch current.
 It identified bounded O2 navigation, state-copy, analytics-density and touch
 repairs. Next qualify populated O2 at 320/768/1440 in both themes, keyboard,
 forced colors, reduced motion and lock purge, then the installed local task
@@ -119,7 +121,11 @@ October 11 explicit pause: new feature implementation is paused for [the product
 
 October 11 visualization correction: Jeff rejected the generic 2.5D experience. The [V4 task-focused 3D contract](visual-system.md#v4-task-focused-3d-request-inspection) replaces that companion around a concrete proposed request, recognizable systems, blocker/evidence inspection and native-WebGL geometry with a complete 2D/list fallback. Check its latest development receipt before extension. This remains synthetic and separate from actual workbench data/O1 ingress; real operator usefulness needs qualified traces. Encryption routing/drain/purge and durable recovery remain the next security work.
 
-Use this guide to restart work in the isolated application repository:
+Historical October 13 checkout instructions below are superseded by the October
+16 worktree and status at the top of this file. Do not use this older branch as
+the current operations head.
+
+Use this guide only to inspect that earlier checkout:
 
 ```sh
 cd /Users/jeff/hypler/code/rangoon/app-review
@@ -265,7 +271,7 @@ PR [#30](https://github.com/hypler-dev/rangoon/pull/30) published reviewed head 
 
 The published user-directed slice adds drag/drop, source and piece connections, contextual actions and bounded undo/redo to the real Decompose/Merge/Split recipes. Graph edits use the existing native preview and save contract. It remains an ordered composition editor; executable workflow/function nodes are a subsequent architecture and implementation slice. Exact validation, independent review and main publication evidence are recorded in the [development ledger](development.md). Preserve pending text, exact source ranges and attribution while extending the canvas.
 
-## Current operations completion and next scope
+## Historical operations checkpoint (superseded by October 16 O1/O2 status above)
 
 O1b-2a contract and source review passed under [operations-relationships.md](operations-relationships.md). The controller owns source/integration/docs; independent native workers authored the literal relationship fixtures, with controller integration corrections separately reviewed. Eighteen relationship fixtures plus the unchanged thirty-five operations tests and two private budget/core tests pass (fifty-five total). Final pinned Rust 1.85 formatting/workspace tests/warnings-denied Clippy and artifact/intent/whitespace checks pass; fresh final source/fixture/claim review passed with no remaining P1/P2/P3. PR42 publication passed the exact gates recorded in the ledger. Every subsequent packet must publish only with the substantive README update and exact final-head/base/hosted/review/thread/rules/fetched-main gates; current final receipts belong in the canonical ledger. Do not reopen pre-code or fixture-production work or treat earlier temporary preparation as authority.
 
