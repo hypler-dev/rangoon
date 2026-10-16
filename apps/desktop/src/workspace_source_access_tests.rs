@@ -882,6 +882,9 @@ mod supervisor_controls;
 #[path = "workspace_failure_tests.rs"]
 mod failure;
 
+#[path = "workspace_native_progress_tests.rs"]
+mod native_progress;
+
 #[path = "workspace_request_access_tests.rs"]
 mod request_admission;
 

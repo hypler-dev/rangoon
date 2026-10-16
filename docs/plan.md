@@ -6,7 +6,11 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
-## Active native protection-state routing
+## Completed native close progress
+
+Complete [E1c-2j](intent.md#e1c-2j-native-close-progress-without-a-renderer) under [the native progress contract](encrypted-workspace.md#renderer-independent-native-close-progress-e1c-2j). Explicit close must wake actual callback drain and key release through the weak native supervisor while `App::run` survives; main-window destruction must fence/cancel synchronously, but last-window exit remains an unproven stop. No synthetic acknowledgment or Locked claim follows. [The receipt](development.md#renderer-independent-native-close-progress-e1c-2j--october-15-2026) owns validation and acceptance. A separate exit-hold gate, failure notice/subscription and protection controls follow before encrypted factory/default qualification.
+
+## Completed native protection-state routing
 
 Implement [E1c-2i](intent.md#e1c-2i-native-protection-state-routing) after the read-only layout prerequisite. The [routing contract](encrypted-workspace.md#native-protection-state-routing-e1c-2i) limits metadata access to the exact healthy Locked C0, retains current closed-cycle proof through the read, and discards stale results. The [receipt](development.md#native-protection-state-routing-e1c-2i--october-15-2026) owns acceptance. Renderer-independent native progress and failure notice follow before protection UI; factory/default activation, explicit plaintext import and encrypted archives remain separate qualified steps.
 

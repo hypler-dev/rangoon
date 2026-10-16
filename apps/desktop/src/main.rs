@@ -269,6 +269,7 @@ fn main() {
         .manage(model_flight)
         .manage(cloud_custody::Custody::with_gate(gate.clone()))
         .on_window_event(|window, event| {
+            workspace_close::window_event(window, event);
             models::window_event(window, event);
             cloud_models::window_event(window, event);
             cloud_credentials::window_event(window, event);

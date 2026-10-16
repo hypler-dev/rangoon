@@ -1,4 +1,4 @@
-//! Native-only failure progress. A wake is not cleanup or authorization.
+//! Native-only close progress. A wake is not cleanup or authorization.
 use super::{WorkspaceClose, native_cleanup};
 use std::sync::{
     Arc, Weak,
@@ -26,12 +26,14 @@ pub(crate) trait Host: Send + Sync {
 pub(crate) struct Monitor {
     host: Weak<dyn Host>,
     running: AtomicBool,
+    pending: AtomicBool,
 }
 impl Monitor {
     pub(crate) fn new(host: Weak<dyn Host>) -> Arc<Self> {
         Arc::new(Self {
             host,
             running: AtomicBool::new(false),
+            pending: AtomicBool::new(false),
         })
     }
     pub(crate) fn wake(self: &Arc<Self>) {
@@ -42,6 +44,7 @@ impl Monitor {
         self.start()
     }
     fn start(self: &Arc<Self>) -> Option<std::thread::JoinHandle<()>> {
+        self.pending.store(true, Ordering::SeqCst);
         if self
             .running
             .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -54,18 +57,30 @@ impl Monitor {
             .name("rangoon-workspace-close".into())
             .spawn(move || {
                 loop {
-                    let Some(host) = monitor.host.upgrade() else {
-                        break;
-                    };
-                    let result =
-                        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| host.progress()));
-                    drop(host);
-                    if !matches!(result, Ok(Progress::Pending)) {
+                    loop {
+                        monitor.pending.store(false, Ordering::SeqCst);
+                        let Some(host) = monitor.host.upgrade() else {
+                            break;
+                        };
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            host.progress()
+                        }));
+                        drop(host);
+                        if !matches!(result, Ok(Progress::Pending)) {
+                            break;
+                        }
+                        std::thread::sleep(INTERVAL);
+                    }
+                    monitor.running.store(false, Ordering::SeqCst);
+                    if !monitor.pending.swap(false, Ordering::SeqCst)
+                        || monitor
+                            .running
+                            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                            .is_err()
+                    {
                         break;
                     }
-                    std::thread::sleep(INTERVAL);
                 }
-                monitor.running.store(false, Ordering::SeqCst);
             }) {
             Ok(handle) => Some(handle),
             Err(_) => {
@@ -82,6 +97,16 @@ struct NativeHost {
     app: Weak<AppHandle>,
     alive: Arc<AtomicBool>,
     main_thread: std::thread::ThreadId,
+}
+
+/// Application state keeps no strong host or app lifetime.
+pub(crate) struct Wake(Weak<Monitor>);
+pub(crate) fn wake(app: &AppHandle) {
+    if let Some(signal) = app.try_state::<Wake>()
+        && let Some(monitor) = signal.0.upgrade()
+    {
+        monitor.wake();
+    }
 }
 
 /// Managed state contains only a weak dispatcher. Flight ownership and waiting
@@ -150,7 +175,7 @@ impl Host for NativeHost {
             };
             let completed = app
                 .state::<WorkspaceClose>()
-                .progress_failure(|drained| native_cleanup(&app, drained));
+                .progress_native(|drained| native_cleanup(&app, drained));
             let _ = sender.send(match completed {
                 Ok(true) => Progress::Finished,
                 Ok(false) => Progress::Pending,
@@ -214,13 +239,21 @@ pub(crate) fn install(app: &AppHandle) -> Option<Anchor> {
     let host: Arc<dyn Host> = native;
     let monitor = Monitor::new(Arc::downgrade(&host));
     if source
-        .set_failure_notifier(Arc::new(move || monitor.wake()))
+        .set_failure_notifier(Arc::new({
+            let monitor = Arc::clone(&monitor);
+            move || monitor.wake()
+        }))
         .is_err()
     {
         source.fail_closed();
         return None;
     }
     if !app.manage(worker) {
+        source.fail_closed();
+        alive.store(false, Ordering::SeqCst);
+        return None;
+    }
+    if !app.manage(Wake(Arc::downgrade(&monitor))) {
         source.fail_closed();
         alive.store(false, Ordering::SeqCst);
         return None;

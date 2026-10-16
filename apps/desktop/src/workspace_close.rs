@@ -6,7 +6,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{
-    AppHandle, Manager, WebviewWindow,
+    AppHandle, Manager, WebviewWindow, Window, WindowEvent,
     ipc::{InvokeBody, Request},
 };
 
@@ -352,6 +352,44 @@ impl WorkspaceClose {
         }
         ticket.release_key().map(|_| true)
     }
+    /// Progress an existing close without renderer polling. Native completion
+    /// never acknowledges renderer purge or authorizes reopening.
+    pub(super) fn progress_native(
+        &self,
+        mut cleanup: impl FnMut(bool) -> bool,
+    ) -> Result<bool, ()> {
+        if !self.source.encrypted_close_available() {
+            return Ok(true);
+        }
+        if self.source.failure_latched() {
+            return self.progress_failure(cleanup);
+        }
+        {
+            let state = self.state.lock().map_err(|_| ())?;
+            if state.failed {
+                return Err(());
+            }
+            // A retained control awaiting consent has no native close to
+            // progress. Cancellation or a fatal wake starts a new cycle.
+            if state.control.is_some() || state.attempt.is_none() {
+                return Ok(true);
+            }
+        }
+        self.inspect(&mut cleanup);
+        if self.source.failure_latched() {
+            return self.progress_failure(cleanup);
+        }
+        let state = self.state.lock().map_err(|_| ())?;
+        if state.failed || state.control.is_some() {
+            return Err(());
+        }
+        let attempt = state.attempt.as_ref().ok_or(())?;
+        let progress = attempt.progress.lock().map_err(|_| ())?;
+        if progress.native_done {
+            return Ok(true);
+        }
+        attempt.ticket.is_quiescent().map(|_| false)
+    }
     pub(super) fn acknowledge(&self, raw: &[u8], cleanup: impl FnOnce(bool) -> bool) -> View {
         if !self.source.encrypted_close_available() {
             return self.snapshot(None);
@@ -438,6 +476,32 @@ fn empty(body: &InvokeBody) -> bool {
 fn allowed(label: &str) -> Result<(), ()> {
     if label == "main" { Ok(()) } else { Err(()) }
 }
+pub(super) fn main_window_destroyed(label: &str, event: &WindowEvent) -> bool {
+    label == "main" && matches!(event, WindowEvent::Destroyed)
+}
+pub(super) fn handle_main_window_event(
+    label: &str,
+    event: &WindowEvent,
+    close: &WorkspaceClose,
+    cleanup: impl FnOnce(bool) -> bool,
+    wake: impl FnOnce(),
+) {
+    if main_window_destroyed(label, event) {
+        close.begin(cleanup);
+        wake();
+    }
+}
+pub(super) fn window_event(window: &Window, event: &WindowEvent) {
+    let app = window.app_handle();
+    let state = app.state::<WorkspaceClose>();
+    handle_main_window_event(
+        window.label(),
+        event,
+        &state,
+        |drained| native_cleanup(app, drained),
+        || failure::wake(app),
+    );
+}
 #[tauri::command]
 pub(super) fn get_workspace_close_state(
     app: AppHandle,
@@ -461,7 +525,9 @@ pub(super) fn begin_workspace_close(
     allowed(window.label())?;
     let state = app.state::<WorkspaceClose>();
     Ok(if empty(request.body()) {
-        state.begin(|drained| native_cleanup(&app, drained))
+        let view = state.begin(|drained| native_cleanup(&app, drained));
+        failure::wake(&app);
+        view
     } else {
         state.rejected()
     })
