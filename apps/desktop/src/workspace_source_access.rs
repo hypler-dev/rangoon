@@ -19,7 +19,7 @@ use super::{
 };
 use rangoon_desktop::workspace_lifecycle::{Drain, Gate, Lane, Lease};
 use rangoon_desktop::workspace_session::{
-    Error as ControlOwnerError, Preview as ControlPreview, RecoveryPreview,
+    Error as ControlOwnerError, Layout as ControlLayout, Preview as ControlPreview, RecoveryPreview,
 };
 use rangoon_domain::{
     AnalysisReport,
@@ -171,6 +171,9 @@ impl Error {
 }
 
 trait Backend: Send {
+    fn control_layout(&self) -> ControlLayout {
+        ControlLayout::Unavailable
+    }
     fn control_prepare(
         &mut self,
         _kind: reopen::Kind,
@@ -443,6 +446,9 @@ struct Managed<V> {
 }
 #[cfg(all(test, feature = "encrypted-workspace"))]
 impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V> {
+    fn control_layout(&self) -> ControlLayout {
+        self.owner.inspect_layout()
+    }
     fn control_prepare(&mut self, kind: reopen::Kind) -> Result<ControlPreview, ControlOwnerError> {
         match kind {
             reopen::Kind::CreateEmpty => self.owner.prepare_create_empty(),
@@ -678,6 +684,24 @@ impl CloseTicket {
                 .cleanup_failed
                 .load(std::sync::atomic::Ordering::SeqCst);
         Ok((slot, healthy))
+    }
+    /// Advisory metadata only. Keep this exact closed cycle and its completed
+    /// key-release proof through the read; never renew admission or open a key.
+    pub(super) fn inspect_layout(&self) -> ControlLayout {
+        let Ok((_slot, healthy)) = self.current_slot() else {
+            return ControlLayout::Unavailable;
+        };
+        if !healthy || self.cycle.drain.is_quiescent() != Ok(true) {
+            return ControlLayout::Unavailable;
+        }
+        if !matches!(self.cycle.released.lock(), Ok(released) if *released == Some(true)) {
+            return ControlLayout::Unavailable;
+        }
+        let Ok(backend) = self.access.0.backend.try_lock() else {
+            return ControlLayout::Unavailable;
+        };
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| backend.control_layout()))
+            .unwrap_or(ControlLayout::Unavailable)
     }
     pub(super) fn purge(&self) -> bool {
         let Ok((_slot, healthy)) = self.current_slot() else {

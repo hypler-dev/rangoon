@@ -1,6 +1,6 @@
 {
   "identifier": "source-analysis",
-  "description": "The local main workbench can inspect and save sources, derive and review inert skills, compose inert skills from saved inputs, inspect compiled instruction text, explicitly export or inspect plaintext instruction bundles, manage local backups and record deletion, author immutable inert workflow revisions, inspect inert engine status, and request native-confirmed empty encrypted setup or unlock when a qualified managed host is available. Paths, SQL and engine requests are never accepted.",
+  "description": "The local main workbench can inspect and save sources, derive and review inert skills, compose inert skills from saved inputs, inspect compiled instruction text, explicitly export or inspect plaintext instruction bundles, manage local backups and record deletion, author immutable inert workflow revisions, inspect inert engine status, and read source-free encrypted layout status and request native-confirmed empty encrypted setup or unlock when a qualified managed host is available. Paths, SQL and engine requests are never accepted.",
   "windows": [
     "main"
   ],
@@ -8,6 +8,7 @@
   "permissions": [
     "allow-get-workspace-close-state",
     "allow-get-workspace-control-state",
+    "allow-get-workspace-protection-state",
     "allow-prepare-workspace-control",
     "allow-confirm-workspace-control",
     "allow-cancel-workspace-control",

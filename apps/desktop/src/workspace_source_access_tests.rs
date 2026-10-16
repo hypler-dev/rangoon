@@ -887,3 +887,6 @@ mod request_admission;
 
 #[path = "workspace_setup_tests.rs"]
 mod setup_commands;
+
+#[path = "workspace_protection_access_tests.rs"]
+mod protection_status;

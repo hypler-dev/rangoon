@@ -6,7 +6,11 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
-## Active protection layout inspection
+## Active native protection-state routing
+
+Implement [E1c-2i](intent.md#e1c-2i-native-protection-state-routing) after the read-only layout prerequisite. The [routing contract](encrypted-workspace.md#native-protection-state-routing-e1c-2i) limits metadata access to the exact healthy Locked C0, retains current closed-cycle proof through the read, and discards stale results. The [receipt](development.md#native-protection-state-routing-e1c-2i--october-15-2026) owns acceptance. Renderer-independent native progress and failure notice follow before protection UI; factory/default activation, explicit plaintext import and encrypted archives remain separate qualified steps.
+
+## Completed protection layout inspection
 
 Complete the bounded source gate for [E1c-2h](intent.md#e1c-2h-read-only-encrypted-layout-inspection) using existing Owner metadata verification, after reviewed local checkpoint f99bc31. [The receipt](development.md#read-only-layout-inspection-e1c-2h--october-15-2026) owns acceptance. This closes the read-only absence/locked/recovery distinction before native status routing and source-free protection UI; factory/default activation and explicit plaintext import remain later qualified steps. No status call may prepare an attempt or consult a vault.
 

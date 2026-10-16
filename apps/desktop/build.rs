@@ -3,6 +3,7 @@ fn main() {
         tauri_build::AppManifest::new().commands(&[
             "get_workspace_close_state",
             "get_workspace_control_state",
+            "get_workspace_protection_state",
             "prepare_workspace_control",
             "confirm_workspace_control",
             "cancel_workspace_control",

@@ -2,9 +2,9 @@
 //! Every Flight, including its finalizer, stays inside a blocking worker.
 use super::{View, WorkspaceClose, allowed, empty, failure::WorkerCleanup};
 use crate::workspace_source_access::ControlKind;
-use rangoon_desktop::workspace_session::{Action as NativeAction, Preview};
+use rangoon_desktop::workspace_session::{Action as NativeAction, Layout, Preview};
 use serde::{Deserialize, Serialize};
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 use tauri::{
     AppHandle, Manager, WebviewWindow,
     ipc::{InvokeBody, Request},
@@ -123,6 +123,132 @@ impl Response {
             Some("workspace_control_unavailable"),
             false,
         )
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ProtectionResponse {
+    schema_version: &'static str,
+    close: View,
+    layout: &'static str,
+    diagnostic: Option<&'static str>,
+}
+impl ProtectionResponse {
+    fn result(close: View, layout: &'static str) -> Self {
+        let diagnostic = match layout {
+            "absent" | "locked" => None,
+            "busy" => Some("workspace_protection_busy"),
+            "recovery_required" => Some("workspace_protection_recovery_required"),
+            "legacy" => Some("encrypted_protection_unavailable"),
+            _ => Some("workspace_protection_unavailable"),
+        };
+        Self {
+            schema_version: "rangoon.workspace-protection-state.v1",
+            close,
+            layout,
+            diagnostic,
+        }
+    }
+    fn name(layout: Layout) -> &'static str {
+        match layout {
+            Layout::Absent => "absent",
+            Layout::Locked => "locked",
+            Layout::Busy => "busy",
+            Layout::RecoveryRequired => "recovery_required",
+            Layout::Unavailable => "unavailable",
+        }
+    }
+    pub(crate) fn observe(close: &WorkspaceClose) -> Self {
+        Self::observe_after(close, || {})
+    }
+    #[cfg(all(test, feature = "encrypted-workspace"))]
+    pub(crate) fn observe_after_for_test(
+        close: &WorkspaceClose,
+        after_read: impl FnOnce(),
+    ) -> Self {
+        Self::observe_after(close, after_read)
+    }
+    fn observe_after(close: &WorkspaceClose, after_read: impl FnOnce()) -> Self {
+        if !close.source.encrypted_close_available() {
+            return Self::result(close.snapshot(None), "legacy");
+        }
+        let attempt = {
+            let state = match close.state.lock() {
+                Ok(state) => state,
+                Err(error) => {
+                    let state = error.into_inner();
+                    return Self::result(
+                        close.snapshot_locked(&state, true, None),
+                        "recovery_required",
+                    );
+                }
+            };
+            let view = close.snapshot_locked(&state, false, None);
+            if close.source.failure_latched() || state.failed {
+                return Self::result(view, "recovery_required");
+            }
+            if state.control.is_some() {
+                return Self::result(view, "busy");
+            }
+            let Some(attempt) = state.attempt.as_ref() else {
+                return Self::result(view, "busy");
+            };
+            let progress = match attempt.progress.lock() {
+                Ok(progress) => progress,
+                Err(_) => return Self::result(view, "recovery_required"),
+            };
+            if !progress.healthy {
+                return Self::result(view, "recovery_required");
+            }
+            if !progress.initial_done
+                || !progress.native_done
+                || !progress.acknowledged
+                || progress.finishing
+            {
+                return Self::result(view, "busy");
+            }
+            Arc::clone(attempt)
+        };
+        // Source and backend guards are released before this State recheck.
+        let layout = attempt.ticket.inspect_layout();
+        after_read();
+        let state = match close.state.lock() {
+            Ok(state) => state,
+            Err(error) => {
+                let state = error.into_inner();
+                return Self::result(
+                    close.snapshot_locked(&state, true, None),
+                    "recovery_required",
+                );
+            }
+        };
+        let view = close.snapshot_locked(&state, false, None);
+        if close.source.failure_latched() || state.failed {
+            return Self::result(view, "recovery_required");
+        }
+        if state.control.is_some()
+            || !state
+                .attempt
+                .as_ref()
+                .is_some_and(|current| Arc::ptr_eq(current, &attempt))
+        {
+            return Self::result(view, "busy");
+        }
+        let Ok(progress) = attempt.progress.lock() else {
+            return Self::result(view, "recovery_required");
+        };
+        if !progress.healthy {
+            return Self::result(view, "recovery_required");
+        }
+        if !progress.initial_done
+            || !progress.native_done
+            || !progress.acknowledged
+            || progress.finishing
+        {
+            return Self::result(view, "busy");
+        }
+        Self::result(view, Self::name(layout))
     }
 }
 
@@ -255,6 +381,22 @@ pub(crate) fn get_workspace_control_state(
         return Err(());
     }
     Ok(Response::observe(app.state::<WorkspaceClose>().inner()))
+}
+
+#[tauri::command]
+pub(crate) async fn get_workspace_protection_state(
+    app: AppHandle,
+    window: WebviewWindow,
+    request: Request<'_>,
+) -> Result<ProtectionResponse, ()> {
+    allowed(window.label())?;
+    if !empty(request.body()) {
+        return Err(());
+    }
+    let close = app.state::<WorkspaceClose>().inner().clone();
+    tauri::async_runtime::spawn_blocking(move || ProtectionResponse::observe(&close))
+        .await
+        .map_err(|_| ())
 }
 
 #[tauri::command]
