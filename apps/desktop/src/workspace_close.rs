@@ -101,6 +101,21 @@ impl WorkspaceClose {
         }
     }
     fn snapshot(&self, diagnostic: Option<&'static str>) -> View {
+        if !self.source.encrypted_close_available() {
+            return self.snapshot_locked(&State::default(), false, diagnostic);
+        }
+        let (state, poisoned) = match self.state.lock() {
+            Ok(state) => (state, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        self.snapshot_locked(&state, poisoned, diagnostic)
+    }
+    fn snapshot_locked(
+        &self,
+        state: &State,
+        poisoned: bool,
+        diagnostic: Option<&'static str>,
+    ) -> View {
         let encrypted = self.source.encrypted_close_available();
         let mut view = View {
             schema_version: "rangoon.workspace-close-state.v1",
@@ -121,10 +136,6 @@ impl WorkspaceClose {
         if !encrypted {
             return view;
         }
-        let (state, poisoned) = match self.state.lock() {
-            Ok(state) => (state, false),
-            Err(error) => (error.into_inner(), true),
-        };
         let source_failed = self.source.failure_latched();
         if state.failed || poisoned || source_failed {
             view.state = Phase::RecoveryRequired;
@@ -374,10 +385,12 @@ impl WorkspaceClose {
 #[path = "workspace_failure.rs"]
 pub(super) mod failure;
 
-// The private control supervisor is not registered as a command yet.
+// Closed control custody and the main-window native command boundary.
 #[allow(dead_code)]
 #[path = "workspace_close_control.rs"]
 mod control;
+#[path = "workspace_setup.rs"]
+pub(super) mod setup;
 
 fn next_identity(
     state: &mut State,

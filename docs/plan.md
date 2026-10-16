@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Active closed-cycle commands
+
+Complete the bounded source gate for [E1c-2g](intent.md#e1c-2g-closed-cycle-setup-and-unlock-commands) under [the native command contract](encrypted-workspace.md#closed-cycle-control-commands-e1c-2g), preserving routing checkpoint 7123800. Bind setup/unlock to exact closed cycles, fresh purge acknowledgment, actual OS consent and retained callback custody. The [ledger](development.md#closed-cycle-control-commands-e1c-2g--october-15-2026) owns acceptance. Pure layout classification, source-free protection UI, native failure wake/reload and qualified factory follow; do not call Owner prepare as a status check.
+
 ## Active native request routing
 
 Preserve source-validated [E1c-2f](intent.md#e1c-2f-native-request-generation-routing) under the [request-generation contract](encrypted-workspace.md#native-request-generation-routing-e1c-2f), preserving atomic Gate checkpoint cc6cd1a. Bind every actual ordinary admission and bootstrap a fresh private renderer header; keep existing typed errors, capacity and private consent. The [ledger](development.md#native-request-generation-routing-e1c-2f--october-15-2026) owns acceptance. Failure-driven renderer wake/reload, explicit native setup/unlock and factory qualification follow; this routing packet alone does not activate encryption.

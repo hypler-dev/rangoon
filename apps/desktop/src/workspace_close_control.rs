@@ -1,4 +1,4 @@
-//! Trusted native supervisor. No command, consent or production factory is mounted.
+//! Trusted native supervisor. The production encrypted factory is not mounted.
 use super::*;
 use crate::workspace_source_access::{ControlError, ControlKind, SourceControl};
 use rangoon_desktop::workspace_session::{Preview, RecoveryPreview};
@@ -21,6 +21,7 @@ pub(super) struct Retained {
     serial: u64,
     active: bool,
     stage: Stage,
+    kind: ControlKind,
     control: Option<SourceControl>,
 }
 
@@ -59,21 +60,44 @@ fn random(bytes: &mut [u8]) -> Result<(), ()> {
 impl WorkspaceClose {
     /// Call only after native consent policy and main-window identity are
     /// qualified. This private seam does not establish either by itself.
+    #[cfg(test)]
     pub(crate) fn start_control(
         &self,
         kind: ControlKind,
         cleanup: impl FnOnce(bool) -> bool + Send + 'static,
     ) -> Result<Flight, ControlError> {
-        self.start_control_with_entropy(kind, cleanup, random)
+        self.start_control_inner(None, kind, cleanup, random)
     }
+    #[cfg(test)]
     fn start_control_with_entropy(
         &self,
         kind: ControlKind,
         cleanup: impl FnOnce(bool) -> bool + Send + 'static,
         entropy: impl FnOnce(&mut [u8]) -> Result<(), ()>,
     ) -> Result<Flight, ControlError> {
+        self.start_control_inner(None, kind, cleanup, entropy)
+    }
+    pub(crate) fn start_control_for(
+        &self,
+        id: &str,
+        epoch: &str,
+        kind: ControlKind,
+        cleanup: impl FnOnce(bool) -> bool + Send + 'static,
+    ) -> Result<Flight, ControlError> {
+        self.start_control_inner(Some((id, epoch)), kind, cleanup, random)
+    }
+    fn start_control_inner(
+        &self,
+        expected: Option<(&str, &str)>,
+        kind: ControlKind,
+        cleanup: impl FnOnce(bool) -> bool + Send + 'static,
+        entropy: impl FnOnce(&mut [u8]) -> Result<(), ()>,
+    ) -> Result<Flight, ControlError> {
         let mut state = self.state.lock().map_err(|_| ControlError::Unavailable)?;
-        if state.failed || state.control.is_some() {
+        if expected.is_some_and(|(id, epoch)| !matches_attempt(&state, id, epoch)) {
+            return Err(ControlError::Stale);
+        }
+        if state.failed || self.source.failure_latched() || state.control.is_some() {
             return Err(ControlError::Unavailable);
         }
         let old = state.attempt.clone().ok_or(ControlError::Invalid)?;
@@ -100,6 +124,7 @@ impl WorkspaceClose {
             serial,
             active: true,
             stage: Stage::New,
+            kind,
             control: None,
         });
         #[cfg(test)]
@@ -142,17 +167,55 @@ impl WorkspaceClose {
             disarmed: false,
         })
     }
+    pub(crate) fn take_control_ready(
+        &self,
+        id: &str,
+        epoch: &str,
+        cleanup: impl FnOnce(bool) -> bool + Send + 'static,
+    ) -> Result<Flight, ControlError> {
+        self.take_control_inner(id, epoch, true, cleanup)
+    }
     pub(crate) fn take_control(
         &self,
         id: &str,
         epoch: &str,
         cleanup: impl FnOnce(bool) -> bool + Send + 'static,
     ) -> Result<Flight, ControlError> {
+        self.take_control_inner(id, epoch, false, cleanup)
+    }
+    fn take_control_inner(
+        &self,
+        id: &str,
+        epoch: &str,
+        require_ready: bool,
+        cleanup: impl FnOnce(bool) -> bool + Send + 'static,
+    ) -> Result<Flight, ControlError> {
         let mut state = self.state.lock().map_err(|_| ControlError::Unavailable)?;
-        if !healthy_attempt(&state) || !matches_attempt(&state, id, epoch) {
+        if !healthy_attempt(&state)
+            || self.source.failure_latched()
+            || !matches_attempt(&state, id, epoch)
+        {
             return Err(ControlError::Stale);
         }
+        // Exact C0 completed native cleanup before creating this New control.
+        // C1 itself cannot become terminal while its ClosedLease is retained.
+        if require_ready
+            && !state.attempt.as_ref().is_some_and(|attempt| {
+                attempt.progress.lock().is_ok_and(|progress| {
+                    progress.healthy
+                        && progress.initial_done
+                        && !progress.finishing
+                        && progress.acknowledged
+                })
+            })
+        {
+            return Err(ControlError::Unavailable);
+        }
         let retained = state.control.as_mut().ok_or(ControlError::Stale)?;
+        if require_ready && (retained.stage != Stage::New || retained.kind == ControlKind::Recovery)
+        {
+            return Err(ControlError::Invalid);
+        }
         if retained.active {
             return Err(ControlError::Busy);
         }
@@ -166,6 +229,37 @@ impl WorkspaceClose {
             cleanup: Some(Box::new(cleanup)),
             disarmed: false,
         })
+    }
+    pub(crate) fn inspect_control(&self) -> (View, Option<ControlKind>, &'static str) {
+        if !self.source.encrypted_close_available() {
+            return (self.snapshot(None), None, "unavailable");
+        }
+        let (state, poisoned) = match self.state.lock() {
+            Ok(state) => (state, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        let view = self.snapshot_locked(&state, poisoned, None);
+        let (kind, phase) = match view.state {
+            Phase::Unavailable => (None, "unavailable"),
+            Phase::RecoveryRequired => (None, "recovery_required"),
+            Phase::Open => (None, "open"),
+            Phase::Locked => (None, "locked"),
+            Phase::Closing => match state.control.as_ref() {
+                Some(retained) if retained.kind == ControlKind::Recovery => {
+                    (None, "recovery_required")
+                }
+                Some(retained) => (
+                    Some(retained.kind),
+                    if retained.active {
+                        "active"
+                    } else {
+                        "awaiting_confirmation"
+                    },
+                ),
+                None => (None, "closing"),
+            },
+        };
+        (view, kind, phase)
     }
     pub(crate) fn cancel_control(
         &self,
@@ -338,7 +432,7 @@ impl Flight {
         Ok(())
     }
     pub(crate) fn retain(mut self) -> Result<(), ControlError> {
-        if !matches!(self.stage, Stage::Prepared | Stage::Inspected) {
+        if !matches!(self.stage, Stage::New | Stage::Prepared | Stage::Inspected) {
             return Err(ControlError::Invalid);
         }
         let mut state = self

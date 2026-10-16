@@ -81,6 +81,52 @@ impl Monitor {
 struct NativeHost {
     app: Weak<AppHandle>,
     alive: Arc<AtomicBool>,
+    main_thread: std::thread::ThreadId,
+}
+
+/// Managed state contains only a weak dispatcher. Flight ownership and waiting
+/// remain on a blocking worker; the event loop must never wait on itself.
+#[derive(Clone)]
+pub(crate) struct WorkerCleanup(Weak<NativeHost>);
+impl WorkerCleanup {
+    pub(crate) fn alive(&self) -> bool {
+        self.0
+            .upgrade()
+            .is_some_and(|host| host.alive.load(Ordering::SeqCst))
+    }
+    pub(crate) fn cleanup(&self, drained: bool) -> bool {
+        let Some(host) = self.0.upgrade() else {
+            return false;
+        };
+        if std::thread::current().id() == host.main_thread || !host.alive.load(Ordering::SeqCst) {
+            return false;
+        }
+        let Some(app) = host.app.upgrade() else {
+            return false;
+        };
+        let weak_app = host.app.clone();
+        let alive = Arc::clone(&host.alive);
+        let (sender, receiver) = mpsc::sync_channel(1);
+        let queued = app.run_on_main_thread(move || {
+            let completed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                alive.load(Ordering::SeqCst)
+                    && weak_app
+                        .upgrade()
+                        .is_some_and(|app| native_cleanup(&app, drained))
+            }))
+            .unwrap_or(false);
+            let _ = sender.send(completed);
+        });
+        drop(app);
+        queued.is_ok() && wait_for_result(receiver, &host.alive) == Some(true)
+    }
+    pub(crate) fn consume(&self, receiver: mpsc::Receiver<()>) -> bool {
+        let Some(host) = self.0.upgrade() else {
+            return false;
+        };
+        std::thread::current().id() != host.main_thread
+            && wait_for_result(receiver, &host.alive).is_some()
+    }
 }
 impl Host for NativeHost {
     fn progress(&self) -> Progress {
@@ -125,13 +171,17 @@ pub(crate) fn wait_for_progress(
     receiver: mpsc::Receiver<Progress>,
     alive: &AtomicBool,
 ) -> Progress {
+    wait_for_result(receiver, alive).unwrap_or(Progress::Stopped)
+}
+
+pub(crate) fn wait_for_result<T>(receiver: mpsc::Receiver<T>, alive: &AtomicBool) -> Option<T> {
     loop {
         if !alive.load(Ordering::SeqCst) {
-            return Progress::Stopped;
+            return None;
         }
         match receiver.recv_timeout(INTERVAL) {
-            Ok(result) => return result,
-            Err(mpsc::RecvTimeoutError::Disconnected) => return Progress::Stopped,
+            Ok(result) => return alive.load(Ordering::SeqCst).then_some(result),
+            Err(mpsc::RecvTimeoutError::Disconnected) => return None,
             Err(mpsc::RecvTimeoutError::Timeout) => {}
         }
     }
@@ -155,16 +205,24 @@ pub(crate) fn install(app: &AppHandle) -> Option<Anchor> {
     }
     let app = Arc::new(app.clone());
     let alive = Arc::new(AtomicBool::new(true));
-    let host: Arc<dyn Host> = Arc::new(NativeHost {
+    let native = Arc::new(NativeHost {
         app: Arc::downgrade(&app),
         alive: Arc::clone(&alive),
+        main_thread: std::thread::current().id(),
     });
+    let worker = WorkerCleanup(Arc::downgrade(&native));
+    let host: Arc<dyn Host> = native;
     let monitor = Monitor::new(Arc::downgrade(&host));
     if source
         .set_failure_notifier(Arc::new(move || monitor.wake()))
         .is_err()
     {
         source.fail_closed();
+        return None;
+    }
+    if !app.manage(worker) {
+        source.fail_closed();
+        alive.store(false, Ordering::SeqCst);
         return None;
     }
     Some(Anchor {

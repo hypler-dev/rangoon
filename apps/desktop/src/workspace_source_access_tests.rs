@@ -884,3 +884,6 @@ mod failure;
 
 #[path = "workspace_request_access_tests.rs"]
 mod request_admission;
+
+#[path = "workspace_setup_tests.rs"]
+mod setup_commands;

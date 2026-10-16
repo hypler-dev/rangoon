@@ -52,6 +52,10 @@ use workspace_requests::get_workspace_request_state;
 mod workspace_source_access;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
+use workspace_close::setup::{
+    cancel_workspace_control, confirm_workspace_control, get_workspace_control_state,
+    prepare_workspace_control,
+};
 use workspace_close::{
     WorkspaceClose, acknowledge_workspace_purge, begin_workspace_close, get_workspace_close_state,
 };
@@ -271,6 +275,10 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_workspace_close_state,
+            get_workspace_control_state,
+            prepare_workspace_control,
+            confirm_workspace_control,
+            cancel_workspace_control,
             get_workspace_request_state,
             begin_workspace_close,
             acknowledge_workspace_purge,
