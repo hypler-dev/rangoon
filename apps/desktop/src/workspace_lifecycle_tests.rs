@@ -283,3 +283,6 @@ fn unwinding_callback_releases_its_lane() {
 
 #[path = "workspace_lifecycle_closed_tests.rs"]
 mod closed_controls;
+
+#[path = "workspace_lifecycle_client_tests.rs"]
+mod client;

@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Active caller-generation prerequisite
+
+Preserve the source-validated [accepted E1c-2e packet](intent.md#e1c-2e-atomic-caller-generation-admission) under [atomic caller admission](encrypted-workspace.md#atomic-caller-generation-admission-e1c-2e), after local failure checkpoint `036fd9c`. Then wire the native-issued UI epoch and every bridge/ingress, renderer failure wake/reload and explicit setup/consent before factory qualification. The [ledger](development.md#atomic-caller-generation-admission-e1c-2e--october-15-2026) owns evidence; the primitive alone does not close queued IPC or activate encryption.
+
 ## Active failure-driven closure
 
 The [accepted E1c-2d packet](intent.md#e1c-2d-failure-driven-native-closure) has completed its bounded native source implementation, validation and fresh review atop local `0bb616a`, under [one failure boundary](encrypted-workspace.md#failure-driven-native-closure-e1c-2d). Preserve source/key/callback custody and qualify native progress without a renderer before consent, fresh mounting and Legacy adoption. The [ledger](development.md#failure-driven-native-closure-e1c-2d--october-15-2026) owns acceptance. No production encrypted activation or publication follows from this internal prerequisite.

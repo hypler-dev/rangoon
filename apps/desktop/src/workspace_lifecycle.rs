@@ -80,6 +80,21 @@ impl State {
     fn idle(&self) -> bool {
         self.readers == 0 && !self.exclusive && !self.model && self.closed_controls == 0
     }
+    fn admit(&mut self, lane: Lane, expected: Option<u64>) -> Result<u64, Error> {
+        if self.phase != Phase::Open {
+            return Err(Error::Closed);
+        }
+        if expected.is_some_and(|generation| generation != self.generation) {
+            return Err(Error::Stale);
+        }
+        match lane {
+            Lane::Read if self.readers < MAX_READERS => self.readers += 1,
+            Lane::Exclusive if !self.exclusive => self.exclusive = true,
+            Lane::Model if !self.model => self.model = true,
+            _ => return Err(Error::Busy),
+        }
+        Ok(self.generation)
+    }
     fn advance(&mut self) -> Result<(), Error> {
         match self.generation.checked_add(1) {
             Some(next) => {
@@ -144,20 +159,37 @@ impl Gate {
         self.0.lock().map_err(|_| Error::Unavailable)
     }
     pub fn begin(&self, lane: Lane) -> Result<Lease, Error> {
-        let mut state = self.state()?;
-        if state.phase != Phase::Open {
-            return Err(Error::Closed);
-        }
-        match lane {
-            Lane::Read if state.readers < MAX_READERS => state.readers += 1,
-            Lane::Exclusive if !state.exclusive => state.exclusive = true,
-            Lane::Model if !state.model => state.model = true,
-            _ => return Err(Error::Busy),
-        }
+        let generation = self.state()?.admit(lane, None)?;
         Ok(Lease {
             gate: self.clone(),
             lane,
+            generation,
+        })
+    }
+    /// Observe the currently open generation without admitting or owning work.
+    /// This is not client authentication, consent or execution authority.
+    pub fn observe_open(&self) -> Result<GenerationWitness, Error> {
+        let state = self.state()?;
+        if state.phase != Phase::Open {
+            return Err(Error::Closed);
+        }
+        Ok(GenerationWitness {
+            gate: self.clone(),
             generation: state.generation,
+        })
+    }
+    /// Admit only work bound to this exact open generation, atomically with
+    /// capacity/count changes. A prior is_current check plus begin is not safe.
+    /// The native caller must separately bind its request to the observation.
+    pub fn begin_for(&self, observed: &GenerationWitness, lane: Lane) -> Result<Lease, Error> {
+        if !Arc::ptr_eq(&self.0, &observed.gate.0) {
+            return Err(Error::Stale);
+        }
+        let generation = self.state()?.admit(lane, Some(observed.generation))?;
+        Ok(Lease {
+            gate: self.clone(),
+            lane,
+            generation,
         })
     }
     pub fn request_drain(&self) -> Result<Drain, Error> {
