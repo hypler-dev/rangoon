@@ -1239,6 +1239,10 @@ mod tests {
             result.composition_id,
             fixture["expectedCompositionId"].as_str().unwrap()
         );
+        assert_eq!(
+            serde_json::to_value(&result).unwrap(),
+            fixture["expectedCorePreview"]
+        );
         for (actual, expected) in result
             .outputs
             .iter()

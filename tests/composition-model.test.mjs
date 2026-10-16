@@ -173,30 +173,15 @@ test('preview validation rejects forged append destination, materialized content
   assert.equal(validatePreviewEnvelope(missingCoverage, state.draft, state.targets, state.inputs), null);
 });
 
-test('renderer accepts independently pinned outputs and identities for new, append, and mixed destinations', () => {
-  const { draft, resolvedInputs, expectedCompositionId, expectedOutputs } = independentCoreVector;
-  const outputs = expectedOutputs.map(({ index, ...output }) => ({ outputIndex: index, ...output }));
-  const mappings = draft.outputs.map((recipe, outputIndex) => ({
-    outputIndex, pieceIndex: 0, outputStartByte: 0,
-    outputEndByte: encoder.encode(outputs[outputIndex].content).length,
-    kind: 'copy', inputRange: recipe.pieces[0].range,
-  }));
-  const coverage = mappings.map(mapping => ({
-    range: mapping.inputRange, disposition: 'copied',
-    references: [{ outputIndex: mapping.outputIndex, pieceIndex: 0, kind: 'copy' }],
-    duplicationAcknowledged: false,
-  }));
+test('renderer accepts independently pinned full core preview for new, append, and mixed destinations', () => {
+  const { draft, resolvedInputs, expectedCorePreview } = independentCoreVector;
   for (const vector of independentApplicationVector.cases) {
     const envelope = {
       outcome: 'ready', schemaVersion: 'rangoon.composition-session.v0',
       previewId, expectedStateId: workspaceId,
       preview: {
         schemaVersion: 'rangoon.composition-application-preview.v0',
-        core: {
-          schemaVersion: 'rangoon.composition-core-preview.v0',
-          compositionId: expectedCompositionId, saveable: true, outputs,
-          mappings, coverage, diagnostics: [], authority: 'none',
-        },
+        core: expectedCorePreview,
         applicationId: vector.expectedApplicationId,
         appliedOutputs: vector.expectedAppliedOutputs,
         saveable: true, authority: 'none',
