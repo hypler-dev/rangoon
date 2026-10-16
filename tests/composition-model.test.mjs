@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { byteRangeText, createCompositionController, textareaSelectionRange } from '../preview/composition-model.mjs';
 import { validatePreviewEnvelope } from '../preview/composition-contract.mjs';
+
+const independentCoreVector = JSON.parse(readFileSync(new URL('../fixtures/composition/decompose-v0.json', import.meta.url), 'utf8'));
+const independentApplicationVector = JSON.parse(readFileSync(new URL('../fixtures/composition/application-v0.json', import.meta.url), 'utf8'));
 
 const sourceId = `source:${'1'.repeat(64)}`;
 const capabilityId = `capability:${'2'.repeat(64)}`;
@@ -167,6 +171,42 @@ test('preview validation rejects forged append destination, materialized content
   assert.equal(validatePreviewEnvelope(forgedMapping, state.draft, state.targets, state.inputs), null);
   const missingCoverage = structuredClone(good); missingCoverage.preview.core.coverage = [];
   assert.equal(validatePreviewEnvelope(missingCoverage, state.draft, state.targets, state.inputs), null);
+});
+
+test('renderer accepts independently pinned outputs and identities for new, append, and mixed destinations', () => {
+  const { draft, resolvedInputs, expectedCompositionId, expectedOutputs } = independentCoreVector;
+  const outputs = expectedOutputs.map(({ index, ...output }) => ({ outputIndex: index, ...output }));
+  const mappings = draft.outputs.map((recipe, outputIndex) => ({
+    outputIndex, pieceIndex: 0, outputStartByte: 0,
+    outputEndByte: encoder.encode(outputs[outputIndex].content).length,
+    kind: 'copy', inputRange: recipe.pieces[0].range,
+  }));
+  const coverage = mappings.map(mapping => ({
+    range: mapping.inputRange, disposition: 'copied',
+    references: [{ outputIndex: mapping.outputIndex, pieceIndex: 0, kind: 'copy' }],
+    duplicationAcknowledged: false,
+  }));
+  for (const vector of independentApplicationVector.cases) {
+    const envelope = {
+      outcome: 'ready', schemaVersion: 'rangoon.composition-session.v0',
+      previewId, expectedStateId: workspaceId,
+      preview: {
+        schemaVersion: 'rangoon.composition-application-preview.v0',
+        core: {
+          schemaVersion: 'rangoon.composition-core-preview.v0',
+          compositionId: expectedCompositionId, saveable: true, outputs,
+          mappings, coverage, diagnostics: [], authority: 'none',
+        },
+        applicationId: vector.expectedApplicationId,
+        appliedOutputs: vector.expectedAppliedOutputs,
+        saveable: true, authority: 'none',
+      },
+    };
+    assert.ok(
+      validatePreviewEnvelope(envelope, draft, vector.targets, resolvedInputs),
+      `renderer rejected independent ${vector.name} composition vector`,
+    );
+  }
 });
 
 test('malformed native coverage fails closed, clears pending, and permits a new preview', async () => {

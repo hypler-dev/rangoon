@@ -1,5 +1,7 @@
 # Continue Rangoon application work
 
+October 16 composition-boundary review: the accepted local modular-monolith boundary is intact. The renderer authors drafts and checks previews for display, while native retains a private single-attempt handle and the store re-resolves/recomputes inside its transaction. The remaining drift risk is duplicated JavaScript preview interpretation, not renderer commit authority. Branch `codex/composition-boundary-parity` adds independent output/identity checks across new/append/mixed targets, updates the README and freezes explicit self-hosted service extraction gates in [application architecture](application-architecture.md#composition-boundary-and-service-extraction). Full Rust-renderer envelope parity remains open. See the [current receipt](development.md#composition-boundary-and-renderer-parity--october-16-2026) for validation/review/publication status. Do not build an HTTP wrapper around raw Tauri commands or treat this local check as hosted/tenant qualification. OpenShell and O1 lifecycle work remain separately staged.
+
 OpenShell O0 local branch `codex/openshell-offline-descriptor` adds only a
 source-level, unverified continuity report under the [existing runtime
 boundary](provider-interoperability.md#openshell-o0-offline-runtime-continuity-report).

@@ -128,11 +128,11 @@ Bundled native workbench                       Browser without native bridge
 
 ### Separation of responsibilities
 
-The renderer requests operations and displays their outcomes. It does not decide that bytes are trustworthy, compute authoritative saveability, choose arbitrary database paths, or supply replacement originals during commit. Rust resolves saved references, validates contracts, calculates the result, and owns the transaction.
+The renderer authors an editable draft and checks returned preview shapes and byte mappings before display. These checks can reject a malformed or inconsistent response, but they are not the authority for saveability. Commit sends only an opaque preview ID, expected workspace state ID, and acknowledgment; it cannot supply replacement originals, a result body, or an arbitrary database path. Rust resolves saved references, computes saveability, retains the exact preview, rechecks current records and outputs, and owns the transaction. A renderer test now accepts the independently pinned composition outputs and new/append target identities; full Rust-to-renderer preview-envelope parity remains a separate contract check.
 
 The pure composition crate has no database, filesystem, process, provider, or network behavior. The store resolves records and enforces persistence rules around that core. The native host adds user selection, retained previews, bounded IPC, and lifecycle handling. The engine port remains separate from all local content operations.
 
-The proposed evolution is a modular monolith with reusable domain/application contracts. A later self-hosted service can expose authenticated APIs and job workers without copying transformation or authority semantics into a second implementation. A frontend framework migration is not a prerequisite for this architecture.
+Current implementation is a modular monolith, not a ready network service: pure transformation rules live in Rust crates; local use-case orchestration currently spans the store and Tauri host. A later self-hosted service must extract typed use cases with explicit actor/workspace context and reuse the same Rust transformation and transaction semantics behind authenticated APIs. Tenant isolation, storage concurrency, remote job ownership, and API compatibility need separate qualification. A frontend framework migration is not a prerequisite for that work. The [architecture boundary and extraction gates](docs/application-architecture.md#composition-boundary-and-service-extraction) record the current path and remaining risks.
 
 ## Import and source analysis
 
