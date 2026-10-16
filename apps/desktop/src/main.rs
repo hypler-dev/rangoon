@@ -228,7 +228,7 @@ fn bundled_navigation(url: &tauri::Url) -> bool {
 
 fn main() {
     let (gate, model_flight) = admission_state();
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(gate.clone())
         .manage(NativeModel::default())
@@ -318,8 +318,16 @@ fn main() {
                 .build()?;
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("could not start Rangoon desktop");
+    // The lifetime anchor belongs to the event loop, outside managed state.
+    // SourceAccess retains only a weak host notifier and cannot keep it alive.
+    let mut failure_anchor = workspace_close::failure::install(app.handle());
+    app.run(move |_, event| {
+        if matches!(event, tauri::RunEvent::Exit) {
+            failure_anchor.take();
+        }
+    });
 }
 
 #[cfg(test)]

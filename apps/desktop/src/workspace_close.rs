@@ -125,7 +125,8 @@ impl WorkspaceClose {
             Ok(state) => (state, false),
             Err(error) => (error.into_inner(), true),
         };
-        if state.failed || poisoned {
+        let source_failed = self.source.failure_latched();
+        if state.failed || poisoned || source_failed {
             view.state = Phase::RecoveryRequired;
             view.diagnostic = Some("workspace_close_incomplete");
         }
@@ -140,7 +141,7 @@ impl WorkspaceClose {
                     return view;
                 }
             };
-            if !state.failed && !poisoned {
+            if !state.failed && !poisoned && !source_failed {
                 view.state = if !progress.healthy {
                     view.diagnostic = Some("workspace_close_incomplete");
                     Phase::RecoveryRequired
@@ -252,7 +253,13 @@ impl WorkspaceClose {
             }
         };
         let Some(attempt) = attempt else {
-            return self.snapshot(None);
+            // A status inspection can still initiate deletion-only closure if
+            // the background wake could not be dispatched. It cannot reopen.
+            return if self.source.failure_latched() {
+                self.begin(cleanup)
+            } else {
+                self.snapshot(None)
+            };
         };
         let mut progress = match attempt.progress.lock() {
             Ok(progress) => progress,
@@ -296,6 +303,44 @@ impl WorkspaceClose {
         }
         self.snapshot(None)
     }
+    /// Ok(true) means native inspection terminated, including unhealthy cleanup.
+    /// Err means the drain is unobservable; stop without claiming completion.
+    /// The fatal source observation still forbids Open/Locked or resumption.
+    pub(super) fn progress_failure(
+        &self,
+        mut cleanup: impl FnMut(bool) -> bool,
+    ) -> Result<bool, ()> {
+        if !self.source.failure_latched() {
+            return Ok(true);
+        }
+        self.begin(&mut cleanup);
+        self.inspect(&mut cleanup);
+        let terminal = match self.state.lock() {
+            Ok(state) => state.attempt.as_ref().and_then(|attempt| {
+                attempt.progress.lock().ok().and_then(|p| {
+                    if p.native_done {
+                        Some(true)
+                    } else {
+                        attempt.ticket.is_quiescent().ok().map(|_| false)
+                    }
+                })
+            }),
+            Err(_) => None,
+        };
+        if let Some(done) = terminal {
+            return Ok(done);
+        }
+        // Poison/failed coordination cannot authorize anything. Attempt only
+        // cleanup and actual drained key release, never a fresh healthy state.
+        // An unknowable drain stops the monitor; it cannot become an endless
+        // Pending poll or a claim that cleanup completed.
+        self.poisoned_cleanup(&mut cleanup);
+        let ticket = self.source.request_close()?;
+        if !ticket.is_quiescent()? {
+            return Ok(false);
+        }
+        ticket.release_key().map(|_| true)
+    }
     pub(super) fn acknowledge(&self, raw: &[u8], cleanup: impl FnOnce(bool) -> bool) -> View {
         if !self.source.encrypted_close_available() {
             return self.snapshot(None);
@@ -325,6 +370,9 @@ impl WorkspaceClose {
         self.inspect(cleanup)
     }
 }
+
+#[path = "workspace_failure.rs"]
+pub(super) mod failure;
 
 // The private control supervisor is not registered as a command yet.
 #[allow(dead_code)]

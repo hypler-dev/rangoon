@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Active failure-driven closure
+
+The [accepted E1c-2d packet](intent.md#e1c-2d-failure-driven-native-closure) has completed its bounded native source implementation, validation and fresh review atop local `0bb616a`, under [one failure boundary](encrypted-workspace.md#failure-driven-native-closure-e1c-2d). Preserve source/key/callback custody and qualify native progress without a renderer before consent, fresh mounting and Legacy adoption. The [ledger](development.md#failure-driven-native-closure-e1c-2d--october-15-2026) owns acceptance. No production encrypted activation or publication follows from this internal prerequisite.
+
 ## Active native supervisor integration
 
 The [accepted E1c-2c continuation](intent.md#e1c-2c-native-supervisor-control-ownership) integrates typed controls into [the existing native supervisor](encrypted-workspace.md#native-supervisor-control-ownership-e1c-2c), atop `4184aff`. Resolve pre-code race/ownership findings, implement exact twelve-path source scope, validate and obtain fresh independent review. Native commands/consent, protection UI, fresh mounting, Legacy adoption and three-OS qualification follow; no constructor/default switch is opened.

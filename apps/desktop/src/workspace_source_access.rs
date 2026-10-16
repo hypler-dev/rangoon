@@ -187,6 +187,12 @@ trait Backend: Send {
     fn control_is_open(&self) -> bool {
         false
     }
+    fn ordinary_session_healthy(&self) -> bool {
+        self.control_is_open()
+    }
+    fn ordinary_closed_error(&self) -> Error {
+        Error::Store(StoreError::Unavailable)
+    }
 
     /// Memory-only cleanup. Never use this to read, provision or retry storage.
     fn close_session(&mut self) -> bool {
@@ -271,6 +277,12 @@ impl Legacy {
     }
 }
 impl Backend for Legacy {
+    fn ordinary_session_healthy(&self) -> bool {
+        // Legacy has no authenticated Owner session. This also preserves the
+        // memory-only close fixtures that use its real ordinary store methods.
+        true
+    }
+
     fn list(&mut self) -> Result<Vec<SnapshotMetadata>, Error> {
         self.store()?.list().map_err(Error::Store)
     }
@@ -449,6 +461,14 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         self.owner.is_unlocked() && !self.owner.requires_recovery()
     }
 
+    fn ordinary_closed_error(&self) -> Error {
+        Error::Managed(if self.owner.requires_recovery() {
+            ControlOwnerError::RecoveryRequired
+        } else {
+            ControlOwnerError::Locked
+        })
+    }
+
     fn close_session(&mut self) -> bool {
         let healthy_for_reopen = !self.owner.requires_recovery();
         self.owner.lock();
@@ -620,6 +640,11 @@ struct Inner {
     backup: BackupSession,
     deletion: DeletionSession,
     backend: Mutex<Box<dyn Backend>>,
+    failed: std::sync::atomic::AtomicBool,
+    closed_error: Mutex<Error>,
+    failure_notifier: Mutex<Option<FailureNotifier>>,
+    #[cfg(test)]
+    drain_unavailable: std::sync::atomic::AtomicBool,
 }
 struct CloseCycle {
     drain: Drain,
@@ -643,6 +668,7 @@ impl CloseTicket {
             return Err(());
         }
         let healthy = healthy
+            && !self.access.failure_latched()
             && self.cycle.healthy
             && !self
                 .cycle
@@ -658,6 +684,15 @@ impl CloseTicket {
         healthy && purged
     }
     pub(super) fn is_quiescent(&self) -> Result<bool, ()> {
+        #[cfg(test)]
+        if self
+            .access
+            .0
+            .drain_unavailable
+            .load(std::sync::atomic::Ordering::SeqCst)
+        {
+            return Err(());
+        }
         let (_slot, _) = self.current_slot()?;
         self.cycle.drain.is_quiescent().map_err(|_| ())
     }
@@ -694,6 +729,20 @@ mod reopen;
 #[allow(unused_imports)]
 pub(super) use reopen::{Control as SourceControl, ControlError, Kind as ControlKind};
 
+type FailureNotifier = Arc<dyn Fn() + Send + Sync>;
+struct BackendWatch<'a> {
+    access: &'a SourceAccess,
+    armed: bool,
+    closed_error: Error,
+}
+impl Drop for BackendWatch<'_> {
+    fn drop(&mut self) {
+        if self.armed {
+            self.access.fail_closed_with(self.closed_error);
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(super) struct SourceAccess(Arc<Inner>);
 impl SourceAccess {
@@ -711,6 +760,11 @@ impl SourceAccess {
             backup: BackupSession::default(),
             deletion: DeletionSession::default(),
             backend: Mutex::new(backend),
+            failed: std::sync::atomic::AtomicBool::new(false),
+            closed_error: Mutex::new(Error::Store(StoreError::Unavailable)),
+            failure_notifier: Mutex::new(None),
+            #[cfg(test)]
+            drain_unavailable: std::sync::atomic::AtomicBool::new(false),
         }))
     }
     pub(super) fn legacy(gate: Gate, root: Result<PathBuf, StoreError>) -> Self {
@@ -731,6 +785,100 @@ impl SourceAccess {
     }
     pub(super) fn encrypted_close_available(&self) -> bool {
         self.0.encrypted
+    }
+    pub(super) fn failure_latched(&self) -> bool {
+        self.0.failed.load(std::sync::atomic::Ordering::SeqCst)
+    }
+    pub(super) fn set_failure_notifier(&self, notifier: FailureNotifier) -> Result<(), ()> {
+        if !self.encrypted_close_available() {
+            return Err(());
+        }
+        let mut slot = self.0.failure_notifier.lock().map_err(|_| ())?;
+        if slot.is_some() {
+            return Err(());
+        }
+        *slot = Some(notifier.clone());
+        drop(slot);
+        if self.failure_latched() {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| notifier()));
+        }
+        Ok(())
+    }
+    fn refused_error(&self, error: AdmissionError) -> Option<Error> {
+        if error != AdmissionError::Unavailable || !self.failure_latched() {
+            return None;
+        }
+        Some(
+            self.0
+                .closed_error
+                .lock()
+                .map(|e| *e)
+                .unwrap_or(Error::Store(StoreError::Unavailable)),
+        )
+    }
+    pub(super) fn fail_closed(&self) {
+        self.fail_closed_with(Error::Store(StoreError::Unavailable));
+    }
+    fn fail_closed_with(&self, error: Error) {
+        if !self.encrypted_close_available() {
+            return;
+        }
+        // Publish the finite first cause before any reader can observe failure.
+        // Later callbacks cannot replace it with a different closed-state hint.
+        if let Ok(mut reason) = self.0.closed_error.lock() {
+            if !self.failure_latched() {
+                *reason = error;
+                self.0
+                    .failed
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+            }
+        } else {
+            self.0
+                .failed
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+        }
+        // Keep the real Drain in the existing closing slot before deleting
+        // retained data. No callback or key owner is replaced or force-released.
+        let _ = self.request_close();
+        let _ = self.purge_retained();
+        let notifier = match self.0.failure_notifier.lock() {
+            Ok(slot) => slot.clone(),
+            Err(error) => error.into_inner().clone(),
+        };
+        if let Some(notifier) = notifier {
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| notifier()));
+        }
+    }
+    fn call_backend<T>(
+        &self,
+        current: impl Fn() -> bool,
+        action: impl FnOnce(&mut dyn Backend) -> Result<T, Error>,
+        lock_error: Error,
+    ) -> Result<T, Error> {
+        if !current() {
+            return Err(Error::Store(StoreError::Unavailable));
+        }
+        // Declared before the mutex guard: a panic drops/poisons Backend before
+        // this watch closes admission and notifies native cleanup.
+        let mut watch = BackendWatch {
+            access: self,
+            armed: self.0.encrypted,
+            closed_error: Error::Store(StoreError::Unavailable),
+        };
+        let mut backend = self.0.backend.lock().map_err(|_| lock_error)?;
+        if !current() {
+            watch.armed = false;
+            return Err(Error::Store(StoreError::Unavailable));
+        }
+        let result = action(backend.as_mut());
+        if watch.armed {
+            watch.armed = !backend.ordinary_session_healthy();
+            if watch.armed {
+                watch.closed_error = backend.ordinary_closed_error();
+            }
+        }
+        drop(backend);
+        result
     }
     pub(super) fn request_close(&self) -> Result<CloseTicket, ()> {
         if !self.encrypted_close_available() {
@@ -769,6 +917,9 @@ impl SourceAccess {
         source && workflow && composition && backup && deletion
     }
     fn admit_open(&self, lane: Lane) -> Result<Lease, AdmissionError> {
+        if self.failure_latched() {
+            return Err(AdmissionError::Unavailable);
+        }
         let slot = self
             .0
             .closing
@@ -801,7 +952,11 @@ impl SourceAccess {
     pub(super) async fn list_capabilities(&self) -> CapabilityResult {
         let ticket = match self.begin_capability(Lane::Read) {
             Ok(ticket) => ticket,
-            Err(error) => return admission_capability(error, false),
+            Err(error) => {
+                return self
+                    .refused_error(error)
+                    .map_or_else(|| admission_capability(error, false), Error::capability);
+            }
         };
         match tauri::async_runtime::spawn_blocking(move || {
             ticket.read(|backend| backend.list_capabilities())
@@ -822,7 +977,11 @@ impl SourceAccess {
     ) -> CapabilityResult {
         let ticket = match self.begin_capability(Lane::Read) {
             Ok(ticket) => ticket,
-            Err(error) => return admission_capability(error, false),
+            Err(error) => {
+                return self
+                    .refused_error(error)
+                    .map_or_else(|| admission_capability(error, false), Error::capability);
+            }
         };
         match tauri::async_runtime::spawn_blocking(move || {
             ticket.read(|backend| backend.open_capability(&id, revision.as_deref()))
@@ -874,7 +1033,11 @@ impl SourceAccess {
     async fn mutate_capability(&self, operation: CapabilityMutation) -> CapabilityResult {
         let ticket = match self.begin_capability(Lane::Exclusive) {
             Ok(ticket) => ticket,
-            Err(error) => return admission_capability(error, true),
+            Err(error) => {
+                return self
+                    .refused_error(error)
+                    .map_or_else(|| admission_capability(error, true), Error::capability);
+            }
         };
         match tauri::async_runtime::spawn_blocking(move || {
             ticket.mutate(|backend| operation.apply(backend))
@@ -929,7 +1092,11 @@ impl SourceAccess {
         let write = !matches!(operation, DataOperation::InspectDeletion { .. });
         let ticket = match self.begin_capability(Lane::Exclusive) {
             Ok(ticket) => ticket,
-            Err(error) => return data_controls::admission(error),
+            Err(error) => {
+                return self
+                    .refused_error(error)
+                    .map_or_else(|| data_controls::admission(error), Error::data);
+            }
         };
         match tauri::async_runtime::spawn_blocking(move || ticket.data(operation)).await {
             Ok(completed) => completed.deliver(),
@@ -965,8 +1132,11 @@ impl SourceAccess {
         let ticket = match self.begin_capability(Lane::Exclusive) {
             Ok(ticket) => ticket,
             Err(AdmissionError::Busy) => return composition::busy(),
-            Err(AdmissionError::Unavailable) => {
-                return Error::Store(StoreError::Unavailable).composition();
+            Err(error @ AdmissionError::Unavailable) => {
+                return self
+                    .refused_error(error)
+                    .unwrap_or(Error::Store(StoreError::Unavailable))
+                    .composition();
             }
         };
         match tauri::async_runtime::spawn_blocking(move || ticket.composition(operation)).await {
@@ -995,8 +1165,11 @@ impl SourceAccess {
                     },
                 };
             }
-            Err(AdmissionError::Unavailable) => {
-                return Error::Store(StoreError::Unavailable).compilation();
+            Err(error @ AdmissionError::Unavailable) => {
+                return self
+                    .refused_error(error)
+                    .unwrap_or(Error::Store(StoreError::Unavailable))
+                    .compilation();
             }
         };
         match tauri::async_runtime::spawn_blocking(move || {
@@ -1054,7 +1227,14 @@ impl SourceAccess {
         );
         let ticket = match self.begin_capability(if read { Lane::Read } else { Lane::Exclusive }) {
             Ok(ticket) => ticket,
-            Err(error) => return admission_workflow(error, !read),
+            Err(error) => {
+                if write && self.failure_latched() {
+                    return workflows::failure(StoreError::WorkspaceChanged);
+                }
+                return self
+                    .refused_error(error)
+                    .map_or_else(|| admission_workflow(error, !read), Error::workflow);
+            }
         };
         match tauri::async_runtime::spawn_blocking(move || ticket.workflow(operation)).await {
             Ok(completed) => completed.deliver(),
@@ -1079,9 +1259,10 @@ impl SourceAccess {
                             message: "Finish the current local workspace operation first.",
                         },
                     },
-                    AdmissionError::Unavailable => DataResult::Failed {
-                        error: Error::Store(StoreError::Unavailable).public(),
-                    },
+                    AdmissionError::Unavailable => self
+                        .refused_error(error)
+                        .unwrap_or(Error::Store(StoreError::Unavailable))
+                        .data(),
                 };
             }
         };
@@ -1117,6 +1298,9 @@ impl SourceAccess {
         let ticket = match self.begin(Lane::Read) {
             Ok(ticket) => ticket,
             Err(error) => {
+                if let Some(reason) = self.refused_error(error) {
+                    return reason.workspace();
+                }
                 return admission_workspace(
                     error,
                     "workspace_busy",
@@ -1146,7 +1330,11 @@ impl SourceAccess {
         }
         let ticket = match self.begin(Lane::Exclusive) {
             Ok(ticket) => ticket,
-            Err(error) => return admission_selection(error),
+            Err(error) => {
+                return self
+                    .refused_error(error)
+                    .map_or_else(|| admission_selection(error), Error::selection);
+            }
         };
         match tauri::async_runtime::spawn_blocking(move || {
             let completed = ticket.read(|backend| backend.open(&id));
@@ -1165,6 +1353,9 @@ impl SourceAccess {
         let ticket = match self.begin(Lane::Exclusive) {
             Ok(ticket) => ticket,
             Err(error) => {
+                if let Some(reason) = self.refused_error(error) {
+                    return reason.workspace();
+                }
                 return admission_workspace(
                     error,
                     "analysis_busy",
@@ -1201,19 +1392,11 @@ impl CapabilityTicket {
         &self,
         action: impl FnOnce(&mut dyn Backend) -> Result<T, Error>,
     ) -> Result<T, Error> {
-        if !self.current() {
-            return Err(Error::Store(StoreError::Unavailable));
-        }
-        let mut backend = self
-            .access
-            .0
-            .backend
-            .lock()
-            .map_err(|_| Error::Store(StoreError::Unavailable))?;
-        if !self.current() {
-            return Err(Error::Store(StoreError::Unavailable));
-        }
-        action(backend.as_mut())
+        self.access.call_backend(
+            || self.current(),
+            action,
+            Error::Store(StoreError::Unavailable),
+        )
     }
     fn read<T>(
         self,
@@ -1299,7 +1482,8 @@ pub(super) struct ModelInputCompletion<T> {
 }
 impl<T> ModelInputCompletion<T> {
     pub(super) fn deliver(self) -> Result<T, rangoon_model_session::Diagnostic> {
-        if !self.ticket.current() {
+        if !self.ticket.current() && !(self.ticket.access.failure_latched() && self.result.is_err())
+        {
             drop(self.result);
             return Err(rangoon_model_session::Diagnostic::Cancelled);
         }
@@ -1467,6 +1651,12 @@ impl BundleCompletion {
             .result
             .take()
             .unwrap_or(Err(Error::Store(StoreError::Unavailable)));
+        if self.ticket.access.failure_latched()
+            && let Err(error) = &result
+        {
+            self.ticket.access.purge_data_controls();
+            return error.bundle();
+        }
         if !self.ticket.current() {
             self.ticket.access.purge_data_controls();
             return match result {
@@ -1694,6 +1884,12 @@ impl CompilationCompletion {
             .result
             .take()
             .unwrap_or(Err(Error::Store(StoreError::Unavailable)));
+        if self.ticket.access.failure_latched()
+            && let Err(error) = &result
+        {
+            self.ticket.access.purge_composition_authoring();
+            return error.compilation();
+        }
         if !self.ticket.current() {
             self.ticket.access.purge_composition_authoring();
             return Error::Store(StoreError::Unavailable).compilation();
@@ -1850,6 +2046,12 @@ impl WorkflowInventoryCompletion {
             .result
             .take()
             .unwrap_or(Err(Error::Store(StoreError::Unavailable)));
+        if self.ticket.access.failure_latched()
+            && let Err(error) = &result
+        {
+            self.ticket.access.purge_workflow_authoring();
+            return error.data();
+        }
         if !self.ticket.current() {
             self.ticket.access.purge_workflow_authoring();
             return DataResult::Failed {
@@ -1900,7 +2102,8 @@ struct CapabilityReadCompletion<T> {
 }
 impl<T> CapabilityReadCompletion<T> {
     fn deliver(self) -> Result<T, Error> {
-        if !self.ticket.current() {
+        if !self.ticket.current() && !(self.ticket.access.failure_latched() && self.result.is_err())
+        {
             return Err(Error::Store(StoreError::Unavailable));
         }
         self.result
@@ -2015,16 +2218,11 @@ impl Ticket {
             if !self.current() {
                 return Err(Error::Cleared);
             }
-            let mut backend = self
-                .access
-                .0
-                .backend
-                .lock()
-                .map_err(|_| Error::Store(StoreError::Unavailable))?;
-            if !self.current() {
-                return Err(Error::Cleared);
-            }
-            action(backend.as_mut())
+            self.access.call_backend(
+                || self.current(),
+                action,
+                Error::Store(StoreError::Unavailable),
+            )
         })();
         ReadCompletion {
             ticket: self,
@@ -2032,19 +2230,12 @@ impl Ticket {
         }
     }
     fn save(self, report: &AnalysisReport) -> WriteCompletion {
-        let result = (|| {
-            let mut backend = self
-                .access
-                .0
-                .backend
-                .lock()
-                .map_err(|_| Error::WriteUncertain)?;
-            if !self.lease.is_current().unwrap_or(false) {
-                return Err(Error::Store(StoreError::Unavailable));
-            }
-            // Captured saves survive source Clear; only workspace admission fences them.
-            backend.save(report)
-        })();
+        // Captured saves survive source Clear; only workspace admission fences them.
+        let result = self.access.call_backend(
+            || self.lease.is_current().unwrap_or(false),
+            |backend| backend.save(report),
+            Error::WriteUncertain,
+        );
         WriteCompletion {
             ticket: self,
             result,
@@ -2057,7 +2248,8 @@ struct ReadCompletion<T> {
 }
 impl<T> ReadCompletion<T> {
     fn deliver(self) -> Result<T, Error> {
-        if !self.ticket.current() {
+        if !self.ticket.current() && !(self.ticket.access.failure_latched() && self.result.is_err())
+        {
             return Err(Error::Cleared);
         }
         self.result
@@ -2098,8 +2290,16 @@ pub(super) struct SelectionCompletion {
 }
 impl SelectionCompletion {
     pub(super) fn deliver(self) -> SelectionResult {
-        if !self.ticket.current() {
+        if !self.ticket.current()
+            && !(self.ticket.access.failure_latched()
+                && matches!(self.result, SelectionResult::Failed { .. }))
+        {
             return Error::Cleared.selection();
+        }
+        if self.ticket.access.failure_latched()
+            && matches!(self.result, SelectionResult::Failed { .. })
+        {
+            return self.result;
         }
         if self.select
             && let SelectionResult::Analyzed { ref report } = self.result
