@@ -1,215 +1,234 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorkspaceLockController } from '../preview/workspace-lock-model.mjs';
-const nonce = 'ab'.repeat(32);
-const metadata = (state = 'open', extra = {}) => ({ schemaVersion: 'rangoon.workspace-close-state.v1', storage: 'managed_encrypted', state, attemptId: state === 'open' ? null : nonce, epoch: state === 'open' ? null : '1', diagnostic: null, ...extra });
-const legacy = () => metadata('unavailable', { storage: 'legacy_plaintext', attemptId: null, epoch: null, diagnostic: 'encrypted_close_unavailable' });
-const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
+
+const c0 = 'ab'.repeat(32);
+const c1 = 'cd'.repeat(32);
+const close = (state = 'locked', id = state === 'open' ? null : c0, epoch = state === 'open' ? null : '1') => ({ schemaVersion: 'rangoon.workspace-close-state.v1', storage: 'managed_encrypted', state, attemptId: id, epoch, diagnostic: null });
+const legacy = () => ({ schemaVersion: 'rangoon.workspace-close-state.v1', storage: 'legacy_plaintext', state: 'unavailable', attemptId: null, epoch: null, diagnostic: 'encrypted_close_unavailable' });
+const control = (state = 'locked', extra = {}) => ({ schemaVersion: 'rangoon.workspace-control-state.v1', close: close(state, state === 'closing' ? c1 : undefined, state === 'closing' ? '2' : undefined), phase: state, action: null, outcome: 'observed', diagnostic: null, reload: false, ...extra });
+const protection = (layout = 'absent', view = close()) => ({ schemaVersion: 'rangoon.workspace-protection-state.v1', close: view, layout, diagnostic: layout === 'absent' || layout === 'locked' ? null : `workspace_protection_${layout}` });
+const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
+
 function fixture(options = {}) {
-  const calls = [], changes = [], timers = new Map();
-  let serial = 0, purges = 0;
-  const invoke = async (command, args) => {
-    calls.push([command, args]);
-    if (command === 'get_workspace_request_state') return { schemaVersion: 'rangoon.workspace-request-state.v1', storage: 'managed_encrypted', state: 'open', clientId: nonce };
-    if (options.invoke) return options.invoke(command, args);
-    if (command === 'get_workspace_close_state') return metadata();
-    if (command === 'begin_workspace_close') return metadata('closing');
-    if (command === 'acknowledge_workspace_purge') return metadata('locked');
-    return { data: 'normal-source' };
+  const calls = [], timers = new Map(); let serial = 0; let purges = 0; let reloads = 0;
+  const invoke = async (command, args, config) => {
+    calls.push([command, args, config]);
+    if (options.invoke) return options.invoke(command, args, config);
+    if (command === 'get_workspace_close_state') return options.initial ?? close('open');
+    if (command === 'get_workspace_request_state') return { schemaVersion: 'rangoon.workspace-request-state.v1', storage: 'managed_encrypted', state: 'open', clientId: c0 };
+    if (command === 'get_workspace_control_state') return options.control ?? control();
+    if (command === 'get_workspace_protection_state') return options.protection ?? protection();
+    if (command === 'prepare_workspace_control') return control('closing', { phase: 'awaiting_confirmation', action: 'create_empty', outcome: 'prepared' });
+    if (command === 'acknowledge_workspace_purge') return close('closing', c1, '2');
+    if (command === 'confirm_workspace_control') return control('open', { phase: 'open', outcome: 'opened', reload: true });
+    return { data: 'private source' };
   };
-  const model = createWorkspaceLockController({
-    invoke, beforeInvoke: options.beforeInvoke,
-    purge: () => { ++purges; return options.purge?.(); },
-    onChange: state => { changes.push(state); options.onChange?.(state); },
-    schedule: callback => { timers.set(++serial, callback); return serial; },
-    cancelSchedule: id => timers.delete(id),
-  });
-  return { model, calls, changes, timers, purges: () => purges };
+  const model = createWorkspaceLockController({ invoke, beforeInvoke: options.beforeInvoke, purge: () => { ++purges; return options.purge?.(purges); }, reload: () => { ++reloads; }, schedule: callback => { timers.set(++serial, callback); return serial; }, cancelSchedule: id => timers.delete(id), pollInterval: 10 });
+  return { model, calls, timers, purges: () => purges, reloads: () => reloads };
 }
-const close = async model => { assert.equal(model.openConfirmation(), true); return model.confirmClose(); };
 
-test('browser is usable without bridge or IPC; verified Legacy keeps core calls and has no Lock', async () => {
+test('Browser and Legacy keep existing workflows without E1c control IPC', async () => {
   const browser = createWorkspaceLockController();
-  assert.equal(browser.bridge, undefined);
   assert.equal((await browser.initialize()).status, 'browser');
-  assert.equal(browser.openConfirmation(), false);
-  const f = fixture({ invoke: command => command === 'get_workspace_close_state' ? legacy() : 'local-data' });
+  const f = fixture({ initial: legacy() });
   assert.equal((await f.model.initialize()).status, 'legacy');
-  assert.equal(f.model.openConfirmation(), false);
-  assert.equal(await f.model.bridge('list_snapshots'), 'local-data');
-  assert.equal(f.purges(), 0);
-  assert.deepEqual(f.calls.map(([command]) => command), ['get_workspace_close_state', 'list_snapshots']);
+  assert.deepEqual(await f.model.bridge('list_snapshots'), { data: 'private source' });
+  assert.deepEqual(f.calls.map(([name]) => name), ['get_workspace_close_state', 'list_snapshots']);
 });
 
-test('bootstrap blocks source access until exact metadata, and initializes once', async () => {
-  const gate = deferred();
-  const f = fixture({ invoke: () => gate.promise });
-  const loading = f.model.initialize();
-  await assert.rejects(f.model.bridge('list_snapshots'), /Workspace access is closed/);
-  assert.equal(f.calls.length, 1);
-  gate.resolve(metadata());
-  await loading;
+test('locked C0 purges freshly before protected absent layout enables only setup', async () => {
+  const f = fixture({ initial: close(), control: control(), protection: protection('absent') });
+  const state = await f.model.initialize();
+  assert.deepEqual(state, { status: 'protection', blocked: true, canLock: false, layout: 'absent', canProtect: true, pending: false });
+  assert.equal(f.purges(), 1);
+  await assert.rejects(f.model.bridge('list_snapshots'), /closed/);
+  assert.deepEqual(f.calls.map(([name]) => name), ['get_workspace_close_state', 'get_workspace_control_state', 'get_workspace_protection_state']);
+});
+
+test('validated busy, recovery, and unavailable protection layouts remain finite closed views', async () => {
+  for (const layout of ['busy', 'recovery_required', 'unavailable']) {
+    const f = fixture({ initial: close(), control: control(), protection: protection(layout) });
+    await f.model.initialize();
+    assert.deepEqual(f.model.getState(), { status: 'protection', blocked: true, canLock: false, layout, canProtect: false, pending: false });
+    assert.equal(f.purges(), 1);
+    assert.equal(await f.model.beginProtection(), false);
+  }
+});
+
+test('prepare, fresh C1 purge, exact Raw acknowledgment and confirm reload only after exact opened', async () => {
+  const f = fixture({ initial: close(), control: control(), protection: protection('absent') });
   await f.model.initialize();
-  assert.equal(f.calls.length, 2);
-  assert.deepEqual(f.model.getState(), { status: 'open', blocked: false, canLock: true });
+  assert.equal(await f.model.beginProtection(), true);
+  assert.equal(f.purges(), 2);
+  const wire = f.calls.filter(([name]) => ['prepare_workspace_control', 'acknowledge_workspace_purge', 'confirm_workspace_control'].includes(name));
+  assert.equal(wire.length, 3);
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(wire[0][1])), { schemaVersion: 'rangoon.workspace-control-prepare.v1', attemptId: c0, epoch: '1', action: 'create_empty' });
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(wire[1][1])), { schemaVersion: 'rangoon.workspace-purge-ack.v1', attemptId: c1, epoch: '2' });
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(wire[2][1])), { schemaVersion: 'rangoon.workspace-control-cycle.v1', attemptId: c1, epoch: '2' });
+  assert.equal(f.reloads(), 1);
+  assert.equal(f.model.getState().status, 'reloading');
 });
 
-test('confirm closes admission synchronously; acknowledgment is exact private Raw UTF-8 bytes', async () => {
-  const begin = deferred();
-  const f = fixture({ invoke: (command, args) => {
-    if (command === 'get_workspace_close_state') return metadata();
-    if (command === 'begin_workspace_close') return begin.promise;
-    assert.equal(command, 'acknowledge_workspace_purge');
-    assert.ok(args instanceof Uint8Array);
-    assert.deepEqual(JSON.parse(new TextDecoder().decode(args)), { schemaVersion: 'rangoon.workspace-purge-ack.v1', attemptId: nonce, epoch: '1' });
-    return metadata('locked');
+test('locked layout sends exact Raw unlock request through C1 acknowledgment and reload', async () => {
+  const f = fixture({ initial: close(), invoke: name => {
+    if (name === 'get_workspace_close_state') return close();
+    if (name === 'get_workspace_control_state') return control();
+    if (name === 'get_workspace_protection_state') return protection('locked');
+    if (name === 'prepare_workspace_control') return control('closing', { phase: 'awaiting_confirmation', action: 'unlock', outcome: 'prepared' });
+    if (name === 'acknowledge_workspace_purge') return close('closing', c1, '2');
+    if (name === 'confirm_workspace_control') return control('open', { phase: 'open', outcome: 'opened', reload: true });
+    throw new Error(`unexpected ${name}`);
+  } });
+  assert.equal((await f.model.initialize()).layout, 'locked');
+  assert.equal(await f.model.beginProtection(), true);
+  const wire = f.calls.filter(([name]) => ['prepare_workspace_control', 'acknowledge_workspace_purge', 'confirm_workspace_control'].includes(name));
+  assert.deepEqual(wire.map(([name]) => name), ['prepare_workspace_control', 'acknowledge_workspace_purge', 'confirm_workspace_control']);
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(wire[0][1])), { schemaVersion: 'rangoon.workspace-control-prepare.v1', attemptId: c0, epoch: '1', action: 'unlock' });
+  assert.equal(f.purges(), 2);
+  assert.equal(f.reloads(), 1);
+});
+
+test('fresh C1 purge failure blocks acknowledgment, native sheet confirmation, and reload', async () => {
+  const f = fixture({ initial: close(), control: control(), protection: protection('locked'), purge: count => count !== 2 });
+  await f.model.initialize();
+  assert.equal(await f.model.beginProtection(), false);
+  assert.equal(f.purges(), 2);
+  assert.equal(f.calls.some(([name]) => name === 'acknowledge_workspace_purge' || name === 'confirm_workspace_control'), false);
+  assert.equal(f.reloads(), 0);
+  assert.equal(f.model.getState().status, 'recovery_required');
+});
+
+test('stale C0, refusal, malformed response, and delivery loss remain closed and private', async () => {
+  for (const response of [control('locked', { close: close('locked', 'ef'.repeat(32)), }), control('closing', { phase: 'awaiting_confirmation', action: 'create_empty', outcome: 'refused', diagnostic: 'workspace_control_unavailable' }), null]) {
+    const f = fixture({ initial: close(), control: control(), protection: protection(), invoke: (name, args) => {
+      if (name === 'get_workspace_close_state') return close();
+      if (name === 'get_workspace_control_state') return control();
+      if (name === 'get_workspace_protection_state') return protection();
+      if (name === 'prepare_workspace_control') return response;
+      return close('closing', c1, '2');
+    } });
+    await f.model.initialize();
+    assert.equal(await f.model.beginProtection(), false);
+    assert.equal(f.model.getState().blocked, true);
+    assert.equal(f.reloads(), 0);
+    assert.equal(JSON.stringify(f.model.getState()).includes(c0), false);
+    assert.equal(JSON.stringify(f.model.getState()).includes(c1), false);
+  }
+});
+
+test('managed open observer purges and acknowledges exact native close before polling', async () => {
+  const f = fixture({ initial: close('open'), invoke: name => {
+    if (name === 'get_workspace_close_state') return close('open');
+    if (name === 'get_workspace_request_state') return { schemaVersion: 'rangoon.workspace-request-state.v1', storage: 'managed_encrypted', state: 'open', clientId: c0 };
+    if (name === 'get_workspace_control_state') return control('closing', { phase: 'closing' });
+    if (name === 'acknowledge_workspace_purge') return close('closing', c1, '2');
+    throw new Error(`unexpected ${name}`);
   } });
   await f.model.initialize();
-  f.model.openConfirmation();
-  const closing = f.model.confirmClose();
-  assert.equal(f.model.isBlocked(), true);
-  assert.equal(f.purges(), 1);
-  await assert.rejects(f.model.bridge('save_analysis', { sourceId: 'private' }), /closed/);
-  assert.equal(await f.model.confirmClose(), false);
-  begin.resolve(metadata('closing'));
-  assert.equal(await closing, true);
-  assert.equal(f.model.getState().status, 'locked');
-  assert.equal(f.calls.length, 4);
-  assert.equal(JSON.stringify(f.changes).includes(nonce), false);
-  assert.equal(JSON.stringify(f.changes).includes('epoch'), false);
-});
-
-test('Cancel returns to open without native begin or losing drafts', async () => {
-  const f = fixture(); await f.model.initialize();
-  assert.equal(f.model.openConfirmation(), true);
-  assert.equal(f.model.getState().status, 'confirming');
-  assert.equal(f.model.cancelConfirmation(), true);
-  assert.equal(f.model.getState().status, 'open');
-  assert.deepEqual(await f.model.bridge('open_snapshot'), { data: 'normal-source' });
-  assert.equal(f.purges(), 0);
-  assert.equal(f.calls.some(([cmd]) => cmd === 'begin_workspace_close'), false);
-});
-
-test('malformed metadata and old/native transport errors never permit source bootstrap', async () => {
-  let getterCalls = 0;
-  const getter = metadata(); Object.defineProperty(getter, 'state', { get: () => { ++getterCalls; return 'open'; }, enumerable: true });
-  const cases = [undefined, null, [], {}, 'open', metadata('open', { extra: true }), metadata('open', { schemaVersion: 'v2' }), metadata('open', { attemptId: nonce }), metadata('open', { epoch: '1' }), metadata('open', { diagnostic: 'invalid_workspace_close_request' }), metadata('open', { storage: 'unknown' }), getter, Object.create(metadata()), metadata('closing', { epoch: '01' }), metadata('closing', { epoch: 1 }), metadata('closing', { epoch: '18446744073709551616' }), metadata('closing', { attemptId: nonce.toUpperCase() }), legacy() && { ...legacy(), diagnostic: null }];
-  for (const value of cases) {
-    const f = fixture({ invoke: () => value });
-    assert.equal((await f.model.initialize()).status, 'recovery_required');
-    assert.equal(f.purges(), 1);
-    await assert.rejects(f.model.bridge('list_snapshots'), /closed/);
-    assert.equal(f.calls.length, 1);
-  }
-  const failed = fixture({ invoke: () => { throw new Error('private-native-error'); } });
-  await failed.model.initialize();
-  assert.equal(failed.model.getState().status, 'recovery_required');
-  assert.equal(getterCalls, 0);
-});
-
-test('ordinary bridge cannot issue any lifecycle command', async () => {
-  const f = fixture(); await f.model.initialize();
-  for (const command of ['get_workspace_close_state', 'begin_workspace_close', 'acknowledge_workspace_purge', 'get_workspace_request_state']) await assert.rejects(f.model.bridge(command, {}), /closed/);
-  assert.equal(f.calls.length, 2);
-});
-
-test('reentrant preflight close prevents the original effect', async () => {
-  let f, closing;
-  f = fixture({ beforeInvoke: () => { closing = close(f.model); } });
-  await f.model.initialize();
-  await assert.rejects(f.model.bridge('save_analysis', { sourceId: 'private' }), /closed/);
-  await closing;
-  assert.equal(f.calls.some(([cmd]) => cmd === 'save_analysis'), false);
-});
-
-test('late source successes and errors, including writes, are replaced by fixed closed error', async () => {
-  for (const command of ['open_snapshot', 'save_analysis']) for (const failed of [false, true]) {
-    const pending = deferred();
-    const f = fixture({ invoke: cmd => cmd === command ? pending.promise : cmd === 'get_workspace_close_state' ? metadata() : metadata(cmd === 'begin_workspace_close' ? 'closing' : 'locked') });
-    await f.model.initialize();
-    const result = f.model.bridge(command, { sourceId: 'private' });
-    const rejected = assert.rejects(result, error => error.message === 'Workspace access is closed.');
-    await close(f.model);
-    if (failed) pending.reject(new Error('source-in-error')); else pending.resolve({ content: 'source-in-result' });
-    await rejected;
-    assert.equal(f.model.getState().status, 'locked');
-  }
-});
-
-test('transport and completion-observer reentrant closes cannot deliver old results or errors', async () => {
-  for (const boundary of ['transport', 'completion']) for (const failed of [false, true]) {
-    let f, closing;
-    f = fixture({
-      invoke: command => {
-        if (command === 'get_workspace_close_state') return metadata();
-        if (command === 'begin_workspace_close') return metadata('closing');
-        if (command === 'acknowledge_workspace_purge') return metadata('locked');
-        if (boundary === 'transport') closing = close(f.model);
-        if (failed) throw new Error('private-old-error');
-        return 'private-old-result';
-      },
-      beforeInvoke: () => () => { if (boundary === 'completion') closing = close(f.model); },
-    });
-    await f.model.initialize();
-    await assert.rejects(f.model.bridge('open_snapshot'), error => error.message === 'Workspace access is closed.');
-    await closing;
-  }
-});
-
-test('failed local purge still closes native Gate but never acknowledges or retries', async () => {
-  for (const purge of [() => false, () => { throw new Error('private-cleanup-error'); }]) {
-    const f = fixture({ purge }); await f.model.initialize(); await close(f.model);
-    assert.equal(f.model.getState().status, 'recovery_required');
-    assert.deepEqual(f.calls.map(([cmd]) => cmd), ['get_workspace_close_state', 'get_workspace_request_state', 'begin_workspace_close']);
-    assert.equal(f.timers.size, 0);
-  }
-});
-
-test('missing, rejected, foreign or malformed begin/ack never becomes Locked', async () => {
-  const cases = [null, metadata('locked', { diagnostic: 'invalid_workspace_close_request' }), metadata('locked', { attemptId: 'cd'.repeat(32) }), metadata('locked', { epoch: '2' }), metadata('open'), legacy(), metadata('recovery_required', { diagnostic: 'workspace_close_incomplete' })];
-  for (const value of cases) {
-    const f = fixture({ invoke: command => command === 'get_workspace_close_state' ? metadata() : command === 'begin_workspace_close' ? metadata('closing') : value });
-    await f.model.initialize(); assert.equal(await close(f.model), false);
-    assert.equal(f.model.getState().status, 'recovery_required');
-    assert.equal(f.timers.size, 0);
-  }
-  for (const phase of ['begin_workspace_close', 'acknowledge_workspace_purge']) {
-    const f = fixture({ invoke: command => { if (command === phase) throw new Error('lost-response'); return metadata(command === 'get_workspace_close_state' ? 'open' : 'closing'); } });
-    await f.model.initialize(); await close(f.model);
-    assert.equal(f.model.getState().status, 'recovery_required');
-  }
-});
-
-test('real Closing polls only actual metadata, exact attempt required, no timer success', async () => {
-  let checks = 0;
-  const f = fixture({ invoke: cmd => cmd === 'get_workspace_close_state' ? metadata(++checks === 1 ? 'open' : 'locked') : metadata('closing') });
-  await f.model.initialize(); await close(f.model);
+  const callback = f.timers.values().next().value; await callback();
   assert.equal(f.model.getState().status, 'closing');
-  assert.equal(f.timers.size, 1);
-  const [id, callback] = f.timers.entries().next().value; f.timers.delete(id); await callback();
-  assert.equal(f.model.getState().status, 'locked'); assert.equal(f.timers.size, 0);
-  assert.equal(f.calls.filter(([cmd]) => cmd === 'acknowledge_workspace_purge').length, 1);
+  assert.equal(f.purges(), 1);
+  const acknowledgment = f.calls.find(([name]) => name === 'acknowledge_workspace_purge');
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(acknowledgment[1])), { schemaVersion: 'rangoon.workspace-purge-ack.v1', attemptId: c1, epoch: '2' });
+  await assert.rejects(f.model.bridge('list_snapshots'), /closed/);
 });
 
-test('fresh closing/locked windows purge before inspecting native custody; duplicate ack rejection stays recovery', async () => {
-  for (const initial of ['closing', 'locked']) {
-    const f = fixture({ invoke: command => command === 'get_workspace_close_state' ? metadata(initial) : metadata('locked') });
+test('managed open observer closes locally on malformed observation', async () => {
+  for (const observed of [null, control('closing', { phase: 'open' })]) {
+    const f = fixture({ initial: close('open'), invoke: name => {
+      if (name === 'get_workspace_close_state') return close('open');
+      if (name === 'get_workspace_request_state') return { schemaVersion: 'rangoon.workspace-request-state.v1', storage: 'managed_encrypted', state: 'open', clientId: c0 };
+      if (name === 'get_workspace_control_state') return observed;
+      return { source: 'private' };
+    } });
     await f.model.initialize();
-    assert.equal(f.purges(), 1); assert.equal(f.model.getState().status, 'locked');
-    assert.equal(f.calls.length, initial === 'closing' ? 2 : 1);
+    const callback = f.timers.values().next().value; await callback();
+    assert.equal(f.model.getState().status, 'recovery_required');
+    assert.equal(f.purges(), 1);
+    assert.equal(f.calls.some(([name]) => name === 'acknowledge_workspace_purge'), false);
+    await assert.rejects(f.model.bridge('list_snapshots'), /closed/);
   }
-  const f = fixture({ invoke: command => metadata(command === 'get_workspace_close_state' ? 'closing' : 'locked', command === 'acknowledge_workspace_purge' ? { diagnostic: 'invalid_workspace_close_request' } : {}) });
-  await f.model.initialize(); assert.equal(f.model.getState().status, 'recovery_required');
 });
 
-test('pagehide/dispose purges and fences stale initialization, timers and callbacks without native begin', async () => {
-  const pending = deferred(); const f = fixture({ invoke: () => pending.promise });
-  const initializing = f.model.initialize(); f.model.dispose(); pending.resolve(metadata()); await initializing;
-  assert.equal(f.model.getState().status, 'recovery_required'); assert.equal(f.purges(), 1); assert.equal(f.calls.length, 1);
-  assert.equal(f.model.openConfirmation(), false); await assert.rejects(f.model.bridge('open_snapshot'), /closed/);
-  const polling = fixture({ invoke: cmd => metadata(cmd === 'get_workspace_close_state' ? 'open' : 'closing') });
-  await polling.model.initialize(); await close(polling.model);
-  const callback = polling.timers.values().next().value;
-  polling.model.dispose(); assert.equal(polling.timers.size, 0);
-  const count = polling.calls.length; await callback(); assert.equal(polling.calls.length, count);
+test('prepared C1 must have fresh attempt and epoch before native acknowledgment', async () => {
+  for (const stale of [close('closing', c0, '2'), close('closing', c1, '1')]) {
+    const f = fixture({ initial: close(), invoke: name => {
+      if (name === 'get_workspace_close_state') return close();
+      if (name === 'get_workspace_control_state') return control();
+      if (name === 'get_workspace_protection_state') return protection();
+      if (name === 'prepare_workspace_control') return control('closing', { close: stale, phase: 'awaiting_confirmation', action: 'create_empty', outcome: 'prepared' });
+      throw new Error(`unexpected ${name}`);
+    } });
+    await f.model.initialize();
+    assert.equal(await f.model.beginProtection(), false);
+    assert.equal(f.calls.some(([name]) => name === 'acknowledge_workspace_purge' || name === 'confirm_workspace_control'), false);
+    assert.equal(f.model.getState().status, 'recovery_required');
+  }
+});
+
+test('late source result is fenced when explicit Lock closes admission', async () => {
+  const pending = deferred();
+  const f = fixture({ invoke: name => {
+    if (name === 'get_workspace_close_state') return close('open');
+    if (name === 'get_workspace_request_state') return { schemaVersion: 'rangoon.workspace-request-state.v1', storage: 'managed_encrypted', state: 'open', clientId: c0 };
+    if (name === 'begin_workspace_close') return close('closing');
+    if (name === 'acknowledge_workspace_purge') return close('locked');
+    if (name === 'list_snapshots') return pending.promise;
+    return control('open');
+  } });
+  await f.model.initialize();
+  const source = f.model.bridge('list_snapshots');
+  assert.equal(f.model.openConfirmation(), true);
+  await f.model.confirmClose();
+  pending.resolve({ source: 'private' });
+  await assert.rejects(source, /closed/);
+});
+
+test('fresh closing window purges, acknowledges its exact close cycle, then refreshes protected layout', async () => {
+  let reads = 0;
+  const f = fixture({ invoke: name => {
+    if (name === 'get_workspace_close_state') return ++reads === 1 ? close('closing') : close('locked');
+    if (name === 'acknowledge_workspace_purge') return close('closing');
+    if (name === 'get_workspace_control_state') return control();
+    if (name === 'get_workspace_protection_state') return protection('locked');
+    throw new Error(`unexpected ${name}`);
+  } });
+  await f.model.initialize();
+  assert.equal(f.model.getState().status, 'closing');
+  assert.equal(f.purges(), 1);
+  const callback = f.timers.values().next().value;
+  await callback();
+  assert.deepEqual(f.model.getState(), { status: 'protection', blocked: true, canLock: false, layout: 'locked', canProtect: true, pending: false });
+  assert.equal(f.purges(), 2);
+});
+
+test('ordinary bridge rejects lifecycle commands and reentrant close fences original work', async () => {
+  const f = fixture();
+  await f.model.initialize();
+  for (const command of ['get_workspace_control_state', 'prepare_workspace_control', 'confirm_workspace_control', 'get_workspace_protection_state']) await assert.rejects(f.model.bridge(command, {}), /closed/);
+  let closing;
+  const g = fixture({ beforeInvoke: () => { closing = g.model.confirmClose(); } });
+  await g.model.initialize();
+  assert.equal(g.model.openConfirmation(), true);
+  await assert.rejects(g.model.bridge('save_analysis', { sourceId: 'private' }), /closed/);
+  await closing;
+});
+
+test('malformed bootstrap, dispose, and stale observer callbacks stay closed without native setup', async () => {
+  const pending = deferred();
+  const f = fixture({ invoke: () => pending.promise });
+  const starting = f.model.initialize();
+  f.model.dispose();
+  pending.resolve(close('open'));
+  await starting;
+  assert.equal(f.model.getState().status, 'recovery_required');
+  await assert.rejects(f.model.bridge('list_snapshots'), /closed/);
+  const open = fixture();
+  await open.model.initialize();
+  const callback = open.timers.values().next().value;
+  open.model.dispose();
+  const calls = open.calls.length;
+  await callback();
+  assert.equal(open.calls.length, calls);
 });

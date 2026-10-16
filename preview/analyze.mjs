@@ -609,6 +609,10 @@ app.addEventListener('click', event => {
     document.querySelector('#analysis-theme')?.focus({ preventScroll: true });
     return;
   }
+  if (event.target.closest('[data-workspace-protection-action]')) {
+    void workspaceLock.beginProtection();
+    return;
+  }
   if (sourceBlocked()) return;
   if (event.target.closest('#workspace-lock-open')) { openWorkspaceLockDialog(); return; }
   const compileControl = event.target.closest('#compile-refresh, #compile-generate, #compile-open-skills, #compile-export, #compile-inspect, #compile-inspect-external, [data-compile-capability], [data-compile-revision], [data-compile-profile], [data-compile-tab]');
@@ -853,8 +857,9 @@ function purgeWorkspaceRenderer() {
 }
 
 function renderClosedWorkspace(state, { force = false, focus = true } = {}) {
-  if (!force && closeShellStatus === state.status) return;
-  closeShellStatus = state.status;
+  const shellKey = `${state.status}:${state.layout ?? 'none'}:${state.pending === true ? 'pending' : 'ready'}:${state.canProtect === true ? 'action' : 'closed'}`;
+  if (!force && closeShellStatus === shellKey) return;
+  closeShellStatus = shellKey;
   app.innerHTML = renderWorkspaceCloseShell(state, { theme });
   app.inert = false;
   app.removeAttribute('aria-hidden');

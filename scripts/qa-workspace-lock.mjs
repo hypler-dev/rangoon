@@ -27,11 +27,17 @@ export async function createWorkspaceLockQAServer() {
 }
 
 function installFixture(report, engine) {
-  const mode = new URLSearchParams(location.search).get('qa') || 'open';
+  const reopened = sessionStorage.getItem('rangoon-qa-open-once') === '1';
+  if (reopened) sessionStorage.removeItem('rangoon-qa-open-once');
+  const mode = reopened ? 'open' : new URLSearchParams(location.search).get('qa') || 'open';
   const commands = [];
-  let closing = false, acknowledged = false, released = mode !== 'hold', pending = null;
+  const startsLocked = ['locked', 'absent', 'busy', 'recovery_required', 'unavailable'].includes(mode);
+  let closing = startsLocked, acknowledged = startsLocked, released = mode !== 'hold', pending = null;
+  let controlPending = false, controlAcknowledged = false;
   const token = 'ab'.repeat(32);
-  const metadata = state => ({ schemaVersion: 'rangoon.workspace-close-state.v1', storage: 'managed_encrypted', state, attemptId: state === 'open' ? null : token, epoch: state === 'open' ? null : '1', diagnostic: null });
+  const controlToken = 'cd'.repeat(32);
+  const metadata = (state, attemptId = token, epoch = '1') => ({ schemaVersion: 'rangoon.workspace-close-state.v1', storage: 'managed_encrypted', state, attemptId: state === 'open' ? null : attemptId, epoch: state === 'open' ? null : epoch, diagnostic: null });
+  const controlState = (state, phase, action = null, outcome = 'observed', reload = false) => ({ schemaVersion: 'rangoon.workspace-control-state.v1', close: state, phase, action, outcome, diagnostic: null, reload });
   const id = (prefix, digit) => `${prefix}:${digit.repeat(64)}`;
   const snapshot = { sourceId: report.source.id, displayName: report.source.displayName, sha256: report.source.sha256, byteLength: report.source.byteLength, savedAtMs: 1 };
   const revision = { id: id('revision', '4'), parentRevisionId: null, title: 'QA saved instructions', content: 'QA private draft marker.\n', sha256: 'a'.repeat(64), createdAtMs: 1, review: null, provenance: { kind: 'ordinary' } };
@@ -57,13 +63,41 @@ function installFixture(report, engine) {
       if (mode === 'legacy') return { ...metadata('open'), storage: 'legacy_plaintext', state: 'unavailable', diagnostic: 'encrypted_close_unavailable' };
       return metadata(closing ? acknowledged && released ? 'locked' : 'closing' : 'open');
     }
+    if (command === 'get_workspace_control_state') {
+      if (controlPending) return controlState(metadata('closing', controlToken, '2'), 'awaiting_confirmation', mode === 'absent' ? 'create_empty' : 'unlock');
+      if (closing) return controlState(metadata(acknowledged && released ? 'locked' : 'closing'), acknowledged && released ? 'locked' : 'closing');
+      return controlState(metadata('open'), 'open');
+    }
+    if (command === 'get_workspace_protection_state') {
+      const layout = startsLocked ? mode : 'locked';
+      const diagnostic = ['absent', 'locked'].includes(layout) ? null : `workspace_protection_${layout}`;
+      return { schemaVersion: 'rangoon.workspace-protection-state.v1', close: metadata('locked'), layout, diagnostic };
+    }
+    if (command === 'prepare_workspace_control') {
+      const request = args instanceof Uint8Array ? JSON.parse(new TextDecoder().decode(args)) : null;
+      if (!startsLocked || !['absent', 'locked'].includes(mode) || !request || request.schemaVersion !== 'rangoon.workspace-control-prepare.v1' || request.attemptId !== token || request.epoch !== '1' || request.action !== (mode === 'absent' ? 'create_empty' : 'unlock')) throw new Error('Fixture control refused.');
+      controlPending = true;
+      return controlState(metadata('closing', controlToken, '2'), 'awaiting_confirmation', request.action, 'prepared');
+    }
     if (command === 'begin_workspace_close') { closing = true; return metadata('closing'); }
     if (command === 'acknowledge_workspace_purge') {
       controls.dataset.rawAck = String(args instanceof Uint8Array);
       const ack = args instanceof Uint8Array ? JSON.parse(new TextDecoder().decode(args)) : null;
+      if (controlPending) {
+        if (!ack || ack.schemaVersion !== 'rangoon.workspace-purge-ack.v1' || ack.attemptId !== controlToken || ack.epoch !== '2' || controlAcknowledged) throw new Error('Fixture control acknowledgment refused.');
+        controlAcknowledged = true;
+        return metadata('closing', controlToken, '2');
+      }
       const valid = ack && Object.keys(ack).length === 3 && ack.schemaVersion === 'rangoon.workspace-purge-ack.v1' && ack.attemptId === token && ack.epoch === '1' && !acknowledged;
       if (!valid || mode === 'reject') return { ...metadata('locked'), diagnostic: 'invalid_workspace_close_request' };
       acknowledged = true; return metadata(released ? 'locked' : 'closing');
+    }
+    if (command === 'confirm_workspace_control') {
+      const request = args instanceof Uint8Array ? JSON.parse(new TextDecoder().decode(args)) : null;
+      if (!controlPending || !controlAcknowledged || !request || request.schemaVersion !== 'rangoon.workspace-control-cycle.v1' || request.attemptId !== controlToken || request.epoch !== '2') throw new Error('Fixture confirmation refused.');
+      controlPending = false;
+      sessionStorage.setItem('rangoon-qa-open-once', '1');
+      return controlState(metadata('open'), 'open', null, 'opened', true);
     }
     if (command === 'get_engine_status') return engine;
     if (mode !== 'legacy' && options?.headers?.['x-rangoon-workspace-client'] !== token) throw new Error('Fixture request identity refused.');

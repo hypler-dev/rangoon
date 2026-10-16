@@ -32,10 +32,54 @@ test('close shell is source-free and retains only theme and help controls', () =
     assert.match(shell, /<h1 id="workspace-close-title" tabindex="-1">/);
     assert.match(shell, /id="analysis-theme"/);
     assert.match(shell, /Dark mode/);
-    assert.match(shell, /<summary>Workspace help<\/summary>/);
+    assert.match(shell, /<summary>Technical details<\/summary>/);
     assert.doesNotMatch(shell, /href=/);
     assert.doesNotMatch(shell, /analysis-nav|workspace-lock-open|workspace-lock-confirm|retry|unlock|setup|progress/i);
   }
+});
+
+test('protection shell exposes exactly one fixed action for eligible absent or locked layouts', () => {
+  for (const [layout, label] of [['absent', 'Set up workspace'], ['locked', 'Unlock workspace']]) {
+    const shell = renderWorkspaceCloseShell({ status: 'protection', layout, canProtect: true, pending: false });
+    assert.match(shell, new RegExp(`>${label}<`));
+    assert.match(shell, /data-workspace-protection-action/);
+    assert.match(shell, new RegExp(`data-workspace-layout="${layout}"`));
+    assert.equal((shell.match(/data-workspace-protection-action/g) ?? []).length, 1);
+    assert.match(workspaceCloseAnnouncement({ status: 'protection', layout, canProtect: true, pending: false }), new RegExp(`^${label}\\.`));
+  }
+  for (const state of [{ status: 'protection', layout: 'busy', canProtect: true }, { status: 'protection', layout: 'locked', canProtect: false }, { status: 'protection', layout: 'locked', canProtect: true, pending: true }]) {
+    assert.doesNotMatch(renderWorkspaceCloseShell(state), /data-workspace-protection-action/);
+  }
+});
+
+test('protection shell names pending and unavailable layouts without enabling an action', () => {
+  for (const [state, copy] of [
+    [{ status: 'protection', layout: 'busy' }, 'Workspace busy'],
+    [{ status: 'protection', layout: 'recovery_required' }, 'Workspace recovery required'],
+    [{ status: 'protection', layout: 'unavailable' }, 'Workspace unavailable'],
+    [{ status: 'protection', layout: 'locked', pending: true }, 'Preparing workspace'],
+  ]) {
+    const shell = renderWorkspaceCloseShell(state);
+    assert.match(shell, new RegExp(`>${copy}<`));
+    assert.doesNotMatch(shell, /data-workspace-protection-action/);
+  }
+});
+
+test('protection announcements and technical disclosure stay finite and source-free', () => {
+  assert.equal(workspaceCloseAnnouncement({ status: 'protection', layout: 'busy' }), 'Workspace busy. Workspace protection is still completing. This window remains closed.');
+  assert.equal(workspaceCloseAnnouncement({ status: 'protection', layout: 'locked', pending: true }), 'Preparing workspace. Workspace protection is preparing. This window remains closed.');
+  const shell = renderWorkspaceCloseShell({ status: 'protection', layout: 'legacy' });
+  assert.match(shell, /native desktop storage/);
+  assert.match(shell, /Exports can remain readable/);
+  assert.doesNotMatch(shell, /attemptId|epoch|private-text|sourceId/);
+});
+
+test('exact opened transition announces reload without a false failure or action', () => {
+  const state = { status: 'reloading' };
+  assert.equal(workspaceCloseAnnouncement(state), 'Opening workspace. Reloading after native workspace protection opened.');
+  const shell = renderWorkspaceCloseShell(state);
+  assert.match(shell, /Opening workspace/);
+  assert.doesNotMatch(shell, /Workspace unavailable|data-workspace-protection-action/);
 });
 
 test('close shell does not reflect unexpected state data', () => {

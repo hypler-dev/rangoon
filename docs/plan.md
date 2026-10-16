@@ -4,7 +4,11 @@
 Status: proposed
 Authority: [intent.md](intent.md), including the accepted provider-independent continuation; detailed future stage proposals are not implementation or release acceptance
 Owner: Jeff
-Last updated: 2026-10-15
+Last updated: 2026-10-16
+
+## Source-free protection UI checkpoint
+
+E1c-2l connects existing native protection/status and setup/unlock commands to a closed, source-free renderer under [its contract](encrypted-workspace.md#source-free-renderer-protection-controls-e1c-2l). The [source/fixture receipt](development.md#source-free-renderer-protection-controls-e1c-2l--october-16-2026) records exact C0/C1 purge/acknowledgment, native-close observation and failure states. Next: qualify a Managed factory on disposable OS-local workspaces, including actual native sheet, failure wake/reload, durable recovery, process lifetime and all-three-OS GUI behavior. Legacy production, migration and encrypted archives remain separate; no default switch follows from a browser fixture.
 
 ## Completed last-window exit hold
 
