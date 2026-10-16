@@ -169,6 +169,31 @@ fn source_control_revoke_and_unlock_resume_rotate_the_actual_managed_request() {
     drop(lease);
 }
 
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn managed_close_discards_retained_read_only_picker_result() {
+    let root = TestRoot::new("operations-managed-close");
+    let vault = ThreadVault::default();
+    let (access, _) = encrypted_access(&root, &vault);
+
+    let initial = access.request_close().unwrap();
+    assert!(initial.purge());
+    assert_eq!(initial.release_key(), Ok(true));
+    let mut control = initial.start_control(Kind::Unlock).unwrap();
+    let preview = control.prepare().unwrap();
+    control.confirm(&preview.id).unwrap();
+    control.resume().unwrap();
+
+    let request = access.request_context("main", Some(&client_id(&access)));
+    let picker = access.for_request(&request).begin_selection().unwrap();
+    let completion = picker.complete_read_only("safe-view");
+    let closing = access.request_close().unwrap();
+    assert_eq!(closing.is_quiescent(), Ok(false));
+    assert!(closing.purge());
+    assert_eq!(completion.deliver(|| "stale"), "stale");
+    assert_eq!(closing.is_quiescent(), Ok(true));
+}
+
 #[test]
 fn ordinary_command_surface_has_exact_request_binding_coverage() {
     let sources = [
@@ -182,9 +207,15 @@ fn ordinary_command_surface_has_exact_request_binding_coverage() {
         include_str!("models.rs"),
         include_str!("cloud_models.rs"),
         include_str!("cloud_credentials.rs"),
+        include_str!("operations.rs"),
     ];
     let commands = [
         (0, "select_and_analyze", "for_request(&workspace)"),
+        (
+            10,
+            "select_and_inspect_operations",
+            "for_request(&workspace)",
+        ),
         (0, "list_snapshots", "for_request(&workspace)"),
         (0, "save_analysis", "for_request(&workspace)"),
         (0, "open_snapshot", "for_request(&workspace)"),
@@ -273,7 +304,7 @@ fn ordinary_command_surface_has_exact_request_binding_coverage() {
         let binding_at = body.find(binding).expect("request binds before work");
         assert!(binding_at < 1_500, "binding must precede command work");
     }
-    assert_eq!(commands.len(), 45);
+    assert_eq!(commands.len(), 46);
     for (source, command) in [
         (0, "get_engine_status"),
         (7, "get_local_model_review"),

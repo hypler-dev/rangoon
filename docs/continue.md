@@ -1,5 +1,24 @@
 # Continue Rangoon application work
 
+October 16 O2 local operations-window continuation: `codex/ops-local-window`
+starts at `7990437` after the pure O1 lifecycle source stage. One explicitly
+selected local JSON file now flows through bounded host read, native custody,
+all five O1 inspectors and a Rust-built privacy-minimized operator view.
+The Operations route shows a filtered record library, reported timeline,
+declared topology and inspector, plus separate reported evaluation, approval,
+authorization and attempt counts. No model-advice record or live provider
+ingress exists. The [O2 contract](operations-local-window.md) owns exact
+behavior; the [development ledger](development.md#local-operations-window-o2-first-slice--october-16-2026)
+owns validation and publication status. Do not turn reported values into
+Rangoon approvals, execution authority, effect proof or model accuracy.
+The [October 16 architecture/UX checkpoint](system-audit.md#october-16-architecture-and-usability-drift-checkpoint)
+found no authority-boundary drift and corrected stale E1 architecture prose.
+It identified bounded O2 navigation, state-copy, analytics-density and touch
+repairs. Next qualify populated O2 at 320/768/1440 in both themes, keyboard,
+forced colors, reduced motion and lock purge, then the installed local task
+journey and disposable Managed factory. O3 authenticated, redacted, encrypted
+ingress stays separate. Preserve the provider-free core and all release gates.
+
 October 16 O1b-2b3 operator-record continuation: isolated branch
 `codex/ops-lifecycle-record` starts at `b5f41d3580a147bfeac5816abcbb9f0cd810408a`.
 The [reported lifecycle/outcome/coverage contract](operations-lifecycle.md)

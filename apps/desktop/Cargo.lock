@@ -2948,6 +2948,7 @@ dependencies = [
  "rangoon-model-cloud",
  "rangoon-model-local",
  "rangoon-model-session",
+ "rangoon-ops",
  "rangoon-store",
  "rangoon-workflow",
  "serde",
@@ -3048,6 +3049,15 @@ dependencies = [
  "rangoon-model-cloud",
  "rangoon-model-local",
  "rangoon-store",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "rangoon-ops"
+version = "0.1.0-dev"
+dependencies = [
+ "rangoon-domain",
  "serde",
  "serde_json",
 ]

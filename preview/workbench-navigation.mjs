@@ -4,7 +4,7 @@ const compactQuery = '(max-width: 800px)';
 const routes = Object.freeze([
   ['Discover', [['analysis', 'import', 'Import & Analyze'], ['decompose', 'decompose', 'Decompose'], ['merge', 'merge', 'Merge'], ['split', 'decompose', 'Split']]],
   ['Build', [['skills', 'skill', 'Skills'], ['workflows', 'workflow', 'Workflows'], ['compile', 'bundle', 'Compile']]],
-  ['Connect', [['model-assistance', 'research', 'Model assistance'], ['authority-engines', 'gate', 'Authority engines'], ['engine', 'evidence', 'LNSAT diagnostic']]],
+  ['Connect', [['model-assistance', 'research', 'Model assistance'], ['authority-engines', 'gate', 'Authority engines'], ['operations', 'evidence', 'Operations window'], ['engine', 'evidence', 'LNSAT diagnostic']]],
   ['Workspace', [['workspace', 'bundle', 'Data']]],
 ]);
 const examples = Object.freeze([
@@ -34,12 +34,13 @@ export function renderWorkbenchNavigation({ area, surface, theme = 'dark', suppl
   };
   const renderExample = ([id, glyph, label, href]) => `<a href="${href}"${currentSurface === id ? ' aria-current="page"' : ''}>${icon(glyph, { size: 16 })}<span>${label}</span></a>`;
   const currentLabel = currentSurface === 'workbench' ? areas.get(currentArea) : examples.find(([id]) => id === currentSurface)?.[2] ?? 'Navigation';
+  const brandHref = currentSurface === 'workbench' ? '#analysis' : 'analyze.html#analysis';
   const extra = typeof supplementary === 'function' ? supplementary() : '';
   const guard = currentSurface === 'workbench' && typeof workspaceGuard === 'function' ? workspaceGuard() : '';
   const themeControl = currentSurface === 'workbench' ? 'id="analysis-theme"'
     : currentSurface === 'workflow-playground' ? 'id="playground-theme"'
       : currentSurface === 'flow-playground' ? 'data-flow-theme' : 'data-workbench-theme';
-  return `<aside class="analysis-rail" data-workbench-nav><a class="analysis-brand" href="index.html"><img src="assets/brand-symbol.png" alt=""><span>Rangoon.si</span></a><nav class="analysis-nav" aria-label="Task navigation"><details class="analysis-nav-drawer" data-workbench-nav-drawer${open ? ' open' : ''}><summary><span>${currentLabel}</span><span>Navigation</span></summary><div class="analysis-nav-groups">${routes.map(([label, links]) => `<section class="analysis-nav-group" aria-label="${label}"><p>${label}</p>${links.map(renderLink).join('')}</section>`).join('')}${extra ? `<div class="analysis-nav-supplementary">${extra}</div>` : ''}<section class="analysis-nav-group analysis-nav-group--sample" aria-label="Examples"><p>Examples</p>${examples.map(renderExample).join('')}</section></div></details></nav>${guard}<div class="analysis-companion"><img src="assets/mascot.webp" width="90" height="60" alt=""><p>Small pieces.<br>Greater possibilities.</p></div><button ${themeControl} class="analysis-theme" type="button">${icon('theme', { size: 16 })}<span>${theme === 'light' ? 'Dark mode' : 'Light mode'}</span></button></aside>`;
+  return `<aside class="analysis-rail" data-workbench-nav><a class="analysis-brand" href="${brandHref}"><img src="assets/brand-symbol.png" alt=""><span>Rangoon.si</span></a><nav class="analysis-nav" aria-label="Task navigation"><details class="analysis-nav-drawer" data-workbench-nav-drawer${open ? ' open' : ''}><summary><span>${currentLabel}</span><span>Navigation</span></summary><div class="analysis-nav-groups">${routes.map(([label, links]) => `<section class="analysis-nav-group" aria-label="${label}"><p>${label}</p>${links.map(renderLink).join('')}</section>`).join('')}${extra ? `<div class="analysis-nav-supplementary">${extra}</div>` : ''}<section class="analysis-nav-group analysis-nav-group--sample" aria-label="Examples"><p>Examples</p>${examples.map(renderExample).join('')}</section></div></details></nav>${guard}<div class="analysis-companion"><img src="assets/mascot.webp" width="90" height="60" alt=""><p>Small pieces.<br>Greater possibilities.</p></div><button ${themeControl} class="analysis-theme" type="button">${icon('theme', { size: 16 })}<span>${theme === 'light' ? 'Dark mode' : 'Light mode'}</span></button></aside>`;
 }
 
 export function captureWorkbenchNavigation(root, documentRef = root?.ownerDocument ?? globalThis.document) {
