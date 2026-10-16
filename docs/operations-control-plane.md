@@ -112,6 +112,59 @@ Separate source observation time, receipt time, source sequence and monotonic lo
 
 Local-first collection, retention/deletion, disk-full and crash handling need their own repository contract. Existing SQLite workspace is plaintext and has no authenticated telemetry log. Do not label an event chain tamperproof because it has hashes. Signed/checkpointed evidence or external anchoring requires an explicit key/threat/recovery design, including detection of truncation, replacement and rollback. Cloud ingress, authentication, tenancy, encrypted storage, retention and live subscription transport remain separate later stages.
 
+Optional model curation needs distinct trace events for pinned model and
+template digests, bounded input digest, risk tags, uncertainty/abstention,
+recommendation, human disposition and later correction. Keep deterministic
+policy decision, approval-stage decision, authorization consumption and
+observed outcome separate. Analytics may measure false positives and negatives
+on independently labeled cases, disagreement, abstention, escalation time,
+latency, cost and outcome coverage; historical accuracy never becomes an
+authorization grant. Preserve unknown outcomes and missing denominators.
+
+### Decision ledger and analytics sequence
+
+The existing nineteen O1 record kinds are the closed source vocabulary for
+reported policy, approval, authorization, attempt, metric and evidence facts.
+Do not encode a model suggestion as `evaluation`, `approval_decision` or
+`authorization`, or add an unreviewed field to `rangoon.ops.window.v1`. O2 may
+derive read-only decision views from those records. Model advice needs a
+separately versioned advisory record and qualified O3 ingress before it can
+join an actual operator trace; until then, keep it in a clearly labeled
+offline research/evaluation dataset, not a live decision history.
+
+For each request, retain every applicable event in causal order: input and
+policy revision, deterministic evaluation (including deny/unknown), each
+model invocation or explicit skip/unavailability, every model recommendation
+or abstention, human routing and every approve/deny/abstain/expiry/revocation,
+authorization issue/refusal/consumption, each execution attempt, observed
+effect or unresolved outcome, reconciliation, and later correction. Each fact
+identifies its producer, verification state, source/receipt time, request,
+evaluation and attempt IDs where applicable, plus the pinned rule, adapter,
+model and prompt versions. A later correction appends a linked record; it does
+not rewrite the original judgment or make a superseded recommendation current.
+Do not invent a model invocation when none occurred or collapse multiple
+attempts, approvals or evaluations into one final status.
+
+O2's first analytics view should answer how many requests entered each stage,
+how many were denied, approved, abstained, expired, revoked, attempted,
+completed, failed or remain unknown, and why. Count requests, evaluations,
+approval decisions and attempts separately with explicit denominators and
+scope filters; never add their counts into one success rate. Show policy/model
+and human disagreement, escalation and time-to-decision only when both sides
+exist. Compute model precision/recall and false-negative rates only from a
+pinned independently labeled sample, with label source, sample size and
+unlabeled count beside every metric. Operational outcomes do not automatically
+label model correctness; permitted effects can still be harmful. Unknown,
+missing, stale and disconnected evidence stays in the denominator or in an
+explicit excluded bucket, never silently becomes success or zero cost.
+
+O3 must qualify event identity, redaction, access control, encrypted retention,
+deletion/export, gap detection and replay before any live analytics claim.
+Use the same minimized evidence boundary for local and hosted views. Neither a
+dashboard aggregate nor a measured model score changes O4 approval duties,
+authority admission or execution-time checks. A possible future model
+delegation requires a new accepted authority contract and separate validation.
+
 ## Live graph, timelines and historical replay
 
 The October 11 [information-flow visualization continuation](intent.md#information-flow-visualization-continuation--october-11-2026) permits a separate 3D/2D synthetic playback surface under [V3](visual-system.md#v3-bounded-information-flow-playground). It illustrates distinct policy, approval, authorization, consumption and evidence steps using closed local scripts only. Its animation cursor is presentation state, not an admitted event stream, O1 projection or trusted clock. A later actual operations view must consume the existing qualified immutable records/projections and preserve diagnostics, topology/policy pins and lineage fences below. No duplicate telemetry contract or renderer-invented authority is introduced; missing actual integrations remain unavailable.
@@ -143,7 +196,7 @@ Core local authoring, decomposition, composition, revisions, compilation, export
 ## Build sequence and acceptance
 
 1. **O1: inert shared records and projection core.** Closed versioned DTOs, bounded IDs/attributes, request/approval/attempt state separation, explicit coverage and provenance. Implement a deterministic event projector and replay with adversarial synthetic fixtures. No grant issuing, policy evaluation, network, credentials, database or execution. Pin resource bounds, immutable evaluation/decision linkage, generated-versus-external IDs, snapshot fences and relationship validation in a dedicated implementation contract before code. Negative fixtures cover duplicate, conflicting, late and out-of-order events; missing predecessors and scope/version mismatch cannot yield a complete projection. Include competing old/new evaluation successors, a late old-evaluation approval/authorization and a changed effective selector during approval: none can restore eligibility or satisfy the new plan.
-2. **O2: actual local operations views.** Approval inbox, agent/assignment list, telemetry explorer and graph/timeline over the O1 repository/service; empty/unavailable states until real collection exists. Pointer/keyboard/filter/replay parity and original screenshot shell. Synthetic demonstration remains separate from actual runtime observations.
+2. **O2: actual local operations views.** Approval inbox, agent/assignment list, telemetry explorer, decision analytics and graph/timeline over the O1 repository/service; empty/unavailable states until real collection exists. First show bounded offline counts and drill-down with explicit source, denominator and unknown states; no synthetic event may appear as a live decision. Pointer/keyboard/filter/replay parity and original screenshot shell. Synthetic demonstration remains separate from actual runtime observations.
 3. **O3: bounded read-only ingestion.** Qualified identity/read adapters, minimized native observations, persistent event/recovery/retention contract, gap/backpressure handling, audit export and security review. Source events and engine evidence keep separate verification states. No authority write becomes enabled by read access.
 4. **O4: one qualified approval/enforcement path.** Exact configured gateway and admitted rules, authenticated human approval, then explicitly delegated agent stages where supported, scoped engine authorization, execution-time consumption and disposable execution/evidence/reconciliation. Test direct and transitive self-escalation through gateways, rules, assignments, approval plans and delegation aliases; requester self-approval; mandatory human omission; changed evaluation/context with unchanged request; quorum/replay/digest substitution; policy drift; expiry/revoke/suspend; offline peers; and crashes before/after effect. No automatic engine fallback or unknown-effect retry.
 5. **O5: cross-system adapters and live hosted operations.** Publish per-operation coverage and versioned conformance suites; prove workspace/tenant subscription, query, export and worker isolation, throughput/retention/recovery, redaction and cost accounting. Hosting and initial all-three-desktop release retain their own qualification gates.
@@ -154,4 +207,4 @@ The original O0 eight-file architecture packet owned only README, intent, this c
 
 ## Current portable source stages
 
-O1a provides the bounded nineteen-record decoder; O1b-1 provides the immutable structural timeline and declared graph. O1b-2a adds separate reported request/evaluation/approval relationships under [operations-relationships.md](operations-relationships.md), preserving structural v1 bytes and unknown authoritative eligibility. Its bounded single-chain selector is reported/unverified; a successful link assessment does not authenticate actors or satisfy approval duties. Canonical evidence remains [development.md](development.md). O1b-2b1 adds separate alias-aware reported subject and finite delegation/parent inspection under [operations-delegations.md](operations-delegations.md), preserving both earlier schemas and unknown authoritative eligibility. It never authenticates an actor, admits subdelegation or satisfies a human duty. O1b-2b2 adds separate reported stage/quorum/ballot/decision-chain inspection under [operations-approvals.md](operations-approvals.md), with unchanged unknown authoritative duty satisfaction and no routing or execution. Its exact validation and acceptance state belongs only in the canonical ledger. O1b-2b3 lifecycle/outcomes/coverage, O2 operations views, O3 qualified ingress and O4/O5 runtime enforcement/expansion remain open. This staging preserves the complete accepted core product scope.
+O1a provides the bounded nineteen-record decoder; O1b-1 provides the immutable structural timeline and declared graph. O1b-2a adds separate reported request/evaluation/approval relationships under [operations-relationships.md](operations-relationships.md), preserving structural v1 bytes and unknown authoritative eligibility. Its bounded single-chain selector is reported/unverified; a successful link assessment does not authenticate actors or satisfy approval duties. Canonical evidence remains [development.md](development.md). O1b-2b1 adds separate alias-aware reported subject and finite delegation/parent inspection under [operations-delegations.md](operations-delegations.md), preserving both earlier schemas and unknown authoritative eligibility. It never authenticates an actor, admits subdelegation or satisfies a human duty. O1b-2b2 adds separate reported stage/quorum/ballot/decision-chain inspection under [operations-approvals.md](operations-approvals.md), with unchanged unknown authoritative duty satisfaction and no routing or execution. Its exact validation and acceptance state belongs only in the canonical ledger. O1b-2b3 now has an independently reviewed [reported lifecycle/outcome/coverage source contract](operations-lifecycle.md); locally qualified pure source is recorded in the development ledger. O2 operations views, O3 qualified ingress and O4/O5 runtime enforcement/expansion remain open. This staging preserves the complete accepted core product scope.

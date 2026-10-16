@@ -10,6 +10,8 @@ mod approvals;
 mod decode;
 mod delegation_types;
 mod delegations;
+mod lifecycle;
+mod lifecycle_types;
 mod projection;
 mod projection_types;
 mod records;
@@ -25,6 +27,9 @@ mod delegation_tests;
 #[cfg(test)]
 mod approval_tests;
 
+#[cfg(test)]
+mod lifecycle_tests;
+
 pub use approval_types::{
     APPROVAL_SCHEMA, ApprovalDocument, ApprovalError, ApprovalInspection, MAX_APPROVAL_BYTES,
     MAX_APPROVAL_MATCHES, MAX_APPROVAL_PATH_STEPS, MAX_APPROVAL_REFERENCES, MAX_APPROVAL_STAGES,
@@ -37,6 +42,11 @@ pub use delegation_types::{
     MAX_DELEGATION_REFERENCES,
 };
 pub use delegations::inspect_delegations;
+pub use lifecycle::inspect_lifecycle;
+pub use lifecycle_types::{
+    LIFECYCLE_SCHEMA, LifecycleDocument, LifecycleError, LifecycleInspection, MAX_LIFECYCLE_BYTES,
+    MAX_LIFECYCLE_MATCHES, MAX_LIFECYCLE_PATH_STEPS, MAX_LIFECYCLE_REFERENCES,
+};
 pub use projection::project_window;
 pub use projection_types::{
     MAX_PROJECTION_BYTES, PROJECTION_SCHEMA, Projection, ProjectionDocument, ProjectionError,

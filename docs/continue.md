@@ -1,5 +1,17 @@
 # Continue Rangoon application work
 
+October 16 O1b-2b3 operator-record continuation: isolated branch
+`codex/ops-lifecycle-record` starts at `b5f41d3580a147bfeac5816abcbb9f0cd810408a`.
+The [reported lifecycle/outcome/coverage contract](operations-lifecycle.md)
+has fresh independent read-only review PASS after exact group, transition,
+evidence, diagnostic and budget fixes. Its source and fixtures pass the
+[local package gate](development.md#reported-lifecycle-inspection-o1b-2b3--october-16-2026).
+This remains a source-only inspection stage. No live
+collector, authenticated provider evidence, approval router or execution is
+established. The original composition boundary remains intact; the hosted
+use-case extraction gates stay in
+[application architecture](application-architecture.md#composition-boundary-and-service-extraction).
+
 October 16 full core-preview parity continuation: branch `codex/composition-envelope-parity` starts from published main `ad8cb04b7bf1987babf99c4987dcb49d9d2e1b17`. The independently pinned source fixture now includes the complete valid core-preview envelope: output bytes/IDs, byte mappings, coverage, diagnostics and authority. Rust checks exact serialized value; renderer validates that literal core across new, append and mixed destinations. This narrows the cross-language drift gap but does not qualify every invalid envelope, native GUI or hosted service. See the [current receipt](development.md#full-core-preview-fixture-parity--october-16-2026). Keep renderer checks defensive and Rust/store save authority unchanged.
 
 October 16 composition-boundary review: the accepted local modular-monolith boundary is intact. The renderer authors drafts and checks previews for display, while native retains a private single-attempt handle and the store re-resolves/recomputes inside its transaction. The remaining drift risk is duplicated JavaScript preview interpretation, not renderer commit authority. Branch `codex/composition-boundary-parity` adds independent output/identity checks across new/append/mixed targets, updates the README and freezes explicit self-hosted service extraction gates in [application architecture](application-architecture.md#composition-boundary-and-service-extraction). Full Rust-renderer envelope parity remains open. See the [current receipt](development.md#composition-boundary-and-renderer-parity--october-16-2026) for validation/review/publication status. Do not build an HTTP wrapper around raw Tauri commands or treat this local check as hosted/tenant qualification. OpenShell and O1 lifecycle work remain separately staged.
