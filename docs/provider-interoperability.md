@@ -209,6 +209,64 @@ These are research pins, not a tested binary/protocol pin or Rangoon support row
 The interface is evolving; freeze the exact released artifact, protobuf and
 negotiated capabilities before a live adapter.
 
+### OpenShell O1 source freeze candidate
+
+The first implementation target is the NVIDIA `v0.1.4` tag at commit
+`5a7728c304b5528e954e9ae900cf21f84e1a12b1`. At that tag,
+[`proto/supervisor_middleware.proto`](https://github.com/NVIDIA/OpenShell/blob/v0.1.4/proto/supervisor_middleware.proto)
+has Git blob `6c0cc947dad020ddfa4bbac1a06267ec0bd85878`, and its imported
+[`proto/extension.proto`](https://github.com/NVIDIA/OpenShell/blob/v0.1.4/proto/extension.proto)
+has Git blob `7c505f1ae32db967bc585f51522b410315a8f0a9`. These identifiers
+pin reviewed source files; no released binary, image digest, generated binding,
+or live peer has been qualified. A later build must record its own reproducible
+artifact and generated-binding identities before advertising compatibility.
+
+The candidate LNSAT-owned service implements `SupervisorMiddleware.Describe`,
+`ValidateConfig`, and `EvaluateHttpRequest` for only
+`HTTP_REQUEST/PRE_CREDENTIALS`. `Describe` declares exactly this binding,
+protocol `1.0`, `openshell.supervisor-middleware.contract`, a nonempty exact
+`expected_audience`, bounded payload size and timeout. Reject missing or
+incompatible peer metadata, undeclared operations, unsupported configuration,
+and oversized input. Do not claim `HTTP_RESPONSE`, WebSocket or non-network
+mediation from this binding. Names are display labels; the authenticated
+`sandbox_id` is the durable subject identifier.
+
+For each call, the service must authenticate the configured gateway's
+short-lived extension JWT over TLS against an operator-pinned issuer and key:
+`typ=openshell-ext+jwt`, pinned `alg=EdDSA`, valid signature/expiry/exact
+audience, and `iss=openshell-gateway:<gateway_id>`. Require
+`caller_kind=gateway` for control-plane `Describe` and `ValidateConfig`;
+require `caller_kind=supervisor` and token `sandbox_id` equal to the
+request-context `sandbox_id` for `EvaluateHttpRequest`. A repeated JWT `jti`
+is not an action replay signal; LNSAT's separate one-time authorization must
+bind the exact action. The service must reject received calls with invalid
+identity or empty expected audience; `EvaluateHttpRequest` must also reject
+missing or mismatched supervisor sandbox identity. An enforcement
+claim also needs authenticated readback of active operator registration and
+every protected policy entry: HTTPS without `allow_insecure_transport`, exact
+audience, selected middleware and `on_error: fail_closed`. The service cannot
+enforce that policy setting while unavailable; OpenShell must block affected
+traffic. If readback is missing or shows `fail_open`, coverage is unqualified,
+not a claimed no-forward guarantee. Operator controls registration and policy
+attachment; Rangoon only previews configuration and inspects attributed evidence.
+
+At evaluation, bind the post-policy, post-earlier-middleware request target,
+method, selected headers/body digest, sandbox ID, policy revision and middleware
+identity to one LNSAT request. Require a reviewed ordering and coverage proof
+that no later middleware can change the approved action before forwarding.
+The v0.1.4 request context does not itself carry a policy revision; a revision
+must come from validated configuration plus authenticated configuration
+readback, or the service must deny the operation-specific enforcement claim.
+An OpenShell allow cannot satisfy this proof. When service receives an
+evaluation, LNSAT denial, changed binding, repeated grant, missing proof or
+unavailable LNSAT must return deny without a forward. Service outage is covered
+only by separately verified active `fail_closed` OpenShell policy. On a timeout
+after grant consumption, record
+`outcome_unknown`; never infer the remote side effect from middleware allow or
+retry automatically. Qualify outcome receipts only with independent effect
+evidence and reconciliation. This source freeze is proposed contract work,
+not an active adapter or permission to run a gateway.
+
 The narrow candidate enforcement point is an operator-run supervisor middleware
 service for `HTTP_REQUEST/PRE_CREDENTIALS`: OpenShell admits network traffic
 first, calls matching middleware, then injects provider credentials. An
