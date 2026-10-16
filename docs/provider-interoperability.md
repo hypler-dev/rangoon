@@ -338,6 +338,19 @@ turn provider allow, human approval, or a fixture digest into permission to
 execute. Duplicate IDs are a reported replay signal, not durable replay
 prevention; timeout/unknown never permits automatic retry.
 
+O0's current six-field `RuntimeBinding` does not include the selected-header
+digest or authenticated gateway issuer/audience/identity required by the O1
+candidate above. Its `reported_exact_path` reason means only that those six
+caller-supplied fields matched and the reported values form one consistent
+path; it does **not** establish complete action equality, authenticated
+caller identity or tested artifact compatibility. The next bounded O0 source
+revision must version the inspection contract, add these declared bindings
+and a pinned peer artifact/generated-binding identity, classify missing proof
+as incomplete and mismatches as changed, and test each mutation. Keep all
+fields private in diagnostics and retain `authority=none` and
+`mayExecute=false`. Do this before surfacing O0 as a connected runtime or
+using its match reason as a cross-system continuity claim.
+
 Named validation: Rust formatting, `cargo test -p rangoon-integrations`,
 warnings-denied Clippy for that package, offline five-case/coverage/staleness/
 malformed fixtures, and fresh independent contract/source review. This packet

@@ -47,14 +47,17 @@ function fixture({ compact = true } = {}) {
 }
 
 test('shared definition keeps all real routes, stable destinations, and one current item', () => {
-  assert.equal(WORKBENCH_NAVIGATION.routes.flatMap(([, links]) => links).length, 11);
+  assert.equal(WORKBENCH_NAVIGATION.routes.flatMap(([, links]) => links).length, 12);
   const workbench = renderWorkbenchNavigation({ area: 'workflows', surface: 'workbench' });
   assert.match(workbench, /href="#workflows" aria-current="page"/);
   assert.equal((workbench.match(/aria-current="page"/g) ?? []).length, 1);
   assert.match(workbench, /href="#authority-engines"/);
+  assert.match(workbench, /href="#operations"/);
+  assert.match(workbench, /class="analysis-brand" href="#analysis"/);
   assert.match(workbench, /Sample design preview/);
   const playground = renderWorkbenchNavigation({ area: 'workflows', surface: 'workflow-playground' });
   assert.match(playground, /href="analyze\.html#workflows"/);
+  assert.match(playground, /class="analysis-brand" href="analyze\.html#analysis"/);
   assert.doesNotMatch(playground, /href="analyze\.html#workflows" aria-current/);
   assert.match(playground, /href="workflow-playground\.html" aria-current="page"/);
   assert.equal((playground.match(/aria-current="page"/g) ?? []).length, 1);

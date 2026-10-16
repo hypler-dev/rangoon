@@ -14,7 +14,7 @@ const workspaceCommands = new Set([
   'get_local_model_profile', 'configure_local_model', 'clear_local_model', 'prepare_local_model', 'check_local_model',
   'send_local_model', 'cancel_local_model', 'get_cloud_model_profile', 'configure_cloud_model', 'clear_cloud_model',
   'prepare_cloud_model', 'check_cloud_model', 'send_cloud_model', 'cancel_cloud_model', 'inspect_cloud_credential',
-  'edit_cloud_credential', 'remove_cloud_credential'
+  'edit_cloud_credential', 'remove_cloud_credential', 'select_and_inspect_operations'
 ]);
 const closeFields = ['schemaVersion', 'storage', 'state', 'attemptId', 'epoch', 'diagnostic'];
 const controlFields = ['schemaVersion', 'close', 'phase', 'action', 'outcome', 'diagnostic', 'reload'];

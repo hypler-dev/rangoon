@@ -18,6 +18,7 @@ tauri-build = "=2.7.1"
 tauri = "=2.12.1"
 tauri-plugin-dialog = "=2.8.1"
 rangoon-host = { path = "../../crates/rangoon-host" }
+rangoon-ops = { path = "../../crates/rangoon-ops" }
 rangoon-domain = { path = "../../crates/rangoon-domain" }
 rangoon-import = { path = "../../crates/rangoon-import" }
 getrandom = "=0.3.4"

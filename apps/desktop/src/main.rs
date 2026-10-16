@@ -20,6 +20,8 @@ use data_controls::{
 };
 mod instruction_bundles;
 use instruction_bundles::{export_instruction_bundle, inspect_instruction_bundle};
+mod operations;
+use operations::select_and_inspect_operations;
 mod cloud_credentials;
 mod cloud_custody;
 mod cloud_model_consent;
@@ -285,6 +287,7 @@ fn main() {
             begin_workspace_close,
             acknowledge_workspace_purge,
             select_and_analyze,
+            select_and_inspect_operations,
             list_snapshots,
             save_analysis,
             open_snapshot,

@@ -1,5 +1,52 @@
 # Rangoon system audit: architecture, usefulness and interoperability
 
+## October 16 architecture and usability drift checkpoint
+
+Authority: Jeff's October 16 request to compare current workbench with the accepted architecture and original reference screens. The [accepted intent](intent.md), [product experience contract](product-experience.md) and [application architecture](application-architecture.md) remain controlling; this checkpoint updates the October 15 assessment below rather than accepting a new product scope. The [O2 local-window contract](operations-local-window.md) defines the new route; the [development ledger](development.md#local-operations-window-o2-first-slice--october-16-2026) owns validation and publication evidence.
+
+**Verdict:** no confirmed architecture/authority bypass. The modular local content workbench still starts without LNSAT or another provider. O2 reads one explicitly selected local file, produces a minimized view and cannot authorize, approve, execute or authenticate a report. Model advice is not an authority record. The desktop still mounts Legacy plaintext storage; Managed encryption remains test-only. LNSAT, OpenShell and other provider paths stay optional and unqualified. A future hosted service can expose the same typed domain/application services only after identity, tenancy, custody and API contracts are separately designed; raw Tauri commands are not that service boundary.
+
+| Original screen pattern | Current coherence | Remaining proof or adjustment |
+| --- | --- | --- |
+| Command Center and Import: grouped navigation, compact branded task entry | Shared real-workbench shell and explicit local/browser state preserve the task boundary; sample preview remains separate | Keep brand/home links inside the real workbench; test installed Import → saved source → Skills path. Do not substitute fixture counts for actual workspace data. |
+| Skills, Decompose and Merge/Split: source/library → central transformation → inspector | Native-backed content, revision, composition and export services exist; editors retain provenance and loss/coverage semantics | Qualify complete native restart, failure and target-loader journeys; review rendered density and artwork against the reference at all required widths. |
+| Workflows: library → graph/outline/definition → properties | Typed graph editing remains local authoring; browser without native bridge honestly disables save and reports no records | Test packaged desktop drag, keyboard connection refusal/recovery, saved revision reopen and focus. A drawn edge is not a running operation. |
+| Connectors/authority and operations: compare abilities and inspect evidence | Eight optional targets show per-function unavailable states; O1 reports are distinct from authorization. O2 adds a local, read-only reported timeline/topology/inspector | Keep comparison/planning secondary; complete O2 populated responsive/accessibility proof, then qualify one consented, authenticated read-only adapter before any live or compliance claim. |
+
+The browser check of the current dark Operations page at a narrow viewport showed a disabled local picker, clear desktop-only guidance and a distinct no-window state. The Workflows page exposed its library/canvas/inspector structure and honest unavailable native actions, but its task header occupies much of the initial short viewport. The references have stronger route-specific identity and denser, clearer working panels than these empty browser states. Refine header height, icon scale, contrast, spacing and restrained route artwork after measuring populated tasks; keep mascot/art decorative and never replace missing records with fake counts. These checks cannot judge a populated native workspace, physical pointer/touch gestures, screen reader behavior, OS vault custody or Windows/Linux GUI support. The October 15 audit retains the broader eight-reference comparison and market analysis; this pass directly rechecked Command Center, Import, Skills and Connector reference images plus the current Operations/Workflows browser states.
+
+The fresh UX review identified four P2 presentation defects in the O2/new shared routes: brand navigation could enter the synthetic preview, a valid empty window was described as a filter miss, closed native error codes were shown instead of their safe recovery text, and four decision breakdowns appeared before the working panels. One P3 touch issue used 38px filters. These are presentation and recovery defects, not proof of trusted telemetry or an authority bypass. The bounded repair and independent review status belong in the development ledger. Keep compact counts visible and full reported-value analytics in an optional disclosure so the primary library/timeline/inspector can lead.
+
+**Next evidence, in order:** finish O2 rendered 320/768/1440 dark/light, keyboard, forced-colors, reduced-motion, empty/invalid/stale and lock-purge checks with a populated synthetic fixture; qualify one installed local lifecycle on disposable data; then test a disposable Managed factory and OS-specific vault/GUI/recovery paths. Only after these should a consented read-only provider adapter or real live ingress become a user-facing support claim. Preserve model-curation analytics as advisory records with measured error rates; no model or human approval alone bypasses execution-time enforcement.
+
+### October 16 follow-up: contract and handoff coherence
+
+Fresh independent read-only architecture and UI passes checked clean O2
+source head `576ae69`; the separate website checkout and unpublished LNSAT
+branches were not treated as Rangoon source contradictions. The UI pass found
+no new P1/P2/P3 in the current source and exercised dark/light, 320/768/1440,
+native-unavailable and synthetic-playground states. Populated native operations,
+assistive technology, all-three-OS tasks and live ingress remain untested.
+These are review observations, not release qualification.
+
+| Finding | Effect | Resolution or next gate |
+| --- | --- | --- |
+| DA16-01 / P2 handoff drift | Older sections of `continue.md` called the approval branch current and lifecycle inspection pending after the O1 lifecycle source and O2 local view were added. | The October 16 opening status now supersedes those historical sections; the older checkout instructions and operations checkpoint are labeled historical. Do not reopen O1b-2b3 from an old paragraph. |
+| DA16-02 / P2 reported continuity scope | O0's `reported_exact_path` matches six caller-supplied OpenShell fields. It omits selected-header digest and authenticated gateway identity/audience/issuer required by the O1 middleware candidate. No authorization bypass exists because the result remains unverified, `authority=none` and `mayExecute=false`, but a future UI could overread the match label. | [Provider interoperability](provider-interoperability.md#openshell-o0-offline-runtime-continuity-report) now names the limitation and versioned follow-up. Before connected-runtime presentation, require missing/mismatched binding and peer-identity fixtures, private diagnostics and qualified ingress. |
+| DA16-03 / P3 compatibility identity | O0 checks a declared documentation version, not an observed binary or generated protobuf identity. | Keep descriptor `unavailable`; pin and verify a released artifact/binding in a later adapter packet. A documentation version never counts as compatibility proof. |
+
+The local LNSAT `public/main` reference checked during this pass was
+`f669181a`; that source snapshot contains hermetic fake-runtime and durable
+pre-supervisor guard work but does not establish real Docker proof. This is a
+local snapshot, not a fresh
+remote or separate-session acceptance check. Rangoon should continue its
+provider-free source-to-export qualification while LNSAT separately proves its
+own consequence loop. OpenShell's documented middleware is network scoped;
+the current [candidate](provider-interoperability.md#openshell-o1-source-freeze-candidate)
+does not cover every tool, file, process or agent action. The operator record
+must show uncovered and unknown paths as such, not make the graph look complete
+because one middleware chain reports an allow.
+
 ## October 15 whole-system audit and completion map
 
 Authority: [Jeff's accepted audit request](intent.md#whole-system-audit-with-glm--october-15-2026). This section owns the current assessment; the [development receipt](development.md#whole-system-audit-with-glm--october-15-2026) owns validation, review and Git state. Earlier dated assessments below are historical. They must not reopen routing, purge, navigation or draft-recovery work completed since October 12. Recommendations here are proposals, not implementation acceptance, provider activation or release approval.

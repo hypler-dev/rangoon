@@ -6,9 +6,97 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-16
 
+## Competitive proof and missing workflows
+
+This is a proposed completion sequence, not a claim that Rangoon or LNSAT
+outperforms another product today. Compare against a pinned release and the
+same sanitized task, not screenshots or feature counts. NVIDIA OpenShell
+already supplies sandbox policy, credential protection, observability and
+extension surfaces; its current guide is
+[versioned](https://docs.nvidia.com/openshell/home). NVIDIA NeMo
+[Switchyard](https://github.com/NVIDIA-NeMo/Switchyard) optimizes model routing,
+a different job. Neither should be recast as a Rangoon authority engine.
+
+| Priority | Current evidence | Missing workflow and pass condition |
+| --- | --- | --- |
+| 1. Useful local workbench | Source-first import, revision, composition, compilation and export exist; desktop/platform and encrypted-default qualification remain incomplete | One disposable source-to-export/restart task passes on macOS, Windows and Linux, including refusal, recovery and no-provider use. Measure setup time and steps. |
+| 2. Consequential action proof | Rangoon's operations records are inert; LNSAT's active Phase 11 source has fake-runtime and guarded-launch work but no real Docker run | In a disposable LNSAT target, prove denial, exact changed action, replay, approval change, authorized effect, lost result and uncertain reconciliation. Verify host-side consequence and durable receipt; show any bypass. Preserve LNSAT's separate acceptance and authorization gates. |
+| 3. Operator record | O1 source inspectors classify reported records without authentication; O2 has a local, read-only first slice on `codex/ops-local-window`, with native GUI qualification still open; O3–O4 remain unbuilt | Qualify the selected-file library, reported timeline/topology and inspector on populated native tasks. Then build authenticated, redacted, bounded event ingress and correlated search across request, evaluation, human/agent approval, authority consumption, actual outcome and evidence. Show unknown, stale, disconnected and advisory coverage; test missing, out-of-order and duplicate events. |
+| 4. Runtime interop | OpenShell O0 is offline descriptor evidence only | Pin one released OpenShell contract. LNSAT owns a fail-closed middleware adapter and execution-time action binding; Rangoon reads qualified evidence without converting runtime policy allow into approval. Test deny, approve, changed payload, repeat and uncertain outcome. Keep absent-adapter workbench useful. |
+| 5. Safe change review | Revisions and provenance exist; no qualified authority-impact preview | Diff capability/policy/connector changes by affected actions, resources, approval duties and adapter coverage. Replay sanitized fixtures and label untested paths. Do not claim formal verification or infer permission from preview. |
+| 6. Integration developer path | Provider descriptors and offline conformance contracts exist; executable plugin SDK does not | Ship versioned adapter test kit with negative fixtures, explicit capability/coverage matrix, consent and secret-handling rules after one real adapter. Public plugin runtime and registry follow two independent qualified adapters. |
+
+Benchmark evidence must report denied and permitted outcomes, bypass attempts,
+duplicate/replay handling, uncertain-result recovery, operator trace
+completeness, latency overhead, setup burden and tested operating systems.
+Keep security, routing, authoring and UI scores separate. A win on one task
+does not imply superior sandbox isolation, model routing or broad market fit.
+
+### Verification protocol
+
+For each sanitized task, pin product versions, host OS, policy, actor, action
+bytes/digest, target and expected result. Run an independent target observer
+outside the agent/runtime path: capture pre-state, decision and consumption
+records, attempted command or API call, post-state and durable receipt. Inject
+denial, changed arguments, replay, expired approval, missing provider, lost
+response and crash/restart. A denial passes only if the target did not change;
+a permitted action passes only if exact intended effect and corresponding
+evidence agree. Unknown remains unknown until read-only reconciliation proves
+the consequence. Repeat on all supported OSs and compare like-for-like tasks
+against pinned alternatives where their responsibilities overlap.
+
+Do not make model classification a prerequisite for LNSAT authorization.
+Deterministic controls must bind the exact effect-time action, target, actor,
+scope and policy revision, with cumulative budgets, protected-resource labels,
+expiry, replay defense and human approval where specified. This catches many
+slow or split destructive actions without inferring intent from prose. An
+optional, locally evaluated semantic assessor may add risk evidence or request
+escalation; it cannot issue a grant, erase a denial or establish that an effect
+occurred. If the curator is absent, stale or uncertain, show that state and
+continue LNSAT's independent deterministic policy and human duties; never
+silently convert the missing advisory finding into a safe classification.
+An optional advanced-model curator may inspect an explicitly reviewed,
+minimized case after local session consent; a remote curator additionally
+requires separate external-transfer consent. It can propose risk tags, missing
+context and a human-readable explanation. A human must review
+the exact action and evidence before any required approval. LNSAT still owns
+the final scoped authorization and execution-time check. No model, local or
+remote, becomes a human approver or an authority engine.
+Future model-delegated approval is an open, separate authority-design question:
+measured accuracy alone is insufficient. It would need explicit human-granted
+bounded delegation, revocation, failure and adversarial qualification, exact
+effect-time checks and a new accepted LNSAT contract before any such claim.
+Track every policy, model, human, authorization and effect observation as a
+separate event, including abstentions, refusals, expiry, unavailable inputs,
+unknown outcomes and later corrections. The local O2 first slice provides
+scoped offline reported-decision counts and drill-down over the current O1
+vocabulary; O3 must qualify authenticated, redacted, retained live ingress.
+A model-advice event
+needs a new versioned advisory contract, never a disguised policy evaluation
+or approval. The [decision analytics sequence](operations-control-plane.md#decision-ledger-and-analytics-sequence)
+defines denominators and independent labels; a high model score is neither an
+authorization grant nor an accuracy claim for unlabeled production traffic.
+
+Separately, time first-time users through source import, skill discovery,
+composition, policy review, refusal recovery and trace explanation. Score task
+completion, errors, time and explanation accuracy with blinded human review.
+An AI reviewer may flag confusing descriptions, missing context and likely
+semantic mistakes, but its judgment is advisory and checked against source
+bytes and human review; never use model approval as proof of enforcement or a
+substitute for independent target observation. Preserve test artifacts and
+failed cases in the development ledger before any comparative claim.
+
 ## OpenShell runtime sequence
 
 Under the [accepted continuation](intent.md#openshell-runtime-boundary-continuation--october-16-2026), keep OpenShell outside the authority-engine catalog. The [O0 offline continuity report](provider-interoperability.md#openshell-o0-offline-runtime-continuity-report) is a source-only first slice with five-case and coverage fixtures; it is not live support. Continue Rangoon's useful local workbench and encrypted-workspace adoption gates while LNSAT separately qualifies its disposable local action loop. Review the [O1 source freeze candidate](provider-interoperability.md#openshell-o1-source-freeze-candidate) for exact OpenShell tag/protobuf/binding and LNSAT-owned middleware requirements; then qualify generated bindings, authenticated transport, execution-time authority, bypass and real-runtime behavior. Finally admit authenticated correlated evidence into Rangoon's existing operations records and show a complete or explicitly incomplete operator trace. No current OpenShell connection or live telemetry follows from O0 or this candidate.
+
+The [O1b-2b3 lifecycle contract](operations-lifecycle.md) defines the last
+inert reported-record inspector needed before read-only operator views. It
+preserves authorization, attempt, suspension, metrics, evidence and coverage
+as distinct observations with unknown authoritative outcome and coverage.
+The source implementation and independent fixtures pass their local package
+gate and fresh read-only review, as recorded in the [development ledger](development.md#reported-lifecycle-inspection-o1b-2b3--october-16-2026).
+This does not satisfy authenticated ingestion or a live trace.
 
 ## Source-free protection UI checkpoint
 

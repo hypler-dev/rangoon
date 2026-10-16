@@ -13,12 +13,15 @@ The desktop application is named **Rangoon**; Rangoon.si is the product wordmark
 
 **Current status:** experimental native source workbench with real persistence, immutable skill/workflow revisions, composition, compilation/export/inspection, and explicitly consented advisory model paths. Production storage and portable recovery backups are still plaintext. Optional SQLCipher, native Owner/key custody, typed command routing and coordinated native/renderer close/purge are implemented source and tests. Durable E1c-1 checkpoints/reconciliation and source-free setup/unlock renderer controls are implemented; qualified encrypted factory mounting, Legacy adoption and platform checks still gate an encrypted desktop. No live agent executor, scheduler, authority adapter or plugin runtime is mounted.
 
-The [October 15 system audit](docs/system-audit.md#october-15-whole-system-audit-and-completion-map), including GLM architecture and serialized-UI review, reconciles completed foundations with remaining work. The [completion plan](docs/plan.md#october-15-audit-completion-sequence) puts recovery, installed local tasks and usable editing ahead of more disconnected demonstrations. The [development ledger](docs/development.md#whole-system-audit-with-glm--october-15-2026) records exact validation and limits. Source tests, checksums, model reviews and source CI do not establish runtime enforcement, target-loader compatibility, desktop support or certification.
+The [October 16 architecture and usability checkpoint](docs/system-audit.md#october-16-architecture-and-usability-drift-checkpoint) updates the [October 15 whole-system audit](docs/system-audit.md#october-15-whole-system-audit-and-completion-map). The [completion plan](docs/plan.md#october-15-audit-completion-sequence) puts recovery, installed local tasks and usable editing ahead of more disconnected demonstrations. The [development ledger](docs/development.md) records exact validation and limits. Source tests, checksums, model reviews and source CI do not establish runtime enforcement, target-loader compatibility, desktop support or certification.
+
+**Review today:** [the reviewer guide](docs/reviewer-guide.md) provides a short design/source task and a disposable-data native task. Browser samples and playgrounds are synthetic. The local Operations window reads one selected report and shows unverified observations; it is not a live feed. Production workspace data and portable backups remain plaintext, so external testers should not import private projects. Broader desktop beta and three-OS release support have separate qualification gates.
 
 Approval management, redacted correlated telemetry and live operations visualization remain accepted core product scope. Their offline inspection contracts and eight-target authority reference catalog already exist; authenticated ingress, qualified dispatch and actual evidence are still required. LNSAT is an optional recommended Hypler authority target, and all real provider adapters currently remain unavailable. Provider allow, local content review, approval and execution are distinct facts. Ordinary authoring never requires an external connection.
 
 ## Contents
 
+- [Review Rangoon now](docs/reviewer-guide.md)
 - [Product and feature status](#product-and-feature-status)
 - [Architecture](#architecture)
 - [Import and source analysis](#import-and-source-analysis)
@@ -61,7 +64,7 @@ The intended users are developers managing agent configuration, platform teams m
 | Model assistance | M1a pure pack/validation, session-only local custody, native local workbench, and native cloud orchestration are implemented. Cloud exposes ten bounded main/review commands, explicit capability configuration, retained full-envelope credential pairing, source-free GET checks, fixed-origin TLS, final parented OS consent, and pre/post freshness checks; outputs remain inert and advisory | Real provider compatibility, tokenizer/accounting, proposal application, three-OS GUI, security and release qualification remain open; M1b/V1 are incomplete |
 | Workflows | Pure typed definitions and structural validation; durable schema-4 history/recovery; six native authoring commands; real saved-library/canvas/inspector source with local workflow/function filtering, separate control/data wires, six described node types, exact capability pins, draft/validated saves, historical reads and comparison | Native save/restart/history/stale-state GUI qualification across all three OSs; run records and execution remain future work. The separate design preview remains synthetic |
 | Agents and templates | Synthetic visual concepts and architecture direction | Real reusable agent records, dependency closure, templates, scheduling and qualified runners |
-| Approval, telemetry and operations | Accepted core architecture; portable O1a bounded observations, O1b-1 structural graph/timeline, O1b-2a reported evaluation/approval links and O1b-2b1 reported alias/delegation inspection and O1b-2b2 reported stages/ballots/decision chains; outputs remain unverified with no authority or execution | Scoped gateways/rules, human and delegated-agent chains, redacted events, live graph/timelines/replay, operations console and per-operation enforcement adapters; O1–O5 gates remain open |
+| Approval, telemetry and operations | Accepted core architecture; portable O1a bounded observations and O1b read-only inspectors; O2 first local selected-window route with a privacy-minimized timeline, declared topology, inspector and separate reported decision counts. Outputs remain unverified with no authority or execution | Scoped gateways/rules, human and delegated-agent chains, authenticated redacted ingress, live graph/timelines/replay, persistent analytics and per-operation enforcement adapters; broader O2 and O3–O5 gates remain open |
 | Connectors and harnesses | Synthetic catalog and extension direction | Versioned implementations, permissions, compatibility fixtures, and conformance suites |
 | Instruction compilation | Two immutable text-format profiles, exact-byte artifacts, deterministic candidate manifests, and native inspection with revision selection, diagnostics and evidence | Native GUI qualification, SKILL/support-file profiles, qualified target versions, and target-loader compatibility |
 | Test Lab and export | Development tests, independent golden fixtures, portable instruction-bundle encoder/verifier, native Export/Inspect commands/UI, and stdin-only CLI bundle inspection/exact artifact extraction | User-facing static tests, native GUI qualification, target conformance, desktop target-file export and evidence bundles |
@@ -112,7 +115,7 @@ Bundled native workbench                       Browser without native bridge
 | `crates/rangoon-compose/` | Pure transformation validation, coverage, materialization, destination application, and deterministic identities |
 | `crates/rangoon-compile/` | Pure AGENTS.md/CLAUDE.md instruction artifacts, static diagnostics, candidate identities and strict portable-bundle verification |
 | `crates/rangoon-workflow/` | Pure typed control/data graphs, structural diagnostics, canonical definition identities, and immutable revision candidates; no storage or execution |
-| `crates/rangoon-ops/` | Closed observations, bounded decoding, immutable graph/timeline projections, reported evaluation/approval relationships, finite delegation and stage/ballot/decision inspection; authenticity and authoritative eligibility remain unverified, with no I/O, authority or execution |
+| `crates/rangoon-ops/` | Closed observations, bounded decoding, immutable graph/timeline projections, reported evaluation/approval relationships, finite delegation and stage/ballot/decision inspection, and reported lifecycle/outcome/coverage inspection; authenticity and authoritative eligibility remain unverified, with no I/O, authority or execution |
 | `crates/rangoon-engine/` | Inert `GovernancePort` and LNSAT unavailable diagnostics |
 | `crates/rangoon-model-assistance/` | Pure bounded context packing and advisory-response validation; no transport, provider, credential, or authority behavior |
 | `crates/rangoon-model-local/` | Explicit numeric-loopback Ollama-compatible HTTP/1 transport for prepared advisory requests; the desktop host supplies consent and calling orchestration; no credential or authority behavior |
@@ -133,6 +136,15 @@ The renderer authors an editable draft and checks returned preview shapes and by
 The pure composition crate has no database, filesystem, process, provider, or network behavior. The store resolves records and enforces persistence rules around that core. The native host adds user selection, retained previews, bounded IPC, and lifecycle handling. The engine port remains separate from all local content operations.
 
 Current implementation is a modular monolith, not a ready network service: pure transformation rules live in Rust crates; local use-case orchestration currently spans the store and Tauri host. A later self-hosted service must extract typed use cases with explicit actor/workspace context and reuse the same Rust transformation and transaction semantics behind authenticated APIs. Tenant isolation, storage concurrency, remote job ownership, and API compatibility need separate qualification. A frontend framework migration is not a prerequisite for that work. The [architecture boundary and extraction gates](docs/application-architecture.md#composition-boundary-and-service-extraction) record the current path and remaining risks.
+
+This separation protects local commits but does not make the Tauri command layer
+a reusable server API. Before hosting, move retained preview custody and
+single-attempt commit orchestration into a transport-independent Rust use case,
+bind each handle to an authenticated actor and workspace, and give both desktop
+and HTTP adapters the same typed operation. The renderer may continue to reject
+bad previews for display; it never decides which bytes can be saved. An
+uncertain commit response requires authoritative readback, not an automatic
+retry or a second implementation of transaction rules.
 
 ## Import and source analysis
 
@@ -527,6 +539,21 @@ Planned operations surfaces include scoped gateway/rule configuration, approval 
 
 These are accepted product requirements, **not implemented runtime features**. Shared closed records, deterministic projections and adapter conformance precede activation. Per-operation coverage must distinguish unavailable, advisory, partially mediated and fully mediated paths; “universal” never means blanket enforcement. Current engine transport remains unavailable, workspace SQLite remains plaintext, and telemetry is not an authenticated audit log. See the [operations control-plane contract](docs/operations-control-plane.md) for responsibility boundaries, state machines, privacy, failure handling and O1–O5 acceptance gates; exact source/runtime evidence belongs in the [development ledger](docs/development.md).
 
+An optional curator may use a small local or explicitly consented advanced model
+to flag semantic risk, missing context and possible intent/action mismatch for
+human review. This is a planned advisory workflow, not an implemented LNSAT
+dependency. Deterministic rules, exact effect-time action binding, human
+approval where required and one-time consumption remain the authority path;
+model output never grants permission or proves an effect. The
+[competitive verification plan](docs/plan.md#competitive-proof-and-missing-workflows)
+separates machine-checked enforcement from AI-assisted usability review.
+The [planned decision ledger](docs/operations-control-plane.md#decision-ledger-and-analytics-sequence)
+keeps policy, model advice, human approval, authorization and observed effect
+as distinct events. O2's first selected-file view counts reported decisions
+without model advice or verified outcomes; broader analytics and O3 qualified
+live ingestion remain open. Model accuracy alone cannot authorize future model
+delegation.
+
 ### Portable observation foundation (O1a)
 
 `rangoon-ops` implements the first operations source stage. `decode_window(&[u8])` returns an immutable `DecodedWindow` with canonical bytes, their SHA-256 digest and a read-only serializable inventory. Its input schema is `rangoon.ops.window.v1`; the inventory is `rangoon.ops.inventory.v1`. Snapshot metadata pins the reducer version, workspace/system/environment/engine scope, topology revision, policy/coverage revisions and per-producer prefix/watermark/fence inputs. A bounded tail retains subsequent events. Supplied prefixes are observations, not authenticated checkpoints.
@@ -597,7 +624,23 @@ Every checked auxiliary requester, gateway, resource and delegate reference is e
 
 The output is limited to **1 MiB**, **1,024 emitted stage rows**, and independent **8,192-reference**, **8,192-matching-ordinal/index** and **8,192-logical-walk-step** budgets. Counters are checked before growth; duplicate references and diamond/cycle/dangling visits count, and overflow returns a fixed payload-free error atomically. Upstream structural, relationship and delegation limit failures remain distinguishable. The invocation-local resolution index compares record observations once and is discarded before return. Earlier schemas remain unchanged. Exact fixture, source, independent review and publication receipts belong in the [development ledger](docs/development.md).
 
-Lifecycle/outcome/coverage inspection (O1b-2b3), real read-only operations routes (O2), qualified redacted ingress/privacy/retention (O3), a complete approval/authorization/execution/evidence path (O4), and adapter/hosted expansion (O5) remain open. No live collector, routing, human authentication, agent grant admission or execution is established by this inspector; full O1b, O1 and V1 remain incomplete.
+The final O1b source stage inspects reported lifecycle, outcome and coverage observations below. Real read-only operations routes (O2), qualified redacted ingress/privacy/retention (O3), a complete approval/authorization/execution/evidence path (O4), and adapter/hosted expansion (O5) remain open. No live collector, routing, human authentication, agent grant admission or execution is established by these inspectors; O1 and V1 remain incomplete.
+
+### Reported lifecycle, outcomes and coverage (O1b-2b3)
+
+`inspect_lifecycle(&DecodedWindow)` is a pure read-only source API under the [lifecycle contract](docs/operations-lifecycle.md). Its separate `rangoon.ops.lifecycle.v1` document binds the exact decoded input and preceding structural, relationship, delegation and approval inspections by canonical digest. One event row retains each of the nineteen record kinds in input order. Authorization, attempt, suspension, metric, evidence and coverage rows expose reported states, exact reference status and diagnostics; all other kinds remain visible as `not_assessed`.
+
+Authorization, attempt and suspension chains retain duplicates, broken predecessors, changed bindings, stream/sequence conflicts and unknown effects instead of selecting a convenient winner. A metric's `attemptId` matches an attempt chain, not an attempt record ID. Coverage rows preserve eight reported checks, target OS, freshness and evidence references. Stale, expired, missing and contradictory reports stay explicit. Neither `reported_completed` nor `fully_mediated` proves an effect or enforcement. The output fixes authority `none`, authenticity `unverified`, execution `unavailable`, authoritative eligibility/outcome `unknown` and qualified coverage `unknown`; it cannot grant execution.
+
+Inspection has a 1 MiB output ceiling and separate 8,192-reference, matching-ordinal and predecessor-walk budgets. Limit failures return fixed errors without a partial document or source excerpt. Exact source validation and review belong in the [development ledger](docs/development.md). O2's first route presents minimized local observations; fuller provenance/gap drill-down remains open. O3 must authenticate and minimize ingress before any live operator claim. Rangoon remains useful without a provider, LNSAT or OpenShell.
+
+### Local operations window (O2 first slice)
+
+The desktop workbench now has an Operations window route. Its native command opens a parented picker only after the operator chooses a local JSON file. A dedicated host reader bounds that file at 2 MiB, refuses nonregular files and final-component links, and passes the exact bytes through all five O1 inspectors. Rust constructs a separate `rangoon.ops.operator-view.v1` allowlist before IPC. It exposes display ordinals, closed reported values, diagnostics and reference status, but not original IDs, source text, paths, digests, external references or free-form errors. The native operation holds a read-only selection lease; Clear or Managed close discards stale picker/read results and the renderer purges the retained view. The current production Legacy workspace has no lock operation; this route remains memory-only there.
+
+The screen keeps a record library, filtered observation timeline, declared-topology outline and selected-item inspector. A compact count strip leads to those working panels; a closed Reported decisions disclosure holds the detailed breakdown. Empty-window, filter-no-match and fixed recovery messages are distinct. Its truth labels stay `authority: none`, `authenticity: unverified`, `eligibility: unknown`, `execution: unavailable`, `outcome: unknown` and `coverage: unknown`. Offline decision analytics count reported evaluation, approval-decision, authorization and attempt values in separate groups, each with its own observed-record denominator. A zero count means no matching record in the selected file; it says nothing about total system activity. O1 has no model-advice record, authenticated producer, confirmed human identity or independently observed effect, so model accuracy, real approval, enforcement and outcome rates cannot be inferred. A future advisory record and O3 authenticated, redacted, encrypted ingress are required before live model decision history or analytics.
+
+This is a local source implementation and browser-reviewed interface, not an authenticated audit log or qualified native release on macOS, Windows and Linux. See the [O2 local-window contract](docs/operations-local-window.md) and [development evidence](docs/development.md).
 
 ## Provider-independent interoperability
 
