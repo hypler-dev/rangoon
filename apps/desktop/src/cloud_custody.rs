@@ -85,11 +85,32 @@ impl Custody {
     pub fn with_gate(gate: Gate) -> Self {
         Self(Arc::new(Mutex::new(None)), gate)
     }
+    #[cfg(test)]
     pub fn begin(&self, phase: Phase) -> Result<(Lease, oneshot::Receiver<Option<Secret>>), Error> {
         let admission = self.1.begin(Lane::Read).map_err(|error| match error {
             rangoon_desktop::workspace_lifecycle::Error::Busy => Error::Busy,
             _ => Error::Unavailable,
         })?;
+        self.begin_admitted(phase, admission)
+    }
+    pub(crate) fn begin_for(
+        &self,
+        request: &crate::workspace_requests::WorkspaceRequest,
+        phase: Phase,
+    ) -> Result<(Lease, oneshot::Receiver<Option<Secret>>), Error> {
+        let admission = request
+            .admit(&self.1, Lane::Read)
+            .map_err(|error| match error {
+                crate::AdmissionError::Busy => Error::Busy,
+                crate::AdmissionError::Unavailable => Error::Unavailable,
+            })?;
+        self.begin_admitted(phase, admission)
+    }
+    fn begin_admitted(
+        &self,
+        phase: Phase,
+        admission: AdmissionLease,
+    ) -> Result<(Lease, oneshot::Receiver<Option<Secret>>), Error> {
         let mut slot = self.0.lock().map_err(|_| Error::Unavailable)?;
         if !admission.is_current().unwrap_or(false) {
             return Err(Error::Unavailable);

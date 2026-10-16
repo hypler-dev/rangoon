@@ -29,7 +29,7 @@ const startupSplash = createStartupSplash({ container: document.querySelector('#
 const termHelp = bindTermHelp(app);
 const workbenchNavigation = bindWorkbenchNavigation(app, { window, document });
 const rawBridge = typeof window.__TAURI__?.core?.invoke === 'function'
-  ? (command, args) => window.__TAURI__.core.invoke(command, args)
+  ? (command, args, options) => window.__TAURI__.core.invoke(command, args, options)
   : undefined;
 const compositionControllers = new Map();
 let compilationController = null;

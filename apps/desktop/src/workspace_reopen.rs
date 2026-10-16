@@ -293,8 +293,8 @@ impl Control {
             .ticket
             .access
             .0
-            .gate
-            .resume(&self.ticket.cycle.drain)
+            .clients
+            .resume(&self.ticket.access.0.gate, &self.ticket.cycle.drain)
             .is_err()
         {
             drop(slot);

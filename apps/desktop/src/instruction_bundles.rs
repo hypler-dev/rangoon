@@ -288,6 +288,7 @@ fn admission(error: AdmissionError) -> BundleResult {
 }
 #[tauri::command]
 pub async fn export_instruction_bundle(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<BundleResult, ()> {
@@ -295,7 +296,11 @@ pub async fn export_instruction_bundle(
         Ok(request) => request,
         Err(error) => return Ok(failure(error)),
     };
-    let operation = match app.state::<SourceAccess>().begin_file() {
+    let operation = match app
+        .state::<SourceAccess>()
+        .for_request(&workspace)
+        .begin_file()
+    {
         Ok(operation) => operation,
         Err(error) => return Ok(admission(error)),
     };
@@ -316,13 +321,18 @@ pub async fn export_instruction_bundle(
 }
 #[tauri::command]
 pub async fn inspect_instruction_bundle(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<BundleResult, ()> {
     if let Err(error) = decode_inspect(request.body()) {
         return Ok(failure(error));
     }
-    let operation = match app.state::<SourceAccess>().begin_file() {
+    let operation = match app
+        .state::<SourceAccess>()
+        .for_request(&workspace)
+        .begin_file()
+    {
         Ok(operation) => operation,
         Err(error) => return Ok(admission(error)),
     };

@@ -234,6 +234,7 @@ fn confirm(app: AppHandle, parent: WebviewWindow, save: bool) -> Result<bool, Er
 
 #[tauri::command]
 pub async fn inspect_cloud_credential(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
@@ -242,7 +243,7 @@ pub async fn inspect_cloud_credential(
     if !empty(request.body()) {
         return Ok(failed(Error::InvalidRequest));
     }
-    let (lease, _) = match app.state::<Custody>().begin(Phase::Reading) {
+    let (lease, _) = match app.state::<Custody>().begin_for(&workspace, Phase::Reading) {
         Ok(value) => value,
         Err(e) => return Ok(failed(e)),
     };
@@ -263,6 +264,7 @@ pub async fn inspect_cloud_credential(
 
 #[tauri::command]
 pub async fn edit_cloud_credential(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
@@ -272,7 +274,7 @@ pub async fn edit_cloud_credential(
         return Ok(failed(Error::InvalidRequest));
     }
     let custody = app.state::<Custody>().inner().clone();
-    let (lease, receiver) = match custody.begin(Phase::Reading) {
+    let (lease, receiver) = match custody.begin_for(&workspace, Phase::Reading) {
         Ok(value) => value,
         Err(e) => return Ok(failed(e)),
     };
@@ -342,6 +344,7 @@ pub async fn edit_cloud_credential(
 
 #[tauri::command]
 pub async fn remove_cloud_credential(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
@@ -351,7 +354,7 @@ pub async fn remove_cloud_credential(
         return Ok(failed(Error::InvalidRequest));
     }
     let custody = app.state::<Custody>().inner().clone();
-    let (lease, _) = match custody.begin(Phase::Reading) {
+    let (lease, _) = match custody.begin_for(&workspace, Phase::Reading) {
         Ok(value) => value,
         Err(e) => return Ok(failed(e)),
     };

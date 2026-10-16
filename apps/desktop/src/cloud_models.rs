@@ -222,11 +222,17 @@ struct Resources {
     credential: Lease,
 }
 impl Resources {
-    fn acquire(app: &AppHandle) -> Result<Arc<Self>, Code> {
-        let flight = app.state::<ModelFlight>().begin().map_err(Code::Session)?;
+    fn acquire(
+        app: &AppHandle,
+        workspace: &crate::workspace_requests::WorkspaceRequest,
+    ) -> Result<Arc<Self>, Code> {
+        let flight = app
+            .state::<ModelFlight>()
+            .begin_for(workspace)
+            .map_err(Code::Session)?;
         let (credential, receiver) = app
             .state::<Custody>()
-            .begin(Phase::Using)
+            .begin_for(workspace, Phase::Using)
             .map_err(store_code)?;
         drop(receiver);
         Ok(Arc::new(Self {
@@ -470,6 +476,7 @@ fn cancel_result(model: &NativeCloud, bytes: &[u8]) -> ModelResult {
 
 #[tauri::command]
 pub fn get_cloud_model_profile(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
@@ -477,7 +484,7 @@ pub fn get_cloud_model_profile(
     allowed(window.label(), "main")?;
     let model = app.state::<NativeCloud>();
     Ok(if empty(request.body()) {
-        match app.state::<ModelFlight>().read() {
+        match app.state::<ModelFlight>().read_for(&workspace) {
             Ok(lease) => {
                 let result = profile_result(&model);
                 if lease.is_current() {
@@ -494,6 +501,7 @@ pub fn get_cloud_model_profile(
 }
 #[tauri::command]
 pub fn configure_cloud_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
@@ -501,7 +509,7 @@ pub fn configure_cloud_model(
     allowed(window.label(), "main")?;
     let model = app.state::<NativeCloud>();
     let result = raw(request.body(), 1024).and_then(|bytes| {
-        let flight = app.state::<ModelFlight>().begin()?;
+        let flight = app.state::<ModelFlight>().begin_for(&workspace)?;
         if !flight.is_current() {
             return Err(Diagnostic::SessionUnavailable);
         }
@@ -522,12 +530,17 @@ pub fn configure_cloud_model(
 }
 #[tauri::command]
 pub fn clear_cloud_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
 ) -> Result<ModelResult, ()> {
     allowed(window.label(), "main")?;
     let model = app.state::<NativeCloud>();
+    let _admission = match app.state::<ModelFlight>().read_for(&workspace) {
+        Ok(lease) => lease,
+        Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
+    };
     if !empty(request.body()) {
         return Ok(Stamp::idle(&model).error(Code::Session(Diagnostic::InvalidRequest)));
     }
@@ -553,12 +566,17 @@ pub fn clear_cloud_model(
 }
 #[tauri::command]
 pub fn cancel_cloud_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
 ) -> Result<ModelResult, ()> {
     allowed(window.label(), "main")?;
     let model = app.state::<NativeCloud>();
+    let _admission = match app.state::<ModelFlight>().read_for(&workspace) {
+        Ok(lease) => lease,
+        Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
+    };
     Ok(match raw(request.body(), 256) {
         Ok(bytes) => cancel_result(&model, bytes),
         Err(error) => Stamp::idle(&model).error(Code::Session(error)),
@@ -566,22 +584,23 @@ pub fn cancel_cloud_model(
 }
 #[tauri::command]
 pub async fn prepare_cloud_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
 ) -> Result<ModelResult, ()> {
     allowed(window.label(), "main")?;
     let model = app.state::<NativeCloud>();
+    let resources = match Resources::acquire(&app, &workspace) {
+        Ok(value) => value,
+        Err(error) => return Ok(Stamp::idle(&model).error(error)),
+    };
     let resolution = match model.resolution(raw(request.body(), 8192).unwrap_or_default()) {
         Ok(value) => value,
         Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
     };
     let stamp = Stamp::operation(resolution.operation());
     let _cancel = CancelOnDrop(resolution.operation().cancellation().clone());
-    let resources = match Resources::acquire(&app) {
-        Ok(value) => value,
-        Err(error) => return Ok(stamp.error(error)),
-    };
     let worker_app = app.clone();
     let completed = tauri::async_runtime::spawn_blocking(move || {
         resources.ensure_current()?;
@@ -596,6 +615,7 @@ pub async fn prepare_cloud_model(
             .map_err(Code::Session)?;
         let guard = worker_app
             .state::<super::SourceAccess>()
+            .for_model_callback(&resources._flight)
             .begin_model_inputs()
             .map_err(|error| match error {
                 AdmissionError::Busy => Code::Native(NativeCode::WorkspaceBusy),
@@ -633,6 +653,7 @@ pub async fn prepare_cloud_model(
 
 #[tauri::command]
 pub async fn check_cloud_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
@@ -642,16 +663,16 @@ pub async fn check_cloud_model(
     if !empty(request.body()) {
         return Ok(Stamp::idle(&model).error(Code::Session(Diagnostic::InvalidRequest)));
     }
+    let resources = match Resources::acquire(&app, &workspace) {
+        Ok(value) => value,
+        Err(error) => return Ok(Stamp::idle(&model).error(error)),
+    };
     let operation = match model.lock().and_then(|state| state.session.begin_check()) {
         Ok(value) => value,
         Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
     };
     let stamp = Stamp::operation(&operation);
     let _cancel = CancelOnDrop(operation.cancellation().clone());
-    let resources = match Resources::acquire(&app) {
-        Ok(value) => value,
-        Err(error) => return Ok(stamp.error(error)),
-    };
     let callback_app = app.clone();
     let flow = tauri::async_runtime::spawn_blocking(move || {
         resources.ensure_current()?;
@@ -683,22 +704,23 @@ pub async fn check_cloud_model(
 }
 #[tauri::command]
 pub async fn send_cloud_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
 ) -> Result<ModelResult, ()> {
     allowed(window.label(), "main")?;
     let model = app.state::<NativeCloud>();
+    let resources = match Resources::acquire(&app, &workspace) {
+        Ok(value) => value,
+        Err(error) => return Ok(Stamp::idle(&model).error(error)),
+    };
     let (send, secret) = match raw(request.body(), 512).and_then(|bytes| model.claim(bytes)) {
         Ok(value) => value,
         Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
     };
     let stamp = Stamp::operation(send.operation());
     let _cancel = CancelOnDrop(send.operation().cancellation().clone());
-    let resources = match Resources::acquire(&app) {
-        Ok(value) => value,
-        Err(error) => return Ok(stamp.error(error)),
-    };
     let flow = Arc::new(Flow {
         work: Work::Analysis(send),
         secret,
@@ -713,6 +735,7 @@ pub async fn send_cloud_model(
 async fn freshness(app: AppHandle, flow: Arc<Flow>) -> Result<Freshness, Code> {
     let guard = app
         .state::<super::SourceAccess>()
+        .for_model_callback(&flow.resources._flight)
         .begin_model_inputs()
         .map_err(|error| match error {
             AdmissionError::Busy => Code::Native(NativeCode::WorkspaceBusy),

@@ -471,12 +471,16 @@ pub(super) fn failure(error: StoreError) -> WorkflowResult {
     }
 }
 #[tauri::command]
-pub async fn list_workflows(app: AppHandle) -> WorkflowResult {
-    let access = app.state::<SourceAccess>().inner().clone();
+pub async fn list_workflows(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> WorkflowResult {
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     access.list_workflows().await
 }
 #[tauri::command]
 pub async fn open_workflow(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<WorkflowResult, ()> {
@@ -484,11 +488,12 @@ pub async fn open_workflow(
         Ok(value) => value,
         Err(error) => return Ok(failure(error)),
     };
-    let access = app.state::<SourceAccess>().inner().clone();
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     Ok(access.open_workflow(value).await)
 }
 #[tauri::command]
 pub async fn begin_workflow_draft(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<WorkflowResult, ()> {
@@ -496,11 +501,12 @@ pub async fn begin_workflow_draft(
         Ok(value) => value,
         Err(error) => return Ok(failure(error)),
     };
-    let access = app.state::<SourceAccess>().inner().clone();
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     Ok(access.begin_workflow_draft(value).await)
 }
 #[tauri::command]
 pub async fn inspect_workflow_save(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<WorkflowResult, ()> {
@@ -508,11 +514,12 @@ pub async fn inspect_workflow_save(
         Ok(value) => value,
         Err(error) => return Ok(failure(error)),
     };
-    let access = app.state::<SourceAccess>().inner().clone();
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     Ok(access.inspect_workflow_save(value).await)
 }
 #[tauri::command]
 pub async fn commit_workflow_save(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<WorkflowResult, ()> {
@@ -520,11 +527,12 @@ pub async fn commit_workflow_save(
         Ok(value) => value,
         Err(error) => return Ok(failure(error)),
     };
-    let access = app.state::<SourceAccess>().inner().clone();
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     Ok(access.commit_workflow_save(value).await)
 }
 #[tauri::command]
 pub async fn clear_workflow_draft(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<WorkflowResult, ()> {
@@ -532,7 +540,7 @@ pub async fn clear_workflow_draft(
         Ok(value) => value,
         Err(error) => return Ok(failure(error)),
     };
-    let access = app.state::<SourceAccess>().inner().clone();
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     Ok(access.clear_workflow_draft(value).await)
 }
 #[cfg(test)]

@@ -91,6 +91,7 @@ pub(super) fn compiled(result: WorkspaceCompilation) -> Result<CompilationResult
 /// This operation does not touch source-analysis or composition session state.
 #[tauri::command]
 pub async fn compile_capability(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<CompilationResult, ()> {
@@ -100,6 +101,7 @@ pub async fn compile_capability(
     };
     Ok(app
         .state::<SourceAccess>()
+        .for_request(&workspace)
         .compile_capability(request)
         .await)
 }

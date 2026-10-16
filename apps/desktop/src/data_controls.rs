@@ -316,13 +316,23 @@ fn pick(app: &AppHandle, exporting: bool) -> Result<Option<std::path::PathBuf>, 
 }
 
 #[tauri::command]
-pub async fn get_workspace_data(app: AppHandle) -> DataResult {
-    let access = app.state::<SourceAccess>().inner().clone();
+pub async fn get_workspace_data(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> DataResult {
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     access.workflow_data().await
 }
 #[tauri::command]
-pub async fn export_workspace_backup(app: AppHandle) -> DataResult {
-    let operation = match app.state::<SourceAccess>().begin_file() {
+pub async fn export_workspace_backup(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> DataResult {
+    let operation = match app
+        .state::<SourceAccess>()
+        .for_request(&workspace)
+        .begin_file()
+    {
         Ok(operation) => operation,
         Err(error) => return admission(error),
     };
@@ -341,8 +351,11 @@ pub async fn export_workspace_backup(app: AppHandle) -> DataResult {
     }
 }
 #[tauri::command]
-pub async fn prepare_workspace_restore(app: AppHandle) -> DataResult {
-    let access = app.state::<SourceAccess>().inner().clone();
+pub async fn prepare_workspace_restore(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> DataResult {
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     let operation = match access.begin_file() {
         Ok(operation) => operation,
         Err(error) => return admission(error),
@@ -361,32 +374,38 @@ pub async fn prepare_workspace_restore(app: AppHandle) -> DataResult {
 }
 #[tauri::command]
 pub async fn restore_workspace_backup(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     backup_id: String,
     expected_state_id: String,
 ) -> DataResult {
     app.state::<SourceAccess>()
+        .for_request(&workspace)
         .restore_workspace_backup(backup_id, expected_state_id)
         .await
 }
 #[tauri::command]
 pub async fn inspect_workspace_deletion(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     kind: NativeRecordKind,
     id: String,
 ) -> DataResult {
     app.state::<SourceAccess>()
+        .for_request(&workspace)
         .inspect_workspace_deletion(kind, id)
         .await
 }
 #[tauri::command]
 pub async fn delete_workspace_record(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     kind: NativeRecordKind,
     id: String,
     expected_state_id: String,
 ) -> DataResult {
     app.state::<SourceAccess>()
+        .for_request(&workspace)
         .delete_workspace_record(kind, id, expected_state_id)
         .await
 }

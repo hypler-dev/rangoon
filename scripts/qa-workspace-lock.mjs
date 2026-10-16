@@ -49,8 +49,9 @@ function installFixture(report, engine) {
   controls.querySelector('#qa-pagehide').addEventListener('click', () => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })));
   controls.querySelector('#qa-pageshow').addEventListener('click', () => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
   if (mode === 'browser') return;
-  window.__TAURI__ = { core: { invoke: async (command, args) => {
+  window.__TAURI__ = { core: { invoke: async (command, args, options) => {
     commands.push(command); trace();
+    if (command === 'get_workspace_request_state') return { schemaVersion: 'rangoon.workspace-request-state.v1', storage: 'managed_encrypted', state: closing ? 'unavailable' : 'open', clientId: closing ? null : token };
     if (command === 'get_workspace_close_state') {
       if (mode === 'malformed') return {};
       if (mode === 'legacy') return { ...metadata('open'), storage: 'legacy_plaintext', state: 'unavailable', diagnostic: 'encrypted_close_unavailable' };
@@ -64,6 +65,8 @@ function installFixture(report, engine) {
       if (!valid || mode === 'reject') return { ...metadata('locked'), diagnostic: 'invalid_workspace_close_request' };
       acknowledged = true; return metadata(released ? 'locked' : 'closing');
     }
+    if (command === 'get_engine_status') return engine;
+    if (mode !== 'legacy' && options?.headers?.['x-rangoon-workspace-client'] !== token) throw new Error('Fixture request identity refused.');
     if (closing) throw new Error('Fixture source access refused after close.');
     if (command === 'list_snapshots') return { outcome: 'listed', snapshots: [snapshot] };
     if (['open_snapshot', 'select_and_analyze', 'read_composition_source'].includes(command)) {
@@ -74,7 +77,6 @@ function installFixture(report, engine) {
     if (command === 'open_capability') return { outcome: 'opened', capability, alreadyApplied: false };
     if (command === 'get_workspace_data') return { outcome: 'loaded', workspace };
     if (command === 'list_workflows') return { outcome: 'listed', workflows: [] };
-    if (command === 'get_engine_status') return engine;
     if (command === 'get_local_model_profile') return { schemaVersion: 'rangoon.local-session-result.v1', generation: '1', runId: null, authority: 'none', outcome: 'unconfigured', session: { generation: '1', profile: null, active: null, persistence: 'session_only', processingLocation: 'unknown', retention: 'unknown', authority: 'none' } };
     return { outcome: 'failed', error: { code: 'fixture_unsupported', message: 'This synthetic fixture does not implement this operation.' } };
   } } };

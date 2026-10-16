@@ -23,51 +23,58 @@ pub enum CapabilityResult {
     },
 }
 #[tauri::command]
-pub async fn list_capabilities(app: AppHandle) -> CapabilityResult {
-    let access = app.state::<SourceAccess>().inner().clone();
+pub async fn list_capabilities(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> CapabilityResult {
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     access.list_capabilities().await
 }
 #[tauri::command]
 pub async fn open_capability(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     capability_id: String,
     revision_id: Option<String>,
 ) -> CapabilityResult {
-    let access = app.state::<SourceAccess>().inner().clone();
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     access.open_capability(capability_id, revision_id).await
 }
 #[tauri::command]
 pub async fn create_capability(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     source_id: String,
     fragment_id: String,
     title: String,
 ) -> CapabilityResult {
-    let access = app.state::<SourceAccess>().inner().clone();
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     access
         .create_capability(source_id, fragment_id, title)
         .await
 }
 #[tauri::command]
 pub async fn revise_capability(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     capability_id: String,
     expected_revision_id: String,
     title: String,
     content: String,
 ) -> CapabilityResult {
-    let access = app.state::<SourceAccess>().inner().clone();
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     access
         .revise_capability(capability_id, expected_revision_id, title, content)
         .await
 }
 #[tauri::command]
 pub async fn review_capability(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     capability_id: String,
     expected_revision_id: String,
 ) -> CapabilityResult {
-    let access = app.state::<SourceAccess>().inner().clone();
+    let access = app.state::<SourceAccess>().for_request(&workspace);
     access
         .review_capability(capability_id, expected_revision_id)
         .await

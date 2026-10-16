@@ -10,6 +10,7 @@ function fixture(options = {}) {
   let serial = 0, purges = 0;
   const invoke = async (command, args) => {
     calls.push([command, args]);
+    if (command === 'get_workspace_request_state') return { schemaVersion: 'rangoon.workspace-request-state.v1', storage: 'managed_encrypted', state: 'open', clientId: nonce };
     if (options.invoke) return options.invoke(command, args);
     if (command === 'get_workspace_close_state') return metadata();
     if (command === 'begin_workspace_close') return metadata('closing');
@@ -49,7 +50,7 @@ test('bootstrap blocks source access until exact metadata, and initializes once'
   gate.resolve(metadata());
   await loading;
   await f.model.initialize();
-  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls.length, 2);
   assert.deepEqual(f.model.getState(), { status: 'open', blocked: false, canLock: true });
 });
 
@@ -73,7 +74,7 @@ test('confirm closes admission synchronously; acknowledgment is exact private Ra
   begin.resolve(metadata('closing'));
   assert.equal(await closing, true);
   assert.equal(f.model.getState().status, 'locked');
-  assert.equal(f.calls.length, 3);
+  assert.equal(f.calls.length, 4);
   assert.equal(JSON.stringify(f.changes).includes(nonce), false);
   assert.equal(JSON.stringify(f.changes).includes('epoch'), false);
 });
@@ -84,7 +85,7 @@ test('Cancel returns to open without native begin or losing drafts', async () =>
   assert.equal(f.model.getState().status, 'confirming');
   assert.equal(f.model.cancelConfirmation(), true);
   assert.equal(f.model.getState().status, 'open');
-  assert.deepEqual(await f.model.bridge('read_source'), { data: 'normal-source' });
+  assert.deepEqual(await f.model.bridge('open_snapshot'), { data: 'normal-source' });
   assert.equal(f.purges(), 0);
   assert.equal(f.calls.some(([cmd]) => cmd === 'begin_workspace_close'), false);
 });
@@ -108,8 +109,8 @@ test('malformed metadata and old/native transport errors never permit source boo
 
 test('ordinary bridge cannot issue any lifecycle command', async () => {
   const f = fixture(); await f.model.initialize();
-  for (const command of ['get_workspace_close_state', 'begin_workspace_close', 'acknowledge_workspace_purge']) await assert.rejects(f.model.bridge(command, {}), /closed/);
-  assert.equal(f.calls.length, 1);
+  for (const command of ['get_workspace_close_state', 'begin_workspace_close', 'acknowledge_workspace_purge', 'get_workspace_request_state']) await assert.rejects(f.model.bridge(command, {}), /closed/);
+  assert.equal(f.calls.length, 2);
 });
 
 test('reentrant preflight close prevents the original effect', async () => {
@@ -150,7 +151,7 @@ test('transport and completion-observer reentrant closes cannot deliver old resu
       beforeInvoke: () => () => { if (boundary === 'completion') closing = close(f.model); },
     });
     await f.model.initialize();
-    await assert.rejects(f.model.bridge('read_source'), error => error.message === 'Workspace access is closed.');
+    await assert.rejects(f.model.bridge('open_snapshot'), error => error.message === 'Workspace access is closed.');
     await closing;
   }
 });
@@ -159,7 +160,7 @@ test('failed local purge still closes native Gate but never acknowledges or retr
   for (const purge of [() => false, () => { throw new Error('private-cleanup-error'); }]) {
     const f = fixture({ purge }); await f.model.initialize(); await close(f.model);
     assert.equal(f.model.getState().status, 'recovery_required');
-    assert.deepEqual(f.calls.map(([cmd]) => cmd), ['get_workspace_close_state', 'begin_workspace_close']);
+    assert.deepEqual(f.calls.map(([cmd]) => cmd), ['get_workspace_close_state', 'get_workspace_request_state', 'begin_workspace_close']);
     assert.equal(f.timers.size, 0);
   }
 });
@@ -205,7 +206,7 @@ test('pagehide/dispose purges and fences stale initialization, timers and callba
   const pending = deferred(); const f = fixture({ invoke: () => pending.promise });
   const initializing = f.model.initialize(); f.model.dispose(); pending.resolve(metadata()); await initializing;
   assert.equal(f.model.getState().status, 'recovery_required'); assert.equal(f.purges(), 1); assert.equal(f.calls.length, 1);
-  assert.equal(f.model.openConfirmation(), false); await assert.rejects(f.model.bridge('read_source'), /closed/);
+  assert.equal(f.model.openConfirmation(), false); await assert.rejects(f.model.bridge('open_snapshot'), /closed/);
   const polling = fixture({ invoke: cmd => metadata(cmd === 'get_workspace_close_state' ? 'open' : 'closing') });
   await polling.model.initialize(); await close(polling.model);
   const callback = polling.timers.values().next().value;

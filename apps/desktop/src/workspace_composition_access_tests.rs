@@ -706,16 +706,24 @@ fn decoders_and_wrappers_stay_bounded_and_source_access_only() {
     let composition_source = include_str!("composition.rs");
     let compilation_source = include_str!("compilation.rs");
     let main = include_str!("main.rs");
+    let composition_bound: String = composition_source
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    let compilation_bound: String = compilation_source
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect();
+    assert!(composition_bound.contains(
+        "app.state::<SourceAccess>().for_request(&workspace).preview_composition(draft).await"
+    ));
+    assert!(composition_bound.contains(
+        ".state::<SourceAccess>().for_request(&workspace).commit_composition(confirmation)"
+    ));
     assert!(
-        composition_source.contains("app.state::<SourceAccess>().preview_composition(draft).await")
-    );
-    assert!(
-        composition_source
-            .contains(".state::<SourceAccess>()\n        .commit_composition(confirmation)")
-    );
-    assert!(
-        compilation_source
-            .contains(".state::<SourceAccess>()\n        .compile_capability(request)")
+        compilation_bound.contains(
+            ".state::<SourceAccess>().for_request(&workspace).compile_capability(request)"
+        )
     );
     assert!(!composition_source.contains("workspace(&app)"));
     assert!(!compilation_source.contains("workspace(&app)"));

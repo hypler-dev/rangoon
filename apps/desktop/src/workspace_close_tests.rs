@@ -92,7 +92,8 @@ fn close_probe(label: &str) -> (SourceAccess, Gate) {
             report(label, b"# Close fixture\n"),
         )),
         true,
-    );
+    )
+    .host_fixture();
     (access, gate)
 }
 
@@ -415,7 +416,8 @@ fn close_purges_all_retained_families_before_and_after_the_real_drain() {
     let gate = Gate::new();
     // This is a memory-only close-protocol fixture. Keyed Owner/ciphertext close
     // behavior is covered separately by the managed fixture tests above.
-    let access = SourceAccess::with_mode(gate.clone(), Box::new(Legacy(Ok(root.0.clone()))), true);
+    let access = SourceAccess::with_mode(gate.clone(), Box::new(Legacy(Ok(root.0.clone()))), true)
+        .host_fixture();
     let source = report(
         "close-all-retained.md",
         b"# Close all retained\nExact bytes\n",

@@ -209,7 +209,8 @@ fn backend_panic_or_poison_latches_after_the_backend_guard_path() {
                 report("failure-probe.md", b"# Probe\n"),
             )),
             true,
-        );
+        )
+        .host_fixture();
         let post_guard = Arc::new(AtomicUsize::new(0));
         access
             .set_failure_notifier({
@@ -256,7 +257,8 @@ fn successful_backend_payloads_never_cross_the_fatal_failure_fence() {
             Gate::new(),
             Box::new(ProbeBackend::new(Arc::clone(&state), source.clone())),
             true,
-        );
+        )
+        .host_fixture();
         select(&access, &source);
         assert!(access.0.session.snapshot(&source.source.id).is_some());
         match boundary {
@@ -323,7 +325,8 @@ fn aborted_ipc_waiter_does_not_cancel_backend_failure_finalization() {
         gate,
         Box::new(ProbeBackend::new(Arc::clone(&state), source.clone())),
         true,
-    );
+    )
+    .host_fixture();
     select(&access, &source);
     let (started, release) = state.block(Operation::List);
     let (latched_tx, latched_rx) = mpsc::channel();

@@ -194,6 +194,7 @@ fn profile_result(model: &NativeModel) -> ModelResult {
 
 #[tauri::command]
 pub fn get_local_model_profile(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
@@ -201,7 +202,7 @@ pub fn get_local_model_profile(
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
     Ok(if empty(request.body()) {
-        match app.state::<ModelFlight>().read() {
+        match app.state::<ModelFlight>().read_for(&workspace) {
             Ok(lease) => {
                 let result = profile_result(&model);
                 if lease.is_current() {
@@ -218,6 +219,7 @@ pub fn get_local_model_profile(
 }
 #[tauri::command]
 pub fn configure_local_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
@@ -225,7 +227,7 @@ pub fn configure_local_model(
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
     let result = raw(request.body(), 1024).and_then(|bytes| {
-        let flight = app.state::<ModelFlight>().begin()?;
+        let flight = app.state::<ModelFlight>().begin_for(&workspace)?;
         if !flight.is_current() {
             return Err(Diagnostic::SessionUnavailable);
         }
@@ -246,12 +248,17 @@ pub fn configure_local_model(
 }
 #[tauri::command]
 pub fn clear_local_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
 ) -> Result<ModelResult, ()> {
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
+    let _admission = match app.state::<ModelFlight>().read_for(&workspace) {
+        Ok(lease) => lease,
+        Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
+    };
     if !empty(request.body()) {
         return Ok(Stamp::idle(&model).error(Code::Session(Diagnostic::InvalidRequest)));
     }
@@ -276,12 +283,17 @@ struct CancelInput {
 
 #[tauri::command]
 pub fn cancel_local_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
 ) -> Result<ModelResult, ()> {
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
+    let _admission = match app.state::<ModelFlight>().read_for(&workspace) {
+        Ok(lease) => lease,
+        Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
+    };
     let result = raw(request.body(), 256).and_then(|bytes| {
         let input: CancelInput =
             serde_json::from_slice(bytes).map_err(|_| Diagnostic::InvalidRequest)?;
@@ -304,12 +316,17 @@ pub fn cancel_local_model(
 
 #[tauri::command]
 pub async fn prepare_local_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
 ) -> Result<ModelResult, ()> {
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
+    let flight = match app.state::<ModelFlight>().begin_for(&workspace) {
+        Ok(value) => value,
+        Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
+    };
     // Every attempt invalidates prior preparation, including non-raw/oversized input.
     let preparation = match model
         .session
@@ -320,11 +337,11 @@ pub async fn prepare_local_model(
     };
     let stamp = Stamp::operation(preparation.operation());
     let _cancel = CancelOnDrop(preparation.operation().cancellation().clone());
-    let flight = match app.state::<ModelFlight>().begin() {
-        Ok(value) => value,
-        Err(error) => return Ok(stamp.error(Code::Session(error))),
-    };
-    let guard = match app.state::<super::SourceAccess>().begin_model_inputs() {
+    let guard = match app
+        .state::<super::SourceAccess>()
+        .for_request(&workspace)
+        .begin_model_inputs()
+    {
         Ok(value) => value,
         Err(AdmissionError::Busy) => {
             return Ok(stamp.error(Code::Native(NativeCode::WorkspaceBusy)));
@@ -371,6 +388,7 @@ pub async fn prepare_local_model(
 
 #[tauri::command]
 pub async fn check_local_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
@@ -380,15 +398,15 @@ pub async fn check_local_model(
     if !empty(request.body()) {
         return Ok(Stamp::idle(&model).error(Code::Session(Diagnostic::InvalidRequest)));
     }
+    let _flight = match app.state::<ModelFlight>().begin_for(&workspace) {
+        Ok(value) => value,
+        Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
+    };
     let operation = match model.session.begin_check() {
         Ok(value) => value,
         Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
     };
     let stamp = Stamp::operation(&operation);
-    let _flight = match app.state::<ModelFlight>().begin() {
-        Ok(value) => value,
-        Err(error) => return Ok(stamp.error(Code::Session(error))),
-    };
     let _cancel = CancelOnDrop(operation.cancellation().clone());
     if !_flight.is_current() {
         return Ok(stamp.error(Code::Session(Diagnostic::Cancelled)));
@@ -490,6 +508,7 @@ fn open_review(app: &AppHandle, run_id: &str) -> Result<(), ()> {
 async fn freshness(app: AppHandle, send: &Arc<SendCustody>) -> Result<Freshness, Code> {
     let guard = app
         .state::<super::SourceAccess>()
+        .for_model_callback(&send._flight)
         .begin_model_inputs()
         .map_err(|error| match error {
             AdmissionError::Busy => Code::Native(NativeCode::WorkspaceBusy),
@@ -509,21 +528,22 @@ async fn freshness(app: AppHandle, send: &Arc<SendCustody>) -> Result<Freshness,
 
 #[tauri::command]
 pub async fn send_local_model(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     window: WebviewWindow,
     request: Request<'_>,
 ) -> Result<ModelResult, ()> {
     allowed(window.label(), "main")?;
     let model = app.state::<NativeModel>();
+    let flight = match app.state::<ModelFlight>().begin_for(&workspace) {
+        Ok(value) => value,
+        Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
+    };
     let send = match raw(request.body(), 512).and_then(|bytes| model.session.begin_send(bytes)) {
         Ok(send) => send,
         Err(error) => return Ok(Stamp::idle(&model).error(Code::Session(error))),
     };
     let stamp = Stamp::operation(send.operation());
-    let flight = match app.state::<ModelFlight>().begin() {
-        Ok(value) => value,
-        Err(error) => return Ok(stamp.error(Code::Session(error))),
-    };
     let send = Arc::new(SendCustody {
         send,
         _flight: flight,

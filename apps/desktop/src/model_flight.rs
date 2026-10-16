@@ -1,5 +1,7 @@
 //! One native model flight, sharing drain custody with workspace operations.
-use rangoon_desktop::workspace_lifecycle::{Error, Gate, GenerationWitness, Lane, Lease};
+#[cfg(test)]
+use rangoon_desktop::workspace_lifecycle::Error;
+use rangoon_desktop::workspace_lifecycle::{Gate, GenerationWitness, Lane, Lease};
 use rangoon_model_session::Diagnostic;
 
 #[derive(Clone, Default)]
@@ -22,12 +24,15 @@ impl ModelFlight {
     pub fn with_gate(gate: Gate) -> Self {
         Self(gate)
     }
+    #[cfg(test)]
     pub fn begin(&self) -> Result<ModelLease, Diagnostic> {
         self.admit(Lane::Model)
     }
+    #[cfg(test)]
     pub fn read(&self) -> Result<ModelLease, Diagnostic> {
         self.admit(Lane::Read)
     }
+    #[cfg(test)]
     fn admit(&self, lane: Lane) -> Result<ModelLease, Diagnostic> {
         let lease = self.0.begin(lane).map_err(|error| match error {
             Error::Busy => Diagnostic::Busy,
@@ -36,6 +41,31 @@ impl ModelFlight {
             }
         })?;
         Ok(ModelLease { _lease: lease })
+    }
+    pub(crate) fn begin_for(
+        &self,
+        request: &crate::workspace_requests::WorkspaceRequest,
+    ) -> Result<ModelLease, Diagnostic> {
+        self.admit_for(request, Lane::Model)
+    }
+    pub(crate) fn read_for(
+        &self,
+        request: &crate::workspace_requests::WorkspaceRequest,
+    ) -> Result<ModelLease, Diagnostic> {
+        self.admit_for(request, Lane::Read)
+    }
+    fn admit_for(
+        &self,
+        request: &crate::workspace_requests::WorkspaceRequest,
+        lane: Lane,
+    ) -> Result<ModelLease, Diagnostic> {
+        request
+            .admit(&self.0, lane)
+            .map(|lease| ModelLease { _lease: lease })
+            .map_err(|error| match error {
+                crate::AdmissionError::Busy => Diagnostic::Busy,
+                crate::AdmissionError::Unavailable => Diagnostic::SessionUnavailable,
+            })
     }
 }
 

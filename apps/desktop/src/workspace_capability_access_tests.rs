@@ -867,17 +867,17 @@ fn capability_commands_bind_only_to_typed_source_access_forwarders() {
         .collect();
     assert_eq!(normalized.matches("app.state::<SourceAccess>()").count(), 5);
     for forwarder in [
-        "pubasyncfnlist_capabilities(app:AppHandle)->CapabilityResult{letaccess=app.state::<SourceAccess>().inner().clone();access.list_capabilities().await}",
-        "pubasyncfnopen_capability(app:AppHandle,capability_id:String,revision_id:Option<String>,)->CapabilityResult{letaccess=app.state::<SourceAccess>().inner().clone();access.open_capability(capability_id,revision_id).await}",
-        "pubasyncfncreate_capability(app:AppHandle,source_id:String,fragment_id:String,title:String,)->CapabilityResult{letaccess=app.state::<SourceAccess>().inner().clone();access.create_capability(source_id,fragment_id,title).await}",
-        "pubasyncfnrevise_capability(app:AppHandle,capability_id:String,expected_revision_id:String,title:String,content:String,)->CapabilityResult{letaccess=app.state::<SourceAccess>().inner().clone();access.revise_capability(capability_id,expected_revision_id,title,content).await}",
-        "pubasyncfnreview_capability(app:AppHandle,capability_id:String,expected_revision_id:String,)->CapabilityResult{letaccess=app.state::<SourceAccess>().inner().clone();access.review_capability(capability_id,expected_revision_id).await}",
+        "pubasyncfnlist_capabilities(workspace:crate::workspace_requests::WorkspaceRequest,app:AppHandle,)->CapabilityResult{letaccess=app.state::<SourceAccess>().for_request(&workspace);access.list_capabilities().await}",
+        "pubasyncfnopen_capability(workspace:crate::workspace_requests::WorkspaceRequest,app:AppHandle,capability_id:String,revision_id:Option<String>,)->CapabilityResult{letaccess=app.state::<SourceAccess>().for_request(&workspace);access.open_capability(capability_id,revision_id).await}",
+        "pubasyncfncreate_capability(workspace:crate::workspace_requests::WorkspaceRequest,app:AppHandle,source_id:String,fragment_id:String,title:String,)->CapabilityResult{letaccess=app.state::<SourceAccess>().for_request(&workspace);access.create_capability(source_id,fragment_id,title).await}",
+        "pubasyncfnrevise_capability(workspace:crate::workspace_requests::WorkspaceRequest,app:AppHandle,capability_id:String,expected_revision_id:String,title:String,content:String,)->CapabilityResult{letaccess=app.state::<SourceAccess>().for_request(&workspace);access.revise_capability(capability_id,expected_revision_id,title,content).await}",
+        "pubasyncfnreview_capability(workspace:crate::workspace_requests::WorkspaceRequest,app:AppHandle,capability_id:String,expected_revision_id:String,)->CapabilityResult{letaccess=app.state::<SourceAccess>().for_request(&workspace);access.review_capability(capability_id,expected_revision_id).await}",
     ] {
         assert!(normalized.contains(forwarder));
     }
     for forbidden in [
         "workspace(",
-        "Workspace",
+        "Workspace::",
         "dispatch_read",
         "begin_operation",
     ] {

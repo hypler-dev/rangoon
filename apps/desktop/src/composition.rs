@@ -310,6 +310,7 @@ pub(super) fn busy() -> CompositionResult {
 /// Tauri has already received the transport buffer; this is not a transport cap.
 #[tauri::command]
 pub async fn preview_composition(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<CompositionResult, ()> {
@@ -317,11 +318,16 @@ pub async fn preview_composition(
         Ok(draft) => draft,
         Err(error) => return Ok(failure(error)),
     };
-    Ok(app.state::<SourceAccess>().preview_composition(draft).await)
+    Ok(app
+        .state::<SourceAccess>()
+        .for_request(&workspace)
+        .preview_composition(draft)
+        .await)
 }
 
 #[tauri::command]
 pub async fn commit_composition(
+    workspace: crate::workspace_requests::WorkspaceRequest,
     app: AppHandle,
     request: tauri::ipc::Request<'_>,
 ) -> Result<CompositionResult, ()> {
@@ -331,6 +337,7 @@ pub async fn commit_composition(
     };
     Ok(app
         .state::<SourceAccess>()
+        .for_request(&workspace)
         .commit_composition(confirmation)
         .await)
 }

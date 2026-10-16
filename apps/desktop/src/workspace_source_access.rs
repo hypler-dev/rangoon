@@ -1,7 +1,9 @@
 //! Private typed source, capability and workflow routing. Production construction remains legacy;
 //! managed encrypted Owner construction is confined to synthetic tests.
+#[cfg(test)]
+use super::admit;
 use super::{
-    AdmissionError, WorkspaceResult, admit,
+    AdmissionError, WorkspaceResult,
     capabilities::CapabilityResult,
     compilation::{self, CompilationResult},
     composition::{
@@ -633,6 +635,7 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
 struct Inner {
     gate: Gate,
     encrypted: bool,
+    clients: crate::workspace_requests::Registry,
     closing: Mutex<Option<Arc<CloseCycle>>>,
     session: Session,
     workflow: WorkflowSession,
@@ -744,28 +747,73 @@ impl Drop for BackendWatch<'_> {
 }
 
 #[derive(Clone)]
-pub(super) struct SourceAccess(Arc<Inner>);
+pub(super) struct SourceAccess(Arc<Inner>, Caller);
+#[derive(Clone)]
+enum Caller {
+    Request(crate::workspace_requests::WorkspaceRequest),
+    #[cfg(test)]
+    HostFixture,
+}
 impl SourceAccess {
     fn new(gate: Gate, backend: Box<dyn Backend>) -> Self {
         Self::with_mode(gate, backend, false)
     }
     fn with_mode(gate: Gate, backend: Box<dyn Backend>, encrypted: bool) -> Self {
-        Self(Arc::new(Inner {
-            gate,
-            encrypted,
-            closing: Mutex::new(None),
-            session: Session::default(),
-            workflow: WorkflowSession::default(),
-            composition: CompositionSession::default(),
-            backup: BackupSession::default(),
-            deletion: DeletionSession::default(),
-            backend: Mutex::new(backend),
-            failed: std::sync::atomic::AtomicBool::new(false),
-            closed_error: Mutex::new(Error::Store(StoreError::Unavailable)),
-            failure_notifier: Mutex::new(None),
-            #[cfg(test)]
-            drain_unavailable: std::sync::atomic::AtomicBool::new(false),
-        }))
+        Self(
+            Arc::new(Inner {
+                clients: crate::workspace_requests::Registry::new(encrypted),
+                gate,
+                encrypted,
+                closing: Mutex::new(None),
+                session: Session::default(),
+                workflow: WorkflowSession::default(),
+                composition: CompositionSession::default(),
+                backup: BackupSession::default(),
+                deletion: DeletionSession::default(),
+                backend: Mutex::new(backend),
+                failed: std::sync::atomic::AtomicBool::new(false),
+                closed_error: Mutex::new(Error::Store(StoreError::Unavailable)),
+                failure_notifier: Mutex::new(None),
+                #[cfg(test)]
+                drain_unavailable: std::sync::atomic::AtomicBool::new(false),
+            }),
+            Caller::Request(if encrypted {
+                crate::workspace_requests::WorkspaceRequest::Refused
+            } else {
+                crate::workspace_requests::WorkspaceRequest::Legacy
+            }),
+        )
+    }
+    pub(super) fn for_request(
+        &self,
+        request: &crate::workspace_requests::WorkspaceRequest,
+    ) -> Self {
+        let request = if self.0.encrypted
+            && matches!(request, crate::workspace_requests::WorkspaceRequest::Legacy)
+        {
+            crate::workspace_requests::WorkspaceRequest::Refused
+        } else {
+            request.clone()
+        };
+        Self(Arc::clone(&self.0), Caller::Request(request))
+    }
+    pub(super) fn for_model_callback(&self, lease: &crate::model_flight::ModelLease) -> Self {
+        self.for_request(&crate::workspace_requests::WorkspaceRequest::Managed(
+            Arc::new(lease.witness()),
+        ))
+    }
+    pub(super) fn request_context(
+        &self,
+        label: &str,
+        header: Option<&str>,
+    ) -> crate::workspace_requests::WorkspaceRequest {
+        if self.failure_latched() || self.0.closing.lock().map_or(true, |slot| slot.is_some()) {
+            return crate::workspace_requests::WorkspaceRequest::Refused;
+        }
+        self.0.clients.request(label, header)
+    }
+    pub(super) fn request_view(&self) -> crate::workspace_requests::View {
+        self.0.clients.view()
     }
     pub(super) fn legacy(gate: Gate, root: Result<PathBuf, StoreError>) -> Self {
         Self::new(gate, Box::new(Legacy(root)))
@@ -773,7 +821,7 @@ impl SourceAccess {
     #[cfg(test)]
     pub(super) fn close_protocol_fixture(gate: Gate) -> Self {
         // Memory-only protocol fixtures; real keyed Owner closure is tested separately.
-        Self::with_mode(gate, Box::new(Legacy(Err(StoreError::Unavailable))), true)
+        Self::with_mode(gate, Box::new(Legacy(Err(StoreError::Unavailable))), true).host_fixture()
     }
     #[cfg(all(test, feature = "encrypted-workspace"))]
     fn managed<V: rangoon_desktop::workspace_session::Vault + Send + 'static>(
@@ -781,7 +829,12 @@ impl SourceAccess {
         owner: rangoon_desktop::workspace_session::Owner,
         vault: V,
     ) -> Self {
-        Self::with_mode(gate, Box::new(Managed { owner, vault }), true)
+        Self::with_mode(gate, Box::new(Managed { owner, vault }), true).host_fixture()
+    }
+    #[cfg(test)]
+    fn host_fixture(mut self) -> Self {
+        self.1 = Caller::HostFixture;
+        self
     }
     pub(super) fn encrypted_close_available(&self) -> bool {
         self.0.encrypted
@@ -888,6 +941,8 @@ impl SourceAccess {
             Ok(slot) => (slot, true),
             Err(error) => (error.into_inner(), false),
         };
+        let registry_healthy = self.0.clients.revoke().is_ok();
+        let healthy = healthy && registry_healthy;
         let cycle = match slot.as_ref() {
             Some(cycle) => Arc::clone(cycle),
             None => {
@@ -928,7 +983,11 @@ impl SourceAccess {
         if slot.is_some() {
             return Err(AdmissionError::Unavailable);
         }
-        admit(&self.0.gate, lane)
+        match &self.1 {
+            Caller::Request(request) => request.admit(&self.0.gate, lane),
+            #[cfg(test)]
+            Caller::HostFixture => admit(&self.0.gate, lane),
+        }
     }
     fn begin(&self, lane: Lane) -> Result<Ticket, AdmissionError> {
         let lease = self.admit_open(lane)?;
@@ -1288,6 +1347,16 @@ impl SourceAccess {
         self.begin(Lane::Exclusive).map(SelectionOperation)
     }
     pub(super) fn clear_analysis(&self) -> WorkspaceResult {
+        let _lease = match self.admit_open(Lane::Read) {
+            Ok(lease) => lease,
+            Err(error) => {
+                return admission_workspace(
+                    error,
+                    "workspace_busy",
+                    "Finish the current local workspace operation first.",
+                );
+            }
+        };
         if self.0.session.clear() {
             WorkspaceResult::Cleared
         } else {

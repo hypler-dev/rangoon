@@ -47,6 +47,8 @@ use rangoon_store::Workspace;
 use rangoon_store::{SnapshotMetadata, StoreError};
 use serde::Serialize;
 mod workspace_close;
+mod workspace_requests;
+use workspace_requests::get_workspace_request_state;
 mod workspace_source_access;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
@@ -78,8 +80,15 @@ fn admit(gate: &Gate, lane: Lane) -> Result<Lease, AdmissionError> {
 /// The renderer supplies no path, content or options. Every read starts with a
 /// fresh native picker. The host retains the current report for explicit saving.
 #[tauri::command]
-async fn select_and_analyze(app: AppHandle) -> SelectionResult {
-    let operation = match app.state::<SourceAccess>().begin_selection() {
+async fn select_and_analyze(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> SelectionResult {
+    let operation = match app
+        .state::<SourceAccess>()
+        .for_request(&workspace)
+        .begin_selection()
+    {
         Ok(operation) => operation,
         Err(AdmissionError::Busy) => {
             return SelectionResult::failed(
@@ -188,29 +197,49 @@ fn source_state(gate: &Gate, root: Result<std::path::PathBuf, StoreError>) -> So
     SourceAccess::legacy(gate.clone(), root)
 }
 #[tauri::command]
-async fn list_snapshots(app: AppHandle) -> WorkspaceResult {
-    let sources = app.state::<SourceAccess>().inner().clone();
+async fn list_snapshots(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> WorkspaceResult {
+    let sources = app.state::<SourceAccess>().for_request(&workspace);
     sources.list_snapshots().await
 }
 #[tauri::command]
-async fn save_analysis(app: AppHandle, source_id: String) -> WorkspaceResult {
-    let sources = app.state::<SourceAccess>().inner().clone();
+async fn save_analysis(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+    source_id: String,
+) -> WorkspaceResult {
+    let sources = app.state::<SourceAccess>().for_request(&workspace);
     sources.save_analysis(source_id).await
 }
 #[tauri::command]
-async fn open_snapshot(app: AppHandle, source_id: String) -> SelectionResult {
-    let sources = app.state::<SourceAccess>().inner().clone();
+async fn open_snapshot(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+    source_id: String,
+) -> SelectionResult {
+    let sources = app.state::<SourceAccess>().for_request(&workspace);
     sources.open_snapshot(source_id).await
 }
 /// Composition inspection leaves the Import selection unchanged.
 #[tauri::command]
-async fn read_composition_source(app: AppHandle, source_id: String) -> SelectionResult {
-    let sources = app.state::<SourceAccess>().inner().clone();
+async fn read_composition_source(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+    source_id: String,
+) -> SelectionResult {
+    let sources = app.state::<SourceAccess>().for_request(&workspace);
     sources.read_composition_source(source_id).await
 }
 #[tauri::command]
-fn clear_analysis(app: AppHandle) -> WorkspaceResult {
-    app.state::<SourceAccess>().clear_analysis()
+fn clear_analysis(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> WorkspaceResult {
+    app.state::<SourceAccess>()
+        .for_request(&workspace)
+        .clear_analysis()
 }
 
 /// Describes this build's integration only. Never discovers or contacts LNSAT.
@@ -242,6 +271,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_workspace_close_state,
+            get_workspace_request_state,
             begin_workspace_close,
             acknowledge_workspace_purge,
             select_and_analyze,

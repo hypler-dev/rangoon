@@ -6,6 +6,10 @@ Authority: [intent.md](intent.md), including the accepted provider-independent c
 Owner: Jeff
 Last updated: 2026-10-15
 
+## Active native request routing
+
+Preserve source-validated [E1c-2f](intent.md#e1c-2f-native-request-generation-routing) under the [request-generation contract](encrypted-workspace.md#native-request-generation-routing-e1c-2f), preserving atomic Gate checkpoint cc6cd1a. Bind every actual ordinary admission and bootstrap a fresh private renderer header; keep existing typed errors, capacity and private consent. The [ledger](development.md#native-request-generation-routing-e1c-2f--october-15-2026) owns acceptance. Failure-driven renderer wake/reload, explicit native setup/unlock and factory qualification follow; this routing packet alone does not activate encryption.
+
 ## Active caller-generation prerequisite
 
 Preserve the source-validated [accepted E1c-2e packet](intent.md#e1c-2e-atomic-caller-generation-admission) under [atomic caller admission](encrypted-workspace.md#atomic-caller-generation-admission-e1c-2e), after local failure checkpoint `036fd9c`. Then wire the native-issued UI epoch and every bridge/ingress, renderer failure wake/reload and explicit setup/consent before factory qualification. The [ledger](development.md#atomic-caller-generation-admission-e1c-2e--october-15-2026) owns evidence; the primitive alone does not close queued IPC or activate encryption.

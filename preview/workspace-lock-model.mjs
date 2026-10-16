@@ -1,5 +1,52 @@
 // This cooperative renderer fence complements native custody; it never grants authority.
-const lifecycle = new Set(['get_workspace_close_state', 'begin_workspace_close', 'acknowledge_workspace_purge']);
+const lifecycle = new Set(['get_workspace_close_state', 'begin_workspace_close', 'acknowledge_workspace_purge', 'get_workspace_request_state']);
+const workspaceCommands = new Set([
+  'select_and_analyze',
+  'list_snapshots',
+  'save_analysis',
+  'open_snapshot',
+  'read_composition_source',
+  'clear_analysis',
+  'list_capabilities',
+  'open_capability',
+  'create_capability',
+  'revise_capability',
+  'review_capability',
+  'compile_capability',
+  'export_instruction_bundle',
+  'inspect_instruction_bundle',
+  'get_workspace_data',
+  'export_workspace_backup',
+  'prepare_workspace_restore',
+  'restore_workspace_backup',
+  'inspect_workspace_deletion',
+  'delete_workspace_record',
+  'preview_composition',
+  'commit_composition',
+  'list_workflows',
+  'open_workflow',
+  'begin_workflow_draft',
+  'inspect_workflow_save',
+  'commit_workflow_save',
+  'clear_workflow_draft',
+  'get_local_model_profile',
+  'configure_local_model',
+  'clear_local_model',
+  'prepare_local_model',
+  'check_local_model',
+  'send_local_model',
+  'cancel_local_model',
+  'get_cloud_model_profile',
+  'configure_cloud_model',
+  'clear_cloud_model',
+  'prepare_cloud_model',
+  'check_cloud_model',
+  'send_cloud_model',
+  'cancel_cloud_model',
+  'inspect_cloud_credential',
+  'edit_cloud_credential',
+  'remove_cloud_credential'
+]);
 const fields = ['schemaVersion', 'storage', 'state', 'attemptId', 'epoch', 'diagnostic'];
 const closedError = () => new Error('Workspace access is closed.');
 const validEpoch = value => typeof value === 'string' && /^[1-9][0-9]{0,19}$/.test(value) && BigInt(value) <= 18446744073709551615n;
@@ -16,10 +63,20 @@ function decode(value) {
   return typeof result.attemptId === 'string' && /^[a-f0-9]{64}$/.test(result.attemptId) && validEpoch(result.epoch) ? result : null;
 }
 
+function decodeClient(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) return null;
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const keys = ['schemaVersion', 'storage', 'state', 'clientId'];
+  if (Reflect.ownKeys(descriptors).length !== keys.length || keys.some(key => !Object.hasOwn(descriptors, key) || !Object.hasOwn(descriptors[key], 'value'))) return null;
+  const result = Object.fromEntries(keys.map(key => [key, descriptors[key].value]));
+  return result.schemaVersion === 'rangoon.workspace-request-state.v1' && result.storage === 'managed_encrypted' && result.state === 'open' && typeof result.clientId === 'string' && /^[a-f0-9]{64}$/.test(result.clientId) ? result.clientId : null;
+}
+
 export function createWorkspaceLockController({ invoke, beforeInvoke = () => {}, purge = () => {}, onChange = () => {}, schedule = setTimeout, cancelSchedule = clearTimeout, pollInterval = 250 } = {}) {
   const native = typeof invoke === 'function';
   let status = native ? 'checking' : 'browser';
   let identity = Symbol('workspace');
+  let clientId = null;
   let disposed = false;
   let initialized = false;
   let initialization;
@@ -39,6 +96,7 @@ export function createWorkspaceLockController({ invoke, beforeInvoke = () => {},
     return cleanupHealthy;
   }
   function recovery() {
+    clientId = null;
     clearTimer();
     identity = Symbol('closed-workspace');
     status = 'recovery_required';
@@ -90,7 +148,13 @@ export function createWorkspaceLockController({ invoke, beforeInvoke = () => {},
       try {
         const view = await fixed('get_workspace_close_state', {}, token);
         if (view.storage === 'legacy_plaintext') { status = 'legacy'; publish(); }
-        else if (view.state === 'open') { status = 'open'; publish(); }
+        else if (view.state === 'open') {
+          const client = await invoke('get_workspace_request_state', {});
+          if (!current(token)) throw closedError();
+          clientId = decodeClient(client);
+          if (!clientId) throw closedError();
+          status = 'open'; publish();
+        }
         else {
           identity = Symbol('closed-workspace');
           status = 'closing';
@@ -113,6 +177,8 @@ export function createWorkspaceLockController({ invoke, beforeInvoke = () => {},
     const check = () => { if (!current(token) || blocked()) throw closedError(); };
     check();
     if (typeof command !== 'string' || lifecycle.has(command)) throw closedError();
+    const requestClient = clientId;
+    if (requestClient && command !== 'get_engine_status' && !workspaceCommands.has(command)) throw closedError();
     let finish;
     let result;
     let failure;
@@ -122,7 +188,8 @@ export function createWorkspaceLockController({ invoke, beforeInvoke = () => {},
       if (finish?.then) throw closedError();
       check();
       // Await even a synchronously reentrant transport so rejected old work is consumed.
-      const pending = Promise.resolve(invoke(command, args));
+      const options = requestClient && workspaceCommands.has(command) ? { headers: { 'x-rangoon-workspace-client': requestClient } } : undefined;
+      const pending = Promise.resolve(invoke(command, args, options));
       void pending.catch(() => {});
       check();
       result = await pending;
@@ -147,6 +214,7 @@ export function createWorkspaceLockController({ invoke, beforeInvoke = () => {},
     async confirmClose() {
       if (disposed || status !== 'confirming') return false;
       // Set the barrier before observers, native IPC, disposal or DOM replacement.
+      clientId = null;
       identity = Symbol('closed-workspace');
       status = 'closing';
       const token = identity;
@@ -170,6 +238,7 @@ export function createWorkspaceLockController({ invoke, beforeInvoke = () => {},
     dispose() {
       if (disposed) return;
       disposed = true;
+      clientId = null;
       identity = Symbol('closed-workspace');
       clearTimer();
       status = 'recovery_required';
