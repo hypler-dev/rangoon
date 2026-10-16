@@ -4,6 +4,7 @@
 
 mod descriptor;
 mod inspection;
+pub mod openshell_runtime;
 
 pub use descriptor::{candidate_inventory, fixture_profile};
 pub use inspection::inspect_fixture;

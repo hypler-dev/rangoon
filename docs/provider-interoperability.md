@@ -242,6 +242,50 @@ establish contract behavior only. A real support row needs a pinned artifact,
 authenticated transport, real OpenShell and LNSAT instances, direct-bypass
 tests, effect-boundary observation and independent outcome reconciliation.
 
+### OpenShell O0: offline runtime continuity report
+
+O0 is the first source-only Rangoon packet under the accepted continuation. It
+adds `rangoon-integrations::openshell_runtime` without changing the I1 authority
+catalog, its five operations, A1, native commands, or O1 records. The public
+`openshell_runtime_descriptor()` is owned research metadata with schema
+`rangoon.runtime.openshell.descriptor.v1`, documented target `v0.1.4`, and
+`state=unavailable`: a documentation version is not an observed binary or
+negotiated protobuf. It names only `HTTP_REQUEST/PRE_CREDENTIALS` as the
+candidate binding and explicitly lists HTTP response, WebSocket, non-network
+actions, binary/uninspected traffic, and direct bypass as unqualified.
+
+`inspect_openshell_trace(&RuntimeTrace)` takes caller-constructed, bounded
+offline observations and returns an owned `RuntimeInspection` with schema
+`rangoon.runtime.openshell.inspection.v1`. The trace declares version,
+operation/phase, expected and observed request bindings (sandbox ID, policy
+revision, middleware binding, method, destination, body digest), reported
+gateway decision, reported LNSAT authorization, coverage/freshness, bounded
+attempt/authorization-ID pairs, and reported outcome. Raw bodies, credentials,
+connection handles, and commands are absent. Missing observation remains
+explicitly incomplete; unsupported version/operation, invalid digest/identifier,
+oversized field, or more than eight attempt pairs is rejected with a fixed
+payload-free error. The inspector neither parses
+arbitrary network bytes nor authenticates the caller; its input is a fixture
+or a later explicitly qualified ingress's output.
+
+Classification precedence is uncovered/stale/unknown coverage, missing
+observation, any changed binding, repeated attempt or authorization ID, unknown outcome,
+contradictory report, reported denial, then reported exact path. A reported
+exact path requires one attempt, gateway allow, reported LNSAT grant and
+reported forwarding, but still has `authority=none`, `execution=unavailable`,
+`authenticity=unverified`, `networkAttempted=false`, and `mayExecute=false`.
+All reports retain missing authenticated transport, LNSAT grant verification,
+effect-boundary proof and independent reconciliation. No classification can
+turn provider allow, human approval, or a fixture digest into permission to
+execute. Duplicate IDs are a reported replay signal, not durable replay
+prevention; timeout/unknown never permits automatic retry.
+
+Named validation: Rust formatting, `cargo test -p rangoon-integrations`,
+warnings-denied Clippy for that package, offline five-case/coverage/staleness/
+malformed fixtures, and fresh independent contract/source review. This packet
+does not add UI, storage, transport, protobuf, OpenShell installation, LNSAT
+middleware, or a live operations record. Those require their separate gates.
+
 Cerbos remains the first recommended **read-only authorization** adapter under
 the existing I2 sequence. OpenShell is a different runtime track and cannot
 substitute for Cerbos decisions or LNSAT authority. Keep encrypted workspace

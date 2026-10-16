@@ -1,5 +1,15 @@
 # Continue Rangoon application work
 
+OpenShell O0 local branch `codex/openshell-offline-descriptor` adds only a
+source-level, unverified continuity report under the [existing runtime
+boundary](provider-interoperability.md#openshell-o0-offline-runtime-continuity-report).
+It does not connect OpenShell, run LNSAT, or change the authority catalog.
+The next OpenShell packet needs an exact released protobuf/binary pin and
+separate LNSAT middleware acceptance; the next Rangoon operator packet needs
+authenticated ingress mapped to existing O1 records. Do not treat a fixture
+classification as an approval, replay defense, or complete trace. The current
+encrypted-workspace continuation below remains an independent priority.
+
 Current authority: [accepted encrypted-adoption completion](intent.md#encrypted-adoption-completion--october-15-2026); [source-free protection controls](encrypted-workspace.md#source-free-renderer-protection-controls-e1c-2l); [current receipt](development.md#source-free-renderer-protection-controls-e1c-2l--october-16-2026). The [whole-system audit](system-audit.md#october-15-whole-system-audit-and-completion-map) remains the baseline assessment. Older continuation paragraphs below retain their dated scope.
 
 Startup: verify repository, branch, HEAD and status. Worktree `/tmp/rangoon-audit-20261015`, branch `codex/encrypted-bootstrap-20261015`, continues atop E1c-2k checkpoint `ec4ee4e` and the preceding native source checkpoints. Last verified published main was `a5e9fe7` from PR49. Preserve the original dirty `/Users/jeff/hypler/code/rangoon/app-review` checkout at `8140689`; never reset, stash or stage it. E1c-2l ownership and baseline identities are frozen at `/tmp/rangoon-protection-ui-20261015/startup.json`; `scripts/qa-workspace-lock.mjs` was explicitly added to root-owned fixture scope. Current validation/review/commit status belongs in the receipt.
