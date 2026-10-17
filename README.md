@@ -17,6 +17,8 @@ The [October 16 architecture and usability checkpoint](docs/system-audit.md#octo
 
 **Review today:** [the reviewer guide](docs/reviewer-guide.md) provides a short design/source task and a disposable-data native task. Browser samples and playgrounds are synthetic. The local Operations window reads one selected report and shows unverified observations; it is not a live feed. Production workspace data and portable backups remain plaintext, so external testers should not import private projects. Broader desktop beta and three-OS release support have separate qualification gates.
 
+A fresh macOS development binary exposed and then passed a repair for a startup lifecycle panic caused by registering a native failure anchor before Tauri `setup`. The [native startup receipt](docs/development.md#native-startup-lifecycle-repair--october-16-2026) records the direct-binary smoke, source checks and independent review. Installed GUI task qualification remains open.
+
 Approval management, redacted correlated telemetry and live operations visualization remain accepted core product scope. Their offline inspection contracts and eight-target authority reference catalog already exist; authenticated ingress, qualified dispatch and actual evidence are still required. LNSAT is an optional recommended Hypler authority target, and all real provider adapters currently remain unavailable. Provider allow, local content review, approval and execution are distinct facts. Ordinary authoring never requires an external connection.
 
 ## Contents

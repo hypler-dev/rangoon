@@ -363,10 +363,15 @@ fn main() {
         })
         .build(tauri::generate_context!())
         .expect("could not start Rangoon desktop");
-    // The lifetime anchor belongs to the event loop, outside managed state.
-    // SourceAccess retains only a weak host notifier and cannot keep it alive.
-    let mut failure_anchor = workspace_close::failure::install(app.handle());
-    app.run(move |_, event| {
+    // Tauri runs setup on Ready, after build. SourceAccess and WorkspaceClose
+    // are registered there, so install the lifetime anchor only after setup.
+    // It belongs to the event loop, outside managed state; SourceAccess retains
+    // only a weak host notifier and cannot keep it alive.
+    let mut failure_anchor = None;
+    app.run(move |app, event| {
+        if matches!(&event, tauri::RunEvent::Ready) {
+            failure_anchor = workspace_close::failure::install(app);
+        }
         if let tauri::RunEvent::ExitRequested { code, api, .. } = &event
             && let Some(anchor) = failure_anchor.as_ref()
         {
