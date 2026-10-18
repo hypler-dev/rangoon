@@ -1,5 +1,7 @@
 # Rangoon system audit: architecture, usefulness and interoperability
 
+October 18 update: the [transcript-backed harness assessment](harness-research-20261018.md) adds current market/claim evidence and a targeted implementation comparison. The [completion track](plan.md#harness-value-and-portability-completion-track) preserves local encrypted/native qualification first, then proposes offline evaluation records. This supplements the dated audit below; it does not replace its unresolved user-task findings. [Development](development.md#research-and-source-publication--october-18-2026) owns current source-publication evidence.
+
 ## October 16 architecture and usability drift checkpoint
 
 Authority: Jeff's October 16 request to compare current workbench with the accepted architecture and original reference screens. The [accepted intent](intent.md), [product experience contract](product-experience.md) and [application architecture](application-architecture.md) remain controlling; this checkpoint updates the October 15 assessment below rather than accepting a new product scope. The [O2 local-window contract](operations-local-window.md) defines the new route; the [development ledger](development.md#local-operations-window-o2-first-slice--october-16-2026) owns validation and publication evidence.

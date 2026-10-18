@@ -1,7 +1,8 @@
 //! Private memory-only close protocol. Production Legacy storage cannot enter it.
 //! Renderer acknowledgment is cooperative cleanup evidence, never authorization.
 use crate::{
-    SourceAccess, cloud_custody, cloud_models, models, workspace_source_access::CloseTicket,
+    SourceAccess, cloud_custody, cloud_models, models, openshell_host,
+    workspace_source_access::CloseTicket,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -69,6 +70,7 @@ impl Acknowledgment {
 struct State {
     epoch: u64,
     failed: bool,
+    exiting: bool,
     attempt: Option<Arc<Attempt>>,
     control: Option<control::Retained>,
     #[cfg(test)]
@@ -100,6 +102,21 @@ impl WorkspaceClose {
             state: Arc::new(Mutex::new(State::default())),
         }
     }
+    /// Serialize the irreversible exit fence with closed-control resume. The
+    /// source owns the drain cycle; this adds no second drain or cleanup owner.
+    pub(super) fn fence_admission_for_exit(&self) {
+        let (mut state, poisoned) = match self.state.lock() {
+            Ok(state) => (state, false),
+            Err(error) => (error.into_inner(), true),
+        };
+        state.exiting = true;
+        let failed = poisoned || self.source.request_close().is_err();
+        state.failed |= failed;
+        drop(state);
+        if failed {
+            self.source.fail_closed();
+        }
+    }
     fn snapshot(&self, diagnostic: Option<&'static str>) -> View {
         if !self.source.encrypted_close_available() {
             return self.snapshot_locked(&State::default(), false, diagnostic);
@@ -125,7 +142,11 @@ impl WorkspaceClose {
                 "legacy_plaintext"
             },
             state: if encrypted {
-                Phase::Open
+                if state.exiting {
+                    Phase::Closing
+                } else {
+                    Phase::Open
+                }
             } else {
                 Phase::Unavailable
             },
@@ -478,7 +499,10 @@ fn native_cleanup(app: &AppHandle, drained: bool) -> bool {
     let credential = app
         .state::<cloud_custody::Custody>()
         .purge_for_workspace_close(drained);
-    let mut healthy = local.healthy && cloud.healthy && credential.healthy;
+    let openshell = app
+        .state::<openshell_host::Host>()
+        .purge_for_workspace_close(drained);
+    let mut healthy = local.healthy && cloud.healthy && credential.healthy && openshell;
     for (label, keep_parent) in [
         (crate::model_consent::REVIEW_WINDOW, local.keep_parent),
         (crate::cloud_model_consent::REVIEW_WINDOW, cloud.keep_parent),
@@ -517,6 +541,13 @@ pub(super) fn handle_main_window_event(
 }
 pub(super) fn window_event(window: &Window, event: &WindowEvent) {
     let app = window.app_handle();
+    if main_window_destroyed(window.label(), event) {
+        // Legacy workspaces cannot enter WorkspaceClose, but still must not
+        // retain a test-only observation after their sole window is gone.
+        let _ = app
+            .state::<openshell_host::Host>()
+            .purge_for_workspace_close(false);
+    }
     let state = app.state::<WorkspaceClose>();
     handle_main_window_event(
         window.label(),

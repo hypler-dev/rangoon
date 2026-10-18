@@ -1,0 +1,230 @@
+{
+  "schema": "rangoon.rusl.d0a.negative-vectors.v0",
+  "status": "proposed_not_conformance_qualified",
+  "profileId": "rangoon.rusl.observe.v0.1",
+  "representation": "Each inputUtf8 is literal UTF-8 JSON text; inputBase64 is literal raw input bytes. Group results describe parser versus host association separately. No engine/provider data.",
+  "cases": [
+    {
+      "id": "D0A-N01",
+      "inputs": [
+        {
+          "name": "operation_system_mismatch",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:other-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "invalid_reference"
+        },
+        {
+          "name": "operation_contract_mismatch",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v2\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "invalid_reference"
+        }
+      ],
+      "expected": {
+        "result": "reject_each",
+        "detail": "invalid_reference; no reported operation attachment"
+      }
+    },
+    {
+      "id": "D0A-N02",
+      "inputs": [
+        {
+          "name": "first_system",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "accept"
+        },
+        {
+          "name": "same_native_ids_other_system",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-other\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:other-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:other-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:other-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "accept"
+        }
+      ],
+      "expected": {
+        "result": "accept_separately",
+        "detail": "same nativeId strings stay two unverified source-qualified facts; no dedup or join"
+      }
+    },
+    {
+      "id": "D0A-N03",
+      "inputs": [
+        {
+          "name": "missing_source_ref",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "invalid_reference"
+        }
+      ],
+      "expected": {
+        "result": "reject",
+        "detail": "required sourceRef absent; no adjacent-record repair"
+      }
+    },
+    {
+      "id": "D0A-N04",
+      "inputs": [
+        {
+          "name": "policy_allow",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "accept"
+        },
+        {
+          "name": "runtime_completed_report",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:runtime-report-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-runtime\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"os_sandbox\",\"stage\":\"runtime_report\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"completed\",\"reportedEventClass\":\"completed\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "accept"
+        }
+      ],
+      "expected": {
+        "result": "accept_separately",
+        "detail": "authority remains none and effect unknown; no approval, grant or success synthesis"
+      }
+    },
+    {
+      "id": "D0A-N05",
+      "inputs": [
+        {
+          "name": "host_ref_state",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"host_ref\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "invalid_native_reference"
+        },
+        {
+          "name": "round_trip_flag",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":true},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "invalid_native_reference"
+        }
+      ],
+      "expected": {
+        "result": "reject_each",
+        "detail": "invalid_native_reference; no D0a native retention or lossless claim"
+      }
+    },
+    {
+      "id": "D0A-N06",
+      "inputs": [
+        {
+          "name": "nonempty_extensions",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[{\"critical\":true}],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "unsupported_extension"
+        },
+        {
+          "name": "nonempty_field_map",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[{\"source\":\"x\"}],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "invalid_semantic_variant"
+        }
+      ],
+      "expected": {
+        "result": "reject_each",
+        "detail": "unsupported_extension or invalid_semantic_variant; no silent field drop"
+      }
+    },
+    {
+      "id": "D0A-N07",
+      "inputs": [
+        {
+          "name": "duplicate_root_name",
+          "inputUtf8": "{\"id\":\"fixture:duplicate\",\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "duplicate_field"
+        },
+        {
+          "name": "unknown_core_key",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]},\"mayExecute\":true}",
+          "expectedParser": "unknown_core_field"
+        },
+        {
+          "name": "numeric_byte_length",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":1,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "invalid_native_reference"
+        },
+        {
+          "name": "invalid_utf8",
+          "inputBase64": "/w==",
+          "expectedParser": "invalid_encoding"
+        },
+        {
+          "name": "oversize_json_integer",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "invalid_json"
+        }
+      ],
+      "expected": {
+        "result": "reject_each",
+        "detail": "duplicate_field, unknown_core_field, invalid_native_reference, invalid_encoding, invalid_json respectively; no partial document or raw parser exception"
+      }
+    },
+    {
+      "id": "D0A-N08",
+      "inputs": [
+        {
+          "name": "synthetic_i1_request_id_in_rusl",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"fixture:I1-request-id\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "accept",
+          "expectedHost": "refuse unqualified I1-to-D0a scope mapping; preserve I1 record"
+        }
+      ],
+      "expected": {
+        "result": "parser_accept_host_mapping_refuse",
+        "detail": "pure parser cannot authenticate identity; complete synthetic I1/O1 source envelopes H03/H04/H05 show missing installed or same-record scope. Narrow offline I1 H03 non-mapping and O1 H04/H05 source-refusal tests exist, including event-correlation non-substitution. No D0a mapper, mounted host route or provider conformance exists"
+      },
+      "hostFixtureRefs": [
+        "D0A-H03",
+        "D0A-H04",
+        "D0A-H05"
+      ],
+      "hostMapperTestPending": true
+    },
+    {
+      "id": "D0A-N09",
+      "inputs": [
+        {
+          "name": "path_shaped_native_id",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:reported-allow-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-policy-engine\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"../../secret\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"policy\",\"stage\":\"provider_policy_evaluation\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"allow\",\"projectedDecision\":\"allow\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"engine_authorization_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "invalid_reference"
+        }
+      ],
+      "expected": {
+        "result": "reject",
+        "detail": "invalid_reference; do not normalize or echo native ID"
+      }
+    },
+    {
+      "id": "D0A-N10",
+      "inputs": [
+        {
+          "name": "first_runtime_report",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:runtime-report-7\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-runtime\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v1\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"os_sandbox\",\"stage\":\"runtime_report\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"completed\",\"reportedEventClass\":\"completed\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "accept"
+        },
+        {
+          "name": "changed_adapter_version",
+          "inputUtf8": "{\"languageVersion\":\"rangoon.rusl.v0.1\",\"kind\":\"observation\",\"id\":\"fixture:runtime-report-8\",\"createdAt\":\"2026-10-16T00:00:00.000Z\",\"origin\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"product\":\"synthetic-runtime\",\"productVersion\":\"fixture.v1\",\"protocol\":\"fixture\",\"protocolVersion\":\"fixture.v1\",\"adapterId\":\"fixture:adapter\",\"adapterVersion\":\"fixture.v2\",\"adapterDigest\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"sourceRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"decision-7\"},\"observedAt\":\"2026-10-16T00:00:00.000Z\",\"receivedAt\":\"2026-10-16T00:00:00.000Z\",\"authenticity\":\"unverified\",\"qualificationRef\":null},\"native\":{\"state\":\"omitted\",\"mediaType\":null,\"byteLength\":null,\"sha256\":null,\"hostRef\":null,\"redaction\":\"omitted\",\"retention\":\"none\",\"availableForRoundTrip\":false},\"semantic\":{\"family\":\"os_sandbox\",\"stage\":\"runtime_report\",\"operationRef\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\",\"contractVersion\":\"fixture.v1\",\"nativeId\":\"request-7\"},\"nativeState\":\"completed\",\"reportedEventClass\":\"completed\"},\"extensions\":[],\"translation\":{\"profileId\":\"rangoon.rusl.observe.v0.1\",\"direction\":\"native_to_rusl\",\"status\":\"observation_only\",\"authority\":\"none\",\"fieldMap\":[],\"loss\":[\"effect_unverified\",\"native_omitted\"],\"prerequisites\":[\"needs_authenticated_read\"]}}",
+          "expectedParser": "accept"
+        }
+      ],
+      "expected": {
+        "result": "accept_separately",
+        "detail": "no inferred continuity or completed effect across adapter drift"
+      }
+    },
+    {
+      "id": "D0A-N11",
+      "inputs": [
+        {
+          "name": "o1_mapping_fragment_system_mismatch",
+          "inputUtf8": "{\"externalRef\":{\"systemId\":\"fixture:other-system\",\"contractVersion\":\"fixture.v1\",\"externalId\":\"decision-7\"},\"flowContext\":{\"systemId\":\"fixture:policy-system\",\"environmentId\":\"fixture:local\",\"engineId\":\"fixture:policy-engine\"}}",
+          "expectedParser": null,
+          "inputKind": "o1_mapping_fragment",
+          "expectedHost": "refuse mismatched same-record O1 scope construction; preserve O1 record"
+        }
+      ],
+      "expected": {
+        "result": "host_mapping_refuse",
+        "detail": "ExternalRef and same-record FlowContext systemId disagree in complete O1 source envelope H02; the offline O1 source-reference probe tests this refusal. No D0a mapper, mounted host route or provider conformance exists"
+      },
+      "hostFixtureRefs": [
+        "D0A-H01",
+        "D0A-H02"
+      ],
+      "hostMapperTestPending": true
+    }
+  ],
+  "fixtureLimits": [
+    "N08 and N11 point to complete synthetic O1/I1 source envelopes in rusl-d0a-host-mapping-vectors.json; narrow offline source-reference/refusal tests exist, while full D0a mapping and host integration remain unimplemented",
+    "No accepted or mounted D0a parser exists; the unmounted D1 parser is experimental and these expected results remain candidate assertions"
+  ]
+}

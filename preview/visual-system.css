@@ -12,6 +12,18 @@
   pointer-events: none;
 }
 
+/* Route headings receive programmatic focus without a large browser-default box. */
+h1[tabindex="-1"]:focus {
+  outline: none;
+  text-decoration: underline;
+  text-decoration-color: var(--orange);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+@media (forced-colors: active) {
+  h1[tabindex="-1"]:focus { text-decoration-color: Highlight; }
+}
+
 /* Closed local vectors share optical size and never become independent controls. */
 .foldline-icon { shape-rendering: geometricPrecision; }
 .analysis-button, .analysis-theme { font-weight: 600; }
@@ -118,8 +130,8 @@ summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: -3px; }
 .hero {
   background: radial-gradient(ellipse at 92% 45%, color-mix(in srgb, var(--orange) 12%, transparent), transparent 60%), var(--surface);
   border-color: color-mix(in srgb, var(--orange) 25%, var(--line));
-  min-height: 285px;
-  padding: 30px;
+  min-height: 240px;
+  padding: 24px;
   border-radius: 10px;
 }
 .hero::before { display: none; }
@@ -131,9 +143,9 @@ summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: -3px; }
 .hero-caption { color: var(--faint); z-index: 1; }
 .capability-art {
   position: absolute;
-  width: min(35%, 360px);
+  width: min(40%, 430px);
   height: auto;
-  right: 5px;
+  right: 18px;
   top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
@@ -154,7 +166,7 @@ summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: -3px; }
 .icon-gallery__sizes b { color: var(--orange); min-height: 40px; display: flex; align-items: center; }
 .icon-gallery__sizes small { font: 10px ui-monospace, SFMono-Regular, Consolas, monospace; }
 
-@media (max-width: 1050px) {
+@media (max-width: 1160px) {
   .capability-art { display: none; }
   .hero-content { max-width: 550px; }
   .hero { min-height: 250px; }

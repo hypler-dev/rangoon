@@ -165,6 +165,103 @@ fn actual_empty_control_retains_takes_confirms_resumes_and_authors() {
 
 #[cfg(feature = "encrypted-workspace")]
 #[test]
+fn native_exit_refuses_late_confirmed_resume_and_fresh_controls() {
+    let root = TestRoot::new("exit-late-control-resume");
+    let vault = ThreadVault::default();
+    let access = locked_access(&root, &vault);
+    let close = locked_close(access.clone());
+    let mut flight = close
+        .start_control(ControlKind::CreateEmpty, |_| true)
+        .unwrap();
+    let preview = flight.prepare().unwrap();
+    flight.confirm(&preview.id).unwrap();
+    close.fence_admission_for_exit();
+    assert!(matches!(flight.resume(), Err(ControlError::Stale)));
+    assert!(access.begin(Lane::Read).is_err());
+    assert!(matches!(
+        close.start_control(ControlKind::Unlock, |_| true),
+        Err(ControlError::Unavailable)
+    ));
+    assert_eq!(close.progress_native(|_| true), Ok(true));
+    assert!(access.begin(Lane::Read).is_err());
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn native_exit_refuses_retained_control_reentry_but_allows_cleanup() {
+    let root = TestRoot::new("exit-retained-control");
+    let vault = ThreadVault::default();
+    let access = locked_access(&root, &vault);
+    let close = locked_close(access.clone());
+    let flight = close
+        .start_control(ControlKind::CreateEmpty, |_| true)
+        .unwrap();
+    let (id, epoch) = control_attempt(&close);
+    flight.retain().unwrap();
+    close.fence_admission_for_exit();
+    assert!(matches!(
+        close.take_control(&id, &epoch, |_| true),
+        Err(ControlError::Stale)
+    ));
+    close.begin(|_| true);
+    assert_eq!(close.progress_native(|_| true), Ok(true));
+    assert!(access.begin(Lane::Read).is_err());
+    assert!(matches!(
+        close.start_control(ControlKind::CreateEmpty, |_| true),
+        Err(ControlError::Unavailable)
+    ));
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn native_exit_during_credential_callback_retains_custody_until_return() {
+    let root = TestRoot::new("exit-active-control");
+    let vault = BlockingVault::new(ThreadVault::default());
+    let access = SourceAccess::managed(
+        Gate::new(),
+        Owner::acquire(root.0.clone()).unwrap(),
+        vault.clone(),
+    );
+    let close = locked_close(access.clone());
+    let mut flight = close
+        .start_control(ControlKind::CreateEmpty, |_| true)
+        .unwrap();
+    let preview = flight.prepare().unwrap();
+    let (entered, release) = vault.block_next_open();
+    let worker = thread::spawn(move || {
+        assert!(matches!(
+            flight.confirm(&preview.id),
+            Err(ControlError::Stale)
+        ));
+        assert!(flight.resume().is_err());
+    });
+    entered.recv_timeout(WAIT).unwrap();
+    close.fence_admission_for_exit();
+    close.begin(|_| true);
+    assert_eq!(close.progress_native(|_| true), Ok(false));
+    assert!(access.begin(Lane::Read).is_err());
+    release.send(()).unwrap();
+    worker.join().unwrap();
+    assert_eq!(close.progress_native(|_| true), Ok(true));
+    assert!(access.begin(Lane::Read).is_err());
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn native_exit_poisoned_coordinator_fails_source_closed() {
+    let root = TestRoot::new("exit-poisoned-control");
+    let vault = ThreadVault::default();
+    let access = locked_access(&root, &vault);
+    let close = WorkspaceClose::new(access.clone());
+    close.poison_control_state_for_test();
+    close.fence_admission_for_exit();
+    assert!(access.failure_latched());
+    assert!(access.begin(Lane::Read).is_err());
+    assert!(!close.clean_native_completion());
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
 fn cancelled_worker_callback_late_drop_cannot_reuse_its_native_attempt() {
     let root = TestRoot::new("supervisor-worker-cancel");
     let vault = BlockingVault::new(ThreadVault::default());

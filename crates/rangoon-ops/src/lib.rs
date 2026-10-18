@@ -18,6 +18,10 @@ mod projection_types;
 mod records;
 mod relationship_types;
 mod relationships;
+mod source_ref_probe;
+
+#[cfg(test)]
+mod source_ref_probe_tests;
 
 #[cfg(test)]
 mod relationship_tests;
@@ -62,6 +66,10 @@ pub use relationship_types::{
     RELATIONSHIP_SCHEMA, RelationshipDocument, RelationshipError, Relationships,
 };
 pub use relationships::relate_window;
+pub use source_ref_probe::{
+    MAX_SOURCE_REFERENCE_ROWS, SourceReference, SourceReferenceProbe, SourceReferenceProbeError,
+    SourceReferenceProbeOutcome, SourceReferenceProbeRow, probe_source_references,
+};
 
 pub const WINDOW_SCHEMA: &str = "rangoon.ops.window.v1";
 pub const REDUCER_VERSION: &str = "rangoon.ops.reducer.v1";

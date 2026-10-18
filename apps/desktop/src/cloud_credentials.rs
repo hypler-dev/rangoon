@@ -176,13 +176,14 @@ fn open_editor(app: &AppHandle, id: &str) -> Result<WebviewWindow, Error> {
     let parent = app
         .get_webview_window("main")
         .ok_or(Error::ConfirmationUnavailable)?;
+    let (width, height) = crate::parented_review_window_size(&parent, (640.0, 600.0));
     let window = WebviewWindowBuilder::new(
         app,
         EDIT_WINDOW,
         WebviewUrl::App("cloud-credential-entry.html".into()),
     )
     .title("Rangoon — OpenAI credential")
-    .inner_size(640.0, 600.0)
+    .inner_size(width, height)
     .min_inner_size(360.0, 480.0)
     .parent(&parent)
     .map_err(|_| Error::ConfirmationUnavailable)?

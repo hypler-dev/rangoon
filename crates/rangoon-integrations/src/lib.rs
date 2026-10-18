@@ -4,6 +4,8 @@
 
 mod descriptor;
 mod inspection;
+pub mod lnsat_evidence;
+pub mod openshell_observation;
 pub mod openshell_runtime;
 
 pub use descriptor::{candidate_inventory, fixture_profile};

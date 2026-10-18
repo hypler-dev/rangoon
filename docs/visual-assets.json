@@ -11,7 +11,25 @@
       "bytes": 1094814,
       "sha256": "01c335d2cada65f8e521a82570f66abe912516001e81948e6203e24de82db34e",
       "prompt": "Use case: stylized-concept. Asset type: a premium transparent-background decorative illustration for the Rangoon AI capability workbench, used alongside crisp vector UI icons. Primary request: a beautifully crafted abstract capability assembly, an orange folded origami core built from two interlocking triangular wings, surrounded by three small modular rounded-square nodes connected with delicate brushed-metal rails. The core's folds echo a rangoon dumpling and the warm orange origami identity. No face, no lettering, no wordmark, no replacement app logo. Composition: single compact centered object, three-quarter isometric view, plenty of clean transparent margin; intended to sit in the right side of a dark or light dashboard hero at 320px wide. Materials: rich amber-orange anodized metal and softly translucent orange glass edge insets, small ivory ceramic nodes, restrained graphite metal detail. Lighting: refined studio product render, soft realistic ambient occlusion only immediately under the object, crisp silhouette, controlled warm highlights, tasteful detail visible at medium size. Overall feel: premium desktop software, tactile and precise, beautifully art-directed, elegant and confident. Background truly transparent. Avoid words, numbers, grids, UI screenshots, badges, check marks, shields, padlocks, currency, neon cyberpunk effects, sprawling cables, excessive glow, floor/background planes, watermark, or any implication of a real running/authorized system.",
-      "usage": "Decorative capability assembly on the sample Command Center. Not an app icon or status indicator."
+      "usage": "Retained historical decorative assembly asset; no longer mounted in the sample Command Center."
+    },
+    {
+      "path": "preview/assets/rangoon-form-v1.webp",
+      "method": "OpenAI built-in image generation using the user-selected brand symbol as a visual reference; local cwebp quality 82 packaging",
+      "created": "2026-10-17",
+      "sha256": "1806885f430077173fb35f63fa091bc7e340e4e2c73a03062b725e75097eaaf2",
+      "prompt": "Single premium 3D abstract folded Rangoon form, four triangular folds, refined translucent burnt-orange enamel and amber glass with graphite undersides, studio reflections, transparent background; mature enterprise desktop asset. No character, eyes, mouth, claws, limbs, mountains, chains, text, UI, status icons or logo replacement.",
+      "usage": "Retained smaller static form as a visual exploration; no longer mounted in the sample Command Center or Workflow task header.",
+      "dimensions": "1254x1254 RGBA source; locally packaged transparent WebP, 130764 bytes"
+    },
+    {
+      "path": "preview/assets/rangoon-connected-form-v2.webp",
+      "method": "OpenAI built-in image edit using the locally generated Rangoon folded form as reference; local cwebp quality 84 packaging",
+      "created": "2026-10-18",
+      "sha256": "bb271996423329a7936ea529caa2a91e311f1b0b9ceace8e29d671b88a95869a",
+      "prompt": "Transform the glossy orange folded form into a wider, less literal architectural origami sculpture with subtle luminous copper paths, small junctions and translucent graphite ribbons connecting separate facets. Mature enterprise hero render, controlled studio reflections, transparent background, no character, chains, UI, status symbols or text.",
+      "usage": "Large, static, decorative connected form in the synthetic Command Center and local Workflow header. Connections imply modular composition only; they do not claim a live network, provider relationship, authority or execution.",
+      "dimensions": "1717x916 RGBA source; locally packaged transparent WebP, 236108 bytes"
     },
     {
       "path": "preview/assets/brand-symbol.png",
@@ -71,7 +89,7 @@
       "path": "preview/assets/mascot.webp",
       "method": "Existing repository mascot reused unchanged",
       "sha256": "57dc99ed1e5aa727552ea10d615b0de973f0403890d9e4092cdf88bbd8ad8478",
-      "usage": "Decorative sidebar companion and Import empty state, per user direction. Not the OS icon."
+      "usage": "Retained character mascot for marketing and optional promotional/splash surfaces; not mounted in daily workbench rails or empty states."
     }
   ],
   "icons": {

@@ -17,6 +17,97 @@ pub(crate) enum ExitAction {
     Pass,
     Prevent,
     PreventAndStart,
+    PreventAndWait,
+}
+
+/// The native event and synthetic tests share this ordering. A cancellation
+/// request is not callback completion, and callback completion is not cleanup.
+pub(crate) fn route_exit_request(
+    code: Option<i32>,
+    managed: Option<(&WorkspaceClose, &ExitCoordinator)>,
+    cancel_and_check: impl FnOnce() -> bool,
+) -> ExitAction {
+    if let Some((close, _)) = managed {
+        close.fence_admission_for_exit();
+    }
+    let drained = cancel_and_check();
+    // Tauri does not honor prevention for restart. No restart API is exposed;
+    // a future caller must obtain drain/cleanup proof before invoking that API.
+    if code == Some(tauri::RESTART_EXIT_CODE) {
+        return ExitAction::Pass;
+    }
+    if !drained {
+        return ExitAction::PreventAndWait;
+    }
+    managed.map_or(ExitAction::Pass, |(_, exit)| exit.request(code))
+}
+
+/// Scheduling only: the existing WorkspaceClose/ExitCoordinator retain all
+/// admission, cleanup and exit-code authority. A failed/expired waiter does not
+/// clear that fence or manufacture a terminal cleanup result.
+#[derive(Default)]
+pub(crate) struct CallbackWaiter(Arc<AtomicBool>);
+struct WaitPermit(Arc<AtomicBool>);
+type WaitJob = Box<dyn FnOnce() + Send>;
+
+impl CallbackWaiter {
+    fn reserve(&self) -> Option<WaitPermit> {
+        self.0
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .ok()
+            .map(|_| WaitPermit(Arc::clone(&self.0)))
+    }
+    pub(crate) fn spawn(
+        &self,
+        code: Option<i32>,
+        ready: impl FnMut() -> bool + Send + 'static,
+        reissue: impl FnOnce(i32) + Send + 'static,
+    ) {
+        self.dispatch(code, ready, reissue, |job| {
+            std::thread::Builder::new()
+                .name("rangoon-openshell-exit".into())
+                .spawn(job)
+                .map(|_| ())
+                .map_err(|_| ())
+        });
+    }
+    fn dispatch(
+        &self,
+        code: Option<i32>,
+        ready: impl FnMut() -> bool + Send + 'static,
+        reissue: impl FnOnce(i32) + Send + 'static,
+        spawn: impl FnOnce(WaitJob) -> Result<(), ()>,
+    ) {
+        let Some(permit) = self.reserve() else { return };
+        // The captured permit is dropped even when spawning fails or the
+        // callback panics. A later explicit exit can retry the bounded wait.
+        let _ = spawn(Box::new(move || {
+            if permit.wait(200, ready, || std::thread::sleep(INTERVAL)) {
+                reissue(code.unwrap_or(CLEAN_EXIT_CODE));
+            }
+        }));
+    }
+}
+impl WaitPermit {
+    fn wait(
+        self,
+        attempts: usize,
+        mut ready: impl FnMut() -> bool,
+        mut pause: impl FnMut(),
+    ) -> bool {
+        for _ in 0..attempts {
+            if ready() {
+                return true;
+            }
+            pause();
+        }
+        false
+    }
+}
+impl Drop for WaitPermit {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -333,8 +424,16 @@ pub(crate) struct Anchor {
     exit: Arc<ExitCoordinator>,
 }
 impl Anchor {
-    pub(crate) fn exit_request(&self, code: Option<i32>) -> ExitAction {
-        self.exit.request(code)
+    pub(crate) fn exit_request(
+        &self,
+        code: Option<i32>,
+        cancel_and_check: impl FnOnce() -> bool,
+    ) -> ExitAction {
+        route_exit_request(
+            code,
+            Some((&self.app.state::<WorkspaceClose>(), &self.exit)),
+            cancel_and_check,
+        )
     }
     pub(crate) fn begin_exit_close(&self) {
         self.app
@@ -391,4 +490,125 @@ pub(crate) fn install(app: &AppHandle) -> Option<Anchor> {
         alive,
         exit,
     })
+}
+
+#[cfg(test)]
+mod exit_wait_tests {
+    use super::*;
+    use rangoon_desktop::workspace_lifecycle::Gate;
+    use std::sync::atomic::AtomicUsize;
+
+    #[test]
+    fn duplicate_exit_waiters_coalesce_and_preserve_original_request_code() {
+        for code in [None, Some(71)] {
+            let waiter = CallbackWaiter::default();
+            let result = Arc::new(Mutex::new(Vec::new()));
+            let output = Arc::clone(&result);
+            let mut pending = None;
+            waiter.dispatch(
+                code,
+                || true,
+                move |code| output.lock().unwrap().push(code),
+                |job| {
+                    pending = Some(job);
+                    Ok(())
+                },
+            );
+            waiter.dispatch(
+                code,
+                || panic!("duplicate check"),
+                |_| panic!("duplicate exit"),
+                |_| panic!("duplicate worker"),
+            );
+            pending.take().unwrap()();
+            assert_eq!(*result.lock().unwrap(), [code.unwrap_or(0)]);
+            assert!(waiter.reserve().is_some());
+        }
+    }
+
+    #[test]
+    fn failed_waiter_spawn_keeps_admission_closed_and_permits_explicit_retry() {
+        let gate = Gate::new();
+        let close = WorkspaceClose::new(crate::SourceAccess::close_protocol_fixture(gate.clone()));
+        let exit = ExitCoordinator::new();
+        assert_eq!(
+            route_exit_request(None, Some((&close, &exit)), || false),
+            ExitAction::PreventAndWait
+        );
+        let waiter = CallbackWaiter::default();
+        waiter.dispatch(
+            None,
+            || panic!("failed spawn cannot poll"),
+            |_| panic!("failed spawn cannot exit"),
+            |_job| Err(()),
+        );
+        assert!(gate.observe_open().is_err());
+        assert!(!exit.send(CLEAN_EXIT_CODE));
+        assert!(waiter.reserve().is_some());
+    }
+
+    #[test]
+    fn timed_out_waiter_retries_boundedly_without_reopening_or_exiting() {
+        let gate = Gate::new();
+        let close = WorkspaceClose::new(crate::SourceAccess::close_protocol_fixture(gate.clone()));
+        let exit = ExitCoordinator::new();
+        assert_eq!(
+            route_exit_request(None, Some((&close, &exit)), || false),
+            ExitAction::PreventAndWait
+        );
+        let waiter = CallbackWaiter::default();
+        let polls = AtomicUsize::new(0);
+        let pauses = AtomicUsize::new(0);
+        for _ in 0..2 {
+            let permit = waiter.reserve().unwrap();
+            assert!(waiter.reserve().is_none());
+            assert!(!permit.wait(
+                200,
+                || {
+                    polls.fetch_add(1, Ordering::SeqCst);
+                    false
+                },
+                || {
+                    pauses.fetch_add(1, Ordering::SeqCst);
+                }
+            ));
+            assert!(gate.observe_open().is_err());
+            assert!(!exit.send(CLEAN_EXIT_CODE));
+        }
+        assert_eq!(polls.load(Ordering::SeqCst), 400);
+        assert_eq!(pauses.load(Ordering::SeqCst), 400);
+        assert!(waiter.reserve().unwrap().wait(
+            200,
+            || true,
+            || panic!("no delay after completion")
+        ));
+        assert!(gate.observe_open().is_err());
+    }
+
+    #[test]
+    fn panicking_waiter_releases_only_scheduler_permit() {
+        let waiter = CallbackWaiter::default();
+        let permit = waiter.reserve().unwrap();
+        assert!(
+            std::panic::catch_unwind(|| permit.wait(
+                200,
+                || panic!("synthetic callback failure"),
+                || {}
+            ))
+            .is_err()
+        );
+        assert!(waiter.reserve().is_some());
+    }
+
+    #[test]
+    fn absent_anchor_does_not_create_a_managed_close_owner() {
+        assert_eq!(
+            route_exit_request(None, None, || false),
+            ExitAction::PreventAndWait
+        );
+        assert_eq!(
+            route_exit_request(Some(71), None, || true),
+            ExitAction::Pass
+        );
+    }
 }

@@ -97,7 +97,8 @@ impl WorkspaceClose {
         if expected.is_some_and(|(id, epoch)| !matches_attempt(&state, id, epoch)) {
             return Err(ControlError::Stale);
         }
-        if state.failed || self.source.failure_latched() || state.control.is_some() {
+        if state.exiting || state.failed || self.source.failure_latched() || state.control.is_some()
+        {
             return Err(ControlError::Unavailable);
         }
         let old = state.attempt.clone().ok_or(ControlError::Invalid)?;
@@ -191,7 +192,8 @@ impl WorkspaceClose {
         cleanup: impl FnOnce(bool) -> bool + Send + 'static,
     ) -> Result<Flight, ControlError> {
         let mut state = self.state.lock().map_err(|_| ControlError::Unavailable)?;
-        if !healthy_attempt(&state)
+        if state.exiting
+            || !healthy_attempt(&state)
             || self.source.failure_latched()
             || !matches_attempt(&state, id, epoch)
         {
@@ -387,7 +389,8 @@ fn healthy_attempt(state: &State) -> bool {
 impl Flight {
     fn current(&self) -> bool {
         self.close.state.lock().is_ok_and(|s| {
-            healthy_attempt(&s)
+            !s.exiting
+                && healthy_attempt(&s)
                 && s.control
                     .as_ref()
                     .is_some_and(|c| c.serial == self.serial && c.active)
@@ -440,7 +443,7 @@ impl Flight {
             .state
             .lock()
             .map_err(|_| ControlError::Unavailable)?;
-        if !healthy_attempt(&state) {
+        if state.exiting || !healthy_attempt(&state) {
             return Err(ControlError::Unavailable);
         }
         let retained = state
@@ -465,7 +468,8 @@ impl Flight {
             .state
             .lock()
             .map_err(|_| ControlError::Unavailable)?;
-        if !healthy_attempt(&state)
+        if state.exiting
+            || !healthy_attempt(&state)
             || !state
                 .control
                 .as_ref()

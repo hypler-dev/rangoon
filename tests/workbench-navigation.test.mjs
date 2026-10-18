@@ -78,7 +78,8 @@ test('workspace guard mounts only after real workbench navigation', () => {
   const workbench = renderWorkbenchNavigation({ area: 'analysis', surface: 'workbench', workspaceGuard: guard });
   const playground = renderWorkbenchNavigation({ area: 'analysis', surface: 'workflow-playground', workspaceGuard: guard });
   assert.match(workbench, /<\/nav><section data-workspace-guard>/);
-  assert.ok(workbench.indexOf('data-workspace-guard') < workbench.indexOf('analysis-companion'));
+  assert.ok(workbench.indexOf('data-workspace-guard') < workbench.indexOf('analysis-theme'));
+  assert.doesNotMatch(workbench, /analysis-companion|mascot\.webp/);
   assert.doesNotMatch(playground, /data-workspace-guard/);
 });
 

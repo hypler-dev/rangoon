@@ -5,6 +5,8 @@ preview, not a desktop beta or a live governance service. The fastest useful
 feedback concerns whether a developer can understand the local capability
 workflow and distinguish saved content, reported evidence and authority.
 
+Current review focus: the [October 18 research assessment](harness-research-20261018.md) compares the implementation with evolving harness/evaluation products. D0a parsing and OpenShell/LNSAT decoders are offline; the OpenShell read client and native custody have synthetic-peer source evidence but production Start remains unavailable. Review exact revision/provenance, consent, expiry, cancellation and native-exit invariants. Do not confuse those tests with connected support. The [completion track](plan.md#harness-value-and-portability-completion-track) prioritizes finishing local tasks and adding measured evaluation evidence, not more simulated operation.
+
 ## Choose a review lane
 
 | Lane | What to do | What the result can establish |

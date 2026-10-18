@@ -224,7 +224,7 @@ function sourceLines(report, active) {
 
 function reportView(state) {
   const report = state.report;
-  if (!report) return `<section class="analysis-empty" aria-label="No analysis loaded" aria-busy="${state.status === 'pending'}"><img class="analysis-empty-mascot" src="assets/mascot.webp" width="120" height="80" alt=""><p class="analysis-kicker">LOCAL ONLY</p><h2>Pick one Markdown file.</h2><p>Choose a file, then read its sections and inspect the original text here.</p></section>`;
+  if (!report) return `<section class="analysis-empty" aria-label="No analysis loaded" aria-busy="${state.status === 'pending'}"><p class="analysis-kicker">LOCAL ONLY</p><h2>Pick one Markdown file.</h2><p>Choose a file, then read its sections and inspect the original text here.</p></section>`;
   const fragments = report.fragments ?? [];
   const diagnostics = report.diagnostics ?? [];
   const active = fragments.find(fragment => fragment.id === state.selectedFragmentId) ?? fragments[0];

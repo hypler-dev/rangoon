@@ -36,15 +36,9 @@
 .analysis-shell[data-area="workspace"]{--scene-x:50%;--scene-y:100%}
 .analysis-shell[data-area="engine"]{--scene-x:100%;--scene-y:100%}
 .analysis-rail{overflow-y:auto}
-.analysis-companion{display:flex;align-items:center;gap:5px;margin-top:auto;padding:10px 0;border-top:1px solid var(--line)}
-.analysis-companion img{width:80px;height:60px;object-fit:contain;flex-shrink:0}
-.analysis-companion p{font-size:11px;font-style:italic;line-height:1.5;color:var(--muted)}
-.analysis-companion+.analysis-theme{margin-top:0}
-.analysis-empty-mascot{display:block;object-fit:contain;margin:0 auto 15px}
-@media (max-width:760px){.analysis-companion{display:none}.analysis-theme{min-height:44px}}
-@media (max-height:820px) and (min-width:761px){.analysis-companion{display:none}}
-@media (forced-colors:active){.analysis-companion img,.analysis-empty-mascot{display:none}}
-.analysis-shell[data-area="workflows"] .workflow-hero::after,:root[data-theme=light] .analysis-shell[data-area="workflows"] .workflow-hero::after{background-image:url("assets/capability-assembly-v1.png");background-size:contain;background-repeat:no-repeat;background-position:center;width:250px;height:250px}
+.analysis-rail .analysis-theme{margin-top:auto}
+@media (max-width:760px){.analysis-theme{min-height:44px}}
+.analysis-shell[data-area="workflows"] .workflow-page .workflow-hero.workflow-hero::after,:root[data-theme=light] .analysis-shell[data-area="workflows"] .workflow-page .workflow-hero.workflow-hero::after{width:min(38%,400px);height:220px;background-image:url("assets/rangoon-connected-form-v2.webp");background-size:contain;background-repeat:no-repeat;background-position:center;mask-image:none}
 @media (forced-colors:active){.analysis-shell[data-area="workflows"] .workflow-hero::after{display:none}}
 
 /* Shared presentation: task hierarchy first, decorative art remains subordinate. */
@@ -101,3 +95,22 @@
 @media (max-width:800px){.workspace-guard{grid-column:1 / -1;order:4}.workspace-close-main{min-height:0}.workspace-close-card{margin:0}.workspace-close-rail .analysis-theme{grid-column:3}.workspace-close-brand{grid-column:1 / 3}}
 @media (prefers-reduced-motion:reduce){.workspace-guard__lock,.workspace-close-shell *{scroll-behavior:auto;transition:none!important;animation:none!important}}
 @media (forced-colors:active){.workspace-guard,.workspace-close-card{border-color:CanvasText;background:Canvas;color:CanvasText}.workspace-guard__status,.workspace-close-card>p:not(.workspace-close-card__eyebrow){color:CanvasText}.workspace-guard__lock,.workspace-protection-action,.workspace-close-help{border-color:CanvasText;background:Canvas;color:LinkText}.workspace-close-card__eyebrow{color:CanvasText}}
+
+/* UI-R2: keep the workflow controls reachable before the preserved canvas floor. */
+@media (max-height:820px) and (min-width:801px){
+  .analysis-shell[data-area="workflows"]>main{padding-block:16px}
+}
+
+/* On ultra-wide logical desktops, keep each workbench at a readable width. */
+@media (min-width:2200px){
+  .analysis-shell>main{max-width:1680px;margin-inline:auto}
+  .analysis-shell[data-area="workflows"]>main{max-width:2248px}
+  .analysis-shell :is(.composition-page,.operations-page,.workspace-page,.engine-page){margin-inline:auto}
+}
+
+/* UI-V2 keeps daily work controls larger in the hierarchy than decorative art. */
+.analysis-shell :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero,.workspace-hero,.model-assistance-hero,.engine-hero){min-height:0;margin-bottom:12px;padding:18px 20px}
+.analysis-shell :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero,.workspace-hero,.model-assistance-hero,.engine-hero)::after{width:148px;height:148px;opacity:.72}
+.analysis-shell :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero,.workspace-hero,.model-assistance-hero,.engine-hero) h1{font-size:clamp(28px,2.5vw,36px);letter-spacing:-1.1px;line-height:1.1}
+.analysis-shell :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero,.workspace-hero,.model-assistance-hero,.engine-hero)>p:not(.analysis-kicker){font-size:13px}
+@media (max-width:980px){.analysis-shell :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero,.workspace-hero,.model-assistance-hero,.engine-hero)::after{display:none}}
