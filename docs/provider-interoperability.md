@@ -1,5 +1,7 @@
 # Provider-independent interoperability and first build packet
 
+October 18 source checkpoint: D2a OpenShell mapping and D3a LNSAT evidence decoding are offline; the D2b OpenShell OIDC read client and native consent/lease/cancellation custody have synthetic-peer evidence. Production Start remains unavailable. [OpenShell qualification](openshell-observation-connector.md), [LNSAT evidence](lnsat-evidence-connector.md) and [development](development.md#research-and-source-publication--october-18-2026) own precise limits. [Harness research](harness-research-20261018.md) identifies additional evaluation/runtime candidates; none becomes supported by appearing in the plan.
+
 Authority: [intent.md](intent.md), October 7 provider-independent continuation. Owner: Jeff; the controller owns architecture, privacy, integration and release judgment. Status: accepted product direction; I1 source contract frozen after fresh independent pre-code review; offline source and independent conformance fixtures qualified; native wiring and all real adapters remain unimplemented. Validation and publication evidence belongs only in [development.md](development.md).
 
 ## Reconciliation and release boundary
@@ -9,6 +11,20 @@ Rangoon and LNSAT are separate products. Rangoon owns capability authoring, immu
 This makes the existing architecture's content/authority separation explicit rather than replacing useful implementation. Keep the current local store, composition/compiler/bundle APIs, optional model consent boundaries and all-three-desktop release path. Preserve the frozen [A1 LNSAT contract](engine-integration.md), current schemas and [operations inspection contracts](operations-control-plane.md). The proposed envelope below handles integration metadata and provenance; it neither replaces those contracts nor reimplements a provider's policy or identity semantics.
 
 Approval management, telemetry and operations visualization remain accepted product scope. Complete their actual local views and honest unavailable states on their own track. Broad provider coverage, a live LNSAT endpoint and qualified governed execution are not prerequisites for shipping a useful qualified local workbench. Qualify each optional connected/enforced path separately and publish its exact coverage. No local release may advertise missing operations as supported.
+
+## Independent engine connectors — October 16, 2026
+
+Jeff accepted separate optional Rangoon connectors for LNSAT and OpenShell. The shared layer is a versioned identity, capability, configuration-preview, connection-state and read-only evidence envelope with explicit provenance and failure states. A provider translator owns native field mapping and may expose native-only details; the common envelope never claims identical authorization, approval, sandbox or receipt semantics. LNSAT remains an independent action-authority/evidence engine. OpenShell remains an independent gateway/sandbox runtime with its own workspace, policy/access-rule decisions, separate policy-change review where evidenced, and execution observations. Neither needs Rangoon or the other engine to run. Both remain unconnected and unqualified in current Rangoon source.
+
+The existing eight-entry I1 authority catalog stays frozen. OpenShell's O0 offline runtime descriptor is a separate source-only research artifact, not a ninth live authority entry. A later versioned catalog/connector packet can present OpenShell alongside LNSAT without labeling its policy/access-rule allow decision as human approval or LNSAT action authorization. Adapter evidence must distinguish provider-native decision, Rangoon local review, human approval where actually verified, execution attempt, provider result, independently checked effect and uncertainty. Native access can bypass Rangoon unless a selected managed path proves route and credential custody; otherwise coverage is limited to operations Rangoon actually mediates. No UI placement or connector configuration grants authority.
+
+The former [OpenShell O1 source-freeze candidate](#openshell-o1-source-freeze-candidate) describes a possible LNSAT-owned supervisor middleware and is **superseded as active build direction**. Keep it for historical protocol research only. Next implementation planning must independently pin and test the proposed [D2 OpenShell read-only connector](openshell-observation-connector.md) and [D3 LNSAT exact-evidence connector](lnsat-evidence-connector.md); consequential operation contracts require their own acceptance, direct-path analysis, negative cases and runtime proof. The Cerbos read-only authorization adapter remains a separate candidate, not a dependency of either. Local authoring, encryption adoption and three-OS qualification keep their release priority.
+
+The [draft universal systems language](universal-systems-language.md) generalizes semantic description, version negotiation, native provenance and loss reporting across more protocol families without altering this frozen I1 profile. Its [architecture audit](universal-systems-audit.md) shows current support versus research targets. No translator, provider feature or managed proxy is activated by that draft.
+
+For the current cross-runtime **operator-record support goal**, the [plan](universal-systems-audit.md#staged-implementation-plan-not-authorized-by-this-design-packet) prioritizes a separately versioned, read-only OpenShell connector after offline language/fixture gates, followed by an independent LNSAT evidence connector when LNSAT's own gates pass. Older recommendations below naming Cerbos “first” refer to the smaller generic authorization-adapter I2 lane; Cerbos remains a valid lower-risk candidate, not a prerequisite for the goal-specific OpenShell path. No provider is made mandatory for local work.
+
+The proposed [D2 OpenShell observation contract](openshell-observation-connector.md) names native source, consent, gap and failure behavior for that separate connector. It is supporting design under this boundary, not an accepted wire profile or permission to read a gateway. Historical O0/O1 combined-path source remains inert.
 
 ## Current functionality versus candidates
 
@@ -211,6 +227,8 @@ negotiated capabilities before a live adapter.
 
 ### OpenShell O1 source freeze candidate
 
+Historical research only. Superseded by the [independent connector decision](#independent-engine-connectors--october-16-2026); the LNSAT-owned middleware described below is not the active adapter sequence or a current support claim.
+
 The first implementation target is the NVIDIA `v0.1.4` tag at commit
 `5a7728c304b5528e954e9ae900cf21f84e1a12b1`. At that tag,
 [`proto/supervisor_middleware.proto`](https://github.com/NVIDIA/OpenShell/blob/v0.1.4/proto/supervisor_middleware.proto)
@@ -337,6 +355,21 @@ effect-boundary proof and independent reconciliation. No classification can
 turn provider allow, human approval, or a fixture digest into permission to
 execute. Duplicate IDs are a reported replay signal, not durable replay
 prevention; timeout/unknown never permits automatic retry.
+
+O0's current six-field `RuntimeBinding` does not include the selected-header
+digest or authenticated gateway issuer/audience/identity required by the O1
+candidate above. Its `reported_exact_path` reason means only that those six
+caller-supplied fields matched and the reported values form one consistent
+path; it does **not** establish complete action equality, authenticated
+caller identity or tested artifact compatibility. The next bounded O0 source
+revision must version the inspection contract, add these declared bindings
+and a pinned peer artifact/generated-binding identity, classify missing proof
+as incomplete and mismatches as changed, and test each mutation. Keep all
+fields private in diagnostics and retain `authority=none` and
+`mayExecute=false`. Do this before surfacing O0 as a connected runtime or
+using its match reason as a cross-system continuity claim.
+
+Under the later independent-connector decision, O0's LNSAT-reference fields and `reported_exact_path` classification remain historical combined-path fixtures. A separate OpenShell connector must not require LNSAT evidence to classify its own native observations. A separate LNSAT connector must not import an OpenShell policy/access-rule allow decision, policy-change review, or result as its own. Redesign and re-version that offline projection before any connected UI uses it; do not reinterpret its current output as native OpenShell compatibility.
 
 Named validation: Rust formatting, `cargo test -p rangoon-integrations`,
 warnings-denied Clippy for that package, offline five-case/coverage/staleness/

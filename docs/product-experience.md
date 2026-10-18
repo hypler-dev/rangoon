@@ -1,5 +1,22 @@
 # Product experience: make the visual promise useful
 
+## UI-V2 reference reconciliation
+
+The eight user-supplied images remain structural targets, not operational evidence. Keep the recognizable navigation, task workspace, selection and inspector hierarchy: Skills uses library/editor/provenance; Workflows uses palette/canvas/inspector; Import and Decompose use source/analysis/review; Merge/Split uses inputs/compose/result; Connectors uses catalog/detail; Command Center leads to actual local tasks. The original large mascot and scenic banners are optional marketing art. Daily application surfaces use compact headers and a restrained abstract Rangoon form so record content and actions dominate. User-visible synthetic samples, unavailable connections and unqualified runtime evidence retain explicit labels. This change is presentation-only; it does not infer feature completion from a screenshot.
+
+| Reference | Current app evidence | Remaining experience gap |
+| --- | --- | --- |
+| Governed/AI Command Center | Sample design preview links to local analysis and labels sample data. | The pictured live fleet, compliance percentage and activity are not real product evidence. Make real local work the primary entry, then add qualified operations data separately. |
+| Skills Management | Native workbench has saved-skill library, editing and provenance regions. | Test actual populated desktop density and selection/history recovery against the reference. |
+| Workflows | Local definition editor has palette, graph, inspector and alternate views; playground stays synthetic. | Keep canvas primary and verify populated native save/reopen, graph interactions and inspector focus. Do not label definitions as executed runs. |
+| Connector Command Center | Authority catalog and inspection distinguish research, unsupported and unavailable states. | Connected status and provider permissions require a real qualified adapter and evidence source. Catalog, compare and planning should remain progressively disclosed. |
+| Import & Analyze | User-selected Markdown file, source inventory and local save are source-backed; browser preview refuses native file actions. | Folder/repository discovery, multi-file partial results and true format adapters remain separate implementation. |
+| Decompose | Saved source sections can be reviewed as local composition inputs. | Preserve exact source spans and make module selection/recovery clear with populated native tasks. |
+| Merge & Split | Local recipes, previews, revisions and provenance have separate modes. | Confirm conflict handling, selected inputs and output inspection remain visible without implying semantic equivalence. |
+| Shared shell | Grouped nav, central work area, inspector and light/dark themes remain. | Reduce persistent art and equal-weight chrome; keep primary task/action/state visible at compact and desktop widths. |
+
+The abstract form is decorative and replaceable. Jeff's October 18 follow-up favors a larger, wider folded sculpture with subtle connection paths over a standalone icon; it still sits behind task content and never signals actual traffic. No route may use it to signal provider availability, approval, review, compliance or execution. Mascot art may still appear in marketing and optional splash contexts, outside daily task surfaces.
+
 Authority: [intent.md](intent.md). Jeff's October 5 clarification requires reviewing the supplied images as workflows and building a strong, usable platform, not stopping at styled screens. This record translates that direction into behavior and acceptance. The [architecture plan](plan.md) remains the full sequence; [development.md](development.md) owns implementation evidence.
 
 ## UI-U2 shared task navigation

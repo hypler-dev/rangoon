@@ -11,6 +11,7 @@ fn main() {
             "begin_workspace_close",
             "acknowledge_workspace_purge",
             "select_and_analyze",
+            "select_and_inspect_operations",
             "list_snapshots",
             "save_analysis",
             "open_snapshot",

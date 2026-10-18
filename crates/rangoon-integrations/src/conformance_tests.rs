@@ -259,6 +259,49 @@ fn configuration_preview_has_exact_canonical_output_and_digest() {
 }
 
 #[test]
+fn d0ah_i1_golden_output_has_no_installed_source_scope() {
+    let vectors: Value = serde_json::from_str(include_str!(
+        "../../../docs/rusl-d0a-host-mapping-vectors.json"
+    ))
+    .expect("host-source vectors JSON");
+    let case = vectors["cases"]
+        .as_array()
+        .expect("cases array")
+        .iter()
+        .find(|case| case["id"] == "D0A-H03")
+        .expect("H03 fixture");
+    assert_eq!(case["sourceKind"], "i1_inspection_output");
+    assert_eq!(case["expected"]["probeRows"], json!([]));
+
+    let configuration = r#"{"rules":[{"effect":"allow","name":"sample"}]}"#;
+    let fixture = inspected_record(
+        "configuration_preview",
+        json!({"resource": "demo", "action": "inspect"}),
+        Some(configuration),
+        evidence(
+            Some("provider_configuration"),
+            "none",
+            serde_json::from_str(configuration).expect("literal configuration JSON"),
+            None,
+            None,
+        ),
+    );
+    let inspection = inspect(&fixture).expect("valid synthetic fixture");
+    let output: Value = serde_json::from_slice(inspection.canonical_bytes())
+        .expect("canonical inspection output JSON");
+    assert_eq!(case["source"], output);
+    assert_eq!(output["source"], "offline_fixture");
+    assert_eq!(output["profile"]["providerFamily"], "synthetic");
+    assert_eq!(output["authority"], "none");
+    for field in ["systemId", "environmentId", "engineId", "nativeEventId"] {
+        assert!(output["profile"].get(field).is_none());
+        assert!(output["observation"].get(field).is_none());
+    }
+    assert_eq!(output["observation"]["observedAt"], "reported:1");
+    assert_eq!(output["observation"]["receivedAt"], "received:1");
+}
+
+#[test]
 fn object_reordering_preserves_canonical_identity() {
     let canonical = inspected_record(
         "evidence_read",

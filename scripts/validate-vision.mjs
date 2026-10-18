@@ -63,15 +63,19 @@ for (const [route, [x, y]] of Object.entries(contract.routeArtwork)) {
   assert.ok(css.includes(`.analysis-shell[data-area="${route}"]{--scene-x:${x}%;--scene-y:${y}%}`), `Missing route art mapping: ${route}`);
 }
 assert.equal(positions.size, 9, 'Keep distinct artwork for all nine native menus.');
-assert.deepEqual(contract.standaloneRouteArtwork, { workflows: 'preview/assets/capability-assembly-v1.png' }, 'The tenth native route uses distinct existing transparent artwork.');
+assert.deepEqual(contract.standaloneRouteArtwork, { workflows: 'preview/assets/rangoon-connected-form-v2.webp' }, 'The tenth native route uses a fixed abstract connected form.');
 await readFile(new URL(`../${contract.standaloneRouteArtwork.workflows}`, import.meta.url));
 assert.ok(css.includes('.analysis-shell[data-area="workflows"] .workflow-hero::after'));
-assert.ok(css.includes('assets/capability-assembly-v1.png'));
+assert.ok(css.includes('assets/rangoon-connected-form-v2.webp'));
 assert.match(css, /prefers-reduced-motion/);
 assert.match(css, /forced-colors/);
 const cascade = (await Promise.all(sheets.map(sheet => read(`preview/${sheet}`)))).join('\n');
 assert.match(cascade, /focus-visible/);
-assert.match(renderWorkbenchNavigation({ area: 'analysis', surface: 'workbench', theme: 'dark' }), /Sample design preview/, 'Keep fixtures distinct from native workspace through the shared navigation.');
+const workbenchNavigation = renderWorkbenchNavigation({ area: 'analysis', surface: 'workbench', theme: 'dark' });
+assert.match(workbenchNavigation, /Sample design preview/, 'Keep fixtures distinct from native workspace through the shared navigation.');
+assert.doesNotMatch(workbenchNavigation, /mascot\.webp/, 'Daily navigation must not mount the marketing mascot.');
+assert.doesNotMatch(await read('preview/analyze.mjs'), /mascot\.webp/, 'Local import empty state must stay task-first.');
+assert.doesNotMatch(await read('preview/app.mjs'), /mascot\.webp/, 'Sample application screens use abstract art rather than character art.');
 
 const disabled = (markup, id) => {
   const tags = [...markup.matchAll(/<button\b[^>]*>/g)].map(match => match[0]);

@@ -20,11 +20,14 @@ use data_controls::{
 };
 mod instruction_bundles;
 use instruction_bundles::{export_instruction_bundle, inspect_instruction_bundle};
+mod operations;
+use operations::select_and_inspect_operations;
 mod cloud_credentials;
 mod cloud_custody;
 mod cloud_model_consent;
 mod cloud_models;
 mod cloud_store;
+mod openshell_host;
 use cloud_credentials::*;
 use cloud_models::{
     NativeCloud, cancel_cloud_model, cancel_cloud_model_review, check_cloud_model,
@@ -50,7 +53,7 @@ mod workspace_close;
 mod workspace_requests;
 use workspace_requests::get_workspace_request_state;
 mod workspace_source_access;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
 use workspace_close::setup::{
     cancel_workspace_control, confirm_workspace_control, get_workspace_control_state,
@@ -259,8 +262,67 @@ fn bundled_navigation(url: &tauri::Url) -> bool {
     )
 }
 
+fn bounded_window_size(
+    work_area: Option<(u32, u32, f64)>,
+    target: (f64, f64),
+    fallback: (f64, f64),
+    minimum: (f64, f64),
+) -> (f64, f64) {
+    const CHROME_ALLOWANCE: f64 = 48.0;
+
+    let Some((physical_width, physical_height, scale)) = work_area else {
+        return fallback;
+    };
+    if !scale.is_finite() || scale <= 0.0 || physical_width == 0 || physical_height == 0 {
+        return fallback;
+    }
+    let logical_width = physical_width as f64 / scale;
+    let logical_height = physical_height as f64 / scale;
+    (
+        (logical_width - CHROME_ALLOWANCE)
+            .floor()
+            .clamp(minimum.0, target.0),
+        (logical_height - CHROME_ALLOWANCE)
+            .floor()
+            .clamp(minimum.1, target.1),
+    )
+}
+
+fn initial_window_size(work_area: Option<(u32, u32, f64)>) -> (f64, f64) {
+    bounded_window_size(work_area, (1440.0, 900.0), (1200.0, 720.0), (320.0, 480.0))
+}
+
+fn review_window_size(work_area: Option<(u32, u32, f64)>, target: (f64, f64)) -> (f64, f64) {
+    bounded_window_size(
+        work_area,
+        target,
+        (target.0.min(1152.0), target.1.min(672.0)),
+        (360.0, 480.0),
+    )
+}
+
+pub(crate) fn parented_review_window_size(
+    parent: &WebviewWindow,
+    target: (f64, f64),
+) -> (f64, f64) {
+    let work_area = parent
+        .current_monitor()
+        .ok()
+        .flatten()
+        .or_else(|| parent.primary_monitor().ok().flatten())
+        .map(|monitor| {
+            (
+                monitor.work_area().size.width,
+                monitor.work_area().size.height,
+                monitor.scale_factor(),
+            )
+        });
+    review_window_size(work_area, target)
+}
+
 fn main() {
     let (gate, model_flight) = admission_state();
+    let openshell_exit_waiter = workspace_close::failure::CallbackWaiter::default();
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(gate.clone())
@@ -268,6 +330,7 @@ fn main() {
         .manage(NativeCloud::default())
         .manage(model_flight)
         .manage(cloud_custody::Custody::with_gate(gate.clone()))
+        .manage(openshell_host::Host::new(gate.clone()))
         .on_window_event(|window, event| {
             workspace_close::window_event(window, event);
             models::window_event(window, event);
@@ -285,6 +348,7 @@ fn main() {
             begin_workspace_close,
             acknowledge_workspace_purge,
             select_and_analyze,
+            select_and_inspect_operations,
             list_snapshots,
             save_analysis,
             open_snapshot,
@@ -350,29 +414,62 @@ fn main() {
             app.manage(WorkspaceClose::new(
                 app.state::<SourceAccess>().inner().clone(),
             ));
+            let work_area = app.primary_monitor().ok().flatten().map(|monitor| {
+                (
+                    monitor.work_area().size.width,
+                    monitor.work_area().size.height,
+                    monitor.scale_factor(),
+                )
+            });
+            let (initial_width, initial_height) = initial_window_size(work_area);
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("analyze.html".into()))
                 .title("Rangoon")
-                .inner_size(1440.0, 960.0)
+                .inner_size(initial_width, initial_height)
                 .min_inner_size(320.0, 480.0)
+                .center()
                 .on_navigation(bundled_navigation)
                 .build()?;
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("could not start Rangoon desktop");
-    // The lifetime anchor belongs to the event loop, outside managed state.
-    // SourceAccess retains only a weak host notifier and cannot keep it alive.
-    let mut failure_anchor = workspace_close::failure::install(app.handle());
-    app.run(move |_, event| {
-        if let tauri::RunEvent::ExitRequested { code, api, .. } = &event
-            && let Some(anchor) = failure_anchor.as_ref()
-        {
-            match anchor.exit_request(*code) {
+    // Tauri runs setup on Ready, after build. SourceAccess and WorkspaceClose
+    // are registered there, so install the lifetime anchor only after setup.
+    // It belongs to the event loop, outside managed state; SourceAccess retains
+    // only a weak host notifier and cannot keep it alive.
+    let mut failure_anchor = None;
+    app.run(move |app, event| {
+        if matches!(&event, tauri::RunEvent::Ready) {
+            failure_anchor = workspace_close::failure::install(app);
+        }
+        if let tauri::RunEvent::ExitRequested { code, api, .. } = &event {
+            let cancel = || app.state::<openshell_host::Host>().cancel_and_check_exit();
+            let action = match failure_anchor.as_ref() {
+                Some(anchor) => anchor.exit_request(*code, cancel),
+                None => workspace_close::failure::route_exit_request(*code, None, cancel),
+            };
+            match action {
                 workspace_close::failure::ExitAction::Pass => {}
                 workspace_close::failure::ExitAction::Prevent => api.prevent_exit(),
+                workspace_close::failure::ExitAction::PreventAndWait => {
+                    api.prevent_exit();
+                    let checking = app.clone();
+                    let exiting = app.clone();
+                    openshell_exit_waiter.spawn(
+                        *code,
+                        move || {
+                            checking
+                                .state::<openshell_host::Host>()
+                                .cancel_and_check_exit()
+                        },
+                        move |code| exiting.exit(code),
+                    );
+                }
                 workspace_close::failure::ExitAction::PreventAndStart => {
                     api.prevent_exit();
-                    anchor.begin_exit_close();
+                    if let Some(anchor) = failure_anchor.as_ref() {
+                        anchor.begin_exit_close();
+                    }
                 }
             }
         }
@@ -385,6 +482,54 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn main_window_seed_respects_logical_work_area_and_display_scale() {
+        assert_eq!(initial_window_size(None), (1200.0, 720.0));
+        assert_eq!(initial_window_size(Some((1366, 768, 1.0))), (1318.0, 720.0));
+        assert_eq!(initial_window_size(Some((1280, 720, 1.0))), (1232.0, 672.0));
+        assert_eq!(
+            initial_window_size(Some((3840, 2160, 2.0))),
+            (1440.0, 900.0)
+        );
+        assert_eq!(
+            initial_window_size(Some((3840, 2160, 1.5))),
+            (1440.0, 900.0)
+        );
+        assert_eq!(initial_window_size(Some((1366, 768, 0.0))), (1200.0, 720.0));
+    }
+    #[test]
+    fn parented_review_seed_fits_short_and_scaled_work_areas() {
+        let review = (1000.0, 780.0);
+        let credential = (640.0, 600.0);
+        assert_eq!(
+            review_window_size(Some((1280, 720, 1.0)), review),
+            (1000.0, 672.0)
+        );
+        assert_eq!(
+            review_window_size(Some((1366, 768, 1.0)), review),
+            (1000.0, 720.0)
+        );
+        assert_eq!(review_window_size(Some((1920, 1080, 1.0)), review), review);
+        assert_eq!(review_window_size(Some((3840, 2160, 2.0)), review), review);
+        assert_eq!(review_window_size(Some((3840, 2160, 1.5)), review), review);
+        assert_eq!(
+            review_window_size(Some((800, 600, 1.0)), review),
+            (752.0, 552.0)
+        );
+        assert_eq!(
+            review_window_size(Some((1280, 720, 1.0)), credential),
+            credential
+        );
+        assert_eq!(
+            review_window_size(Some((800, 600, 1.0)), credential),
+            (640.0, 552.0)
+        );
+        assert_eq!(review_window_size(None, review), (1000.0, 672.0));
+        assert_eq!(
+            review_window_size(Some((1366, 768, 0.0)), review),
+            (1000.0, 672.0)
+        );
+    }
     #[test]
     fn navigation_stays_on_bundled_origins() {
         for allowed in [

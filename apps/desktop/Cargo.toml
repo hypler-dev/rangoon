@@ -18,6 +18,7 @@ tauri-build = "=2.7.1"
 tauri = "=2.12.1"
 tauri-plugin-dialog = "=2.8.1"
 rangoon-host = { path = "../../crates/rangoon-host" }
+rangoon-ops = { path = "../../crates/rangoon-ops" }
 rangoon-domain = { path = "../../crates/rangoon-domain" }
 rangoon-import = { path = "../../crates/rangoon-import" }
 getrandom = "=0.3.4"
@@ -27,6 +28,8 @@ serde_json = { version = "=1.0.151", features = ["raw_value"] }
 rangoon-store = { path = "../../crates/rangoon-store" }
 rangoon-workflow = { path = "../../crates/rangoon-workflow" }
 rangoon-engine = { path = "../../crates/rangoon-engine" }
+rangoon-openshell-client = { path = "../../crates/rangoon-openshell-client" }
+sha2 = "=0.11.0"
 rangoon-model-session = { path = "../../crates/rangoon-model-session" }
 rangoon-model-cloud = { path = "../../crates/rangoon-model-cloud" }
 rangoon-model-local = { path = "../../crates/rangoon-model-local" }
@@ -47,6 +50,11 @@ windows-native-keyring-store = "=1.1.0"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus-secret-service-keyring-store = { version = "=1.0.1", features = ["crypto-rust"] }
+
+[dev-dependencies]
+# Disposable loopback peers are available to tests only, never normal builds.
+rangoon-openshell-client = { path = "../../crates/rangoon-openshell-client", features = ["synthetic-peer-test-support"] }
+tokio = { version = "=1.53.2", default-features = false, features = ["macros", "rt-multi-thread"] }
 
 [features]
 default = ["custom-protocol"]

@@ -2375,6 +2375,27 @@ impl SelectionOperation {
             select: true,
         }
     }
+    /// A selected file may be inspected without retaining it as a source
+    /// analysis. The caller supplies a fixed stale result at delivery.
+    pub(super) fn complete_read_only<T>(self, result: T) -> ReadOnlySelectionCompletion<T> {
+        ReadOnlySelectionCompletion {
+            ticket: self.0,
+            result,
+        }
+    }
+}
+pub(super) struct ReadOnlySelectionCompletion<T> {
+    ticket: Ticket,
+    result: T,
+}
+impl<T> ReadOnlySelectionCompletion<T> {
+    pub(super) fn deliver(self, stale: impl FnOnce() -> T) -> T {
+        if self.ticket.current() {
+            self.result
+        } else {
+            stale()
+        }
+    }
 }
 pub(super) struct SelectionCompletion {
     ticket: Ticket,

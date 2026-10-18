@@ -1,0 +1,15 @@
+# Exact source set for the unmounted D2b-1 OpenShell transport packet.
+# Upstream: NVIDIA/OpenShell v0.1.4, commit 5a7728c304b5528e954e9ae900cf21f84e1a12b1.
+# License: Apache-2.0 (SPDX headers in each source file).
+
+[sources]
+"openshell.proto" = "eca4c0201ae623590c9deb6b0027a86b5193eb727d0e79c6852b40704d1a4d7d"
+"datamodel.proto" = "e50bd875a760f54b80269c65ee47984cae424fb623b7f59551ba62550c23e70b"
+"sandbox.proto" = "d06089ccd15b57519adb3236e7a4c16661c7c52c9f184f2f826246c62e090839"
+"options.proto" = "b0e03562c92777978f6f3e0f46260cdb82f1d88d1c1837eab0e53cdd0f195eb7"
+
+[pin]
+product = "OpenShell"
+version = "v0.1.4"
+commit = "5a7728c304b5528e954e9ae900cf21f84e1a12b1"
+service = "openshell.v1.OpenShell"

@@ -2,11 +2,13 @@
 
 Status: discovery complete; target loader qualification remains open.
 
+Latest identity recheck: 2026-10-16. The older installed-artifact table below remains its original discovery snapshot, not the currently pinned executable. The later recheck included a version-only process invocation with a denied local-write attempt, described separately below.
+
 Authority: [Product-value priority continuation](intent.md#product-value-priority-continuation--october-7-2026) and [export handoff](export-handoff.md). This document records discovery evidence for a later qualification packet. It does not establish runtime support, instruction adherence, offline behavior, or released-OS support.
 
 ## Scope
 
-The discovery pass examined the installed Codex and Claude command-line artifacts and the public documentation or source needed to identify a possible inspection path. No installed target process was launched, including `help` or `version`. No target model call, target authentication, provider operation, project installation, target-runtime network attempt, private configuration/transcript read, or application source change was performed. Public documentation and upstream source were retrieved through read-only tools; this was not a network-free research session.
+The original `0.159.0-alpha.12.1` discovery pass examined the installed Codex and Claude command-line artifacts and the public documentation or source needed to identify a possible inspection path. In **that historical pass**, no installed target process was launched, including `help` or `version`. No target model call, target authentication, provider operation, project installation, target-runtime network attempt, private configuration/transcript read, or application source change was performed. Public documentation and upstream source were retrieved through read-only tools; this was not a network-free research session. The October 16 identity recheck below is a separate event and does not inherit this no-process claim.
 
 The frozen descriptors `agents_md_v1` and `claude_md_v1` were not changed. Their contents remain outside this report's evidence boundary.
 
@@ -19,6 +21,14 @@ The frozen descriptors `agents_md_v1` and `claude_md_v1` were not changed. Their
 | Claude | `~/.local/bin/claude` is a symlink to `~/.local/share/claude/versions/2.1.92`; target is Mach-O arm64, `198736976` bytes; SHA-256: `6d1b9657727dce81332b3cda11bfe0a8c83e2392e3c062a31022e10b0e71cdd1`; signature identifier `com.anthropic.claude-code`. | A specific installed Claude artifact identity was recorded. | Runtime version semantics beyond PATH naming, standalone loader behavior, offline safety, or instruction adherence. |
 
 Claude `2.1.92` is an identity observed from the versioned PATH target name. It is not a runtime version result. No adjacent package JSON or JavaScript loader was identified in this discovery evidence.
+
+## October 16 candidate recheck; still no loader qualification
+
+The first proposed target-load study should use the existing `agents_md_v1` compiler profile and a **disposable Codex project**, because Rangoon already produces exact `AGENTS.md` bytes and a Codex executable is present locally. This selects a study candidate, not a supported target, an installation action or a new format. The accepted local source-to-export task can proceed without this study or any provider.
+
+On October 16, metadata inspection found `/Applications/ChatGPT.app/Contents/Resources/codex-cli/codex-package.json` reporting version `0.163.0-alpha.10.2`, SHA-256 `558c7aabb05ccc87bdb8c8514f87659fec72929a39919c7156f8b8889f7589b3`. The executable at `/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex` was 249,954,368 bytes, SHA-256 `1afb28c01d7d49e892bd75f11076b10f1451e34e0ee308a95e5ab7f69f9c84fe`. `codex --version` printed `codex-cli 0.163.0-alpha.10.2` and warned `WARNING: proceeding, even though we could not create PATH aliases: Operation not permitted (os error 1)`. This command attempted a PATH-alias side effect despite being version-only; the sandbox denied that attempt. No loader command, model turn, project installation or instruction readback was requested. Credential access and network behavior were not instrumented, so their absence is unproved. This new binary is different from the earlier discovery pin and needs its own isolated startup qualification; do not infer its behavior from upstream `main` or the older artifact.
+
+The candidate proof must separate three questions: whether exact exported bytes can be placed into a user-selected disposable target; whether that pinned target reports which artifact and layered instructions it **effectively loaded**; and whether any later runtime event can be source-qualified to that loaded state. File placement or matching on-disk digest answers only the first. A matching target-reported artifact digest still leaves effective layered configuration and instruction coverage unknown unless the target exposes verifiable readback. If no isolated readback path exists, record `unassessed` and keep the cross-system link unclaimed; do not substitute a paid agent/model call or an inference from observed behavior. Review the existing qualification protocol below before any target process is run again.
 
 ## Codex inspection-path finding
 

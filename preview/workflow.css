@@ -146,7 +146,7 @@
 .workflow-node-select { gap:4px 7px; padding:10px; }
 .workflow-node-kind-icon { grid-row:span 2; }
 .workflow-node--selected, .workflow-outline--selected { border-color:var(--orange) !important; box-shadow:0 0 0 2px color-mix(in srgb,var(--orange) 36%,transparent),0 7px 20px #0002; }
-.workflow-scene { position:relative; height:380px; min-height:380px; overflow:hidden; touch-action:pan-y; border-bottom:1px solid var(--line); background:radial-gradient(ellipse at 50% 55%,color-mix(in srgb,var(--cyan) 7%,var(--surface)),var(--surface) 75%); }
+.workflow-scene { position:relative; height:clamp(430px,calc(100vh - 360px),1200px); min-height:430px; overflow:hidden; touch-action:pan-y; border-bottom:1px solid var(--line); background:radial-gradient(ellipse at 50% 55%,color-mix(in srgb,var(--cyan) 7%,var(--surface)),var(--surface) 75%); }
 .workflow-scene canvas, .workflow-scene-labels { position:absolute; inset:0; width:100%; height:100%; }
 .workflow-scene canvas, .workflow-scene-labels { pointer-events:none; }
 .workflow-scene-node { position:absolute; left:50%; top:50%; display:flex; align-items:center; width:96px; min-height:46px; transform:translate(-50%,-100%); pointer-events:auto; border:1px solid var(--line); border-radius:8px; background:color-mix(in srgb,var(--surface) 92%,transparent); box-shadow:0 5px 15px #0002; }
@@ -206,7 +206,7 @@ details[open] > summary .workflow-disclosure-icon { transform:rotate(90deg); }
 .analysis-shell[data-area="workflows"] .workflow-page .workflow-hero.workflow-hero::after,
 :root[data-theme="light"] .analysis-shell[data-area="workflows"] .workflow-page .workflow-hero.workflow-hero::after { width:120px; height:120px; }
 :root .analysis-shell[data-area="workflows"] .workflow-page.workflow-page--playground .workflow-hero.workflow-hero { min-height:140px; }
-.workflow-page .workflow-canvas { box-sizing:border-box; height:430px; min-height:430px; overflow:auto; }
+.workflow-page .workflow-canvas { box-sizing:border-box; height:clamp(430px,calc(100vh - 360px),1200px); min-height:430px; overflow:auto; }
 .workflow-page .workflow-node { width:192px; border-radius:6px; box-shadow:none; }
 .workflow-node--selected, .workflow-node--connect-source, .workflow-page .workflow-node:focus-within { box-shadow:none; outline:2px solid color-mix(in srgb,var(--orange) 52%,transparent); outline-offset:0; }
 .workflow-node--connect-source { outline-color:color-mix(in srgb,var(--cyan) 64%,transparent); }
@@ -222,3 +222,29 @@ details[open] > summary .workflow-disclosure-icon { transform:rotate(90deg); }
 .workflow-scene-choice > small { color:var(--muted); font-size:9px; line-height:1.35; overflow-wrap:anywhere; }
 @media (pointer:coarse) { .workflow-port, .workflow-control-port { min-height:44px; } }
 @media (max-width:760px) { .workflow-view-menu { width:100%; } .workflow-view-menu > div { position:static; width:100%; max-width:none; box-sizing:border-box; margin-top:6px; } }
+
+@media (max-height:820px) and (min-width:801px) {
+  .analysis-shell[data-area="workflows"] .workflow-hero {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(250px,.72fr);
+    grid-template-rows:auto auto auto;
+    column-gap:18px;
+    row-gap:4px;
+    margin-bottom:8px;
+    padding:10px 16px;
+  }
+  .analysis-shell[data-area="workflows"] .workflow-hero::after { display:none; }
+  .analysis-shell[data-area="workflows"] .workflow-hero>:not(.analysis-kicker) { max-width:none; }
+  .analysis-shell[data-area="workflows"] .workflow-hero>.analysis-kicker { grid-column:1; grid-row:1; margin:0; }
+  .analysis-shell[data-area="workflows"] .workflow-hero>h1 { grid-column:1; grid-row:2; margin:0; }
+  .analysis-shell[data-area="workflows"] .workflow-hero>p:not(.analysis-kicker):not(.workflow-status) { grid-column:1; grid-row:3; margin:0; }
+  .analysis-shell[data-area="workflows"] .workflow-hero>.analysis-actions { grid-column:2; grid-row:1 / span 2; align-self:center; }
+  .analysis-shell[data-area="workflows"] .workflow-status { grid-column:2; grid-row:3; margin:0; }
+  .analysis-shell[data-area="workflows"] .workflow-summary { margin-bottom:8px; }
+  .analysis-shell[data-area="workflows"] .workflow-tabs { margin-bottom:8px; }
+}
+
+/* UI-R2: bound only the real workflow route on ultra-wide desktop windows. */
+@media (min-width:2400px) {
+  .analysis-shell[data-area="workflows"] .workflow-page { max-width:2200px; margin-inline:auto; }
+}

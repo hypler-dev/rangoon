@@ -1,0 +1,1197 @@
+{
+  "fixtureKind": "synthetic_typed_surrogate",
+  "openshellVersion": "0.1.4",
+  "releaseResearchCommit": "5a7728c304b5528e954e9ae900cf21f84e1a12b1",
+  "capturedNativeMessage": false,
+  "limits": {
+    "items": 128,
+    "policyRevisions": 32,
+    "fixtureBytes": 262144,
+    "outputBytes": 131072
+  },
+  "cases": [
+    {
+      "id": "denied_and_allowed_reported_policy",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "items": [
+          {
+            "kind": "report",
+            "eventId": "event:allow",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:deny",
+            "producer": "sandbox_log",
+            "result": "denied"
+          }
+        ]
+      },
+      "expected": {
+        "losses": [],
+        "diagnostics": [],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "stream"
+        }
+      }
+    },
+    {
+      "id": "pending_loaded_failed_superseded_and_active_version_mismatch",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "policy",
+        "policyRevisions": [
+          {
+            "id": "revision:pending",
+            "status": "pending",
+            "active": "revision:loaded"
+          },
+          {
+            "id": "revision:loaded",
+            "status": "loaded",
+            "active": "revision:loaded"
+          },
+          {
+            "id": "revision:failed",
+            "status": "failed",
+            "active": "revision:loaded"
+          },
+          {
+            "id": "revision:superseded",
+            "status": "superseded",
+            "active": "revision:loaded"
+          }
+        ]
+      },
+      "expected": {
+        "losses": [],
+        "diagnostics": [
+          "active_version_mismatch",
+          "active_version_mismatch",
+          "active_version_mismatch",
+          "policy_revision_changed"
+        ],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "policy"
+        }
+      }
+    },
+    {
+      "id": "changed_revisions",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "policy",
+        "policyRevisions": [
+          {
+            "id": "revision:one",
+            "status": "loaded",
+            "active": "revision:one"
+          },
+          {
+            "id": "revision:two",
+            "status": "loaded",
+            "active": "revision:two"
+          }
+        ]
+      },
+      "expected": {
+        "losses": [],
+        "diagnostics": [
+          "policy_revision_changed"
+        ],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "policy"
+        }
+      }
+    },
+    {
+      "id": "repeated_and_conflicting_event_ids",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "items": [
+          {
+            "kind": "report",
+            "eventId": "event:repeat",
+            "nativeId": "native:one",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:repeat",
+            "nativeId": "native:one",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:repeat",
+            "nativeId": "native:two",
+            "producer": "platform_status",
+            "result": "denied"
+          }
+        ]
+      },
+      "expected": {
+        "losses": [],
+        "diagnostics": [
+          "repeated_event_id",
+          "mixed_producer",
+          "conflicting_event_id"
+        ],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "stream"
+        }
+      }
+    },
+    {
+      "id": "same_display_name_and_native_id_across_installations",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "installationId": "installation:two",
+        "items": [
+          {
+            "kind": "report",
+            "eventId": "event:one",
+            "nativeId": "native:same",
+            "producer": "sandbox_log",
+            "result": "uncertain"
+          }
+        ]
+      },
+      "expected": {
+        "losses": [],
+        "diagnostics": [],
+        "scope": {
+          "installationId": "installation:two",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "stream"
+        }
+      }
+    },
+    {
+      "id": "replica_and_cursor_space_change",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "replicaId": "replica:two",
+        "cursorSpace": "space:two",
+        "cursor": "opaque/base64+cursor=",
+        "prior": {
+          "replicaId": "replica:one",
+          "cursorSpace": "space:one"
+        }
+      },
+      "expected": {
+        "losses": [
+          "stream_continuity_replica_changed",
+          "stream_continuity_cursor_space_changed"
+        ],
+        "diagnostics": [],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "stream"
+        }
+      }
+    },
+    {
+      "id": "watch_warning_out_of_range_and_invalid_argument",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "items": [
+          {
+            "kind": "watch",
+            "eventId": "event:warning",
+            "condition": "warning"
+          },
+          {
+            "kind": "watch",
+            "eventId": "event:gap",
+            "condition": "out_of_range"
+          },
+          {
+            "kind": "watch",
+            "eventId": "event:invalid",
+            "condition": "invalid_argument"
+          }
+        ]
+      },
+      "expected": {
+        "losses": [
+          "watch_gap_warning",
+          "watch_gap_out_of_range"
+        ],
+        "diagnostics": [],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "stream"
+        }
+      }
+    },
+    {
+      "id": "recent_buffer_truncation",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "items": [
+          {
+            "kind": "report",
+            "eventId": "event:truncated",
+            "producer": "stream_status",
+            "result": "uncertain",
+            "revision": "revision:missing",
+            "truncated": true
+          }
+        ]
+      },
+      "expected": {
+        "losses": [
+          "reported_policy_revision_not_in_window",
+          "recent_buffer_truncated"
+        ],
+        "diagnostics": [],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "stream"
+        }
+      }
+    },
+    {
+      "id": "missing_workspace",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "workspaceId": "",
+        "items": []
+      },
+      "expected": {
+        "error": "openshell_invalid_input"
+      }
+    },
+    {
+      "id": "missing_sandbox",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "sandboxId": "",
+        "items": []
+      },
+      "expected": {
+        "error": "openshell_invalid_input"
+      }
+    },
+    {
+      "id": "missing_event_id",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "items": [
+          {
+            "kind": "report",
+            "producer": "sandbox_log",
+            "result": "uncertain"
+          }
+        ]
+      },
+      "expected": {
+        "losses": [
+          "native_event_id_missing"
+        ],
+        "diagnostics": [],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "stream"
+        }
+      }
+    },
+    {
+      "id": "mixed_producer",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "items": [
+          {
+            "kind": "report",
+            "eventId": "event:log",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:platform",
+            "producer": "platform_status",
+            "result": "uncertain"
+          }
+        ]
+      },
+      "expected": {
+        "losses": [],
+        "diagnostics": [
+          "mixed_producer"
+        ],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "stream"
+        }
+      }
+    },
+    {
+      "id": "uncertain_reported_result",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "items": [
+          {
+            "kind": "report",
+            "eventId": "event:uncertain",
+            "producer": "sandbox_log",
+            "result": "uncertain"
+          }
+        ]
+      },
+      "expected": {
+        "losses": [],
+        "diagnostics": [],
+        "scope": {
+          "installationId": "installation:one",
+          "workspaceId": "workspace:one",
+          "sandboxId": "sandbox:one",
+          "sourceKind": "stream"
+        }
+      }
+    },
+    {
+      "id": "malformed_input",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "log",
+        "items": [
+          {
+            "kind": "report",
+            "eventId": "",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          }
+        ]
+      },
+      "expected": {
+        "error": "openshell_invalid_input"
+      }
+    },
+    {
+      "id": "oversized_items_input",
+      "provenance": "synthetic_typed_surrogate",
+      "input": {
+        "sourceKind": "stream",
+        "items": [
+          {
+            "kind": "report",
+            "eventId": "event:oversize:0",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:1",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:2",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:3",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:4",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:5",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:6",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:7",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:8",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:9",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:10",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:11",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:12",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:13",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:14",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:15",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:16",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:17",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:18",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:19",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:20",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:21",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:22",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:23",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:24",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:25",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:26",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:27",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:28",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:29",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:30",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:31",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:32",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:33",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:34",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:35",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:36",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:37",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:38",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:39",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:40",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:41",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:42",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:43",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:44",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:45",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:46",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:47",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:48",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:49",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:50",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:51",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:52",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:53",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:54",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:55",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:56",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:57",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:58",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:59",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:60",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:61",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:62",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:63",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:64",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:65",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:66",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:67",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:68",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:69",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:70",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:71",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:72",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:73",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:74",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:75",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:76",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:77",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:78",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:79",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:80",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:81",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:82",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:83",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:84",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:85",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:86",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:87",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:88",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:89",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:90",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:91",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:92",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:93",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:94",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:95",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:96",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:97",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:98",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:99",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:100",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:101",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:102",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:103",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:104",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:105",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:106",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:107",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:108",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:109",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:110",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:111",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:112",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:113",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:114",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:115",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:116",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:117",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:118",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:119",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:120",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:121",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:122",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:123",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:124",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:125",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:126",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:127",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          },
+          {
+            "kind": "report",
+            "eventId": "event:oversize:128",
+            "producer": "sandbox_log",
+            "result": "allowed"
+          }
+        ]
+      },
+      "expected": {
+        "error": "openshell_window_limit"
+      }
+    }
+  ]
+}

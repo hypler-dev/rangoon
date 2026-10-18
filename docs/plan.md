@@ -4,11 +4,130 @@
 Status: proposed
 Authority: [intent.md](intent.md), including the accepted provider-independent continuation; detailed future stage proposals are not implementation or release acceptance
 Owner: Jeff
-Last updated: 2026-10-16
+Last updated: 2026-10-17
+
+## Universal language design gate
+
+Jeff requested a design-only audit before expanding provider coverage. The proposed [RUSL v0.1 language](universal-systems-language.md), narrow [D0a observation profile](universal-systems-observation-profile.md), six [candidate canonical vectors](rusl-d0a-canonical-vectors.json), 11 groups of [candidate negative vectors](rusl-d0a-negative-vectors.json), six complete plus one derived [candidate O1/I1 host-source vectors](rusl-d0a-host-mapping-vectors.json) and [capability/implementation audit](universal-systems-audit.md) define a loss-aware semantic layer above I1/A1/W1/O1, not a replacement authority. Independent review of earlier proposal bytes passes; owner acceptance of a public profile and pinned schema identity remain open. Jeff separately authorized an **experimental pure offline D1 parser** under [intent](intent.md#d1-pure-offline-parser-authorization--october-16-2026). Its unmounted crate validates only candidate inert D0a documents. It cannot mount an adapter, assert compatibility or make candidate bytes a public wire contract. The offline D0a-H source probe now tests O1 reference/refusal shape against these envelopes and I1 H03 non-mapping; full D0a qualification still requires accepted profile/schema identity, complete independent cross-language conformance and a separately reviewed host integration. Jeff next accepted the exact [D0a-H offline O1/I1 source packet](intent.md#d0a-h-offline-host-source-conformance--october-17-2026), which probes validated reference shape and refusal only; it cannot emit D0a observations, assert compatibility or contact a provider. Jeff then accepted the exact internal D0a review snapshot for the [D2a offline OpenShell fixture adapter](intent.md#internal-d0a-profile-and-d2a-offline-adapter--october-17-2026). Public wire/schema acceptance and complete host/cross-language conformance remain open; D2a is typed inert metadata inspection only. D0b action/context commitment is a later separate gate before consequential semantics. Only a later separately consented, pinned read-only adapter may connect to a provider. Keep OpenShell and LNSAT independent and preserve the useful local three-OS workbench path.
+
+The current support goal uses the [cross-runtime operator-record target](operations-control-plane.md#cross-runtime-operator-record-acceptance-target): after D0a/D1, OpenShell is the first goal-specific **read-only runtime connector**, with LNSAT evidence as a separate later gate. The proposed [D2 OpenShell specification](openshell-observation-connector.md) and [D3 LNSAT specification](lnsat-evidence-connector.md) each stage offline native-source fixtures before separately consented connected reads. D3 explicitly excludes LNSAT's POST reconciliation route from a read-only adapter. The [cross-system relation proof gate](operations-control-plane.md#cross-system-relation-proof-gate) leaves independent engine observations unlinked unless a later qualified mediator binds one exact attempt; matching names, trace strings or digests do not make a verified edge. Existing Cerbos-first wording elsewhere in this plan describes the lower-risk generic policy-adapter I2 candidate, not a dependency or a broader ordering claim. This design reconciliation itself opened no implementation or engine action; the later accepted D1, D0a-H and D2a source scopes are separately bounded.
+
+Jeff separately accepted the [D3a offline LNSAT exact-evidence source packet](lnsat-evidence-connector.md#d3a-exact-offline-source-packet--accepted-for-internal-offline-source) against a pinned local `public/main` serializer. Its unmounted pure decoder and synthetic fixture now exercise authorization/attempt/receipt/reconciliation inspection without pretending its three GET surfaces supply denial/replay history or independent effect proof; [development](development.md#d3a-internal-offline-lnsat-evidence-decoder--october-17-2026) owns validation evidence. D3a consumes no D0a document and is not authorized by D0a's D2a-scoped acceptance or D1's offline tests; its own acceptance is recorded in [intent](intent.md#d3a-offline-lnsat-evidence-acceptance--october-17-2026). D2b-2 host consent/custody, D2b-3 real-gateway qualification and D3b connected read remain later independent gates; none is a release prerequisite for the useful provider-free local workbench.
+
+The [accepted D2b-1 OpenShell native read-only source packet](openshell-observation-connector.md#d2b-1-native-connected-read-transport-packet--accepted-for-unmounted-source) now has an unmounted, OIDC-only v0.1.4 gRPC client tested against a synthetic TLS peer; its [development receipt](development.md#d2b-1-unmounted-openshell-read-client--october-17-2026) records validation and limits. This is source behavior, not connected support. D2b-2 host consent/custody and D2b-3 released-gateway plus three-OS qualification follow separately; default local mTLS, edge tunnels, connected UI and cross-engine relations remain outside this packet. D3b separately needs a fresh LNSAT artifact because D3a's frozen local `public/main` research ref is not an established current public artifact. Do not trade the provider-free local workbench release path for adapter coverage.
+
+## Harness value and portability completion track
+
+Authority: Jeff's October 18 transcript/research request adds the following completion requirements to the roadmap. The [dated primary-source assessment](harness-research-20261018.md) owns the research and current-code comparison; this section owns priority. These are proposed future implementation packets, not newly working features. Existing E1 adoption, native exit qualification and useful local release work retain priority. Broad runtime coverage is not a prerequisite for shipping the local workbench.
+
+| Order / packet | Reuse and exact first deliverable | Acceptance and limits |
+| --- | --- | --- |
+| 0. Finish the useful local path | Existing E1 services, native close coordinator and source-to-export workbench. Next prepare NX-06 disposable event-loop qualification, then complete accepted setup/recovery/platform gates. | Actual native event prevention and callback drain, followed by isolated encrypted setup/import/save/lock/unlock/restart tasks and target-loader proof. Native harness operation and production activation remain separate gates; no new runtime to bypass them. |
+| 1. HV-01 offline evaluation records | Reuse M1 pack/inspection identities, W1 revisions and existing test fixtures. Proposed files: `docs/capability-evaluation.md`, `fixtures/evaluation/*.json`, `scripts/validate-capability-evaluation.mjs`, `tests/capability-evaluation.test.mjs`. Root owns contract; one bounded worker owns fixtures/validator/tests after exact packet acceptance; fresh reviewer owns read-only review. | Versioned dataset and case IDs, exact source/revision/template/compiler/model/harness/adapter pins, baseline/candidate identity, evaluator identity/version and provenance, per-case outcomes, repetitions, errors/refusals, token/latency/cost measurement method and unknown values. Offline validator recomputes summaries and rejects mismatched cases, fabricated savings, missing denominators, unsupported versions, stale/mixed runs and aggregate gains that hide failed mandatory cases. No model calls, execution runner, persistence migration or new public wire contract. Run named Node fixture tests and review/document checks. |
+| 2. HV-02 context fidelity and upgrade review | Extend the existing M1 conformance corpus; do not create another context packer. Add a reviewable behavioral-workaround register tied to capability revisions and evaluation cases. | Preserve exact protected spans, uncertainty, negative evidence, contradictions, citations and explicit omissions. Distinguish byte-preserving selection from a later semantic summary. Compare fixed cases before/after model, prompt or tool-set changes; deletion recommendations remain human-reviewed. Security/privacy controls cannot be auto-retired as model workarounds. No tokenizer estimate labeled billed usage. |
+| 3. HV-03 portable change and recipe evidence | Extend existing R3/R4 compilation, target-loader qualification and R9 descriptors with source/target/version and unsupported-field reports; reuse immutable revisions. | Inspect/export/reimport retains supported identities and provenance; unsupported semantics are explicit. A runtime recipe pins tools, instruction revisions, budgets and verification requirements without claiming it grants permissions or reproduces private runtime state. Test changed dependencies and rollback references. No universal export promise or executable plugin loader. |
+| 4. HV-04 external waiting and recovery inspection | Extend the planned O3/native evidence detail layer and provider-neutral mapping after one qualified source exists. Runtime remains owner of scheduling, subscriptions and task execution. | Distinguish task definition, instance, checkpoint, wait reason, wakeup, attempt and effect outcome. Inspect duplicate/out-of-order events, expired approvals, lost checkpoints and stale policy. Resume/stop controls remain unavailable until provider-specific semantics, consent and execution-time rechecks are qualified. Observation replay never triggers execution. |
+| 5. HV-05 generated-capability lifecycle | Extend R9 and existing revision/coverage contracts with inert created-tool/image/plugin proposals and origin/evaluation references. | Show proposed, reviewed, installed, active, expired, revoked and removed as distinct provider-sourced states. Unknown dependency/identity or capability expansion blocks promotion; test replacement during use, partial cleanup and active references after removal. Provider installation and hot-loading remain separate protected scope. |
+
+HV-01 is the next **new product capability** recommendation after current local/native gates. A later connected evaluation runner requires explicit endpoint/data consent, hard run/token/time/cost limits, cancellation, redaction and independent review. Start with optional import/export adapters for Phoenix/LangSmith-style evidence instead of a second observability backend. Preserve native schemas and report losses; product names here are candidates, not current integrations.
+
+User-facing placement stays within existing menus: Compare changes in Skills/Compile, datasets and experiment comparisons in Test Lab, runtime wait/recovery evidence in Operations. Do not add top-level menus, more synthetic readiness panels or autonomous optimization to satisfy this plan. Pilot success measures are task completion, human correction burden, source/target fidelity, recovery and measured overhead on the same sanitized task set; no competitor superiority claim follows from feature count.
+
+## Competitive proof and missing workflows
+
+This is a proposed completion sequence, not a claim that Rangoon or LNSAT
+outperforms another product today. Compare against a pinned release and the
+same sanitized task, not screenshots or feature counts. NVIDIA OpenShell
+already supplies sandbox policy, credential protection, observability and
+extension surfaces; its current guide is
+[versioned](https://docs.nvidia.com/openshell/home). NVIDIA NeMo
+[Switchyard](https://github.com/NVIDIA-NeMo/Switchyard) optimizes model routing,
+a different job. Neither should be recast as a Rangoon authority engine.
+
+| Priority | Current evidence | Missing workflow and pass condition |
+| --- | --- | --- |
+| 1. Useful local workbench | Source-first import, revision, composition, compilation and export exist; desktop/platform and encrypted-default qualification remain incomplete | One disposable source-to-export/restart task passes on macOS, Windows and Linux, including refusal, recovery and no-provider use. Measure setup time and steps. |
+| 2. Consequential action proof | Rangoon's operations records are inert. Local LNSAT `public/main` at `f669181a` reports Phase 10 source-conformance complete and an experimental Phase 11 fake-runtime served chain; a newer local branch adds a durable guard. Phase 11 real Docker/runtime proof, supported artifact and Rangoon integration remain open. See the dated [D3 source check](lnsat-evidence-connector.md#source-evidence-and-qualification). | In a separately authorized disposable LNSAT target, prove denial, exact changed action, replay, approval change, authorized effect, lost result and uncertain reconciliation. Verify host-side consequence and durable receipt; show any bypass. Preserve LNSAT's separate acceptance and authorization gates. |
+| 3. Operator record | O1 source inspectors classify reported records without authentication; O2 has a local, read-only first slice on `codex/ops-local-window`, with native GUI qualification still open; O3–O4 remain unbuilt | Qualify the selected-file library, reported timeline/topology and inspector on populated native tasks. Then build authenticated, redacted, bounded event ingress and correlated search across request, evaluation, human/agent approval, authority consumption, actual outcome and evidence. Show unknown, stale, disconnected and advisory coverage; test missing, out-of-order and duplicate events. |
+| 4. Independent runtime and authority interop | OpenShell O0 is an offline combined-path fixture; A1 LNSAT remains unavailable | Pin separate read-only OpenShell and LNSAT connector contracts. Preserve each engine's native identity, policy decision, policy-change review when present, approval when actually supported, and evidence. Test unavailable, denied, allowed, changed, stale, repeated and uncertain reports without translating one engine's decision or result into the other's authority. Keep absent-adapter workbench useful. |
+| 5. Safe change review | Revisions and provenance exist; no qualified authority-impact preview | Diff capability/policy/connector changes by affected actions, resources, approval duties and adapter coverage. Replay sanitized fixtures and label untested paths. Do not claim formal verification or infer permission from preview. |
+| 6. Integration developer path | Provider descriptors and offline conformance contracts exist; executable plugin SDK does not | Ship versioned adapter test kit with negative fixtures, explicit capability/coverage matrix, consent and secret-handling rules after one real adapter. Public plugin runtime and registry follow two independent qualified adapters. |
+
+Benchmark evidence must report denied and permitted outcomes, bypass attempts,
+duplicate/replay handling, uncertain-result recovery, operator trace
+completeness, latency overhead, setup burden and tested operating systems.
+Keep security, routing, authoring and UI scores separate. A win on one task
+does not imply superior sandbox isolation, model routing or broad market fit.
+
+### Verification protocol
+
+For each sanitized task, pin product versions, host OS, policy, actor, action
+bytes/digest, target and expected result. Run an independent target observer
+outside the agent/runtime path: capture pre-state, decision and consumption
+records, attempted command or API call, post-state and durable receipt. Inject
+denial, changed arguments, replay, expired approval, missing provider, lost
+response and crash/restart. A denial passes only if the target did not change;
+a permitted action passes only if exact intended effect and corresponding
+evidence agree. Unknown remains unknown until read-only reconciliation proves
+the consequence. Repeat on all supported OSs and compare like-for-like tasks
+against pinned alternatives where their responsibilities overlap.
+
+Do not make model classification a prerequisite for LNSAT authorization.
+Deterministic controls must bind the exact effect-time action, target, actor,
+scope and policy revision, with cumulative budgets, protected-resource labels,
+expiry, replay defense and human approval where specified. This catches many
+slow or split destructive actions without inferring intent from prose. An
+optional, locally evaluated semantic assessor may add risk evidence or request
+escalation; it cannot issue a grant, erase a denial or establish that an effect
+occurred. If the curator is absent, stale or uncertain, show that state and
+continue LNSAT's independent deterministic policy and human duties; never
+silently convert the missing advisory finding into a safe classification.
+An optional advanced-model curator may inspect an explicitly reviewed,
+minimized case after local session consent; a remote curator additionally
+requires separate external-transfer consent. It can propose risk tags, missing
+context and a human-readable explanation. A human must review
+the exact action and evidence before any required approval. LNSAT still owns
+the final scoped authorization and execution-time check. No model, local or
+remote, becomes a human approver or an authority engine.
+Future model-delegated approval is an open, separate authority-design question:
+measured accuracy alone is insufficient. It would need explicit human-granted
+bounded delegation, revocation, failure and adversarial qualification, exact
+effect-time checks and a new accepted LNSAT contract before any such claim.
+Track every policy, model, human, authorization and effect observation as a
+separate event, including abstentions, refusals, expiry, unavailable inputs,
+unknown outcomes and later corrections. The local O2 first slice provides
+scoped offline reported-decision counts and drill-down over the current O1
+vocabulary; O3 must qualify authenticated, redacted, retained live ingress.
+A model-advice event
+needs a new versioned advisory contract, never a disguised policy evaluation
+or approval. The [decision analytics sequence](operations-control-plane.md#decision-ledger-and-analytics-sequence)
+defines denominators and independent labels; a high model score is neither an
+authorization grant nor an accuracy claim for unlabeled production traffic.
+
+Separately, time first-time users through source import, skill discovery,
+composition, policy review, refusal recovery and trace explanation. Score task
+completion, errors, time and explanation accuracy with blinded human review.
+An AI reviewer may flag confusing descriptions, missing context and likely
+semantic mistakes, but its judgment is advisory and checked against source
+bytes and human review; never use model approval as proof of enforcement or a
+substitute for independent target observation. Preserve test artifacts and
+failed cases in the development ledger before any comparative claim.
 
 ## OpenShell runtime sequence
 
-Under the [accepted continuation](intent.md#openshell-runtime-boundary-continuation--october-16-2026), keep OpenShell outside the authority-engine catalog. The [O0 offline continuity report](provider-interoperability.md#openshell-o0-offline-runtime-continuity-report) is a source-only first slice with five-case and coverage fixtures; it is not live support. Continue Rangoon's useful local workbench and encrypted-workspace adoption gates while LNSAT separately qualifies its disposable local action loop. Review the [O1 source freeze candidate](provider-interoperability.md#openshell-o1-source-freeze-candidate) for exact OpenShell tag/protobuf/binding and LNSAT-owned middleware requirements; then qualify generated bindings, authenticated transport, execution-time authority, bypass and real-runtime behavior. Finally admit authenticated correlated evidence into Rangoon's existing operations records and show a complete or explicitly incomplete operator trace. No current OpenShell connection or live telemetry follows from O0 or this candidate.
+Under the later [independent-connectors decision](intent.md#independent-openshell-and-lnsat-connectors--october-16-2026), keep OpenShell outside the frozen eight-entry I1 authority catalog while planning it as a separate optional connector. O0 is an offline combined-path fixture, not native OpenShell support. The old LNSAT-owned [O1 source-freeze candidate](provider-interoperability.md#openshell-o1-source-freeze-candidate) is historical research, not the active sequence. First freeze provider-neutral identity/state/provenance fields and separate provider-specific capability profiles. Then pin one OpenShell release and qualify a read-only native configuration/evidence path with explicit consent, least-privilege identity and negative transport cases. Independently qualify LNSAT's request-keyed action loop and a read-only Rangoon evidence path after LNSAT's own gates. Only later consider a separately accepted consequential operation for either engine, including direct-path/bypass disposition and independently verified effects. Do not make an OpenShell operation depend on an LNSAT grant or call an OpenShell policy/access-rule allow decision an action approval. No current OpenShell connection, LNSAT connection or live telemetry follows from O0 or this plan.
+
+The accepted D2b-1 source supplies an unmounted, closed OpenShell v0.1.4 read client. Jeff accepted [D2b-2a](openshell-observation-connector.md#d2b-2-native-host-consent-and-observation-custody--proposed-packet) for exact native target, one-shot consent, dummy test lease, workspace generation and session-only bounded reads against synthetic peers; production Start remains unavailable. D2b-2b remains proposed and separately gates native-only production credential acquisition, encrypted Managed observation save, retention/deletion and native UI after Managed factory proof. D2b-3 then qualifies a disposable released gateway and macOS/Windows/Linux clients. Typed per-action OpenShell decisions need a separate structured-source/ingress packet; D2b-1 stream text cannot stand in. OpenShell observations enter O1/O2 only through a later trusted-ingress mapping review. LNSAT connected evidence keeps its own artifact, identity and consent gate.
+
+Before mounting real-client dispatch, the [accepted test-only validation bridge](openshell-observation-connector.md#d2b-2a-validation-bridge--accepted-for-synthetic-source) now exposes pinned protocol-valid fake-peer fixtures from the client crate and drives the real read client through host consent with dummy leases. Synthetic tests cover exact target/pin, protected denial, bounded read, Stop, close and host exit-helper drain; the [bridge receipt](development.md#d2b-2a-synthetic-host-to-client-validation-bridge--october-18-2026) records results and the unrelated baseline all-targets lint failure. Jeff accepted this exact client-test and desktop-test ownership on October 18; the existing host fake alone cannot exercise transport. Actual Tauri ordinary-exit and restart paths need separate native qualification before production Start; absence of a current restart route or production Start is not proof that future active reads survive restart. This bridge enables no production credentials, provider contact, UI, save or execution.
+
+The [O1b-2b3 lifecycle contract](operations-lifecycle.md) defines the last
+inert reported-record inspector needed before read-only operator views. It
+preserves authorization, attempt, suspension, metrics, evidence and coverage
+as distinct observations with unknown authoritative outcome and coverage.
+The source implementation and independent fixtures pass their local package
+gate and fresh read-only review, as recorded in the [development ledger](development.md#reported-lifecycle-inspection-o1b-2b3--october-16-2026).
+This does not satisfy authenticated ingestion or a live trace.
 
 ## Source-free protection UI checkpoint
 
@@ -426,6 +545,21 @@ Keep the domain/service API independent of desktop IPC. In local mode the shell 
 Begin with a single writer and SQLite locally. Introduce a PostgreSQL repository implementation when multi-user concurrency warrants it, with the same contract suite and explicit migration/export tests. Use object storage for artifacts only when required; content identity must not depend on an object-store key. A lease-based durable job queue and transactional outbox precede distributed workers. Avoid distributed active-active writes and CRDT capability merges in the first team release; use expected-revision conflicts and explicit review.
 
 For hosted enterprise, define tenant isolation at authentication, queries, object names, jobs, workers, caches, logs, and exports. A desktop cache is not automatically synchronized. Sync immutable revisions and conflict records; remote access does not transfer local execution permission. Local workers initiate authenticated outbound sessions with bounded leases. Offline authoring works; offline execution is denied unless an explicit bounded offline authority design has separately passed review. Encrypt transport and backups; prove restore and retention/deletion, not just backup creation.
+
+### Capacity and fleet deployment qualification
+
+The [application architecture](application-architecture.md#capacity-model-for-a-5001000-person-organization) owns proposed desktop, single-site, multi-node and large-fleet workload classes. For a 500–1,000-person organization, use a **design target** of 1 million observed actions/day, 10 million minimized evidence events/day and 60-second bursts at 1,000 actions/second or 10,000 events/second per large tenant. These are not measured Rangoon results. Keep authority-engine request latency and capacity separate: Rangoon must not sit inline on every engine decision. Today's O1 native selected-file path accepts at most 2 MiB and 1,024 events, computes a whole-window view and returns one bounded IPC result. That protects local inspection and cannot be called fleet ingestion. Do not raise those caps as a substitute for paged, partitioned storage.
+
+| Proposed packet | Result and ownership | Exit evidence before support claim |
+| --- | --- | --- |
+| S0 workload corpus | Freeze small/medium/large event-size distributions, action-to-event fan-out, 100k/1m/10m actions/day classes, 60-second bursts and shorter microbursts, tenant mix, reads, retention and fault cases. Keep source-native and semantic evidence labels separate. | Reproducible fixture generator with pinned corpus ID/digest, action-to-event ratio, complete expected accepted/rejected/duplicate/conflict/gap counts and denominators; measured current O1 and local parser baseline without calling it server capacity. |
+| S1 single-site ingest | Add authenticated producer admission, redaction, durable append, scoped event IDs/cursors, bounded batches, idempotent replay and paged read projection. Use same domain contracts; no raw Tauri-command HTTP wrapper. | Crash/disk-full/duplicate/conflict/out-of-order tests, backup/restore, tenant/scope negatives, and the pinned S0 corpus at 100k actions/day plus a 60-second concurrent burst of 100 actions/second and 1k events/second at the frozen 10:1 fan-out. Report accepted/rejected/duplicate/conflict/gap counts against the corpus and p50/p95/p99 ingest/query/lag measurements. |
+| S2 multi-node service | Distribute stateless API/ingest behind a load balancer; add logically shared tenant-scoped management metadata with leases, expected revisions and an outbox; partition durable event streams by tenant and producer; scale projection/query workers independently; enforce quotas/backpressure. This is Rangoon storage, not a shared LNSAT authority database. | The pinned S0 corpus at 1m actions/day plus a 60-second concurrent burst of 1k actions/second and 10k events/second at the frozen 10:1 fan-out, with a 72-hour soak; p50/p95/p99, queue depth, graph lag, storage amplification, recovery, slow client and hot-tenant isolation; report accepted/rejected/duplicate/conflict/gap counts and every injected gap with its scope. |
+| S3 staged target/fleet management | Versioned target registry and exact artifact plans, target-specific validation, required review, canary/waves, durable per-target jobs, installed/effective readback, partial/unknown reconciliation and explicit rollback. Treat each LNSAT instance or other engine as independent unless its own cluster contract is qualified. | Disposable target tests for policy/config drift, ACK without effective load, stale target, partial wave, lost response after write, duplicate command, rollback failure and no cross-instance authority fallback. |
+| S4 regional/large fleet | Region- and residency-aware placement plus dedicated shard and recovery design; no automatic cross-region authority failover. | Separately measured 10m-action/day and 100m-event/day class with a 60-second burst at 10k actions/second and 100k events/second, plus p50/p95/p99, queue/lag, hot-shard isolation, regional partition/restore and data-residency fault evidence; owner accepts support row. |
+
+S0–S4 are staged proposals, not a new prerequisite for R6 local desktop. First source packet should be S0's offline corpus and baseline measurement with exact fixture ownership and no provider, network, credential or engine activity. Choose database/log technology only after workload and durability evidence; PostgreSQL for team metadata does not by itself solve event throughput, and a new broker is not automatically required for the first team tier. Any live ingress or deployment writer needs its own accepted trust, storage, privacy and failure contract before implementation. A service ACK, load-balancer health check or deployment command result never proves engine authorization, effective target load or external effect.
+S3's first disposable, single-site target can proceed after S1 and its own trust/deployment contract; S2 multi-node hosting is not a prerequisite for useful staged deployment management. Multi-node rollout and larger fleets require the later distribution proof.
 
 ### Open source and business model
 

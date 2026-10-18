@@ -76,14 +76,13 @@ fn vectors() -> serde_json::Value {
 
 fn case(name: &str) -> serde_json::Value {
     let vector = vectors();
-    let found = vector["cases"]
+    vector["cases"]
         .as_array()
         .expect("case list")
         .iter()
         .find(|case| case["name"] == name)
         .cloned()
-        .expect("named case");
-    found
+        .expect("named case")
 }
 
 fn maximum_bundle() -> (Vec<u8>, serde_json::Value) {

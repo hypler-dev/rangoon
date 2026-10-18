@@ -89,6 +89,53 @@ fn held_callback_allows_clean_exit_only_after_actual_native_completion() {
 
 #[cfg(feature = "encrypted-workspace")]
 #[test]
+fn native_exit_router_fences_before_cancel_and_maps_original_code_after_cleanup() {
+    use crate::workspace_close::failure::route_exit_request;
+    for healthy in [true, false] {
+        let access = SourceAccess::close_protocol_fixture(Gate::new());
+        let held = access.begin(Lane::Read).unwrap();
+        let close = WorkspaceClose::new(access.clone());
+        let coordinator = ExitCoordinator::new();
+        assert_eq!(
+            route_exit_request(Some(71), Some((&close, &coordinator)), || {
+                assert!(access.begin(Lane::Read).is_err());
+                false
+            }),
+            ExitAction::PreventAndWait
+        );
+        assert!(!coordinator.is_holding());
+        drop(held);
+        assert_eq!(
+            route_exit_request(Some(71), Some((&close, &coordinator)), || true),
+            ExitAction::PreventAndStart
+        );
+        close.begin(|_| healthy);
+        assert_eq!(close.progress_native(|_| healthy), Ok(true));
+        let code = if close.clean_native_completion() {
+            CLEAN_EXIT_CODE
+        } else {
+            RECOVERY_EXIT_CODE
+        };
+        assert_eq!(code, if healthy { 0 } else { 4 });
+        assert!(coordinator.send(code));
+        assert_eq!(
+            route_exit_request(Some(71), Some((&close, &coordinator)), || true),
+            ExitAction::Prevent
+        );
+        assert_eq!(
+            route_exit_request(Some(code), Some((&close, &coordinator)), || true),
+            ExitAction::Pass
+        );
+        assert_eq!(
+            route_exit_request(Some(code), Some((&close, &coordinator)), || true),
+            ExitAction::Prevent
+        );
+        assert!(access.begin(Lane::Read).is_err());
+    }
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
 fn unhealthy_native_completion_never_qualifies_for_clean_exit() {
     let access = SourceAccess::close_protocol_fixture(Gate::new());
     let close = WorkspaceClose::new(access);

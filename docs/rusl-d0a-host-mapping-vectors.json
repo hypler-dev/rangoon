@@ -1,0 +1,655 @@
+{
+  "schema": "rangoon.rusl.d0a.host-mapping-candidates.v0",
+  "status": "proposed_offline_fixture_no_host_mapper",
+  "limits": [
+    "These are full synthetic source envelopes, not an authorized O1/I1-to-D0a mapper",
+    "O1 decode acceptance proves source shape only; record relationships and provider authenticity remain unverified",
+    "No case authorizes execution or supports a live provider"
+  ],
+  "cases": [
+    {
+      "id": "D0A-H01",
+      "sourceKind": "o1_window",
+      "source": {
+        "schemaVersion": "rangoon.ops.window.v1",
+        "snapshot": {
+          "snapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+          "reducerVersion": "rangoon.ops.reducer.v1",
+          "scope": {
+            "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+            "systemIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000003"
+            ],
+            "environmentIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000004"
+            ],
+            "engineIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000005"
+            ]
+          },
+          "topology": {
+            "revisionId": "ops:0000000000000000000000000000000000000000000000000000000000000008",
+            "nodes": [],
+            "edges": [],
+            "policyRevisionIds": [],
+            "coverageRevisionIds": []
+          },
+          "prefixes": [],
+          "asOfMs": 1792108800000
+        },
+        "tail": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "producerId": "ops:000000000000000000000000000000000000000000000000000000000000000c",
+            "fenceId": "ops:0000000000000000000000000000000000000000000000000000000000000020",
+            "sequence": 1,
+            "previousEventId": null,
+            "observedMs": 1792108800000,
+            "receivedMs": 1792108800000,
+            "correlation": {
+              "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+              "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+              "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+              "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+              "traceId": "ops:0000000000000000000000000000000000000000000000000000000000000006",
+              "spanId": "ops:0000000000000000000000000000000000000000000000000000000000000007",
+              "requestId": "ops:000000000000000000000000000000000000000000000000000000000000006c",
+              "policyRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000068",
+              "evaluationId": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+              "attemptId": null
+            },
+            "record": {
+              "kind": "evaluation",
+              "id": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+              "context": {
+                "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+                "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+                "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+                "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+                "requestId": "ops:000000000000000000000000000000000000000000000000000000000000006c",
+                "traceId": "ops:0000000000000000000000000000000000000000000000000000000000000006",
+                "spanId": "ops:0000000000000000000000000000000000000000000000000000000000000007",
+                "policyRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000068"
+              },
+              "evaluationKind": "initial",
+              "gatewayRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000069",
+              "evaluatorId": "ops:0000000000000000000000000000000000000000000000000000000000000064",
+              "evaluatorArtifactDigest": "000000000000000000000000000000000000000000000000000000000000000a",
+              "inputSnapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+              "inputCanonicalization": "json-v1",
+              "inputDigest": "000000000000000000000000000000000000000000000000000000000000000b",
+              "contextSnapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+              "contextDigest": "000000000000000000000000000000000000000000000000000000000000000c",
+              "previousEvaluationId": null,
+              "expectedEffectiveEvaluationId": null,
+              "lineageFenceId": "ops:0000000000000000000000000000000000000000000000000000000000000015",
+              "result": "allow",
+              "expiresMs": null,
+              "reason": "none",
+              "externalRef": {
+                "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+                "contractVersion": "v1",
+                "externalId": "decision-fixture-1"
+              },
+              "evidenceIds": []
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sourceDecode": "accept",
+        "scopeConstruction": "candidate_only",
+        "observation": "refuse_missing_product_adapter_and_native_stage_provenance",
+        "authority": "none",
+        "note": "ExternalRef and same-record FlowContext yield five candidate reference parts; no provider observation follows.",
+        "probeRows": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "recordId": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+            "result": "candidate_unverified_source_shape",
+            "reference": {
+              "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+              "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+              "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+              "contractVersion": "v1",
+              "nativeId": "decision-fixture-1"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "D0A-H02",
+      "sourceKind": "o1_window",
+      "source": {
+        "schemaVersion": "rangoon.ops.window.v1",
+        "snapshot": {
+          "snapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+          "reducerVersion": "rangoon.ops.reducer.v1",
+          "scope": {
+            "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+            "systemIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000003"
+            ],
+            "environmentIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000004"
+            ],
+            "engineIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000005"
+            ]
+          },
+          "topology": {
+            "revisionId": "ops:0000000000000000000000000000000000000000000000000000000000000008",
+            "nodes": [],
+            "edges": [],
+            "policyRevisionIds": [],
+            "coverageRevisionIds": []
+          },
+          "prefixes": [],
+          "asOfMs": 1792108800000
+        },
+        "tail": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "producerId": "ops:000000000000000000000000000000000000000000000000000000000000000c",
+            "fenceId": "ops:0000000000000000000000000000000000000000000000000000000000000020",
+            "sequence": 1,
+            "previousEventId": null,
+            "observedMs": 1792108800000,
+            "receivedMs": 1792108800000,
+            "correlation": {
+              "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+              "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+              "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+              "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+              "traceId": "ops:0000000000000000000000000000000000000000000000000000000000000006",
+              "spanId": "ops:0000000000000000000000000000000000000000000000000000000000000007",
+              "requestId": "ops:000000000000000000000000000000000000000000000000000000000000006c",
+              "policyRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000068",
+              "evaluationId": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+              "attemptId": null
+            },
+            "record": {
+              "kind": "evaluation",
+              "id": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+              "context": {
+                "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+                "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+                "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+                "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+                "requestId": "ops:000000000000000000000000000000000000000000000000000000000000006c",
+                "traceId": "ops:0000000000000000000000000000000000000000000000000000000000000006",
+                "spanId": "ops:0000000000000000000000000000000000000000000000000000000000000007",
+                "policyRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000068"
+              },
+              "evaluationKind": "initial",
+              "gatewayRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000069",
+              "evaluatorId": "ops:0000000000000000000000000000000000000000000000000000000000000064",
+              "evaluatorArtifactDigest": "000000000000000000000000000000000000000000000000000000000000000a",
+              "inputSnapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+              "inputCanonicalization": "json-v1",
+              "inputDigest": "000000000000000000000000000000000000000000000000000000000000000b",
+              "contextSnapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+              "contextDigest": "000000000000000000000000000000000000000000000000000000000000000c",
+              "previousEvaluationId": null,
+              "expectedEffectiveEvaluationId": null,
+              "lineageFenceId": "ops:0000000000000000000000000000000000000000000000000000000000000015",
+              "result": "allow",
+              "expiresMs": null,
+              "reason": "none",
+              "externalRef": {
+                "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000009",
+                "contractVersion": "v1",
+                "externalId": "decision-fixture-1"
+              },
+              "evidenceIds": []
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sourceDecode": "accept",
+        "scopeConstruction": "refuse_system_mismatch",
+        "observation": "none",
+        "authority": "none",
+        "note": "Record remains inspectable as O1 data; differing system IDs cannot be joined.",
+        "probeRows": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "recordId": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+            "result": "refuse_system_mismatch"
+          }
+        ]
+      }
+    },
+    {
+      "id": "D0A-H03",
+      "sourceKind": "i1_inspection_output",
+      "source": {
+        "authenticity": "unverified",
+        "authority": "none",
+        "compatibility": "unknown",
+        "configurationValidation": "local_shape",
+        "connection": "unknown",
+        "execution": "unavailable",
+        "networkAttempted": false,
+        "observation": {
+          "configurationDigest": "d9424af24eb13b8adb947f8129336e8808472837504ba2bf0df073a2b51359f3",
+          "evidenceReference": "evidence:fixture-1",
+          "inputDigest": "b0fda473bf8059230aac16d870e63eff140cbd1b804a2c4307e94fefc02fee6c",
+          "kind": "provider_configuration",
+          "observedAt": "reported:1",
+          "observedProductVersion": "1",
+          "observedProtocol": "rangoon.fixture.evidence.v1",
+          "operation": "configuration_preview",
+          "originalDigest": null,
+          "payload": {
+            "rules": [
+              {
+                "effect": "allow",
+                "name": "sample"
+              }
+            ]
+          },
+          "payloadDigest": "d9424af24eb13b8adb947f8129336e8808472837504ba2bf0df073a2b51359f3",
+          "policyRevision": "policy:1",
+          "reason": "observation_only",
+          "receivedAt": "received:1",
+          "redaction": "none",
+          "reportedOutcome": null,
+          "requestId": "request:fixture-1",
+          "resourceReference": "resource:fixture",
+          "state": "inspected",
+          "traceId": "trace:1"
+        },
+        "profile": {
+          "adapterDigest": "a63ba7cb9f219dccb2635f3f75fd973ed2ea53062a908a1e8094ab9906ac76af",
+          "adapterId": "rangoon.offline-fixture",
+          "adapterVersion": "1",
+          "instanceId": "offline-fixture",
+          "productTarget": "rangoon-offline-fixture",
+          "productVersion": "1",
+          "protocol": "rangoon.fixture.evidence.v1",
+          "providerFamily": "synthetic"
+        },
+        "request": {
+          "configuration": "{\"rules\":[{\"effect\":\"allow\",\"name\":\"sample\"}]}",
+          "configurationDigest": "d9424af24eb13b8adb947f8129336e8808472837504ba2bf0df073a2b51359f3",
+          "id": "request:fixture-1",
+          "input": {
+            "action": "inspect",
+            "resource": "demo"
+          },
+          "inputDigest": "b0fda473bf8059230aac16d870e63eff140cbd1b804a2c4307e94fefc02fee6c",
+          "operation": "configuration_preview"
+        },
+        "schemaVersion": "rangoon.integrations.inspection.v1",
+        "source": "offline_fixture"
+      },
+      "expected": {
+        "sourceDecode": "golden_output_only",
+        "scopeConstruction": "refuse_no_installed_system_environment_engine_or_native_event_id",
+        "observation": "none",
+        "authority": "none",
+        "note": "I1 request ID and trace are fixture-local, not installed/native identities; reported times are not D0a UTC timestamps.",
+        "probeRows": []
+      }
+    },
+    {
+      "id": "D0A-H04",
+      "sourceKind": "o1_window",
+      "source": {
+        "schemaVersion": "rangoon.ops.window.v1",
+        "snapshot": {
+          "snapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+          "reducerVersion": "rangoon.ops.reducer.v1",
+          "scope": {
+            "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+            "systemIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000003"
+            ],
+            "environmentIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000004"
+            ],
+            "engineIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000005"
+            ]
+          },
+          "topology": {
+            "revisionId": "ops:0000000000000000000000000000000000000000000000000000000000000008",
+            "nodes": [],
+            "edges": [],
+            "policyRevisionIds": [],
+            "coverageRevisionIds": []
+          },
+          "prefixes": [],
+          "asOfMs": 1792108800000
+        },
+        "tail": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "producerId": "ops:000000000000000000000000000000000000000000000000000000000000000c",
+            "fenceId": "ops:0000000000000000000000000000000000000000000000000000000000000020",
+            "sequence": 1,
+            "previousEventId": null,
+            "observedMs": 1792108800000,
+            "receivedMs": 1792108800000,
+            "correlation": null,
+            "record": {
+              "kind": "tool",
+              "id": "ops:0000000000000000000000000000000000000000000000000000000000000066",
+              "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+              "operationClass": "inspect",
+              "externalRef": {
+                "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+                "contractVersion": "v1",
+                "externalId": "decision-fixture-1"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sourceDecode": "accept",
+        "scopeConstruction": "refuse_no_same_record_flow_context",
+        "observation": "none",
+        "authority": "none",
+        "note": "Tool ExternalRef plus inventory systemId lacks environment and engine scope.",
+        "probeRows": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "recordId": "ops:0000000000000000000000000000000000000000000000000000000000000066",
+            "result": "refuse_no_same_record_flow_context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "D0A-H05",
+      "sourceKind": "o1_window",
+      "source": {
+        "schemaVersion": "rangoon.ops.window.v1",
+        "snapshot": {
+          "snapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+          "reducerVersion": "rangoon.ops.reducer.v1",
+          "scope": {
+            "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+            "systemIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000003"
+            ],
+            "environmentIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000004"
+            ],
+            "engineIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000005"
+            ]
+          },
+          "topology": {
+            "revisionId": "ops:0000000000000000000000000000000000000000000000000000000000000008",
+            "nodes": [],
+            "edges": [],
+            "policyRevisionIds": [],
+            "coverageRevisionIds": []
+          },
+          "prefixes": [],
+          "asOfMs": 1792108800000
+        },
+        "tail": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "producerId": "ops:000000000000000000000000000000000000000000000000000000000000000c",
+            "fenceId": "ops:0000000000000000000000000000000000000000000000000000000000000020",
+            "sequence": 1,
+            "previousEventId": null,
+            "observedMs": 1792108800000,
+            "receivedMs": 1792108800000,
+            "correlation": {
+              "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+              "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+              "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+              "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+              "traceId": "ops:0000000000000000000000000000000000000000000000000000000000000006",
+              "spanId": "ops:0000000000000000000000000000000000000000000000000000000000000007",
+              "requestId": "ops:000000000000000000000000000000000000000000000000000000000000006c",
+              "policyRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000068",
+              "evaluationId": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+              "attemptId": null
+            },
+            "record": {
+              "kind": "tool",
+              "id": "ops:0000000000000000000000000000000000000000000000000000000000000066",
+              "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+              "operationClass": "inspect",
+              "externalRef": {
+                "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+                "contractVersion": "v1",
+                "externalId": "decision-fixture-1"
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sourceDecode": "accept",
+        "scopeConstruction": "refuse_no_same_record_flow_context",
+        "observation": "none",
+        "authority": "none",
+        "note": "Matching event-level correlation and ExternalRef do not replace missing same-record FlowContext; no D0a scope or observation follows.",
+        "probeRows": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "recordId": "ops:0000000000000000000000000000000000000000000000000000000000000066",
+            "result": "refuse_no_same_record_flow_context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "D0A-H07",
+      "sourceKind": "o1_window",
+      "source": {
+        "schemaVersion": "rangoon.ops.window.v1",
+        "snapshot": {
+          "snapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+          "reducerVersion": "rangoon.ops.reducer.v1",
+          "scope": {
+            "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+            "systemIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000003"
+            ],
+            "environmentIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000004"
+            ],
+            "engineIds": [
+              "ops:0000000000000000000000000000000000000000000000000000000000000005"
+            ]
+          },
+          "topology": {
+            "revisionId": "ops:0000000000000000000000000000000000000000000000000000000000000008",
+            "nodes": [],
+            "edges": [],
+            "policyRevisionIds": [],
+            "coverageRevisionIds": []
+          },
+          "prefixes": [
+            {
+              "producerId": "ops:000000000000000000000000000000000000000000000000000000000000000c",
+              "fenceId": "ops:0000000000000000000000000000000000000000000000000000000000000020",
+              "watermark": null,
+              "events": [
+                {
+                  "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+                  "producerId": "ops:000000000000000000000000000000000000000000000000000000000000000c",
+                  "fenceId": "ops:0000000000000000000000000000000000000000000000000000000000000020",
+                  "sequence": 1,
+                  "previousEventId": null,
+                  "observedMs": 1792108800000,
+                  "receivedMs": 1792108800000,
+                  "correlation": {
+                    "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+                    "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+                    "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+                    "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+                    "traceId": "ops:0000000000000000000000000000000000000000000000000000000000000006",
+                    "spanId": "ops:0000000000000000000000000000000000000000000000000000000000000007",
+                    "requestId": "ops:000000000000000000000000000000000000000000000000000000000000006c",
+                    "policyRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000068",
+                    "evaluationId": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+                    "attemptId": null
+                  },
+                  "record": {
+                    "kind": "evaluation",
+                    "id": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+                    "context": {
+                      "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+                      "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+                      "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+                      "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+                      "requestId": "ops:000000000000000000000000000000000000000000000000000000000000006c",
+                      "traceId": "ops:0000000000000000000000000000000000000000000000000000000000000006",
+                      "spanId": "ops:0000000000000000000000000000000000000000000000000000000000000007",
+                      "policyRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000068"
+                    },
+                    "evaluationKind": "initial",
+                    "gatewayRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000069",
+                    "evaluatorId": "ops:0000000000000000000000000000000000000000000000000000000000000064",
+                    "evaluatorArtifactDigest": "000000000000000000000000000000000000000000000000000000000000000a",
+                    "inputSnapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+                    "inputCanonicalization": "json-v1",
+                    "inputDigest": "000000000000000000000000000000000000000000000000000000000000000b",
+                    "contextSnapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+                    "contextDigest": "000000000000000000000000000000000000000000000000000000000000000c",
+                    "previousEvaluationId": null,
+                    "expectedEffectiveEvaluationId": null,
+                    "lineageFenceId": "ops:0000000000000000000000000000000000000000000000000000000000000015",
+                    "result": "allow",
+                    "expiresMs": null,
+                    "reason": "none",
+                    "externalRef": {
+                      "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+                      "contractVersion": "v1",
+                      "externalId": "decision-fixture-1"
+                    },
+                    "evidenceIds": []
+                  }
+                }
+              ]
+            }
+          ],
+          "asOfMs": 1792108800000
+        },
+        "tail": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012e",
+            "producerId": "ops:000000000000000000000000000000000000000000000000000000000000000c",
+            "fenceId": "ops:0000000000000000000000000000000000000000000000000000000000000020",
+            "sequence": 2,
+            "previousEventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "observedMs": 1792108800000,
+            "receivedMs": 1792108800000,
+            "correlation": {
+              "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+              "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+              "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+              "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+              "traceId": "ops:0000000000000000000000000000000000000000000000000000000000000006",
+              "spanId": "ops:0000000000000000000000000000000000000000000000000000000000000007",
+              "requestId": "ops:000000000000000000000000000000000000000000000000000000000000006c",
+              "policyRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000068",
+              "evaluationId": "ops:000000000000000000000000000000000000000000000000000000000000006e",
+              "attemptId": null
+            },
+            "record": {
+              "kind": "evaluation",
+              "id": "ops:000000000000000000000000000000000000000000000000000000000000006e",
+              "context": {
+                "workspaceId": "ops:0000000000000000000000000000000000000000000000000000000000000002",
+                "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+                "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+                "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+                "requestId": "ops:000000000000000000000000000000000000000000000000000000000000006c",
+                "traceId": "ops:0000000000000000000000000000000000000000000000000000000000000006",
+                "spanId": "ops:0000000000000000000000000000000000000000000000000000000000000007",
+                "policyRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000068"
+              },
+              "evaluationKind": "initial",
+              "gatewayRevisionId": "ops:0000000000000000000000000000000000000000000000000000000000000069",
+              "evaluatorId": "ops:0000000000000000000000000000000000000000000000000000000000000064",
+              "evaluatorArtifactDigest": "000000000000000000000000000000000000000000000000000000000000000a",
+              "inputSnapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+              "inputCanonicalization": "json-v1",
+              "inputDigest": "000000000000000000000000000000000000000000000000000000000000000b",
+              "contextSnapshotId": "ops:0000000000000000000000000000000000000000000000000000000000000001",
+              "contextDigest": "000000000000000000000000000000000000000000000000000000000000000c",
+              "previousEvaluationId": null,
+              "expectedEffectiveEvaluationId": null,
+              "lineageFenceId": "ops:0000000000000000000000000000000000000000000000000000000000000015",
+              "result": "allow",
+              "expiresMs": null,
+              "reason": "none",
+              "externalRef": {
+                "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000009",
+                "contractVersion": "v1",
+                "externalId": "decision-fixture-1"
+              },
+              "evidenceIds": []
+            }
+          }
+        ]
+      },
+      "expected": {
+        "sourceDecode": "accept",
+        "scopeConstruction": "first_candidate_second_refusal",
+        "observation": "none",
+        "authority": "none",
+        "probeRows": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "recordId": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+            "result": "candidate_unverified_source_shape",
+            "reference": {
+              "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+              "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+              "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+              "contractVersion": "v1",
+              "nativeId": "decision-fixture-1"
+            }
+          },
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012e",
+            "recordId": "ops:000000000000000000000000000000000000000000000000000000000000006e",
+            "result": "refuse_system_mismatch"
+          }
+        ],
+        "note": "Prefix candidate must precede tail refusal; source order cannot be sorted by result or record ID."
+      }
+    }
+  ],
+  "derivedCases": [
+    {
+      "id": "D0A-H06",
+      "baseCase": "D0A-H01",
+      "sourceKind": "o1_window",
+      "transform": "Move the sole tail event unchanged into one snapshot.prefixes entry using its producerId and fenceId, watermark null; set tail to an empty array.",
+      "expected": {
+        "sourceDecode": "accept",
+        "probeRows": [
+          {
+            "eventId": "ops:000000000000000000000000000000000000000000000000000000000000012d",
+            "recordId": "ops:000000000000000000000000000000000000000000000000000000000000006d",
+            "result": "candidate_unverified_source_shape",
+            "reference": {
+              "systemId": "ops:0000000000000000000000000000000000000000000000000000000000000003",
+              "environmentId": "ops:0000000000000000000000000000000000000000000000000000000000000004",
+              "engineId": "ops:0000000000000000000000000000000000000000000000000000000000000005",
+              "contractVersion": "v1",
+              "nativeId": "decision-fixture-1"
+            }
+          }
+        ],
+        "observation": "none",
+        "authority": "none"
+      }
+    }
+  ]
+}

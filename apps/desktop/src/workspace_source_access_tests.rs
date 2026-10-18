@@ -472,6 +472,88 @@ fn clear_refuses_late_picker_open_list_and_composition_content() {
 }
 
 #[test]
+fn read_only_picker_never_selects_source_and_discards_late_result() {
+    let source = report("operations.md", b"# Existing source\n");
+    let (access, _state, _gate) = probe(source.clone());
+
+    let current = access.begin_selection().unwrap();
+    assert_eq!(
+        current.complete_read_only("inspected").deliver(|| "stale"),
+        "inspected"
+    );
+    assert!(access.0.session.snapshot(&source.source.id).is_none());
+
+    let pending = access.begin_selection().unwrap();
+    assert!(matches!(access.clear_analysis(), WorkspaceResult::Cleared));
+    assert_eq!(
+        pending.complete_read_only("inspected").deliver(|| "stale"),
+        "stale"
+    );
+    assert!(access.0.session.snapshot(&source.source.id).is_none());
+}
+
+#[test]
+fn operations_inspection_stops_before_read_when_picker_clears() {
+    let (access, _, _) = probe(report("operations.md", b"# Source\n"));
+    let picker = access.begin_selection().unwrap();
+    let reads = Arc::new(AtomicUsize::new(0));
+    let read_count = reads.clone();
+    let access_for_picker = access.clone();
+    let completed = crate::operations::inspect_selection(
+        picker,
+        move || {
+            assert!(matches!(
+                access_for_picker.clear_analysis(),
+                WorkspaceResult::Cleared
+            ));
+            Ok(Some(PathBuf::from("/unused-operations-window.json")))
+        },
+        move |_| {
+            read_count.fetch_add(1, Ordering::SeqCst);
+            crate::operations::OperationsResult::Cancelled {
+                schema_version: "rangoon.ops.local-inspection.v1",
+            }
+        },
+    );
+    let result = serde_json::to_value(completed.deliver(crate::operations::stale)).unwrap();
+    assert_eq!(reads.load(Ordering::SeqCst), 0);
+    assert_eq!(result["outcome"], "failed");
+    assert_eq!(result["error"]["code"], "operations_selection_cleared");
+}
+
+#[test]
+fn operations_inspection_discards_result_after_read_or_before_delivery() {
+    let (access, _, _) = probe(report("operations.md", b"# Source\n"));
+    let picker = access.begin_selection().unwrap();
+    let access_for_read = access.clone();
+    let completed = crate::operations::inspect_selection(
+        picker,
+        || Ok(Some(PathBuf::from("/unused-operations-window.json"))),
+        move |_| {
+            assert!(matches!(
+                access_for_read.clear_analysis(),
+                WorkspaceResult::Cleared
+            ));
+            crate::operations::OperationsResult::Cancelled {
+                schema_version: "rangoon.ops.local-inspection.v1",
+            }
+        },
+    );
+    let result = serde_json::to_value(completed.deliver(crate::operations::stale)).unwrap();
+    assert_eq!(result["error"]["code"], "operations_selection_cleared");
+
+    let picker = access.begin_selection().unwrap();
+    let completed = crate::operations::inspect_selection(
+        picker,
+        || Ok(None),
+        |_| panic!("cancelled selection cannot inspect a file"),
+    );
+    assert!(matches!(access.clear_analysis(), WorkspaceResult::Cleared));
+    let result = serde_json::to_value(completed.deliver(crate::operations::stale)).unwrap();
+    assert_eq!(result["error"]["code"], "operations_selection_cleared");
+}
+
+#[test]
 fn captured_save_survives_clear_but_closed_gate_reports_committed_without_metadata() {
     let source = report("save.md", b"# Save\nExact\n");
     let (access, state, gate) = probe(source.clone());

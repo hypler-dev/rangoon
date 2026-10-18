@@ -10,11 +10,18 @@ mod approvals;
 mod decode;
 mod delegation_types;
 mod delegations;
+mod lifecycle;
+mod lifecycle_types;
+mod operator_view;
 mod projection;
 mod projection_types;
 mod records;
 mod relationship_types;
 mod relationships;
+mod source_ref_probe;
+
+#[cfg(test)]
+mod source_ref_probe_tests;
 
 #[cfg(test)]
 mod relationship_tests;
@@ -24,6 +31,9 @@ mod delegation_tests;
 
 #[cfg(test)]
 mod approval_tests;
+
+#[cfg(test)]
+mod lifecycle_tests;
 
 pub use approval_types::{
     APPROVAL_SCHEMA, ApprovalDocument, ApprovalError, ApprovalInspection, MAX_APPROVAL_BYTES,
@@ -37,6 +47,15 @@ pub use delegation_types::{
     MAX_DELEGATION_REFERENCES,
 };
 pub use delegations::inspect_delegations;
+pub use lifecycle::inspect_lifecycle;
+pub use lifecycle_types::{
+    LIFECYCLE_SCHEMA, LifecycleDocument, LifecycleError, LifecycleInspection, MAX_LIFECYCLE_BYTES,
+    MAX_LIFECYCLE_MATCHES, MAX_LIFECYCLE_PATH_STEPS, MAX_LIFECYCLE_REFERENCES,
+};
+pub use operator_view::{
+    MAX_OPERATOR_VIEW_BYTES, OPERATOR_VIEW_SCHEMA, OperatorView, OperatorViewDocument,
+    OperatorViewError, build_operator_view,
+};
 pub use projection::project_window;
 pub use projection_types::{
     MAX_PROJECTION_BYTES, PROJECTION_SCHEMA, Projection, ProjectionDocument, ProjectionError,
@@ -47,6 +66,10 @@ pub use relationship_types::{
     RELATIONSHIP_SCHEMA, RelationshipDocument, RelationshipError, Relationships,
 };
 pub use relationships::relate_window;
+pub use source_ref_probe::{
+    MAX_SOURCE_REFERENCE_ROWS, SourceReference, SourceReferenceProbe, SourceReferenceProbeError,
+    SourceReferenceProbeOutcome, SourceReferenceProbeRow, probe_source_references,
+};
 
 pub const WINDOW_SCHEMA: &str = "rangoon.ops.window.v1";
 pub const REDUCER_VERSION: &str = "rangoon.ops.reducer.v1";
@@ -239,3 +262,6 @@ mod record_tests;
 
 #[cfg(test)]
 mod projection_tests;
+
+#[cfg(test)]
+mod operator_view_tests;

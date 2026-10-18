@@ -473,13 +473,14 @@ fn open_review(app: &AppHandle, run_id: &str) -> Result<(), ()> {
     if app.get_webview_window(REVIEW_WINDOW).is_some() {
         return Err(());
     }
+    let (width, height) = crate::parented_review_window_size(&parent, (1000.0, 780.0));
     let review_window = WebviewWindowBuilder::new(
         app,
         REVIEW_WINDOW,
         WebviewUrl::App("model-confirmation.html".into()),
     )
     .title("Rangoon — Review selected text")
-    .inner_size(1000.0, 780.0)
+    .inner_size(width, height)
     .min_inner_size(360.0, 480.0)
     .parent(&parent)
     .map_err(|_| ())?

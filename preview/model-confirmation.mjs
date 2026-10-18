@@ -4,6 +4,12 @@ const invoke = globalThis.__TAURI__?.core?.invoke;
 const status = document.querySelector('#review-status');
 const send = document.querySelector('#review-send');
 const cancel = document.querySelector('#review-cancel');
+const theme = document.querySelector('#review-theme');
+theme.addEventListener('click', () => {
+  const light = document.documentElement.dataset.theme !== 'light';
+  document.documentElement.dataset.theme = light ? 'light' : 'dark';
+  theme.textContent = light ? 'Dark mode' : 'Light mode';
+});
 let retained = null;
 let pending = false;
 const hex = value => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
