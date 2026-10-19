@@ -1007,3 +1007,7 @@ sources are used in source validation. Provider compatibility, native GUI
 evidence remain open. See the [adapter contract](docs/model-cloud-adapter.md),
 [credential custody](docs/model-cloud-custody.md) and canonical
 [development evidence](docs/development.md).
+
+## Repository coordination
+
+VUSL specifications, LNSAT engine behavior and Rangoon application work are maintained in their respective repositories. Follow the [repository ownership and parallel-work rules](AGENTS.md#repository-ownership-and-parallel-work) for isolated worktrees, version-pinned consumer updates and reviewed cross-repository handoffs. Each project retains its own validation and release gates.
