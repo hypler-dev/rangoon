@@ -1,0 +1,25 @@
+{
+  "schema": "rangoon.vusl-upstream.v1",
+  "repository": "https://github.com/hypler-dev/vusl",
+  "commit": "b55e01955e9c59cd6ab652afe9a54c43589b09b8",
+  "profileId": "rangoon.rusl.observe.v0.1",
+  "languageVersion": "rangoon.rusl.v0.1",
+  "purpose": "Pinned, byte-identical fixture copies for offline parser tests; normative specification lives upstream. No automatic network resolution or update.",
+  "files": [
+    {
+      "localPath": "docs/rusl-d0a-canonical-vectors.json",
+      "upstreamPath": "conformance/rusl-d0a-canonical-vectors.json",
+      "sha256": "06368f59db6f69758be16fd1f0aebaeb0d300cf1d2869a03b420e973160d124e"
+    },
+    {
+      "localPath": "docs/rusl-d0a-negative-vectors.json",
+      "upstreamPath": "conformance/rusl-d0a-negative-vectors.json",
+      "sha256": "aa668067b1786a61fe10aee67d4982c64b2647e3153eba6aa50a02e5da229491"
+    },
+    {
+      "localPath": "docs/rusl-d0a-host-mapping-vectors.json",
+      "upstreamPath": "conformance/rusl-d0a-host-mapping-vectors.json",
+      "sha256": "5ce7aad827165c5d062bd6b0ce45b28b3e8455b0aa9ed2691ceec6526cd6ca9f"
+    }
+  ]
+}

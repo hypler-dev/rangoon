@@ -48,7 +48,7 @@ Required state distinctions include pending evaluation, awaiting approval, appro
 
 ### Cross-runtime operator-record acceptance target
 
-This section makes the accepted outcome above testable for **separate** optional OpenShell and LNSAT connectors. It is a design target, not a live adapter or permission to operate either engine. A record can be complete **for its stated evidence scope** even when one engine is absent; “complete” never means universal coverage. Use the proposed [RUSL source-qualified reference and loss rules](universal-systems-language.md#envelope-and-provenance) only after its D0 wire freeze. Existing O1/O2 records and source contracts stay unchanged.
+This section makes the accepted outcome above testable for **separate** optional OpenShell and LNSAT connectors. It is a design target, not a live adapter or permission to operate either engine. A record can be complete **for its stated evidence scope** even when one engine is absent; “complete” never means universal coverage. Use the proposed [VUSL source-qualified reference and loss rules](universal-systems-language.md#envelope-and-provenance) only after its D0 wire freeze. Existing O1/O2 records and source contracts stay unchanged.
 
 For `OR-02` and `OR-03`, the proposed D2b-1 gateway gRPC subset supplies policy revision/load and finite stream status, **not** structured per-action decisions. OpenShell's opt-in structured OCSF network activity is a separate candidate decision source requiring its own read, authenticity and loss qualification. Until then, D2a synthetic allow/deny fixtures test mapper behavior only; the operator view must leave native decision status unassessed. LNSAT approval and authorization evidence, any mediated cross-engine edge and external effect remain separate gates.
 
@@ -73,7 +73,7 @@ The operator view should answer, in order: **What was authored? What exact actio
 
 #### Cross-system relation proof gate
 
-The existing O1 `ExternalRef` and `FlowContext` remain the local record vocabulary. A future bridge profile must reuse them and the proposed RUSL source-qualified reference rules rather than create a second generic trace ID or mutable joined status. Each relation names two immutable endpoint references, its source and native evidence reference, relation basis (`declared`, `reported` or `verified`), exact product/adapter/contract pins, environment and execution-path scope, observation and receipt times, freshness/invalidation state, and field-level loss. A relation is a separately inspectable fact; it never overwrites either endpoint. No new bridge wire profile or renderer-computed proof is accepted here.
+The existing O1 `ExternalRef` and `FlowContext` remain the local record vocabulary. A future bridge profile must reuse them and the proposed VUSL source-qualified reference rules rather than create a second generic trace ID or mutable joined status. Each relation names two immutable endpoint references, its source and native evidence reference, relation basis (`declared`, `reported` or `verified`), exact product/adapter/contract pins, environment and execution-path scope, observation and receipt times, freshness/invalidation state, and field-level loss. A relation is a separately inspectable fact; it never overwrites either endpoint. No new bridge wire profile or renderer-computed proof is accepted here.
 
 | Relation sought | Minimum proof before a `verified` edge | Otherwise show |
 | --- | --- | --- |

@@ -1,6 +1,16 @@
 <!-- intent-driven-delivery:intent:v1 -->
 # Intent: Rangoon application development and evidence
 
+## VUSL documentation naming — October 18, 2026
+
+Follow-up accepted scope: Jeff explicitly requested a VUSL logo and a separate repository for all VUSL specifications, with Rangoon referencing it as an independent project. This authorizes creation and initial publication of the VUSL specification repository and preparation of the bounded Rangoon reference update. It does not authorize merging unrelated Rangoon work, provider operation, LNSAT edits, deployment or executable release. The canonical upstream owns the architecture/profile/conformance documents and vectors; Rangoon retains consumer code and pinned test copies. The supplied strategic assessment stays private.
+
+Accepted documentation scope: Jeff renamed RUSL to **VUSL** and requested README, documentation and information updates that explain mechanics without publishing the supplied internal strategic assessment. This entry is the authority for the editorial packet. It changes the public-facing name, not accepted parser behavior, protocol identity, implementation support or engine boundaries. Do not infer a long-form expansion for VUSL until the owner supplies one.
+
+The [VUSL guide](vusl.md) and [conformance guide](vusl-conformance.md) are compatibility entry points to the pinned upstream specification. The VUSL repository owns canonical specifications and vectors. Existing `rangoon.rusl.*` language/profile identifiers, document-digest domain, fixture paths, acceptance-case IDs and prior review hashes remain exact. Existing identifiers are not aliases for a newly supported `vusl` wire namespace. Any behavioral or namespace migration requires a separately reviewed versioned profile and old/new-reader tests. Original dated acceptance/publication receipts retain historical RUSL wording; they are evidence of earlier work, not competing current branding.
+
+Root owns integration, this intent, continuation and development receipts. A native documentation worker owns README and the affected guides/architecture/integration references. Named validation: local document/anchor checks, diff whitespace, exact source/fixture preservation, Rust D1 tests and independent Python reference replay; fresh independent read-only review is required. No schema, source, UI, dependency, engine or credential change is included. The later explicit repository-extraction request above supersedes the earlier naming-only publication restriction for the new specification repository. Rangoon merge and runtime release remain separate gates. Existing encrypted-workspace work remains isolated and preserves its accepted scope.
+
 Status: accepted
 Authority: This record, based on Jeff's October 4, 2026 request in chat `01a10a12-fb75-7a42-bd2c-1ee9a0478d8d`
 Owner: Jeff
