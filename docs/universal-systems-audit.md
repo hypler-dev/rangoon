@@ -1,5 +1,7 @@
 # VUSL: architecture audit and staged plan
 
+October 19 retirement continuation: RUSL is retired as an active Rangoon technical contract. The six guide pages are reference/archive navigation only. The existing `rangoon-language` parser and related source remain inert historical experimental material; no maintained RUSL reader, converter, wire alias, dual-profile implementation or backward-compatibility support is promised. The separate VUSL repository owns the specification. `docs/vusl-upstream.json` remains historical spec/fixture provenance, not a runtime dependency pin. A future Rangoon consumer requires a usable pinned VUSL core, updated affected consumer tests and an independently reviewed cutover before the old source can be removed. Preserve the old source until that gate is met; the historical analysis and acceptances below remain unchanged.
+
 October 18 continuation: subsequent accepted offline parser/mapper/decoder and unmounted client work is recorded in [development](development.md#research-and-source-publication--october-18-2026). The design-time matrix below retains its original assessment scope; do not use it alone as current implementation status. The [harness research assessment](harness-research-20261018.md) supplements the differentiation test with primary sources and missing evaluation/recovery/lifecycle requirements. No public wire standard or universal compatibility is established.
 
 Date: 2026-10-16

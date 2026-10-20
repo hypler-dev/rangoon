@@ -4,7 +4,7 @@
   "commit": "b55e01955e9c59cd6ab652afe9a54c43589b09b8",
   "profileId": "rangoon.rusl.observe.v0.1",
   "languageVersion": "rangoon.rusl.v0.1",
-  "purpose": "Pinned, byte-identical fixture copies for offline parser tests; normative specification lives upstream. No automatic network resolution or update.",
+  "purpose": "Historical, byte-identical spec/fixture provenance from the initial extraction. RUSL is retired as an active Rangoon contract. This record is not a usable VUSL core/runtime dependency pin or compatibility promise; no automatic network resolution or update.",
   "files": [
     {
       "localPath": "docs/rusl-d0a-canonical-vectors.json",
