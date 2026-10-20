@@ -1,170 +1,27 @@
-<!-- intent-driven-delivery:spec:v1 -->
-# Specification: RUSL observation profile D0a candidate
+# VUSL observation profile D0a — upstream reference
 
-Status: public draft; accepted internal offline semantics, experimental D1 source; no stable public wire commitment
-Intent: [Rangoon universal language design request](intent.md#universal-systems-language-design-request--october-16-2026)
-Owner: Jeff
-Last updated: 2026-10-18
+The canonical specification is maintained in the separate [VUSL repository](https://github.com/hypler-dev/vusl). Read the [pinned vusl observation profile d0a](https://github.com/hypler-dev/vusl/blob/b55e01955e9c59cd6ab652afe9a54c43589b09b8/docs/observation-profile.md). This Rangoon page is reference/archive navigation only; it is not normative and does not define a Rangoon runtime contract.
 
-This is the first **inert, read-only** serialization profile for the broader [RUSL draft](universal-systems-language.md). It is deliberately narrower than Rangoon's full capability model. It defines how to describe a provider feature or preserve an unverified provider report without turning it into approval, authorization, execution, or a verified effect. The [internal acceptance](intent.md#internal-d0a-profile-and-d2a-offline-adapter--october-17-2026) covers its closed research semantics. This public draft is not a supported wire, SDK, connected adapter, or permission to contact an engine. The [protocol guide](rusl.md) and [conformance guide](rusl-conformance.md) separate public documentation from runtime support. The separately authorized `rangoon-language` parser is experimental, offline and unmounted. D0b must separately freeze an exact action/context commitment before any RUSL operation kind, consequential export, managed proxy, or engine-bound action is implemented.
+RUSL is retired as an active Rangoon technical contract. The existing `rangoon-language` parser and related source remain inert historical experimental material, not VUSL core, a maintained RUSL/VUSL reader or converter, a wire alias, a dual-profile implementation, or backward-compatibility support. Existing `rangoon.rusl.*` identifiers, digest domain, fixtures and historical anchors remain preserved; their presence does not establish consumer support, provider support, authorization or verified effects. LNSAT and OpenShell remain independent optional systems.
 
-## Behavior
+The separate VUSL repository owns the specification. [The historical provenance record](vusl-upstream.json) records prior spec/fixture provenance only; it is not a Rangoon runtime dependency pin. A future Rangoon consumer requires a usable pinned VUSL core, updated affected consumer tests, and an independently reviewed cutover before the old source can be removed.
 
-### Invariants
-
-1. Only `capability_descriptor` and `observation` are recognized in this profile. Every other kind is unsupported for semantic translation. An inspection host may retain unknown native bytes opaquely under its own storage rules; it cannot label them RUSL-conformant or execute them.
-2. A D0a document is **reported data**. `origin.authenticity` is exactly `unverified`, and `translation.authority` is exactly `none`. No field named `approved`, `mayExecute`, `grant`, `effectVerified`, or equivalent appears in this profile.
-3. Provider policy `allow`/`deny`, OpenShell runtime reports, local reviews, LNSAT human approvals, LNSAT authorizations, attempts, and independently checked effects remain different facts. D0a admits only the first two provider report categories. It never synthesizes missing stages.
-4. External identity is scoped by installed system, environment, engine where applicable, native contract version, and native ID. A shared trace ID or matching native string cannot join two systems. Existing O1 records remain authoritative for the local operations window; this profile is a loss-aware view, not a second event store.
-5. Native bytes are explicitly unavailable in D0a. A `host_ref` is reserved for a later profile only after encrypted custody, resolver, digest, redaction and retention behavior qualify separately. Current workspace storage does not qualify that path. A digest without bytes proves neither round-trip ability nor source authenticity. `lossless_translation` cannot be asserted by a D0a document alone.
-
-### First-profile scope
-
-`capability_descriptor` is a **research-only** description of one possible provider operation. `observation` records one **unverified** provider policy decision or runtime event. D0a recognizes only `policy` and `os_sandbox` as family tokens. The policy-evaluation variant requires `policy`; the runtime-report variant requires `os_sandbox`. No output of this profile is eligible for consequential dispatch. Other semantic families in [RUSL](universal-systems-language.md#semantic-families) remain design targets, not implied support. Jeff authorized one experimental, unmounted D1 pure parser against this candidate profile. It cannot become a public wire, SDK, host mapping or provider compatibility claim until profile identity and conformance are accepted. D1 must not accept action commitments or infer current connection/compatibility from a descriptor.
-
-## Interfaces and contracts
-
-### Closed envelope
-
-UTF-8 JSON object, exactly nine required top-level keys: `languageVersion`, `kind`, `id`, `createdAt`, `origin`, `native`, `semantic`, `extensions`, `translation`. No top-level extras, omitted keys, duplicate object names at any depth, invalid UTF-8, trailing content, non-finite numbers, or implicit defaults. Null is permitted only where the tables say nullable. `languageVersion` is exactly `rangoon.rusl.v0.1`; `translation.profileId` is exactly `rangoon.rusl.observe.v0.1`. Profile/schema digest must be pinned in the later acceptance record and included in negotiation metadata; this draft does not invent a digest before final bytes are reviewed.
-
-| Field | D0a shape and rule |
-| --- | --- |
-| `id` | Rangoon-local record token, 1–128 ASCII bytes from `[A-Za-z0-9_.:-]`; meaningful only inside its host-owned snapshot namespace. It is not a provider ID or cross-document join key. |
-| `createdAt` | UTC timestamp with exact `YYYY-MM-DDTHH:mm:ss.SSSZ` spelling, Gregorian years `0001`–`9999`, valid month/day (including leap years), hour `00`–`23`, minute/second `00`–`59`; leap seconds and offsets are unsupported. Preserve the supplied spelling; do not infer causal order or freshness from it. `origin.observedAt` and `origin.receivedAt` use the same grammar, with no required ordering between them. |
-| `origin` | Closed object with exactly `systemId`, `environmentId`, `engineId`, `product`, `productVersion`, `protocol`, `protocolVersion`, `adapterId`, `adapterVersion`, `adapterDigest`, `sourceRef`, `observedAt`, `receivedAt`, `authenticity`, `qualificationRef`. `product` and `protocol` are nonempty bounded display strings. `authenticity` is `unverified`; `qualificationRef` is null. A research descriptor sets every other field null. An observation requires non-null scope/product version/protocol version/adapter identity and version, lowercase 64-hex `adapterDigest`, sourceRef, observedAt and receivedAt. Times follow `createdAt` format. No field may be provider-supplied executable content. |
-| `sourceRef` and `operationRef` | Closed object with exactly `{systemId, environmentId, engineId, contractVersion, nativeId}`; all five non-null opaque tokens. The first three components of `origin.sourceRef` must equal `origin.systemId`, `origin.environmentId`, `origin.engineId` byte-for-byte. An observation's `operationRef` must match its `origin.sourceRef` in **all four scope/version components**; `nativeId` may differ. This is only a same-source reported association, not a verified relationship. Any cross-system edge belongs to a later closed relation profile with separately qualified endpoints, basis and evidence. Map existing O1 `ExternalRef.externalId` to `nativeId` only with matching O1 `FlowContext` system/environment/engine; never replace O1's stored reference. |
-| `native` | Closed object with exactly `{state, mediaType, byteLength, sha256, hostRef, redaction, retention, availableForRoundTrip}`. D0a requires `state="omitted"`, all media/length/digest/ref fields null, `redaction="omitted"`, `retention="none"`, and `availableForRoundTrip=false`. Raw payload, filesystem path, URL, credential and secret value are forbidden. `host_ref` and native round-trip are later profiles, not alternative D0a states. |
-| `extensions` | Exactly the empty array. Typed critical/optional extensions belong to later negotiated profiles; D0a rejects all nonempty extension arrays rather than guessing retention or meaning. |
-| `translation` | Closed object with exactly `{profileId, direction, status, authority, fieldMap, loss, prerequisites}`. `profileId` is `rangoon.rusl.observe.v0.1`; `direction` is `native_to_rusl`; `authority` is `none`; `fieldMap` is exactly empty. Descriptor `status` is `unassessed`; observation `status` is `observation_only`. Nonempty `loss` makes incompleteness visible without inventing a new support label. `loss` and `prerequisites` each contain 0–16 sorted, unique, nonempty local reason tokens (1–128 ASCII bytes from `[A-Za-z0-9_.:-]`), never provider text or input excerpts. |
-
-Opaque tokens above are 1–128 ASCII bytes from `[A-Za-z0-9_.:-]`; descriptive text is 1–4,096 UTF-8 bytes of Unicode scalar values, excluding C0/C1 controls (`U+0000`–`U+001F`, `U+007F`–`U+009F`). Count UTF-8 bytes after JSON escape decoding. Preserve each scalar sequence exactly; do not apply NFC/NFKC, case folding, whitespace trimming or replacement characters. Display code escapes text and isolates bidirectional text; neither display transformation nor Unicode similarity creates an identity match. External `nativeId` is preserved byte-for-byte only if it fits this profile. Otherwise reject D0a projection; any separately consented host retention stays outside RUSL and cannot be represented by D0a `native.hostRef`. Do not normalize case, path, Unicode, or provider IDs to make a join succeed.
-
-### Closed semantic variants
-
-| `kind` | Required `semantic` keys | Meaning |
-| --- | --- | --- |
-| `capability_descriptor` | Exactly `family`, `operation`, `effectClass`, `supportState`, `nativeOperationRef` | `family` is `policy` or `os_sandbox`; `operation` is a nonempty bounded local token; `effectClass` is `read`, `write`, `delete`, `exec`, `network`, `inference`, `mixed`, or `unknown`; `supportState` is `unassessed`; `nativeOperationRef` is null. Descriptor does not advertise a connected operation. |
-| `observation` with `stage=provider_policy_evaluation` | Exactly `family`, `stage`, `operationRef`, `nativeState`, `projectedDecision` | `family` is `policy`; `stage` is `provider_policy_evaluation`; source-backed operationRef is required. `nativeState` is a nonempty opaque token; `projectedDecision` is `allow`, `deny`, or `unknown`. It is a provider report, never an approval or execution check. |
-| `observation` with `stage=runtime_report` | Exactly `family`, `stage`, `operationRef`, `nativeState`, `reportedEventClass` | `family` is `os_sandbox`; `stage` is `runtime_report`; source-backed operationRef is required. `nativeState` is a nonempty opaque token; `reportedEventClass` is `attempt`, `active`, `completed`, `failed`, `cancelled`, or `unknown`; all remain reported and effect remains unknown. No `projectedDecision` key is accepted. |
-
-No universal `success` enum exists. A provider state that cannot map to a listed projection uses `unknown` with an explicit loss reason. A source-backed observation missing exact, same-scope operationRef is rejected rather than attached to a nearby trace. Even a same-scope association is only a provider report until trusted ingress and relationship proof qualify separately. Local human review stays in existing Rangoon records; provider-authenticated evidence requires a later trusted ingress wrapper and separate profile acceptance.
-
-### Existing-record mapping and deliberate non-mapping
-
-This is a design mapping, not a conversion implementation. O1, I1 and the local content store keep their own schemas and ownership. The [candidate host-mapping vectors](rusl-d0a-host-mapping-vectors.json) now include complete synthetic O1 windows and a complete I1 inspected-output golden record; the O1 windows pass the existing source decoder. They show source-shape and proposed mapping/refusal states only. The offline O1 source-reference probe and I1 H03 non-mapping test now exist, but no O1/I1-to-D0a mapper, mounted host route or provider conformance exists. A D0a parser cannot fill a required field by guessing from a neighboring record, catalog label, trace string or current UI selection.
-
-| Existing source | Possible exact projection | Missing or excluded information; required result |
-| --- | --- | --- |
-| `rangoon-domain` source snapshot, capability and immutable revision IDs | None of these are provider `sourceRef` or `operationRef`. Keep source spans, bytes, local review and revision lineage in the existing content domain. | D0a has no local-artifact relation kind. A future authored-to-provider edge needs an explicit local immutable revision endpoint, exact export target and separately proved relationship; never copy a local ID into `nativeId`. |
-| I1 `candidate_inventory()` unavailable targets | Product display name may inform a manually authored **research** descriptor with `supportState=unassessed`. | Candidate labels and five Rangoon adapter-operation slots are not pinned provider operations, connection evidence or support. Do not emit a source-backed descriptor or observation from the catalog. |
-| I1 `fixture_profile()` and `inspect_fixture()` | Pinned synthetic product/protocol/adapter fields are usable only as **fixture provenance** inside I1. Its output explicitly fixes `authority=none`, `execution=unavailable`, `authenticity=unverified`. | I1 lacks a qualified installed system/environment/engine tuple and exact provider-native event/operation IDs. Its reported times are opaque tokens; payload may be present. No direct I1-to-D0a observation conversion, no native byte retention and no real-provider claim. |
-| O1 `ExternalRef {systemId, contractVersion, externalId}` plus the **same record's** `FlowContext {systemId, environmentId, engineId, ...}` | After byte-equal system check, the five D0a reference parts could be `systemId`, flow `environmentId`, flow `engineId`, `contractVersion`, and `externalId` as `nativeId`. Keep original O1 record unchanged. | An `ExternalRef` alone, a context from another record, mismatched system ID or missing engine/environment cannot yield D0a scope. The reference still lacks provider product/adapter identity, source stage and verified operation relation. |
-| O1 event envelope `observedMs` and `receivedMs` | Candidate time inputs only if both exist, the source record above is eligible, and an accepted UTC conversion/vector preserves millisecond identity. | Nullable times, event order and a shared trace never establish authenticity or causal linkage. D0a requires both times; null or unqualified conversion rejects its observation. |
-| O1 `evaluation`, `approval_decision`, `authorization`, `attempt`, `evidence` and `coverage` | O1 remains the canonical local representation for each **reported** stage and its lineage/diagnostics. | No blanket D0a conversion. An O1 evaluation needs pinned native provider-policy evidence before `provider_policy_evaluation` projection; approval, authorization, attempt, evidence and coverage are outside D0a entirely. Provider `allow` cannot fill their gaps. |
-| Historical combined OpenShell/LNSAT offline research inspector | None for an independent OpenShell D0a observation. | Its combined-path source type embeds LNSAT conditions. A new separately versioned OpenShell read profile must qualify native IDs, version, transport and consent first; never reinterpret the old fixture as connected evidence. |
-
-### Negative conformance candidates
-
-The [candidate negative vectors](rusl-d0a-negative-vectors.json) provide 21 literal inputs across the 11 groups below, with expected parser errors or host-state assertions. They are proposed review data, not an accepted conformance suite or provider qualification. `N02`, `N04` and `N10` also test host/operator non-inference across individually valid records; the pure parser validates only individual documents. `N08` and `N11` now point to complete synthetic I1/O1 [source envelopes](rusl-d0a-host-mapping-vectors.json). A narrow offline O1 source-reference/refusal probe and I1 H03 non-mapping test exist, but no D0a mapper/projection, mounted host route, provider conformance, or full host integration exists. This packet does not prove provider authenticity or connected behavior.
-
-| ID | Mutate one synthetic document | Expected result |
-| --- | --- | --- |
-| `D0A-N01` | Change `operationRef.systemId`, environment, engine or contract version while keeping native ID and trace-like text the same. | `invalid_reference`; no cross-system edge or reported operation attachment. |
-| `D0A-N02` | Reuse a native ID in two different scoped source tuples. | Two separate unverified facts; no ID-based join or deduplication. |
-| `D0A-N03` | Omit `origin.sourceRef`, adapter pin, observed time or received time from an observation. | Reject observation; do not fetch another O1/I1 record to invent missing fields. |
-| `D0A-N04` | Put provider `allow` in policy variant and `completed` in a separate runtime variant. | Both remain source reports with `authority=none`, effect unknown; no synthetic approval, authorization or success. |
-| `D0A-N05` | Set `native.state=host_ref`, add a raw payload, set `availableForRoundTrip=true`, or add a native digest. | Reject D0a; no encrypted-storage or lossless claim from schema shape. |
-| `D0A-N06` | Insert any critical or optional extension or a nonempty `fieldMap`. | `unsupported_extension` or invalid semantic shape; do not silently drop data to fit D0a. |
-| `D0A-N07` | Add unknown top/nested key, duplicate JSON key, invalid UTF-8, NaN, numeric `byteLength` (including a 5,000-digit integer) or unrecognized kind/version. | Closed-document rejection, fixed error code, no partial success or raw parser exception. |
-| `D0A-N08` | Use I1 fixture request ID as a native operation ID or bare O1 `ExternalRef` without same-record `FlowContext`. | No D0a observation; preserve original fixture/record without fabricated scope. |
-| `D0A-N09` | Use a redacted, Unicode or path-shaped provider ID outside the exact opaque-token grammar. | Reject semantic reference; do not normalize, truncate or expose it in an error. |
-| `D0A-N10` | Reverse/miss terminal runtime report or change adapter/product/version between two reports. | Keep separate reported facts; no completed effect, continuity or compatible profile inference. |
-| `D0A-N11` | Pair an O1 `ExternalRef` with a **same-record** `FlowContext` whose `systemId` differs, even if environment, engine and external ID match. | Reject O1-to-D0a scope construction; preserve original O1 record and emit no D0a observation. |
-
-### Inert examples
-
-These are synthetic review examples, not accepted conformance vectors, provider messages, installed connectors or executable permissions. All nine proposed envelope keys appear. D0a acceptance must still pin the profile/schema digest, accept the candidate [canonical vectors](rusl-d0a-canonical-vectors.json), [negative vectors](rusl-d0a-negative-vectors.json) and [host source vectors](rusl-d0a-host-mapping-vectors.json), qualify host mapping/refusal tests, and obtain independent cross-language parser evidence before D1 is mounted or claimed as a supported contract. The authorized experimental parser may test candidate bytes offline meanwhile.
-
-```json
-{
-  "languageVersion": "rangoon.rusl.v0.1",
-  "kind": "capability_descriptor",
-  "id": "fixture:openshell-egress",
-  "createdAt": "2026-10-16T00:00:00.000Z",
-  "origin": {"systemId": null, "environmentId": null, "engineId": null, "product": "OpenShell", "productVersion": null, "protocol": "native", "protocolVersion": null, "adapterId": null, "adapterVersion": null, "adapterDigest": null, "sourceRef": null, "observedAt": null, "receivedAt": null, "authenticity": "unverified", "qualificationRef": null},
-  "native": {"state": "omitted", "mediaType": null, "byteLength": null, "sha256": null, "hostRef": null, "redaction": "omitted", "retention": "none", "availableForRoundTrip": false},
-  "semantic": {"family": "os_sandbox", "operation": "network_egress", "effectClass": "network", "supportState": "unassessed", "nativeOperationRef": null},
-  "extensions": [],
-  "translation": {"profileId": "rangoon.rusl.observe.v0.1", "direction": "native_to_rusl", "status": "unassessed", "authority": "none", "fieldMap": [], "loss": ["no_installed_adapter"], "prerequisites": ["needs_read_adapter", "needs_version_pin"]}
-}
-```
-
-```json
-{
-  "languageVersion": "rangoon.rusl.v0.1",
-  "kind": "observation",
-  "id": "fixture:reported-allow-7",
-  "createdAt": "2026-10-16T00:00:00.000Z",
-  "origin": {"systemId": "fixture:policy-system", "environmentId": "fixture:local", "engineId": "fixture:policy-engine", "product": "synthetic-policy-engine", "productVersion": "fixture.v1", "protocol": "fixture", "protocolVersion": "fixture.v1", "adapterId": "fixture:adapter", "adapterVersion": "fixture.v1", "adapterDigest": "0000000000000000000000000000000000000000000000000000000000000000", "sourceRef": {"systemId": "fixture:policy-system", "environmentId": "fixture:local", "engineId": "fixture:policy-engine", "contractVersion": "fixture.v1", "nativeId": "decision-7"}, "observedAt": "2026-10-16T00:00:00.000Z", "receivedAt": "2026-10-16T00:00:00.000Z", "authenticity": "unverified", "qualificationRef": null},
-  "native": {"state": "omitted", "mediaType": null, "byteLength": null, "sha256": null, "hostRef": null, "redaction": "omitted", "retention": "none", "availableForRoundTrip": false},
-  "semantic": {"family": "policy", "stage": "provider_policy_evaluation", "operationRef": {"systemId": "fixture:policy-system", "environmentId": "fixture:local", "engineId": "fixture:policy-engine", "contractVersion": "fixture.v1", "nativeId": "request-7"}, "nativeState": "allow", "projectedDecision": "allow"},
-  "extensions": [],
-  "translation": {"profileId": "rangoon.rusl.observe.v0.1", "direction": "native_to_rusl", "status": "observation_only", "authority": "none", "fieldMap": [], "loss": ["effect_unverified", "engine_authorization_unverified", "native_omitted"], "prerequisites": ["needs_authenticated_read"]}
-}
-```
-
-### Bounds and canonical bytes
-
-Candidate limits: document at most 131,072 UTF-8 bytes, maximum JSON depth 16 (root value is depth 1), at most 256 total JSON values (each root/container/scalar counts once; object names do not), 32 fields in any object, 64 entries in any array, 4,096 UTF-8 bytes per descriptive string, 128 ASCII bytes per opaque token. D0a has no numeric data fields; `byteLength` is null. These are proposed ceilings for the pure parser, not limits on native media stored by an authorized host. The 128 KiB document cap is below current 256 KiB source/I1 limits and applies to one minimized report; O1's larger whole-window cap is not inherited. Reject an oversized individual report without truncating or splitting it. A descriptor with its closed null fields and one observation with its closed references both fit the proposed structural caps; the existing bounded parser fixtures test this subset; new variants need their own boundary evidence.
-
-Current source bounds are different contracts: `rangoon-import::MAX_SOURCE_BYTES` and I1 `MAX_BYTES` are each 262,144 bytes; O1 `MAX_INPUT_BYTES` is 2,097,152 bytes. D0a's 131,072-byte bound applies to **one minimized observation document**, never a source file, I1 fixture or whole O1 window. A larger source remains in its original domain. No implicit truncation, split, retry or partial D0a success is allowed when its own cap is exceeded. Its tighter depth/value/array caps likewise require negative fixtures before adoption; code constants do not prove every future provider report fits.
-
-Canonicalization candidate: reject duplicate names and data outside the [RFC 8785 JCS](https://www.rfc-editor.org/info/rfc8785) I-JSON constraints, then serialize the entire validated D0a document with JCS. JSON numbers are unsupported even when syntactically valid, because every D0a scalar slot is a string, boolean or null. A document identity digest, if needed, is `SHA-256(UTF8("rangoon.rusl.observe.v0.1") || 0x00 || JCS(document))`. It establishes local byte equality only. The host must not use this digest as an engine action/context commitment, signature, producer authentication, or evidence of an effect. D0a accepts no `actionDigest` or `contextDigest`; D0b must freeze engine-specific authority-critical bindings and cross-language vectors before any later consequential profile. The [candidate canonical vectors](rusl-d0a-canonical-vectors.json) pin representative exact bytes and digests for review, not an accepted implementation or schema identity. Their ASCII object names and no-number shape test this closed subset; they do not certify a general-purpose JCS implementation or its behavior on arbitrary Unicode object names/numbers.
-
-Parser errors use fixed codes, never input excerpts: `input_limit`, `invalid_encoding`, `invalid_json`, `duplicate_field`, `depth_limit`, `value_limit`, `collection_limit`, `unsupported_version`, `unsupported_kind`, `unknown_core_field`, `invalid_reference`, `invalid_native_reference`, `unsupported_extension`, `invalid_semantic_variant`, `canonicalization_failed`. A direct UI may add a safe field path after review, but cannot echo provider text, URL, secret, or native payload.
-
-## States and failure handling
-
-| Input or state | D0a result |
-| --- | --- |
-| No engine selected/installed | Local content flow unaffected; connector unavailable; parser can still inspect explicitly selected offline fixtures. |
-| Unknown kind, unknown core field, duplicate key, unsupported language/profile | Reject semantic document; do not downgrade to a known kind or older profile. |
-| Missing source identity, environment, engine scope where required, or exact operationRef | Reject source-backed observation/link; retain separately consented native evidence if possible. |
-| Operation reference differs from source in system, environment, engine or native contract version | Reject D0a observation; never draw cross-system edge or infer relation from matching trace/native strings. |
-| Any nonempty `extensions` array | Reject D0a document; a later negotiated profile must define typed extension handling. Separately consented native evidence may remain outside RUSL. |
-| Provider allow, runtime completed, model safe, UI approve | Keep distinct reported/local facts; this profile grants nothing and verifies no effect. |
-| Non-omitted native state, host reference or claimed round-trip | Reject D0a document; later encrypted-custody profile has a separate gate. |
-
-## Data, privacy, and permissions
-
-D0a handles synthetic descriptors and minimized provider reports. It does not authorize source scanning, native-payload retention, network reads, credential access, adapter execution, or engine actions. Current D1 proposal accepts only omitted native bytes. Future `host_ref` emission needs separately qualified encrypted custody and explicit selection/consent; a pure parser never dereferences it. Reject malformed documents with fixed codes and no input excerpt. UI rendering escapes provider text and never treats source IDs as URLs or paths. Any later provider ingress must establish authentication, data-class budgets, redaction and retention independently of this schema.
-
-## Compatibility and migration
-
-No deployed RUSL wire or migration exists. D0a would be an additive read-only view over O1 records and I1 fixture descriptors, not replacement tables or authority fields. D1 must reject unknown versions/core fields and accept no `host_ref` until host-custody qualification. A future minor version may add only explicitly negotiated optional semantics; changed critical meaning requires a new profile and vectors. Legacy examples in the [broad RUSL draft](universal-systems-language.md#inert-examples) remain conceptual and are not migrated into D0a by guesswork. Rollback removes the pure view/parser without altering O1/I1 records.
-
-## Acceptance mapping
-
-| D0a review item | Required proof before D1 host integration or supported-contract claim |
-| --- | --- |
-| Schema exactness | Independent reviewer accepts every closed object, enum, required/null field and size bound; valid/invalid JSON examples cover each variant. |
-| Existing-record mapping | Review the [mapping and non-mapping table](#existing-record-mapping-and-deliberate-non-mapping) against exact current O1/I1/domain source. Fixtures prove same-record scope construction and refusal when provider pins or native identity are absent. No original record, authority or bytes are replaced. |
-| Canonicalization | At least two independent language implementations agree on JCS bytes and domain-separated digest for valid ASCII, Unicode, escaped text and key-order variants; reject duplicate/non-I-JSON cases and numeric insertion because D0a has no numeric fields. |
-| Security | Property/fuzz malformed JSON, URI/path traversal, nonempty extensions, non-omitted native states and secret-like native IDs; no network/file/process/credential behavior in parser. |
-| Honest UI/CLI | Fixture shows provider allow and reported completion beside `authority: none`, `authenticity: unverified`, `effect: unknown`; no green governed-action state. |
-| Boundary review | Fresh independent security/architecture review plus owner acceptance of this profile. D0b remains closed and separate. |
-
-This specification remains a reviewable candidate. The separately authorized D1 source packet built an unmounted experimental parser against it; independent Python reference tests now replay six canonical and 20 parser-negative candidate cases. The later D0a-H packet added only an offline O1 reference probe and I1 refusal test. These source packets do not establish complete cross-language/host conformance, D0a public-profile acceptance, provider conformance, engine call or current standard-compatibility claim.
-
-### D0a-H offline host-source conformance packet — source scope accepted
-
-This source packet tests **only** whether already validated O1/I1 records provide the five candidate reference parts; it does not mount D1, emit a D0a observation, or add a provider adapter. One bounded implementer owns new `crates/rangoon-ops/src/source_ref_probe.rs` and `crates/rangoon-ops/src/source_ref_probe_tests.rs`. Root owns the minimal `crates/rangoon-ops/src/lib.rs` export, one I1 non-mapping test in `crates/rangoon-integrations/src/conformance_tests.rs`, documentation, integration, validation and final risk judgment. No O1 decoder, record vocabulary, I1 contract, store, renderer, A1 or LNSAT file is owned. The public probe takes only `&DecodedWindow`, obtainable through the existing `decode_window` boundary. Inside `rangoon-ops`, it deserializes that object's already validated, bounded `canonical_bytes()` once into the existing crate-private `records::Window` type. This is typed access to a decoder-produced representation, not an alternative raw-input parser or a second O1 validation grammar. A failed canonical re-deserialization is a fixed internal inconsistency error, never a partial result. No caller can supply an unchecked `Window` to the public probe. Event-level `correlation` never substitutes for the record's `FlowContext`.
-
-The proposed pure probe returns exactly one candidate/refusal row per validated O1 event, in prefix order followed by tail order, keyed by original event and record IDs. For this first packet, **only** an O1 `Evaluation` with its own non-null `external_ref` is candidate-eligible. A candidate contains only byte-exact `ExternalRef.systemId`/`contractVersion`/`externalId` and the **same record's** `FlowContext.environmentId`/`engineId`, with the equality of both system IDs checked. It is labeled unverified source shape, not provider identity or source authenticity. Refusal precedence is: absent same-record `FlowContext` -> `no_same_record_flow_context`; any non-`Evaluation` with context (including `Request` and `Authorization`) -> `unsupported_record_kind`; null evaluation reference -> `missing_external_reference`; unequal system IDs -> `system_mismatch`; invalid D0a reference token -> `invalid_reference`. No search across records, matching trace IDs, display names or event correlation may fill a gap. This packet does **not** project `observedMs`, `receivedMs` or D0a timestamps: those remain original O1 data until a separately accepted UTC conversion/boundary packet. Null or out-of-range O1 times must leave the reference result unchanged and cannot create a D0a observation. No candidate may fill D0a's required product, adapter, native stage or operation relation. H01 may yield a five-part source candidate but **zero** D0a observations; H02/H04/H05 yield refusal; H03 I1 golden output yields no candidate because it lacks installed system/environment/engine and provider-native event identity.
-
-Use the six complete [host-source vectors](rusl-d0a-host-mapping-vectors.json) and derived H06 with exact expected probe rows. H01's expected reference is `(systemId=ops:…0003, environmentId=ops:…0004, engineId=ops:…0005, contractVersion=v1, nativeId=decision-fixture-1)`, keyed by event `ops:…012d` and record `ops:…006d`; full IDs are in the fixture. H02 uses the same IDs but refuses `system_mismatch`; H04/H05 use record `ops:…0066` and refuse `no_same_record_flow_context`, including with matching event correlation; H03 has zero rows. H06 moves H01's event unchanged into one prefix and expects the same single row. H07 has one prefix candidate followed by one tail system-mismatch refusal and fixes their two-row order; a tail-first traversal must fail. Add valid `Request` and `Authorization` events from existing O1 test builders and assert `unsupported_record_kind`; other non-context variants refuse `no_same_record_flow_context`. Add evaluation reference-null, same-record mismatch, null/large observed and received times, and cross-record/correlation temptations; assert the fixed row, refusal and no timestamp output for each. The current O1 decoder already rejects tokens outside D0a’s 1–128 ASCII grammar; test that decode refusal and the probe’s defensive token guard separately, without claiming an invalid token can reach the public probe. Assert O1 originals and I1 output remain byte-identical, result count equals the validated O1 event count and never exceeds its bound, no authority field or payload text is returned, and malformed input cannot bypass `decode_window`. Run locked/offline focused O1/I1 and D1 tests, workspace regression, `cargo fmt --all --check`, focused warnings-denied Clippy, `npm run build:check`, review/link/whitespace checks and fresh independent source/security review. The source scope is accepted under intent.md. At that historical source checkpoint, D0a schema/profile acceptance and D2a remained later gates. The subsequent internal D0a and D2a acceptance is recorded in intent.md; it did not accept a stable public profile or host projection. No connected engine, credential, database, network, process, execution, merge, deployment or release is opened here.
-
-## Non-goals and open questions
-
-D0a does not model agent execution, prompts, multimodal streams, approvals, grants, signed evidence, effect checks, managed proxy, typed extensions, native retention, or provider discovery. This revision proposes exact timestamp/Unicode rules and candidate canonical, negative and host-source vectors, but stable public support still requires an immutable profile/schema identity, sufficient independent cross-language evidence, qualification of any O1/I1-to-D0a host projection beyond the offline reference probe, and acceptance of the size ceilings for that supported use. D0b action/context commitment is a separate later decision. The authorized pure offline parser remains experimental and unmounted while these questions stay open.
+<!-- Preserve historical deep links; follow the pinned upstream guide above. -->
+<a id="acceptance-mapping"></a>
+<a id="behavior"></a>
+<a id="bounds-and-canonical-bytes"></a>
+<a id="closed-envelope"></a>
+<a id="closed-semantic-variants"></a>
+<a id="compatibility-and-migration"></a>
+<a id="d0a-h-offline-host-source-conformance-packet--source-scope-accepted"></a>
+<a id="data-privacy-and-permissions"></a>
+<a id="existing-record-mapping-and-deliberate-non-mapping"></a>
+<a id="first-profile-scope"></a>
+<a id="inert-examples"></a>
+<a id="interfaces-and-contracts"></a>
+<a id="invariants"></a>
+<a id="negative-conformance-candidates"></a>
+<a id="non-goals-and-open-questions"></a>
+<a id="specification-vusl-observation-profile-d0a-candidate"></a>
+<a id="states-and-failure-handling"></a>
+<a id="specification-rusl-observation-profile-d0a-candidate"></a>

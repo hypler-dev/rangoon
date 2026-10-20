@@ -21,7 +21,7 @@ A fresh macOS development binary exposed and then passed a repair for a startup 
 
 Approval management, redacted correlated telemetry and live operations visualization remain accepted core product scope. Their offline inspection contracts and eight-target authority reference catalog already exist; authenticated ingress, qualified dispatch and actual evidence are still required. LNSAT is an optional recommended Hypler authority target, and all real provider adapters currently remain unavailable. Provider allow, local content review, approval and execution are distinct facts. Ordinary authoring never requires an external connection.
 
-**[RUSL protocol documentation](docs/rusl.md)** now establishes the public v0.1 design draft: a provider-neutral semantic layer with independent engine adapters, explicit native provenance and translation loss. Rangoon adapts to LNSAT, OpenShell and other systems; those engines do not need to implement RUSL or depend on each other. The [language architecture](docs/universal-systems-language.md), [closed D0a observation profile](docs/universal-systems-observation-profile.md), and [conformance/change guide](docs/rusl-conformance.md) document identities, compatibility, refusal behavior, security boundaries and evolution. An experimental, unmounted `rangoon-language` Rust library inspects bounded offline D0a JSON, with Rust/Python [canonical vectors](docs/rusl-d0a-canonical-vectors.json) and [negative fixtures](docs/rusl-d0a-negative-vectors.json). D2a/D3a retain their separate native projections; grants and receipts are not forced into the observation-only profile. Public documentation is not a stable wire release, community-standard claim or live-provider qualification. The [publication receipt](docs/development.md#rusl-public-draft-documentation--october-18-2026) records exact checks and scope.
+**[VUSL](https://github.com/hypler-dev/vusl)** develops independently; its repository owns the language specification and future core. **RUSL is retired as an active Rangoon technical contract.** The old `rangoon-language` parser remains inert experimental source with its original fixtures and wire identifiers preserved for reproducibility. No RUSL reader, converter, alias, dual-profile system or backward-compatibility promise is planned without demonstrated need. Rangoon will remove the old source only after a usable, pinned VUSL core is integrated and the affected consumer tests are updated and pass independent review. The [consumer direction](docs/vusl.md) records that sequence; [historical spec/fixture provenance](docs/vusl-upstream.json) does not establish a runtime dependency or current VUSL support. OpenShell and LNSAT remain separate optional systems, and Rangoon's local capability workflows remain independent of both. [The retirement receipt](docs/development.md#rusl-retirement-and-vusl-consumer-sequencing--october-19-2026) records this documentation-only update.
 
 The [cross-runtime operator-record target](docs/operations-control-plane.md#cross-runtime-operator-record-acceptance-target) defines what Rangoon must show for denied, approved, changed, repeated and uncertain actions. It prioritizes read-only OpenShell observations for this goal while LNSAT evidence remains an independent later gate. No live cross-runtime record exists today.
 
@@ -41,7 +41,7 @@ The [transcript-backed research and primary-source audit](docs/harness-research-
 ## Contents
 
 - [Engineering checkpoint](#engineering-checkpoint--october-18-2026)
-- [RUSL protocol design and conformance](docs/rusl.md)
+- [VUSL protocol design and conformance](docs/vusl.md)
 - [Research and completion priorities](docs/harness-research-20261018.md)
 - [Review Rangoon now](docs/reviewer-guide.md)
 - [Product and feature status](#product-and-feature-status)
@@ -139,7 +139,7 @@ Bundled native workbench                       Browser without native bridge
 | `crates/rangoon-workflow/` | Pure typed control/data graphs, structural diagnostics, canonical definition identities, and immutable revision candidates; no storage or execution |
 | `crates/rangoon-ops/` | Closed observations, bounded decoding, immutable graph/timeline projections, reported evaluation/approval relationships, finite delegation and stage/ballot/decision inspection, and reported lifecycle/outcome/coverage inspection; authenticity and authoritative eligibility remain unverified, with no I/O, authority or execution |
 | `crates/rangoon-engine/` | Inert `GovernancePort` and LNSAT unavailable diagnostics |
-| `crates/rangoon-language/` | Bounded experimental D0a offline parser and cross-language conformance fixtures; no public wire or authorization claim |
+| `crates/rangoon-language/` | Retained inert experimental RUSL parser and historical fixtures; removal waits for usable VUSL core adoption and updated consumer tests |
 | `crates/rangoon-integrations/` | Provider descriptors, offline OpenShell mapping and pinned LNSAT evidence decoding; no provider operation or execution |
 | `crates/rangoon-openshell-client/` | Unmounted read-only OpenShell gRPC client with pinned protocol/TLS, bounded watch and lease/cancellation checks; synthetic peers are opt-in test support |
 | `crates/rangoon-model-assistance/` | Pure bounded context packing and advisory-response validation; no transport, provider, credential, or authority behavior |
