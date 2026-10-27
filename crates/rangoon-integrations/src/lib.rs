@@ -5,6 +5,7 @@
 mod descriptor;
 mod inspection;
 pub mod lnsat_evidence;
+pub mod lnsat_request_inspection;
 pub mod lnsat_request_record;
 pub mod openshell_observation;
 pub mod openshell_runtime;
