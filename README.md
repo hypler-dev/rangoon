@@ -1007,3 +1007,9 @@ sources are used in source validation. Provider compatibility, native GUI
 evidence remain open. See the [adapter contract](docs/model-cloud-adapter.md),
 [credential custody](docs/model-cloud-custody.md) and canonical
 [development evidence](docs/development.md).
+
+## Offline LNSAT request-record inspection
+
+The separate `rangoon.integrations.lnsat-request-record.v1` source profile inspects one caller-supplied, bounded synthetic request record from the selected LNSAT source contract at `35a41963ad698934c7ee00852c71355e329c34fa`. It distinguishes failed evaluation, unknown outcome, degraded evidence, generic read refusal and unavailable reads. Native completion remains a reported fact, not independently verified effect or execution authority. Requester identity and approval reasons are omitted; the separate summary contains fixed labels and counts, while host bytes retain sensitive correlation identifiers.
+
+The existing D3a runtime-composition decoder and its `f669181a` source pin remain unchanged. Neither decoder performs a live read, opens credentials, persists evidence, reconciles an outcome or dispatches an action. The new profile is unmounted and does not replace O1/O2, VUSL or any provider contract. The [implementation receipt](docs/development.md#offline-lnsat-request-record-decoder--october-26-2026) owns exact source/test/review evidence and remaining gates. This source work is not installed-runtime, platform, release or support qualification.
