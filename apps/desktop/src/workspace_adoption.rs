@@ -319,6 +319,14 @@ struct Journal {
     control: File,
     records: Vec<Stored>,
 }
+impl Drop for Journal {
+    fn drop(&mut self) {
+        // End custody explicitly: a concurrent child spawn can briefly retain
+        // the same open file description until exec closes inherited handles.
+        // Closing our handle alone would then leave the lock held past ownership.
+        let _ = self.control.unlock();
+    }
+}
 impl Journal {
     fn create(anchor: &Path) -> Result<Self, Error> {
         let ancestry = Ancestry::observe(anchor)?;

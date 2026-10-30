@@ -1049,6 +1049,35 @@ fn journal_rejects_unknown_linked_replaced_and_conflicting_files() {
 
 #[test]
 #[cfg(all(unix, feature = "encrypted-workspace"))]
+fn journal_owner_releases_lock_even_when_a_duplicate_descriptor_survives() {
+    let root = Root::new(1, true);
+    let mut journal = Journal::create(&root.anchor).unwrap();
+    append_phase(&mut journal, Phase::Intent);
+    // A concurrent child spawn can briefly inherit the open file description
+    // before close-on-exec. Model that lifetime without a timing-dependent fork.
+    let inherited = journal.control.try_clone().unwrap();
+    assert!(matches!(
+        Journal::open(&root.anchor),
+        Err(Error::Unavailable)
+    ));
+    drop(journal);
+
+    let reopened = Journal::open(&root.anchor)
+        .expect("the ended journal owner must release its exclusive lock");
+    assert_eq!(reopened.records.len(), 1);
+    assert_eq!(reopened.records[0].record.phase, Phase::Intent);
+    drop(inherited);
+    // Closing the old description must not release the new owner's lock.
+    assert!(matches!(
+        Journal::open(&root.anchor),
+        Err(Error::Unavailable)
+    ));
+    drop(reopened);
+    assert_eq!(inspect(&root.anchor), Status::Interrupted);
+}
+
+#[test]
+#[cfg(all(unix, feature = "encrypted-workspace"))]
 fn initial_journal_faults_and_busy_owner_do_not_reuse_or_replace_attempts() {
     for boundary in [
         "before_root_create",

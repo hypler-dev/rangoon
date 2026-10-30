@@ -255,31 +255,26 @@ impl Workspace {
         &self,
         retained: &mut ExistingWorkspaceCapture,
     ) -> Result<(), StoreError> {
+        #[cfg(not(unix))]
+        let result = Err(StoreError::Unavailable);
+        #[cfg(unix)]
         let result = (|| {
-            #[cfg(not(unix))]
-            {
-                let _ = retained;
-                Err(StoreError::Unavailable)
+            retained.content()?;
+            if self.directory != retained.source.directory {
+                return Err(StoreError::WorkspaceChanged);
             }
-            #[cfg(unix)]
+            retained.source.check()?;
+            let fresh = self.capture_existing_snapshot()?;
+            let old = retained.content()?;
+            let new = fresh.content()?;
+            if old.schema != new.schema
+                || old.inventory != new.inventory
+                || old.digest != new.digest
+                || old.archive != new.archive
             {
-                retained.content()?;
-                if self.directory != retained.source.directory {
-                    return Err(StoreError::WorkspaceChanged);
-                }
-                retained.source.check()?;
-                let fresh = self.capture_existing_snapshot()?;
-                let old = retained.content()?;
-                let new = fresh.content()?;
-                if old.schema != new.schema
-                    || old.inventory != new.inventory
-                    || old.digest != new.digest
-                    || old.archive != new.archive
-                {
-                    return Err(StoreError::WorkspaceChanged);
-                }
-                Ok(())
+                return Err(StoreError::WorkspaceChanged);
             }
+            Ok(())
         })();
         if result.is_err() {
             retained.cancel();
