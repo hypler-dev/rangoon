@@ -85,7 +85,8 @@ export function resolveToolchain({ pin, toolchainBin, cwd = ROOT, env = process.
   const suffix = platform === 'win32' ? '.exe' : '';
   let bin = toolchainBin;
   if (bin === null || bin === undefined) {
-    const cargo = String(execFileSyncFn('rustup', ['which', '--toolchain', pin, `cargo${suffix}`], { cwd, env: { ...env, RUSTUP_AUTO_INSTALL: '0' }, encoding: 'utf8' })).trim();
+    // rustup expects the logical tool name on every OS; returned Windows paths already include .exe.
+    const cargo = String(execFileSyncFn('rustup', ['which', '--toolchain', pin, 'cargo'], { cwd, env: { ...env, RUSTUP_AUTO_INSTALL: '0' }, encoding: 'utf8' })).trim();
     if (!path.isAbsolute(cargo)) throw new Error('rustup which returned a non-absolute Cargo path.');
     bin = path.dirname(cargo);
   } else if (!path.isAbsolute(bin)) throw new Error('--toolchain-bin requires an absolute directory path.');

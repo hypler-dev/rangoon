@@ -27,7 +27,7 @@ The [cross-runtime operator-record target](docs/operations-control-plane.md#cros
 
 ## Application source update — October 29, 2026
 
-This update brings the current local workbench into one source snapshot: encrypted default startup and recovery, instruction-history persistence, native lifecycle hardening, bounded Agent files and folder metadata, Markdown review/find, and exact saved-skill handoff to Compile. It preserves the newer public LNSAT offline inspection modules and independent VUSL direction. Rust manifests, local checks and source CI use the same **1.99.1** toolchain.
+This update brings the current local workbench into one source snapshot: encrypted default startup and recovery, instruction-history persistence, native lifecycle hardening, bounded Agent files and folder metadata, Markdown review/find, and exact saved-skill handoff to Compile. It preserves the newer public LNSAT offline inspection modules and independent VUSL direction. Rust manifests, local checks and source CI use the same **1.99.1** toolchain. Windows validation resolves the logical Cargo tool through rustup, then uses the returned absolute `.exe` paths; it never falls back to an unrelated compiler on PATH.
 
 Folder browsing returns metadata; inspecting content still requires an explicit file selection. Remote inventory remains an offline contract, live providers/execution remain unavailable, and a desktop release still needs current-artifact and platform qualification. Original instruction files and deliberately readable exports remain outside workspace encryption. The [full publication receipt](docs/development.md#full-application-source-publication--october-29-2026) records validation, independent review, exclusions and the next native workflow milestone.
 

@@ -56,6 +56,27 @@ test('resolution requires seven absolute executables and default rustup cannot i
   assert.equal(rustup[2].env.RUSTUP_AUTO_INSTALL, '0');
 });
 
+test('Windows rustup resolves logical cargo while absolute executables retain the suffix', () => {
+  const accessed = [];
+  let invocation;
+  const resolved = resolveToolchain({
+    pin,
+    platform: 'win32',
+    env: {},
+    execFileSyncFn: (executable, args, options) => {
+      invocation = { executable, args, options };
+      return `${path.join(bin, 'cargo.exe')}\n`;
+    },
+    accessSyncFn: executable => accessed.push(executable),
+  });
+  assert.equal(invocation.executable, 'rustup');
+  assert.deepEqual(invocation.args, ['which', '--toolchain', pin, 'cargo']);
+  assert.equal(invocation.options.env.RUSTUP_AUTO_INSTALL, '0');
+  assert.equal(resolved.tools.cargo, path.join(bin, 'cargo.exe'));
+  assert.equal(accessed.length, 7);
+  assert.ok(accessed.every(executable => path.isAbsolute(executable) && executable.endsWith('.exe')));
+});
+
 test('wrapper environment is refused and child disables configured wrappers', () => {
   for (const wrapper of ['RUSTC_WRAPPER', 'RUSTC_WORKSPACE_WRAPPER', 'CARGO_BUILD_RUSTC_WRAPPER', 'CARGO_BUILD_RUSTC_WORKSPACE_WRAPPER']) {
     assert.throws(() => prepareChildEnv({ env: { [wrapper]: '/evil' }, pin, bin: '/opt/rust/bin', tools: {} }), new RegExp(wrapper));
