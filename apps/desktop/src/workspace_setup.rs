@@ -1,6 +1,6 @@
 //! Main-window setup/unlock protocol. No plaintext conversion or factory mount.
 //! Every Flight, including its finalizer, stays inside a blocking worker.
-use super::{View, WorkspaceClose, allowed, empty, failure::WorkerCleanup};
+use super::{Phase, View, WorkspaceClose, allowed, empty, failure::WorkerCleanup};
 use crate::workspace_source_access::ControlKind;
 use rangoon_desktop::workspace_session::{Action as NativeAction, Layout, Preview};
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,30 @@ use tauri::{
     ipc::{InvokeBody, Request},
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogResult};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Consent {
+    Approved,
+    Cancelled,
+    Unavailable,
+}
+
+pub(crate) fn dialog_consent(
+    result: MessageDialogResult,
+    affirmative: &str,
+    alive: bool,
+) -> Consent {
+    if !alive {
+        return Consent::Unavailable;
+    }
+    match result {
+        MessageDialogResult::Custom(label) if label == affirmative => Consent::Approved,
+        MessageDialogResult::Custom(label) if label == "Cancel" => Consent::Cancelled,
+        // An unclassified dismissal or unavailable callback is not proof that
+        // the user selected this dialog's explicit Cancel button.
+        _ => Consent::Unavailable,
+    }
+}
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -124,6 +148,29 @@ impl Response {
             false,
         )
     }
+    fn cancelled_after_cleanup(close: &WorkspaceClose, request: &Cycle) -> Option<Self> {
+        let state = close.state.lock().ok()?;
+        let view = close.snapshot_locked(&state, false, None);
+        if state.exiting
+            || state.control.is_some()
+            || !matches!(view.state, Phase::Locked)
+            || view.storage != "managed_encrypted"
+            || view.attempt_id.as_deref() != Some(request.attempt_id.as_str())
+            || view.epoch.as_deref() != Some(request.epoch.as_str())
+            || view.diagnostic.is_some()
+        {
+            return None;
+        }
+        Some(Self {
+            schema_version: "rangoon.workspace-control-state.v1",
+            close: view,
+            phase: "locked",
+            action: None,
+            outcome: "cancelled",
+            diagnostic: None,
+            reload: false,
+        })
+    }
 }
 
 #[derive(Serialize)]
@@ -162,7 +209,7 @@ impl ProtectionResponse {
     pub(crate) fn observe(close: &WorkspaceClose) -> Self {
         Self::observe_after(close, || {})
     }
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     pub(crate) fn observe_after_for_test(
         close: &WorkspaceClose,
         after_read: impl FnOnce(),
@@ -280,7 +327,7 @@ pub(crate) fn confirm(
     close: &WorkspaceClose,
     request: Cycle,
     cleanup: impl FnOnce(bool) -> bool + Send + 'static,
-    consent: impl FnOnce(&Preview) -> bool,
+    consent: impl FnOnce(&Preview) -> Consent,
     consumed: impl FnOnce() -> bool,
 ) -> Response {
     let Ok(mut flight) = close.take_control_ready(&request.attempt_id, &request.epoch, cleanup)
@@ -293,15 +340,25 @@ pub(crate) fn confirm(
             preview.kind,
             NativeAction::CreateEmpty | NativeAction::Unlock
         ) || preview.source_id.is_some()
-            || !consent(&preview)
         {
             return None;
         }
-        flight.confirm(&preview.id).ok()?;
-        consumed().then_some(())
+        match consent(&preview) {
+            Consent::Cancelled => Some(false),
+            Consent::Unavailable => None,
+            Consent::Approved => {
+                flight.confirm(&preview.id).ok()?;
+                consumed().then_some(true)
+            }
+        }
     }));
-    if !matches!(result, Ok(Some(()))) {
+    if !matches!(result, Ok(Some(true))) {
         drop(flight);
+        if matches!(result, Ok(Some(false)))
+            && let Some(cancelled) = Response::cancelled_after_cleanup(close, &request)
+        {
+            return cancelled;
+        }
         return Response::result(
             close,
             "closed",
@@ -337,12 +394,12 @@ pub(crate) fn cancel(
     }
 }
 
-fn native_consent(app: &AppHandle, cleanup: &WorkerCleanup, preview: &Preview) -> bool {
+fn native_consent(app: &AppHandle, cleanup: &WorkerCleanup, preview: &Preview) -> Consent {
     if !cleanup.alive() || preview.source_id.is_some() {
-        return false;
+        return Consent::Unavailable;
     }
     let Some(parent) = app.get_webview_window("main") else {
-        return false;
+        return Consent::Unavailable;
     };
     let (title, question, affirmative) = match preview.kind {
         NativeAction::CreateEmpty => (
@@ -355,7 +412,7 @@ fn native_consent(app: &AppHandle, cleanup: &WorkerCleanup, preview: &Preview) -
             "Read the existing Rangoon workspace key from this user's operating-system credential store and unlock the encrypted workspace? This does not authorize external calls or execution.",
             "Unlock workspace",
         ),
-        _ => return false,
+        _ => return Consent::Unavailable,
     };
     let result = app
         .dialog()
@@ -367,7 +424,17 @@ fn native_consent(app: &AppHandle, cleanup: &WorkerCleanup, preview: &Preview) -
             "Cancel".into(),
         ))
         .blocking_show_with_result();
-    cleanup.alive() && matches!(result, MessageDialogResult::Custom(label) if label == affirmative)
+    let consent = dialog_consent(result, affirmative, cleanup.alive());
+    #[cfg(all(test, feature = "native-encrypted-qualification", target_os = "macos"))]
+    {
+        let purpose = match preview.kind {
+            NativeAction::CreateEmpty => "create_empty",
+            NativeAction::Unlock => "unlock",
+            _ => return Consent::Unavailable,
+        };
+        crate::native_encrypted_qualification::consent_observed(purpose, consent);
+    }
+    consent
 }
 
 #[tauri::command]
@@ -478,4 +545,52 @@ pub(crate) async fn cancel_workspace_control(
     })
     .await
     .map_err(|_| ())
+}
+
+#[cfg(test)]
+mod native_dialog_tests {
+    use super::{Consent, MessageDialogResult, dialog_consent};
+
+    #[test]
+    fn only_live_exact_native_buttons_classify_consent() {
+        assert_eq!(
+            dialog_consent(
+                MessageDialogResult::Custom("Set up workspace".into()),
+                "Set up workspace",
+                true
+            ),
+            Consent::Approved
+        );
+        assert_eq!(
+            dialog_consent(
+                MessageDialogResult::Custom("Cancel".into()),
+                "Set up workspace",
+                true
+            ),
+            Consent::Cancelled
+        );
+        for result in [
+            MessageDialogResult::Cancel,
+            MessageDialogResult::Yes,
+            MessageDialogResult::No,
+            MessageDialogResult::Ok,
+            MessageDialogResult::Custom("cancel".into()),
+            MessageDialogResult::Custom("Unlock workspace".into()),
+        ] {
+            assert_eq!(
+                dialog_consent(result, "Set up workspace", true),
+                Consent::Unavailable
+            );
+        }
+        for label in ["Cancel", "Set up workspace"] {
+            assert_eq!(
+                dialog_consent(
+                    MessageDialogResult::Custom(label.into()),
+                    "Set up workspace",
+                    false
+                ),
+                Consent::Unavailable
+            );
+        }
+    }
 }

@@ -40,7 +40,7 @@ use tonic::{
     transport::{Channel, Endpoint},
 };
 use tower::Service;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, Zeroizing};
 
 // These private, generated bindings reflect the pinned provider protocol and
 // are not project-authored API. Keep Clippy suppression scoped to this module.
@@ -147,7 +147,7 @@ impl CertificatePin {
             return Err(ClientError::InvalidConfiguration);
         }
         let mut pin = [0_u8; 32];
-        for (index, pair) in value.as_bytes().chunks_exact(2).enumerate() {
+        for (index, pair) in value.as_bytes().as_chunks::<2>().0.iter().enumerate() {
             pin[index] = hex_byte(pair).ok_or(ClientError::InvalidConfiguration)?;
         }
         Ok(Self(pin))
@@ -174,8 +174,8 @@ fn hex_byte(pair: &[u8]) -> Option<u8> {
     Some((digit(pair.first().copied()?)? << 4) | digit(pair.get(1).copied()?)?)
 }
 
-/// Caller-selected, short-lived bearer credential. It cannot refresh itself,
-/// is not `Debug`, and never appears in an error or projection.
+/// Caller-selected, short-lived bearer credential. It cannot refresh itself;
+/// Debug is redacted and no credential appears in an error or projection.
 pub struct BearerLease {
     value: Zeroizing<String>,
     expires_at: Instant,
@@ -183,13 +183,24 @@ pub struct BearerLease {
 
 impl BearerLease {
     pub fn new(value: String, expires_at: Instant) -> Result<Self, ClientError> {
+        // Establish cleanup custody before validation, including error and
+        // unwind paths. No credential clone is needed for this transfer.
+        let mut value = Zeroizing::new(value);
+        Self::validate_owned_value(&mut value, expires_at)?;
+        Ok(Self { value, expires_at })
+    }
+
+    fn validate_owned_value(
+        value: &mut Zeroizing<String>,
+        expires_at: Instant,
+    ) -> Result<(), ClientError> {
         if value.is_empty() || value.len() > 16 * 1024 || expires_at <= Instant::now() {
+            // Clear before returning the fixed error, even if a trusted caller
+            // retains the guard. Its Drop remains cleanup defense in depth.
+            value.zeroize();
             return Err(ClientError::InvalidConfiguration);
         }
-        Ok(Self {
-            value: Zeroizing::new(value),
-            expires_at,
-        })
+        Ok(())
     }
 
     fn deadline(&self) -> LeaseDeadline {
@@ -2134,6 +2145,55 @@ pub mod synthetic_peer {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn credential_constructor_rejected_values_clear_before_error_return() {
+        let future = Instant::now() + Duration::from_secs(30);
+        for (plain, expiry) in [
+            (String::new(), future),
+            ("x".repeat(16 * 1024 + 1), future),
+            ("expired-dummy-credential".to_owned(), Instant::now()),
+        ] {
+            let mut owned = Zeroizing::new(plain);
+            assert_eq!(
+                BearerLease::validate_owned_value(&mut owned, expiry),
+                Err(ClientError::InvalidConfiguration)
+            );
+            // Observe the live owned value, never deallocated or spare memory.
+            assert!(owned.is_empty());
+        }
+    }
+
+    #[test]
+    fn credential_constructor_preserves_rejection_boundaries() {
+        let future = Instant::now() + Duration::from_secs(30);
+        for (plain, expiry) in [
+            (String::new(), future),
+            ("x".repeat(16 * 1024 + 1), future),
+            ("expired-dummy-credential".to_owned(), Instant::now()),
+        ] {
+            let error = BearerLease::new(plain, expiry).unwrap_err();
+            assert_eq!(error, ClientError::InvalidConfiguration);
+            assert_eq!(error.code(), "invalid_configuration");
+        }
+    }
+
+    #[test]
+    fn credential_constructor_valid_value_keeps_bound_and_immutable_deadline() {
+        let expiry = Instant::now() + Duration::from_secs(30);
+        let mut owned = Zeroizing::new("x".repeat(16 * 1024));
+        assert_eq!(
+            BearerLease::validate_owned_value(&mut owned, expiry),
+            Ok(())
+        );
+        assert_eq!(owned.len(), 16 * 1024);
+        assert!(owned.bytes().all(|byte| byte == b'x'));
+        let lease = BearerLease::new(std::mem::take(&mut *owned), expiry).unwrap();
+        assert_eq!(lease.value.len(), 16 * 1024);
+        assert_eq!(lease.deadline().0, expiry);
+        assert_eq!(format!("{lease:?}"), "BearerLease([redacted])");
+    }
+
     fn pinned_config(origin: &str) -> Result<ClientConfig, ClientError> {
         let certificate = vec![1, 2, 3, 4];
         let pin = CertificatePin::from_certificate_der(&certificate)?;

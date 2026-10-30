@@ -271,6 +271,20 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
       drafts.set(draft.capabilityId, draft);
       state = { ...state, draft, error: null };
     },
+    discardDraft(expected) {
+      const draft = state.draft;
+      if (unavailable() || state.pending || !state.selected || !draft?.dirty
+        || state.viewedRevisionId !== state.selected.latestRevisionId
+        || state.selected.revision.id !== state.selected.latestRevisionId
+        || draft.capabilityId !== state.selected.id || !object(expected)
+        || ['capabilityId', 'baseRevisionId', 'title', 'content'].some(key => expected[key] !== draft[key])) return false;
+      const clean = { capabilityId: state.selected.id, baseRevisionId: state.selected.latestRevisionId,
+        title: state.selected.revision.title, content: state.selected.revision.content, dirty: false };
+      drafts.set(clean.capabilityId, clean);
+      set({ draft: clean, error: state.needsReload ? state.error : null,
+        message: state.needsReload ? 'Local edits discarded. Reload current before saving or reviewing.' : 'Unsaved edits discarded. Saved revision remains unchanged.' });
+      return true;
+    },
     async open(capabilityId, revisionId = null, { preserveDraft = null } = {}) {
       if (unavailable() || state.pending || !id(capabilityId, 'capability:') || (revisionId !== null && !id(revisionId, 'revision:'))) return;
       const localRequest = ++actionEpoch;

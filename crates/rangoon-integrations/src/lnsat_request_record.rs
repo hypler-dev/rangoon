@@ -1460,7 +1460,7 @@ fn parse(b: &[u8]) -> Result<J, RequestRecordError> {
     }
     Ok(v)
 }
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     fn ws(&mut self) {
         while self
             .s
@@ -1757,7 +1757,7 @@ fn time(v: &str) -> Result<(), RequestRecordError> {
     let max = match m {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
         4 | 6 | 9 | 11 => 30,
-        2 if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) => 29,
+        2 if y.is_multiple_of(4) && (!y.is_multiple_of(100) || y.is_multiple_of(400)) => 29,
         2 => 28,
         _ => return Err(RequestRecordError::InvalidEnvelope),
     };

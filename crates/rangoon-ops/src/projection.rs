@@ -401,32 +401,29 @@ fn outside_scope(o: &Observation<'_>, snapshot: &Snapshot) -> bool {
     {
         return true;
     }
-    if let Some(c) = &o.event.correlation {
-        if c.workspace_id != scope.workspace_id
+    if let Some(c) = &o.event.correlation
+        && (c.workspace_id != scope.workspace_id
             || !scope.system_ids.contains(&c.system_id)
             || !scope.environment_ids.contains(&c.environment_id)
-            || !scope.engine_ids.contains(&c.engine_id)
-        {
-            return true;
-        }
+            || !scope.engine_ids.contains(&c.engine_id))
+    {
+        return true;
     }
-    if let Some(context) = o.record.get("context") {
-        if context["workspaceId"].as_str() != Some(scope.workspace_id.as_str())
+    if let Some(context) = o.record.get("context")
+        && (context["workspaceId"].as_str() != Some(scope.workspace_id.as_str())
             || !contains(&scope.system_ids, &context["systemId"])
             || !contains(&scope.environment_ids, &context["environmentId"])
             || !contains(&scope.engine_ids, &context["engineId"])
-            || !contains(policy_ids, &context["policyRevisionId"])
-        {
-            return true;
-        }
+            || !contains(policy_ids, &context["policyRevisionId"]))
+    {
+        return true;
     }
-    if let Some(action) = o.record.get("scope") {
-        if !contains(&scope.system_ids, &action["systemId"])
+    if let Some(action) = o.record.get("scope")
+        && (!contains(&scope.system_ids, &action["systemId"])
             || !subset(&action["environmentIds"], &scope.environment_ids)
-            || !subset(&action["policyRevisionIds"], policy_ids)
-        {
-            return true;
-        }
+            || !subset(&action["policyRevisionIds"], policy_ids))
+    {
+        return true;
     }
     false
 }
@@ -455,10 +452,10 @@ fn correlation_mismatch(o: &Observation<'_>) -> bool {
         ("engineId", Some(c.engine_id.as_str())),
         ("policyRevisionId", c.policy_revision_id.as_deref()),
     ] {
-        if let Some(actual) = o.field(key) {
-            if Some(actual) != expected {
-                return true;
-            }
+        if let Some(actual) = o.field(key)
+            && Some(actual) != expected
+        {
+            return true;
         }
     }
     if let Some(context) = o.record.get("context") {
@@ -506,12 +503,11 @@ fn correlation_mismatch(o: &Observation<'_>) -> bool {
     if o.record_kind() == "request" && c.request_id.as_deref() != Some(o.record_id()) {
         return true;
     }
-    if matches!(o.record_kind(), "attempt" | "metric") {
-        if let Some(id) = o.field("attemptId") {
-            if c.attempt_id.as_deref() != Some(id) {
-                return true;
-            }
-        }
+    if matches!(o.record_kind(), "attempt" | "metric")
+        && let Some(id) = o.field("attemptId")
+        && c.attempt_id.as_deref() != Some(id)
+    {
+        return true;
     }
     false
 }

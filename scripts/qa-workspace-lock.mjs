@@ -57,6 +57,13 @@ function installFixture(report, engine) {
   if (mode === 'browser') return;
   window.__TAURI__ = { core: { invoke: async (command, args, options) => {
     commands.push(command); trace();
+    // These ordinary-protection fixtures start after native routing completed.
+    // Fresh setup and C0/C1 startup service are covered by qa-desktop-startup.mjs.
+    if (command === 'workspace_startup_status') return {
+      schemaVersion: 'rangoon.workspace-startup.v1', state: 'handoff',
+      startupId: null, attemptId: null, epoch: null, actions: [], copyPhase: null,
+      retainedOriginal: 'not_applicable', diagnostic: null,
+    };
     if (command === 'get_workspace_request_state') return { schemaVersion: 'rangoon.workspace-request-state.v1', storage: 'managed_encrypted', state: closing ? 'unavailable' : 'open', clientId: closing ? null : token };
     if (command === 'get_workspace_close_state') {
       if (mode === 'malformed') return {};

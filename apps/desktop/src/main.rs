@@ -1,8 +1,18 @@
 #![forbid(unsafe_code)]
+// The explicit harness=false target reuses this entry's private native state.
+// Rust omits #[test] bodies there, leaving ordinary unit-fixture imports and
+// helpers unused. Normal builds/tests keep their strict lint policy; the new
+// qualification module denies warnings independently.
+#![cfg_attr(
+    all(test, feature = "native-credential-qualification"),
+    allow(dead_code, unused_imports)
+)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use rangoon_desktop::workspace_lifecycle::{Error as GateError, Gate, Lane, Lease};
 
+mod source_collection;
+use source_collection::{select_and_inspect_sources, select_and_list_sources};
 mod workflows;
 use workflows::{
     begin_workflow_draft, clear_workflow_draft, commit_workflow_save, inspect_workflow_save,
@@ -14,13 +24,21 @@ use compilation::compile_capability;
 mod composition;
 use composition::{commit_composition, preview_composition};
 mod data_controls;
+mod encrypted_recovery;
 use data_controls::{
-    delete_workspace_record, export_workspace_backup, get_workspace_data,
-    inspect_workspace_deletion, prepare_workspace_restore, restore_workspace_backup,
+    create_workspace_recovery_key, delete_workspace_record, export_encrypted_workspace_backup,
+    export_workspace_backup, get_workspace_data, inspect_workspace_deletion,
+    prepare_encrypted_workspace_restore, prepare_workspace_restore, restore_workspace_backup,
 };
 mod instruction_bundles;
 use instruction_bundles::{export_instruction_bundle, inspect_instruction_bundle};
 mod operations;
+// Native-owned startup classification and conversion custody.
+#[cfg(feature = "encrypted-workspace")]
+mod workspace_adoption;
+#[cfg(feature = "encrypted-workspace")]
+mod workspace_startup;
+mod workspace_startup_host;
 use operations::select_and_inspect_operations;
 mod cloud_credentials;
 mod cloud_custody;
@@ -50,10 +68,11 @@ use rangoon_store::Workspace;
 use rangoon_store::{SnapshotMetadata, StoreError};
 use serde::Serialize;
 mod workspace_close;
+mod workspace_native_bootstrap;
 mod workspace_requests;
 use workspace_requests::get_workspace_request_state;
 mod workspace_source_access;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri::{AppHandle, Manager, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 use workspace_close::setup::{
     cancel_workspace_control, confirm_workspace_control, get_workspace_control_state,
@@ -63,6 +82,9 @@ use workspace_close::{
     WorkspaceClose, acknowledge_workspace_purge, begin_workspace_close, get_workspace_close_state,
 };
 use workspace_source_access::SourceAccess;
+use workspace_startup_host::{
+    workspace_startup_action, workspace_startup_quit, workspace_startup_status,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum AdmissionError {
@@ -199,7 +221,8 @@ fn dispatch_read<T: Send + 'static>(
         action()
     }))
 }
-/// Uses the same private source state in Builder setup and synthetic fixtures.
+/// Legacy content regressions only. Ordinary startup never selects plaintext.
+#[cfg(test)]
 fn source_state(gate: &Gate, root: Result<std::path::PathBuf, StoreError>) -> SourceAccess {
     SourceAccess::legacy(gate.clone(), root)
 }
@@ -320,10 +343,103 @@ pub(crate) fn parented_review_window_size(
     review_window_size(work_area, target)
 }
 
+#[cfg(all(test, feature = "native-credential-qualification"))]
+use openshell_host::native_credential_qualification;
+#[cfg(all(test, feature = "native-exit-qualification"))]
+use openshell_host::native_exit_qualification;
+#[cfg(all(test, target_os = "macos"))]
+mod native_encrypted_case_plan;
+#[cfg(all(test, feature = "native-encrypted-qualification"))]
+mod native_encrypted_qualification;
+#[cfg(all(test, target_os = "macos"))]
+mod native_encrypted_seeds;
+
+#[cfg(all(
+    test,
+    any(
+        all(
+            feature = "native-exit-qualification",
+            feature = "native-encrypted-qualification"
+        ),
+        all(
+            feature = "native-exit-qualification",
+            feature = "native-credential-qualification"
+        ),
+        all(
+            feature = "native-encrypted-qualification",
+            feature = "native-credential-qualification"
+        )
+    )
+))]
 fn main() {
+    eprintln!("qualification: ambiguous target features");
+    std::process::exit(64);
+}
+
+#[cfg(all(
+    test,
+    feature = "native-exit-qualification",
+    not(any(
+        feature = "native-encrypted-qualification",
+        feature = "native-credential-qualification"
+    ))
+))]
+fn main() {
+    native_exit_qualification::run();
+}
+
+#[cfg(all(
+    test,
+    feature = "native-encrypted-qualification",
+    not(any(
+        feature = "native-exit-qualification",
+        feature = "native-credential-qualification"
+    ))
+))]
+fn main() {
+    native_encrypted_qualification::run();
+}
+
+#[cfg(all(
+    test,
+    feature = "native-credential-qualification",
+    not(any(
+        feature = "native-exit-qualification",
+        feature = "native-encrypted-qualification"
+    ))
+))]
+fn main() {
+    native_credential_qualification::run();
+}
+
+#[cfg(not(all(
+    test,
+    any(
+        feature = "native-exit-qualification",
+        feature = "native-encrypted-qualification",
+        feature = "native-credential-qualification"
+    )
+)))]
+fn main() {
+    let app = desktop_builder()
+        .setup(|app| {
+            let anchor = app
+                .path()
+                .app_local_data_dir()
+                .map_err(|_| StoreError::Unavailable);
+            workspace_native_bootstrap::install_workbench_state(app.handle(), anchor)
+                .map_err(|_| std::io::Error::other("workspace services unavailable"))?;
+            Ok(())
+        })
+        .build(tauri::generate_context!())
+        .expect("could not start Rangoon desktop");
+    run_workbench(app);
+}
+
+/// Identical states, handlers and window hooks for product and qualification.
+fn desktop_builder() -> tauri::Builder<tauri::Wry> {
     let (gate, model_flight) = admission_state();
-    let openshell_exit_waiter = workspace_close::failure::CallbackWaiter::default();
-    let app = tauri::Builder::default()
+    tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(gate.clone())
         .manage(NativeModel::default())
@@ -332,12 +448,23 @@ fn main() {
         .manage(cloud_custody::Custody::with_gate(gate.clone()))
         .manage(openshell_host::Host::new(gate.clone()))
         .on_window_event(|window, event| {
+            if matches!(
+                event,
+                tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed
+            ) {
+                window
+                    .state::<openshell_host::Host>()
+                    .parent_closed(window.label());
+            }
             workspace_close::window_event(window, event);
             models::window_event(window, event);
             cloud_models::window_event(window, event);
             cloud_credentials::window_event(window, event);
         })
         .invoke_handler(tauri::generate_handler![
+            workspace_startup_status,
+            workspace_startup_action,
+            workspace_startup_quit,
             get_workspace_close_state,
             get_workspace_control_state,
             get_workspace_protection_state,
@@ -348,6 +475,8 @@ fn main() {
             begin_workspace_close,
             acknowledge_workspace_purge,
             select_and_analyze,
+            select_and_inspect_sources,
+            select_and_list_sources,
             select_and_inspect_operations,
             list_snapshots,
             save_analysis,
@@ -365,6 +494,9 @@ fn main() {
             inspect_instruction_bundle,
             get_workspace_data,
             export_workspace_backup,
+            create_workspace_recovery_key,
+            export_encrypted_workspace_backup,
+            prepare_encrypted_workspace_restore,
             prepare_workspace_restore,
             restore_workspace_backup,
             inspect_workspace_deletion,
@@ -404,79 +536,95 @@ fn main() {
             confirm_local_model_review,
             cancel_local_model_review,
         ])
-        .setup(|app| {
-            let root = app
-                .path()
-                .app_local_data_dir()
-                .map(|path| path.join("source-workspace"))
-                .map_err(|_| StoreError::Unavailable);
-            app.manage(source_state(app.state::<Gate>().inner(), root));
-            app.manage(WorkspaceClose::new(
-                app.state::<SourceAccess>().inner().clone(),
-            ));
-            let work_area = app.primary_monitor().ok().flatten().map(|monitor| {
-                (
-                    monitor.work_area().size.width,
-                    monitor.work_area().size.height,
-                    monitor.scale_factor(),
-                )
-            });
-            let (initial_width, initial_height) = initial_window_size(work_area);
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::App("analyze.html".into()))
-                .title("Rangoon")
-                .inner_size(initial_width, initial_height)
-                .min_inner_size(320.0, 480.0)
-                .center()
-                .on_navigation(bundled_navigation)
-                .build()?;
-            Ok(())
-        })
-        .build(tauri::generate_context!())
-        .expect("could not start Rangoon desktop");
-    // Tauri runs setup on Ready, after build. SourceAccess and WorkspaceClose
-    // are registered there, so install the lifetime anchor only after setup.
-    // It belongs to the event loop, outside managed state; SourceAccess retains
-    // only a weak host notifier and cannot keep it alive.
+}
+
+/// Setup has registered all native states before Ready. The anchor is owned by
+/// this event-loop closure, and remains alive until the actual Exit callback.
+fn run_workbench(app: tauri::App<tauri::Wry>) {
     let mut failure_anchor = None;
+    let openshell_exit_waiter = workspace_close::failure::CallbackWaiter::default();
     app.run(move |app, event| {
-        if matches!(&event, tauri::RunEvent::Ready) {
-            failure_anchor = workspace_close::failure::install(app);
+        #[cfg(all(test, feature = "native-encrypted-qualification"))]
+        if matches!(event, tauri::RunEvent::Ready) {
+            native_encrypted_qualification::before_ready(app);
         }
-        if let tauri::RunEvent::ExitRequested { code, api, .. } = &event {
-            let cancel = || app.state::<openshell_host::Host>().cancel_and_check_exit();
-            let action = match failure_anchor.as_ref() {
-                Some(anchor) => anchor.exit_request(*code, cancel),
-                None => workspace_close::failure::route_exit_request(*code, None, cancel),
-            };
-            match action {
-                workspace_close::failure::ExitAction::Pass => {}
-                workspace_close::failure::ExitAction::Prevent => api.prevent_exit(),
-                workspace_close::failure::ExitAction::PreventAndWait => {
-                    api.prevent_exit();
-                    let checking = app.clone();
-                    let exiting = app.clone();
-                    openshell_exit_waiter.spawn(
-                        *code,
-                        move || {
-                            checking
-                                .state::<openshell_host::Host>()
-                                .cancel_and_check_exit()
-                        },
-                        move |code| exiting.exit(code),
-                    );
-                }
-                workspace_close::failure::ExitAction::PreventAndStart => {
-                    api.prevent_exit();
-                    if let Some(anchor) = failure_anchor.as_ref() {
-                        anchor.begin_exit_close();
-                    }
+        coordinate_native_event(app, &event, &mut failure_anchor, &openshell_exit_waiter);
+        if matches!(event, tauri::RunEvent::Ready) {
+            let result =
+                workspace_native_bootstrap::present_workbench(app, failure_anchor.is_some());
+            #[cfg(all(test, feature = "native-encrypted-qualification"))]
+            native_encrypted_qualification::after_ready(
+                app,
+                failure_anchor.is_some(),
+                result.is_ok(),
+            );
+            if result.is_err() {
+                eprintln!("rangoon: desktop startup failed");
+                app.exit(workspace_close::failure::RECOVERY_EXIT_CODE);
+            }
+        }
+        #[cfg(all(test, feature = "native-encrypted-qualification"))]
+        if matches!(event, tauri::RunEvent::Exit) {
+            native_encrypted_qualification::exited(app);
+        }
+    });
+}
+
+/// One native lifecycle path for the product and the isolated qualification target.
+fn coordinate_native_event(
+    app: &AppHandle,
+    event: &tauri::RunEvent,
+    failure_anchor: &mut Option<workspace_close::failure::Anchor>,
+    openshell_exit_waiter: &workspace_close::failure::CallbackWaiter,
+) {
+    if matches!(event, tauri::RunEvent::Ready) {
+        *failure_anchor = workspace_close::failure::install(app);
+        #[cfg(all(test, feature = "native-exit-qualification"))]
+        native_exit_qualification::ready(app, failure_anchor.is_some());
+    }
+    if let tauri::RunEvent::ExitRequested { code, api, .. } = event {
+        let cancel = || app.state::<openshell_host::Host>().cancel_and_check_exit();
+        let action = match failure_anchor.as_ref() {
+            Some(anchor) => anchor.exit_request(*code, cancel),
+            None => workspace_close::failure::route_exit_request(*code, None, cancel),
+        };
+        #[cfg(all(test, feature = "native-exit-qualification"))]
+        native_exit_qualification::exit_action(app, *code, action);
+        match action {
+            workspace_close::failure::ExitAction::Pass => {}
+            workspace_close::failure::ExitAction::Prevent => api.prevent_exit(),
+            workspace_close::failure::ExitAction::PreventAndWait => {
+                api.prevent_exit();
+                let checking = app.clone();
+                let exiting = app.clone();
+                #[cfg(all(test, feature = "native-exit-qualification"))]
+                let mut probe = native_exit_qualification::WaitProbe::default();
+                openshell_exit_waiter.spawn(
+                    *code,
+                    move || {
+                        let drained = checking
+                            .state::<openshell_host::Host>()
+                            .cancel_and_check_exit();
+                        #[cfg(all(test, feature = "native-exit-qualification"))]
+                        probe.checked(drained);
+                        drained
+                    },
+                    move |code| exiting.exit(code),
+                );
+            }
+            workspace_close::failure::ExitAction::PreventAndStart => {
+                api.prevent_exit();
+                if let Some(anchor) = failure_anchor.as_ref() {
+                    anchor.begin_exit_close();
                 }
             }
         }
-        if matches!(event, tauri::RunEvent::Exit) {
-            failure_anchor.take();
-        }
-    });
+    }
+    if matches!(event, tauri::RunEvent::Exit) {
+        #[cfg(all(test, feature = "native-exit-qualification"))]
+        native_exit_qualification::exited();
+        failure_anchor.take();
+    }
 }
 
 #[cfg(test)]

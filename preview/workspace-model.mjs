@@ -10,6 +10,8 @@ const failure = result => ({
   message: typeof result?.error?.message === 'string' ? result.error.message : 'The local workspace action could not finish.',
 });
 const failed = () => ({ outcome: 'failed', error: { message: 'The local workspace action could not finish.' } });
+const RECOVERY_FORMAT = 'rangoon.recovery.sqlcipher.v1';
+const MAX_RECOVERY_BYTES = 64 * 1024 * 1024;
 
 const COUNT_KEYS = Object.freeze([
   'sources', 'capabilities', 'revisions', 'reviews', 'recipes',
@@ -174,6 +176,18 @@ function restorePlan(value) {
   return value;
 }
 
+function loadedWorkspace(value) {
+  if (!object(value) || value.outcome !== 'loaded') return null;
+  const keys = new Set(Object.keys(value));
+  if (![2, 3].includes(keys.size)
+    || !keys.has('outcome')
+    || !keys.has('workspace')
+    || ![...keys].every(key => ['outcome', 'workspace', 'encryptedRecoverySupported'].includes(key))
+    || (keys.has('encryptedRecoverySupported') && typeof value.encryptedRecoverySupported !== 'boolean')) return null;
+  const workspace = validateWorkspaceData(value.workspace);
+  return workspace ? { workspace, encryptedRecoverySupported: value.encryptedRecoverySupported === true } : null;
+}
+
 function deletionPlan(value) {
   if (!hasOnly(value, new Set([
     'schemaVersion', 'kind', 'id', 'label', 'expectedStateId', 'remove',
@@ -209,7 +223,9 @@ export const EMPTY_WORKSPACE_STATE = Object.freeze({
   error: null,
   dialog: null,
   restorePlan: null,
+  restoreOrigin: null,
   deletionPlan: null,
+  encryptedRecoverySupported: false,
   message: 'Open Rangoon desktop to inspect saved local data.',
   requestId: 0,
 });
@@ -281,17 +297,22 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
       });
       const result = await call('get_workspace_data', undefined, purge);
       if (state.requestId !== requestId || purge !== purgeEpoch) return;
-      const workspace = result?.outcome === 'loaded' ? validateWorkspaceData(result.workspace) : null;
-      if (!workspace) {
-        if (!preserveMessage) return setError(result);
+      const loaded = loadedWorkspace(result);
+      if (!loaded) {
+        if (!preserveMessage) {
+          state = { ...state, encryptedRecoverySupported: false };
+          return setError(result);
+        }
         const error = failure(result);
-        return set({ status: 'ready', pending: null, error, message: state.message + ' Inventory refresh failed. ' + error.message });
+        return set({ status: 'ready', pending: null, error, encryptedRecoverySupported: false, message: state.message + ' Inventory refresh failed. ' + error.message });
       }
+      const { workspace, encryptedRecoverySupported } = loaded;
       const hasRecords = workspace.records.sources || workspace.records.capabilities || workspace.records.workflows;
       set({
         status: 'ready',
         pending: null,
         workspace,
+        encryptedRecoverySupported,
         error: null,
         message: preserveMessage ? state.message : (hasRecords ? 'Saved local data is ready to inspect.' : 'No local records have been saved yet.'),
       });
@@ -300,12 +321,24 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
       if (!readyFor('export') || !state.workspace) return;
       set({ dialog: { kind: 'export-warning' }, error: null, message: 'Backups include unencrypted saved source content.' });
     },
+    requestEncryptedExport() {
+      if (!readyFor('encrypted-export') || !state.workspace || !state.encryptedRecoverySupported) return;
+      set({ dialog: { kind: 'encrypted-export-warning' }, error: null, message: 'Choose a separate recovery key file for the encrypted backup.' });
+    },
     cancel() {
       if (state.pending) return;
+      if (state.dialog?.kind === 'encrypted-export-warning' && state.dialog.stale) {
+        return set({
+          dialog: null,
+          message: 'The recovery key file outcome is unknown. No recovery key or encrypted backup was confirmed. Open Back up workspace to start a new native action.',
+        });
+      }
       set({
         dialog: null,
         message: state.dialog?.kind === 'export-warning'
           ? 'Backup export cancelled. Saved records are unchanged.'
+          : state.dialog?.kind === 'encrypted-export-warning'
+            ? 'Encrypted backup cancelled. Saved records are unchanged.'
           : 'Confirmation cancelled. Saved records are unchanged.',
       });
     },
@@ -324,6 +357,33 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
         || result.byteLength > 68 * 1024 * 1024) return setError(result);
       set({ status: 'ready', pending: null, error: null, message: 'Backup exported (' + result.byteLength.toLocaleString() + ' bytes).' });
     },
+    async confirmEncryptedExport() {
+      if (!readyFor('encrypted-export') || !state.encryptedRecoverySupported || state.dialog?.kind !== 'encrypted-export-warning' || state.dialog.stale) return;
+      const requestId = state.requestId + 1;
+      const purge = purgeEpoch;
+      set({ pending: 'encrypted-export', dialog: null, error: null, requestId, message: 'Choose a recovery key file and a new encrypted backup destination…' });
+      const result = await call('export_encrypted_workspace_backup', undefined, purge);
+      if (state.requestId !== requestId || purge !== purgeEpoch) return;
+      if (result?.outcome === 'cancelled') return set({ status: 'ready', pending: null, message: 'Encrypted backup cancelled. Saved records are unchanged.' });
+      if (!hasOnly(result, new Set(['outcome', 'format', 'backupId', 'byteLength']))
+        || result?.outcome !== 'encrypted_exported'
+        || result.format !== RECOVERY_FORMAT
+        || !recordId(result.backupId, 'backup:')
+        || !whole(result.byteLength)
+        || result.byteLength > MAX_RECOVERY_BYTES) return setError(result);
+      set({ status: 'ready', pending: null, error: null, message: 'Encrypted backup verified (' + result.byteLength.toLocaleString() + ' bytes).' });
+    },
+    async createRecoveryKey() {
+      if (!readyFor('recovery-key') || !state.encryptedRecoverySupported || state.dialog?.kind !== 'encrypted-export-warning' || state.dialog.stale) return;
+      const requestId = state.requestId + 1;
+      const purge = purgeEpoch;
+      set({ pending: 'recovery-key', error: null, requestId, message: 'Choose a new recovery key file location…' });
+      const result = await call('create_workspace_recovery_key', undefined, purge);
+      if (state.requestId !== requestId || purge !== purgeEpoch) return;
+      if (result?.outcome === 'cancelled') return set({ status: 'ready', pending: null, dialog: { kind: 'encrypted-export-warning' }, message: 'Recovery key creation cancelled. Select an existing key or create one before backing up.' });
+      if (!hasOnly(result, new Set(['outcome'])) || result?.outcome !== 'recovery_key_created') return setError(result);
+      set({ status: 'ready', pending: null, dialog: { kind: 'encrypted-export-warning' }, error: null, message: 'Recovery key created. Store it separately, then select it for the encrypted backup.' });
+    },
     async prepareRestore() {
       if (!readyFor('restore-preview')) return;
       const requestId = state.requestId + 1;
@@ -341,14 +401,33 @@ export function createWorkspaceController({ invoke, onChange = () => {}, onMutat
       }
       const plan = hasOnly(result, new Set(['outcome', 'plan'])) && result?.outcome === 'restore_ready' ? restorePlan(result.plan) : null;
       if (!plan) return setError(result);
-      set({ status: 'ready', pending: null, restorePlan: plan, dialog: { kind: 'restore' }, error: null, message: 'Restore preview ready. Review additions before restoring.' });
+      set({ status: 'ready', pending: null, restorePlan: plan, restoreOrigin: 'legacy', dialog: { kind: 'restore' }, error: null, message: 'Restore preview ready. Review additions before restoring.' });
+    },
+    async prepareEncryptedRestore() {
+      if (!readyFor('encrypted-restore-preview') || !state.encryptedRecoverySupported) return;
+      const requestId = state.requestId + 1;
+      const purge = purgeEpoch;
+      set({ pending: 'encrypted-restore-preview', error: null, requestId, message: 'Choose one encrypted Rangoon recovery backup and its separate key file…' });
+      const result = await call('prepare_encrypted_workspace_restore', undefined, purge);
+      if (state.requestId !== requestId || purge !== purgeEpoch) return;
+      if (result?.outcome === 'cancelled') {
+        return set({
+          status: state.workspace ? 'ready' : 'idle',
+          pending: null,
+          dialog: state.restorePlan ? { kind: 'restore' } : null,
+          message: state.restorePlan ? 'Encrypted backup selection cancelled. Existing restore preview remains available.' : 'Encrypted backup selection cancelled.',
+        });
+      }
+      const plan = hasOnly(result, new Set(['outcome', 'plan'])) && result?.outcome === 'restore_ready' ? restorePlan(result.plan) : null;
+      if (!plan) return setError(result);
+      set({ status: 'ready', pending: null, restorePlan: plan, restoreOrigin: 'encrypted', dialog: { kind: 'restore' }, error: null, message: 'Encrypted restore preview ready. Review additions before restoring.' });
     },
     async confirmRestore() {
       const plan = state.restorePlan;
       if (!readyFor('restore') || state.dialog?.kind !== 'restore' || !plan || emptyCounts(plan.add)) return;
       const requestId = state.requestId + 1;
       const purge = purgeEpoch;
-      set({ pending: 'restore', dialog: { kind: 'pending', action: 'restore' }, restorePlan: null, error: null, requestId, message: 'Restoring missing local records…' });
+      set({ pending: 'restore', dialog: { kind: 'pending', action: 'restore' }, restorePlan: null, restoreOrigin: null, error: null, requestId, message: 'Restoring missing local records…' });
       const result = await call('restore_workspace_backup', { backupId: plan.backupId, expectedStateId: plan.expectedStateId }, purge);
       if (state.requestId !== requestId || purge !== purgeEpoch) return;
       const receipt = hasOnly(result, new Set(['outcome', 'plan'])) && result?.outcome === 'restored' ? restorePlan(result.plan) : null;

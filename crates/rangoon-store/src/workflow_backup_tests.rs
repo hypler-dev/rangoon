@@ -179,7 +179,7 @@ fn legacy_v1_v2_decode_and_old_export_bytes_are_unchanged() {
     );
     assert!(v2.records.workflows.revisions.is_empty());
     assert!(encode(&base, &fixture(&base)).is_err());
-    for version in [0, 5, i64::MAX] {
+    for version in [0, 6, i64::MAX] {
         let mut unknown = base.clone();
         unknown.version = version;
         assert_eq!(

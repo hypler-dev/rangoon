@@ -326,7 +326,9 @@ mod tests {
             .as_str()
             .unwrap()
             .as_bytes();
-        hex.chunks_exact(2)
+        hex.as_chunks::<2>()
+            .0
+            .iter()
             .map(|pair| {
                 fn nibble(byte: u8) -> u8 {
                     match byte {

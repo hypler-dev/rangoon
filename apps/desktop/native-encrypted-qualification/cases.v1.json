@@ -1,0 +1,466 @@
+{
+  "schemaVersion": "rangoon.e1c5c.case-plan.v1",
+  "roots": [
+    "cold-cancel",
+    "authoring",
+    "interrupted-setup",
+    "anchor-failure",
+    "cleanup-failure",
+    "window-failure",
+    "legacy-empty",
+    "legacy-rich",
+    "legacy-review",
+    "legacy-copy",
+    "recovery-empty",
+    "recovery-parity",
+    "recovery-selection",
+    "legacy-rich-provisioning"
+  ],
+  "cases": [
+    {
+      "name": "cold-cancel",
+      "root": "cold-cancel",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "none",
+      "expectation": "cold_cancel"
+    },
+    {
+      "name": "cold-relaunch",
+      "root": "cold-cancel",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "cold-cancel"
+      },
+      "seed": "none",
+      "expectation": "cold_relaunch"
+    },
+    {
+      "name": "authoring",
+      "root": "authoring",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "none",
+      "expectation": "authoring"
+    },
+    {
+      "name": "relaunch",
+      "root": "authoring",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "authoring"
+      },
+      "seed": "none",
+      "expectation": "relaunch"
+    },
+    {
+      "name": "export",
+      "root": "authoring",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "relaunch"
+      },
+      "seed": "none",
+      "expectation": "export"
+    },
+    {
+      "name": "lose-key",
+      "root": "authoring",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "export"
+      },
+      "seed": "none",
+      "expectation": "lose_key"
+    },
+    {
+      "name": "missing-key",
+      "root": "authoring",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "lose-key"
+      },
+      "seed": "none",
+      "expectation": "missing_key"
+    },
+    {
+      "name": "busy-owner",
+      "root": "authoring",
+      "prerequisite": {
+        "kind": "running",
+        "case": "authoring"
+      },
+      "seed": "none",
+      "expectation": "busy_owner"
+    },
+    {
+      "name": "interrupted-setup",
+      "root": "interrupted-setup",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "none",
+      "expectation": "interrupted_setup"
+    },
+    {
+      "name": "interrupted-relaunch",
+      "root": "interrupted-setup",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "interrupted-setup"
+      },
+      "seed": "none",
+      "expectation": "interrupted_relaunch"
+    },
+    {
+      "name": "anchor-failure",
+      "root": "anchor-failure",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "none",
+      "expectation": "anchor_failure"
+    },
+    {
+      "name": "cleanup-failure",
+      "root": "cleanup-failure",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "none",
+      "expectation": "cleanup_failure"
+    },
+    {
+      "name": "window-failure",
+      "root": "window-failure",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "none",
+      "expectation": "window_failure"
+    },
+    {
+      "name": "legacy-empty-copy",
+      "root": "legacy-empty",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "legacy_empty",
+      "expectation": "legacy_copy"
+    },
+    {
+      "name": "legacy-empty-verify",
+      "root": "legacy-empty",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-empty-copy"
+      },
+      "seed": "none",
+      "expectation": "legacy_verify"
+    },
+    {
+      "name": "legacy-empty-relaunch",
+      "root": "legacy-empty",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-empty-verify"
+      },
+      "seed": "none",
+      "expectation": "legacy_relaunch"
+    },
+    {
+      "name": "legacy-rich-copy",
+      "root": "legacy-rich",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "legacy_rich",
+      "expectation": "legacy_copy"
+    },
+    {
+      "name": "legacy-rich-verify-cancel",
+      "root": "legacy-rich",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-rich-copy"
+      },
+      "seed": "none",
+      "expectation": "legacy_verify_cancel"
+    },
+    {
+      "name": "legacy-rich-verify",
+      "root": "legacy-rich",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-rich-verify-cancel"
+      },
+      "seed": "none",
+      "expectation": "legacy_verify"
+    },
+    {
+      "name": "legacy-rich-relaunch",
+      "root": "legacy-rich",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-rich-verify"
+      },
+      "seed": "none",
+      "expectation": "legacy_relaunch"
+    },
+    {
+      "name": "legacy-review-cancel",
+      "root": "legacy-review",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "legacy_rich",
+      "expectation": "legacy_review_cancel"
+    },
+    {
+      "name": "legacy-review-relaunch",
+      "root": "legacy-review",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-review-cancel"
+      },
+      "seed": "none",
+      "expectation": "legacy_review_relaunch"
+    },
+    {
+      "name": "legacy-copy-cancel",
+      "root": "legacy-copy",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "legacy_rich",
+      "expectation": "legacy_copy_cancel"
+    },
+    {
+      "name": "legacy-copy-relaunch",
+      "root": "legacy-copy",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-copy-cancel"
+      },
+      "seed": "none",
+      "expectation": "legacy_review_relaunch"
+    },
+    {
+      "name": "recovery-empty-crash",
+      "root": "recovery-empty",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "legacy_rich",
+      "expectation": "crash_empty_target"
+    },
+    {
+      "name": "recovery-empty-cancel",
+      "root": "recovery-empty",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-empty-crash"
+      },
+      "seed": "none",
+      "expectation": "recovery_inspect_cancel"
+    },
+    {
+      "name": "recovery-empty-resume",
+      "root": "recovery-empty",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-empty-cancel"
+      },
+      "seed": "none",
+      "expectation": "recovery_restore"
+    },
+    {
+      "name": "recovery-empty-verify",
+      "root": "recovery-empty",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-empty-resume"
+      },
+      "seed": "none",
+      "expectation": "legacy_verify"
+    },
+    {
+      "name": "recovery-empty-relaunch",
+      "root": "recovery-empty",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-empty-verify"
+      },
+      "seed": "none",
+      "expectation": "legacy_relaunch"
+    },
+    {
+      "name": "recovery-parity-crash",
+      "root": "recovery-parity",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "legacy_rich",
+      "expectation": "crash_matching_target"
+    },
+    {
+      "name": "recovery-parity-cancel",
+      "root": "recovery-parity",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-parity-crash"
+      },
+      "seed": "none",
+      "expectation": "recovery_record_cancel"
+    },
+    {
+      "name": "recovery-parity-resume",
+      "root": "recovery-parity",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-parity-cancel"
+      },
+      "seed": "none",
+      "expectation": "recovery_record_copied"
+    },
+    {
+      "name": "recovery-parity-verify",
+      "root": "recovery-parity",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-parity-resume"
+      },
+      "seed": "none",
+      "expectation": "legacy_verify"
+    },
+    {
+      "name": "recovery-parity-relaunch",
+      "root": "recovery-parity",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-parity-verify"
+      },
+      "seed": "none",
+      "expectation": "legacy_relaunch"
+    },
+    {
+      "name": "recovery-selection-copy",
+      "root": "recovery-selection",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "legacy_rich",
+      "expectation": "legacy_copy"
+    },
+    {
+      "name": "recovery-selection-crash",
+      "root": "recovery-selection",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-selection-copy"
+      },
+      "seed": "none",
+      "expectation": "crash_reopened"
+    },
+    {
+      "name": "recovery-selection-cancel",
+      "root": "recovery-selection",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-selection-crash"
+      },
+      "seed": "none",
+      "expectation": "recovery_selection_cancel"
+    },
+    {
+      "name": "recovery-selection-resume",
+      "root": "recovery-selection",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-selection-cancel"
+      },
+      "seed": "none",
+      "expectation": "recovery_complete_selection"
+    },
+    {
+      "name": "recovery-selection-relaunch",
+      "root": "recovery-selection",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "recovery-selection-resume"
+      },
+      "seed": "none",
+      "expectation": "legacy_relaunch"
+    },
+    {
+      "name": "legacy-rich-provisioning-crash",
+      "root": "legacy-rich-provisioning",
+      "prerequisite": {
+        "kind": "initial"
+      },
+      "seed": "legacy_rich",
+      "expectation": "interrupted_provisioning"
+    },
+    {
+      "name": "legacy-rich-provisioning-inspect-cancel",
+      "root": "legacy-rich-provisioning",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-rich-provisioning-crash"
+      },
+      "seed": "none",
+      "expectation": "recovery_inspect_cancel"
+    },
+    {
+      "name": "legacy-rich-provisioning-initialize-cancel",
+      "root": "legacy-rich-provisioning",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-rich-provisioning-inspect-cancel"
+      },
+      "seed": "none",
+      "expectation": "recovery_initialize_empty_cancel"
+    },
+    {
+      "name": "legacy-rich-provisioning-resume",
+      "root": "legacy-rich-provisioning",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-rich-provisioning-initialize-cancel"
+      },
+      "seed": "none",
+      "expectation": "recovery_initialize_empty_restore"
+    },
+    {
+      "name": "legacy-rich-provisioning-verify",
+      "root": "legacy-rich-provisioning",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-rich-provisioning-resume"
+      },
+      "seed": "none",
+      "expectation": "legacy_verify"
+    },
+    {
+      "name": "legacy-rich-provisioning-relaunch",
+      "root": "legacy-rich-provisioning",
+      "prerequisite": {
+        "kind": "completed",
+        "case": "legacy-rich-provisioning-verify"
+      },
+      "seed": "none",
+      "expectation": "legacy_relaunch"
+    },
+    {
+      "name": "cleanup",
+      "root": "authoring",
+      "prerequisite": {
+        "kind": "all_stopped"
+      },
+      "seed": "none",
+      "expectation": "cleanup"
+    }
+  ]
+}

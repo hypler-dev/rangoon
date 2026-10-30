@@ -282,7 +282,7 @@ fn replays_fixture_cases_without_provider_access() {
                         ]
                     );
                     match authorization.native_state.as_str() {
-                        "issued" => assert_eq!(
+                        "active" => assert_eq!(
                             (
                                 authorization.operation_id.as_str(),
                                 authorization.operation_audit_binding_id.as_str(),
@@ -441,6 +441,155 @@ fn refuses_cross_envelope_conflicts_and_preserves_unsupported_native_state() {
         output.attempt.expect("attempt").state_projection,
         "unsupported_native_state"
     );
+}
+
+#[test]
+fn recognizes_pinned_native_states_without_inferring_authority() {
+    let fixture = fixture();
+    for state in ["active", "consumed", "cancelled", "expired", "revoked"] {
+        let mut authorization = template(&fixture, "authorization").clone();
+        authorization["authorization"]["state"] = Value::String(state.into());
+        authorization["authorization"]["active"] = Value::Bool(state == "active");
+        let encoded = bytes(&authorization);
+        let output = decode_lnsat_evidence(input(
+            Some(&encoded),
+            None,
+            None,
+            Some("xau_one"),
+            None,
+            None,
+        ))
+        .expect("pinned authorization state remains observable");
+        let observed = output.authorization.expect("authorization");
+        assert_eq!(observed.native_state, state);
+        assert_eq!(
+            observed.state_projection, "reported_native_state",
+            "{state}"
+        );
+        assert_eq!(output.rangoon_authority, "none");
+        assert_eq!(output.approval, "not_inferred");
+        assert_eq!(output.execution, "not_inferred");
+    }
+    for state in [
+        "prepared",
+        "dispatching",
+        "outcome_unknown",
+        "completed",
+        "failed",
+    ] {
+        let mut operation = template(&fixture, "operation").clone();
+        operation["operation"]["state"] = Value::String(state.into());
+        if state == "prepared" {
+            operation["operation"]["consumption_id"] = Value::Null;
+        }
+        let encoded = bytes(&operation);
+        let output = decode_lnsat_evidence(input(
+            None,
+            Some(&encoded),
+            None,
+            Some("xau_one"),
+            Some("opn_one"),
+            None,
+        ))
+        .expect("pinned operation state remains observable");
+        let observed = output.operation.expect("operation");
+        assert_eq!(observed.native_state, state);
+        assert_eq!(
+            observed.state_projection, "reported_native_state",
+            "{state}"
+        );
+        assert_eq!(output.rangoon_authority, "none");
+        assert_eq!(output.approval, "not_inferred");
+        assert_eq!(output.execution, "not_inferred");
+    }
+}
+
+#[test]
+fn authorization_and_operation_attempt_must_name_the_same_adapter() {
+    let fixture = fixture();
+    let mut authorization = template(&fixture, "authorization").clone();
+    authorization["authorization"]["operation_id"] = Value::String("opn_one".into());
+    authorization["authorization"]["operation_audit_binding_id"] =
+        Value::String("audit:operation".into());
+    let authorization = bytes(&authorization);
+    for (with_operation, with_nested, with_standalone) in [
+        (false, false, true),
+        (true, false, true),
+        (true, true, false),
+        (true, true, true),
+    ] {
+        for matching_adapter in [true, false] {
+            let mut attempt = template(&fixture, "attempt").clone();
+            if !matching_adapter {
+                attempt["attempt"]["adapter_ref"] = Value::String("adapter:other".into());
+            }
+            let mut operation = template(&fixture, "operation").clone();
+            if with_nested {
+                operation["operation"]["attempt"] = attempt["attempt"].clone();
+            }
+            let operation = with_operation.then(|| bytes(&operation));
+            let attempt = with_standalone.then(|| bytes(&attempt));
+            let decoded = decode_lnsat_evidence(input(
+                Some(&authorization),
+                operation.as_deref(),
+                attempt.as_deref(),
+                Some("xau_one"),
+                Some("opn_one"),
+                Some("opa_one"),
+            ));
+            if matching_adapter {
+                let output = decoded.expect("matching adapter preserves the existing join");
+                assert_eq!(output.attempt.expect("attempt").adapter_ref, "adapter:one");
+                assert_eq!(output.rangoon_authority, "none");
+                assert_eq!(output.execution, "not_inferred");
+            } else {
+                let error = decoded.expect_err("contradictory adapter must refuse atomically");
+                assert_eq!(error, LnsatEvidenceError::ReferenceMismatch);
+                assert_eq!(error.to_string(), "lnsat_evidence_reference_mismatch");
+                assert!(!error.to_string().contains("adapter:other"));
+            }
+        }
+    }
+}
+
+#[test]
+fn non_native_state_labels_remain_explicitly_unsupported() {
+    let fixture = fixture();
+    let mut operation = template(&fixture, "operation").clone();
+    operation["operation"]["state"] = Value::String("created".into());
+    let encoded = bytes(&operation);
+    let output = decode_lnsat_evidence(input(
+        None,
+        Some(&encoded),
+        None,
+        Some("xau_one"),
+        Some("opn_one"),
+        None,
+    ))
+    .expect("unrecognized state is retained without becoming supported");
+    let observed = output.operation.expect("operation");
+    assert_eq!(observed.native_state, "created");
+    assert_eq!(observed.state_projection, "unsupported_native_state");
+    assert_eq!(output.rangoon_authority, "none");
+    assert_eq!(output.execution, "not_inferred");
+
+    let mut authorization = template(&fixture, "authorization").clone();
+    authorization["authorization"]["state"] = Value::String("issued".into());
+    let encoded = bytes(&authorization);
+    let output = decode_lnsat_evidence(input(
+        Some(&encoded),
+        None,
+        None,
+        Some("xau_one"),
+        None,
+        None,
+    ))
+    .expect("non-native authorization state is retained without becoming supported");
+    let observed = output.authorization.expect("authorization");
+    assert_eq!(observed.native_state, "issued");
+    assert_eq!(observed.state_projection, "unsupported_native_state");
+    assert_eq!(output.rangoon_authority, "none");
+    assert_eq!(output.execution, "not_inferred");
 }
 
 #[test]

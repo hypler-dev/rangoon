@@ -442,10 +442,10 @@ pub fn inspect_delegations(
                 break;
             };
             union(&mut flags[i], &aggregate_delegations[current]);
-            if let Some(delegator) = &bindings[ordinal][0] {
-                if !seen_subjects.insert(delegator.clone()) {
-                    flags[i][15] = true;
-                }
+            if let Some(delegator) = &bindings[ordinal][0]
+                && !seen_subjects.insert(delegator.clone())
+            {
+                flags[i][15] = true;
             }
             let Some(parent) = optional_text(&obs[ordinal].value, "parentDelegationId") else {
                 break;

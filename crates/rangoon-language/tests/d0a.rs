@@ -322,7 +322,7 @@ fn sha256(bytes: &[u8]) -> String {
 fn decode_base64(input: &str) -> Vec<u8> {
     assert_eq!(input.len() % 4, 0);
     let mut output = Vec::with_capacity(input.len() / 4 * 3);
-    for chunk in input.as_bytes().chunks_exact(4) {
+    for chunk in input.as_bytes().as_chunks::<4>().0.iter() {
         let padding = chunk.iter().filter(|&&byte| byte == b'=').count();
         assert!(
             padding <= 2 && (padding == 0 || chunk[4 - padding..].iter().all(|&byte| byte == b'='))

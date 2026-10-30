@@ -203,10 +203,10 @@ fn reasoning(item: &Map<String, Value>) -> Result<(), Diagnostic> {
     {
         return Err(Diagnostic::ResponseInvalid);
     }
-    if let Some(status) = item.get("status") {
-        if status.as_str() != Some("completed") {
-            return Err(Diagnostic::ResponseInvalid);
-        }
+    if let Some(status) = item.get("status")
+        && status.as_str() != Some("completed")
+    {
+        return Err(Diagnostic::ResponseInvalid);
     }
     Ok(())
 }

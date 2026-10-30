@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+env:
+  RANGOON_RUST_VERSION: '1.99.1'
+  RUSTUP_AUTO_INSTALL: '0'
+
 concurrency:
   group: source-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -25,16 +29,15 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
-      - name: Install the minimum supported source toolchain
-        run: rustup toolchain install 1.85.0 --profile minimal --component rustfmt --component clippy
-      - name: Toolchain evidence
-        run: rustup run 1.85.0 rustc -vV
-      - name: Format
-        run: cargo +1.85.0 fmt --all -- --check
-      - name: Tests
-        run: cargo +1.85.0 test --workspace --locked
-      - name: Clippy
-        run: cargo +1.85.0 clippy --workspace --all-targets --locked -- -D warnings
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.21.0'
+      - name: Check Rust version coherence before provisioning
+        run: node scripts/check-source-rust.mjs --check-config
+      - name: Install the pinned Rust toolchain
+        run: rustup toolchain install ${{ env.RANGOON_RUST_VERSION }} --profile minimal --component rustfmt --component clippy
+      - name: Core toolchain coherence, format, tests and Clippy
+        run: node scripts/check-source-rust.mjs
 
   preview:
     name: Preview and review artifacts
@@ -63,15 +66,41 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.21.0'
+      - name: Check Rust version coherence before provisioning
+        run: node scripts/check-source-rust.mjs --check-config
       - name: Linux WebView build dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+      - name: Locate runner OpenSSL for the encrypted Windows build
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $opensslRoot = Join-Path $env:ProgramFiles 'OpenSSL'
+          $opensslInclude = Join-Path $opensslRoot 'include'
+          $opensslLib = Join-Path $opensslRoot 'lib\VC\x64\MD'
+          $opensslBin = Join-Path $opensslRoot 'bin'
+          foreach ($required in @(
+            (Join-Path $opensslInclude 'openssl\crypto.h'),
+            (Join-Path $opensslLib 'libcrypto.lib'),
+            (Join-Path $opensslBin 'libcrypto-3-x64.dll'),
+            (Join-Path $opensslBin 'openssl.exe')
+          )) {
+            if (-not (Test-Path -LiteralPath $required -PathType Leaf)) {
+              throw "Required runner OpenSSL build input is missing: $required"
+            }
+          }
+          & (Join-Path $opensslBin 'openssl.exe') version
+          if ($LASTEXITCODE -ne 0) { throw 'Runner OpenSSL version check failed' }
+          "OPENSSL_DIR=$opensslRoot" >> $env:GITHUB_ENV
+          "OPENSSL_INCLUDE_DIR=$opensslInclude" >> $env:GITHUB_ENV
+          "OPENSSL_LIB_DIR=$opensslLib" >> $env:GITHUB_ENV
+          $opensslBin >> $env:GITHUB_PATH
       - name: Desktop toolchain
-        run: rustup toolchain install 1.98.0 --profile minimal --component rustfmt --component clippy
-      - run: cargo +1.98.0 fmt --manifest-path apps/desktop/Cargo.toml -- --check
-      - run: cargo +1.98.0 test --manifest-path apps/desktop/Cargo.toml --locked
-      - run: cargo +1.98.0 clippy --manifest-path apps/desktop/Cargo.toml --all-targets --locked -- -D warnings
-      - name: Build native executable without installers
-        run: cargo +1.98.0 build --manifest-path apps/desktop/Cargo.toml --locked
+        run: rustup toolchain install ${{ env.RANGOON_RUST_VERSION }} --profile minimal --component rustfmt --component clippy
+      - name: Desktop toolchain coherence, format, tests, Clippy and native build without installers
+        run: node scripts/check-source-rust.mjs --desktop

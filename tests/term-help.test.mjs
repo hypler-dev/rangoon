@@ -64,7 +64,10 @@ test('puts closed help in normal route flow and keeps action markup outside it',
   const skills = renderSkillsView(createSkillsController().getState());
   assert.match(skills, /data-term-help-group="skills"/);
   assert.match(skills, /data-term-help="review"/);
-  assert.equal((skills.match(/<details/g) ?? []).length, 1);
+  const help = skills.match(/<details[^>]*data-term-help-group="skills"[^>]*>[\s\S]*?<\/details>/g) ?? [];
+  assert.equal(help.length, 1);
+  assert.doesNotMatch(help[0], /<details[^>]* open|id="skills-create"/);
+  assert.match(skills, /data-skills-disclosure="create"/);
   assert.match(skills, /id="skills-create"/);
   const analysis = readFileSync(new URL('../preview/analyze.mjs', import.meta.url), 'utf8');
   assert.match(analysis, /renderTermHelp\('analysis', \['source', 'saved-source', 'sections'\]\)/);

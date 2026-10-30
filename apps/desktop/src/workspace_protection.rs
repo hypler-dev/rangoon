@@ -47,7 +47,7 @@ impl Owner {
         self.inspect_layout_after(|| {})
     }
 
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     pub(super) fn inspect_layout_after_observation_for_test(
         &self,
         after_database: impl FnOnce(),

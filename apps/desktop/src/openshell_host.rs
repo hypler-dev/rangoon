@@ -10,6 +10,14 @@
 // call merely to satisfy dead-code linting.
 #![allow(dead_code)]
 
+#[path = "openshell_credential.rs"]
+mod credential;
+use credential::{CredentialInspection, CredentialSelection};
+#[path = "openshell_native_input.rs"]
+mod native_input;
+#[path = "openshell_session_view.rs"]
+mod session_view;
+
 use crate::{AdmissionError, workspace_requests::WorkspaceRequest};
 use rangoon_desktop::workspace_lifecycle::{Gate, GenerationWitness, Lane, Lease};
 #[cfg(test)]
@@ -226,16 +234,24 @@ impl ReadOutcome {
     }
 }
 
+#[derive(Clone, Copy)]
+enum CallbackStart {
+    Confirmed,
+    NativeReview,
+}
+
 enum Pending {
     Awaiting {
         review: Review,
         target: ProposedTarget,
         admission: Lease,
+        selection: CredentialSelection,
     },
     Confirmed {
         review: Review,
         target: ProposedTarget,
         admission: Lease,
+        selection: CredentialSelection,
     },
 }
 
@@ -246,6 +262,12 @@ impl Pending {
         }
     }
 
+    fn selection(&self) -> &CredentialSelection {
+        match self {
+            Self::Awaiting { selection, .. } | Self::Confirmed { selection, .. } => selection,
+        }
+    }
+
     fn is_current(&self) -> bool {
         match self {
             Self::Awaiting { admission, .. } | Self::Confirmed { admission, .. } => {
@@ -253,14 +275,31 @@ impl Pending {
             }
         }
     }
+
+    /// Readback reports the retained phase without consuming consent or custody.
+    /// Expired selections remain owned until Stop or the existing close path.
+    fn status(&self) -> HostStatus {
+        if !self.is_current() {
+            return HostStatus::Unavailable;
+        }
+        if let Err(error) = self.selection().check() {
+            return HostStatus::Error(error);
+        }
+        match self {
+            Self::Awaiting { .. } => HostStatus::AwaitingConsent,
+            Self::Confirmed { .. } => HostStatus::ReadyForNativeCredential,
+        }
+    }
 }
 
 struct Active {
     review_id: String,
+    kind: ReadKind,
     witness: GenerationWitness,
     control: WatchControl,
     state: Mutex<ActiveState>,
     cancelled: AtomicBool,
+    parent_label: Option<String>,
 }
 
 struct ActiveState {
@@ -268,16 +307,15 @@ struct ActiveState {
     /// lets the workspace drain prove quiescence.
     admission: Option<Lease>,
     result: Option<Result<ReadOutcome, ClientError>>,
+    credential_deadline: Option<std::time::Instant>,
 }
 
 /// Finalize callback custody after its stack has unwound. This guard is
 /// created before invoking the client, so client arguments (including the
 /// secret lease) are dropped before admission is released on a panic.
 /// It does not catch panics, change the panic hook, or handle process abort.
-#[cfg(test)]
 struct CallbackCompletion(Arc<Active>);
 
-#[cfg(test)]
 impl Drop for CallbackCompletion {
     fn drop(&mut self) {
         // finish is single-assignment. A normal result stays intact, while an
@@ -287,17 +325,37 @@ impl Drop for CallbackCompletion {
 }
 
 impl Active {
-    fn new(review_id: String, admission: Lease, control: WatchControl) -> Self {
+    fn new(review_id: String, kind: ReadKind, admission: Lease, control: WatchControl) -> Self {
         Self {
             review_id,
+            kind,
             witness: admission.witness(),
             control,
             state: Mutex::new(ActiveState {
                 admission: Some(admission),
                 result: None,
+                credential_deadline: None,
             }),
             cancelled: AtomicBool::new(false),
+            parent_label: None,
         }
+    }
+
+    fn accept_credential(&self, deadline: std::time::Instant) -> Result<(), ClientError> {
+        if self.cancelled.load(Ordering::Acquire) || !self.witness.is_current().unwrap_or(false) {
+            return Err(ClientError::Cancelled);
+        }
+        credential::check_deadline(deadline)
+    }
+
+    fn bind_credential_deadline(&self, deadline: std::time::Instant) -> Result<(), ClientError> {
+        let mut state = self.state.lock().map_err(|_| ClientError::Source)?;
+        let bound = state
+            .credential_deadline
+            .map_or(deadline, |old| old.min(deadline));
+        state.credential_deadline = Some(bound);
+        drop(state);
+        self.accept_credential(bound)
     }
 
     fn finish(&self, result: Result<ReadOutcome, ClientError>) {
@@ -307,6 +365,11 @@ impl Active {
         if state.result.is_none() {
             state.result = Some(if self.cancelled.load(Ordering::Acquire) {
                 Err(ClientError::Cancelled)
+            } else if state
+                .credential_deadline
+                .is_some_and(|deadline| credential::check_deadline(deadline).is_err())
+            {
+                Err(ClientError::CredentialLeaseExpired)
             } else {
                 result
             });
@@ -319,6 +382,7 @@ impl Active {
             return HostStatus::Unavailable;
         };
         match state.result {
+            None if self.cancelled.load(Ordering::Acquire) => HostStatus::Closing,
             None => HostStatus::Running,
             Some(Ok(_)) => HostStatus::Completed,
             Some(Err(ClientError::Cancelled)) => HostStatus::Cancelled,
@@ -394,6 +458,16 @@ impl Host {
         if !admission.is_current().unwrap_or(false) {
             return Err(HostError::Unavailable);
         }
+        self.retain_review(admission, target, kind, retention)
+    }
+
+    fn retain_review(
+        &self,
+        admission: Lease,
+        target: ProposedTarget,
+        kind: ReadKind,
+        retention: Retention,
+    ) -> Result<Review, HostError> {
         let review = Review {
             id: review_id()?,
             origin: target.origin.clone(),
@@ -409,13 +483,20 @@ impl Host {
             data_classes: data_classes(kind).to_vec(),
         };
         let mut state = self.state.lock().map_err(|_| HostError::Unavailable)?;
+        // Close fences admission before taking this mutex to purge pending
+        // reviews. A preparation that lost that race must drop its lease here.
+        if !admission.is_current().unwrap_or(false) {
+            return Err(HostError::Unavailable);
+        }
         if state.pending.is_some() || state.active.is_some() {
             return Err(HostError::Busy);
         }
+        let selection = CredentialSelection::new(&review)?;
         state.pending = Some(Pending::Awaiting {
             review: review.clone(),
             target,
             admission,
+            selection,
         });
         Ok(review)
     }
@@ -427,6 +508,14 @@ impl Host {
             .as_ref()
             .filter(|pending| pending.is_current())
             .map(|pending| pending.review().clone())
+    }
+
+    /// An inspection reference cannot acquire a secret or supply native consent.
+    fn credential_inspection(&self, review_id: &str) -> Option<CredentialInspection> {
+        let state = self.state.lock().ok()?;
+        let pending = state.pending.as_ref()?;
+        (pending.review().id == review_id && pending.is_current())
+            .then(|| pending.selection().inspect())
     }
 
     /// Internal readback only; future UI needs its own reviewed IPC contract.
@@ -471,6 +560,7 @@ impl Host {
             review,
             target,
             admission,
+            selection,
         } = pending
         else {
             unreachable!("pending phase checked before ownership transfer");
@@ -478,10 +568,14 @@ impl Host {
         if !admission.is_current().unwrap_or(false) {
             return HostStatus::Unavailable;
         }
+        if let Err(error) = selection.check() {
+            return HostStatus::Error(error);
+        }
         state.pending = Some(Pending::Confirmed {
             review,
             target,
             admission,
+            selection,
         });
         HostStatus::ReadyForNativeCredential
     }
@@ -501,6 +595,27 @@ impl Host {
                 HostStatus::AwaitingConsent
             }
             _ => HostStatus::Unavailable,
+        }
+    }
+
+    /// Unmounted native path. Only the explicit disposable qualification target
+    /// calls this until production mounting receives separate acceptance.
+    pub(crate) fn begin_native<R: tauri::Runtime>(
+        &self,
+        review_id: &str,
+        parent: tauri::Window<R>,
+    ) -> HostStatus {
+        native_input::begin(self, review_id, parent)
+    }
+
+    /// Called by the single existing native window hook. It cancels only the
+    /// flight bound to this exact initiating window, never another window's UI.
+    pub(crate) fn parent_closed(&self, label: &str) {
+        if let Ok(state) = self.state.lock()
+            && let Some(active) = &state.active
+            && active.parent_label.as_deref() == Some(label)
+        {
+            active.cancel();
         }
     }
 
@@ -574,6 +689,69 @@ impl Host {
         lease: BearerLease,
         client: Box<dyn SyntheticReadClient>,
     ) -> HostStatus {
+        self.begin_callback(
+            review_id,
+            None,
+            CallbackStart::Confirmed,
+            None,
+            move |config, kind, control, _, _| client.run(config, lease, kind, control),
+        )
+    }
+
+    /// C0 is test-only: the acquirer and peer contain synthetic data only.
+    #[cfg(test)]
+    fn begin_acquisition(
+        &self,
+        inspection: &CredentialInspection,
+        acquirer: Option<Box<dyn credential::CredentialAcquirer>>,
+        client: Box<dyn SyntheticReadClient>,
+    ) -> HostStatus {
+        self.begin_callback(
+            &inspection.review.id,
+            Some(inspection),
+            CallbackStart::Confirmed,
+            None,
+            move |config, kind, control, active, selection| {
+                let deadline = selection.deadline;
+                active.bind_credential_deadline(deadline)?;
+                let acquisition = acquirer
+                    .ok_or(ClientError::Source)?
+                    .acquire(selection.claim());
+                active.accept_credential(deadline)?;
+                let acquired = acquisition.map_err(|error| match error {
+                    ClientError::Cancelled | ClientError::CredentialLeaseExpired => error,
+                    _ => ClientError::Source,
+                })?;
+                let deadline = acquired.deadline();
+                active.bind_credential_deadline(deadline)?;
+                let result = client.run(config, acquired.into_lease(), kind, control);
+                // A callback can outlive transport success. Expiry or cancellation
+                // before actual return still rejects the retained observation.
+                active.accept_credential(deadline)?;
+                result
+            },
+        )
+    }
+
+    fn begin_callback<F>(
+        &self,
+        review_id: &str,
+        inspection: Option<&CredentialInspection>,
+        start: CallbackStart,
+        parent_label: Option<String>,
+        run: F,
+    ) -> HostStatus
+    where
+        F: FnOnce(
+                ClientConfig,
+                ReadKind,
+                WatchControl,
+                &Arc<Active>,
+                CredentialSelection,
+            ) -> Result<ReadOutcome, ClientError>
+            + Send
+            + 'static,
+    {
         let Ok(mut state) = self.state.lock() else {
             return HostStatus::Unavailable;
         };
@@ -583,37 +761,55 @@ impl Host {
         if pending.review().id != review_id {
             return HostStatus::Unavailable;
         }
-        if !matches!(pending, Pending::Confirmed { .. }) {
+        if let Some(candidate) = inspection
+            && !pending.selection().matches(candidate, pending.review())
+        {
+            return HostStatus::Unavailable;
+        }
+        if !matches!(
+            (start, pending),
+            (CallbackStart::Confirmed, Pending::Confirmed { .. })
+                | (CallbackStart::NativeReview, Pending::Awaiting { .. })
+        ) {
             return HostStatus::AwaitingConsent;
         }
         let pending = state.pending.take().expect("pending checked above");
-        let Pending::Confirmed {
+        let (Pending::Awaiting {
             review,
             target,
             admission,
-        } = pending
-        else {
-            unreachable!("pending phase checked before ownership transfer");
-        };
+            selection,
+        }
+        | Pending::Confirmed {
+            review,
+            target,
+            admission,
+            selection,
+        }) = pending;
         if !admission.is_current().unwrap_or(false) {
             return HostStatus::Unavailable;
         }
+        if let Err(error) = selection.check() {
+            return HostStatus::Error(error);
+        }
         let control = WatchControl::default();
-        let active = Arc::new(Active::new(review.id.clone(), admission, control.clone()));
+        let mut active = Active::new(review.id.clone(), review.kind, admission, control.clone());
+        active.parent_label = parent_label;
+        let active = Arc::new(active);
         let callback = Arc::clone(&active);
         let kind = review.kind;
         let spawned = std::thread::Builder::new()
-            .name("rangoon-openshell-synthetic-read".into())
+            .name("rangoon-openshell-observation".into())
             .spawn(move || {
                 let completion = CallbackCompletion(callback);
-                let result = client
-                    .run(target.config, lease, kind, control)
-                    .and_then(|outcome| {
+                let result = run(target.config, kind, control, &completion.0, selection).and_then(
+                    |outcome| {
                         outcome
                             .matches_review(&review)
                             .then_some(outcome)
                             .ok_or(ClientError::Source)
-                    });
+                    },
+                );
                 completion.0.finish(result);
             });
         if spawned.is_err() {
@@ -623,15 +819,113 @@ impl Host {
         HostStatus::Running
     }
 
-    #[cfg(test)]
-    fn status(&self) -> HostStatus {
+    /// Snapshot one current Managed session. This is not an IPC delivery guard.
+    pub(crate) fn inspect_session(
+        &self,
+        workspace: &WorkspaceRequest,
+    ) -> session_view::SessionView {
+        self.inspect_session_inner(
+            workspace,
+            #[cfg(test)]
+            None,
+        )
+    }
+
+    fn inspect_session_inner(
+        &self,
+        workspace: &WorkspaceRequest,
+        #[cfg(test)] probe: Option<&session_view::SnapshotProbe>,
+    ) -> session_view::SessionView {
+        use session_view::SessionView;
+        if !matches!(workspace, WorkspaceRequest::Managed(_)) {
+            return SessionView::unavailable();
+        }
+        let Ok(admission) = workspace.admit(&self.gate, Lane::Read) else {
+            return SessionView::unavailable();
+        };
+        #[cfg(test)]
+        if let Some(probe) = probe {
+            session_view::cross_probe(&probe.before_lock);
+        }
+        // Stop and close purge use Host -> Active. Neither lock spans transport,
+        // toolkit dispatch, await, or a user callback. Projection is bounded.
+        let Ok(state) = self.state.lock() else {
+            return SessionView::unavailable();
+        };
+        if let Some(active) = state.active.as_ref() {
+            let Ok(active_state) = active.state.lock() else {
+                return SessionView::unavailable();
+            };
+            let candidate = match &active_state.result {
+                None => SessionView::phase(HostStatus::Running, Some(active.kind)),
+                Some(Ok(outcome)) => SessionView::completed(active.kind, outcome),
+                Some(Err(ClientError::Cancelled)) => {
+                    SessionView::phase(HostStatus::Cancelled, Some(active.kind))
+                }
+                Some(Err(error)) => {
+                    SessionView::phase(HostStatus::Error(*error), Some(active.kind))
+                }
+            };
+            #[cfg(test)]
+            if let Some(probe) = probe {
+                session_view::cross_probe(&probe.before_final);
+            }
+            if !active.witness.is_current().unwrap_or(false)
+                || !admission.is_current().unwrap_or(false)
+            {
+                return SessionView::unavailable();
+            }
+            // Last witness check above defines this instantaneous snapshot;
+            // cancellation is checked while both captured states stay protected.
+            let view = if active.cancelled.load(Ordering::Acquire) {
+                let phase = if active_state.result.is_none() {
+                    HostStatus::Closing
+                } else {
+                    HostStatus::Cancelled
+                };
+                SessionView::phase(phase, Some(active.kind))
+            } else {
+                candidate
+            };
+            #[cfg(test)]
+            if let Some(probe) = probe {
+                session_view::cross_probe(&probe.after_final);
+            }
+            return view;
+        }
+        #[cfg(test)]
+        if let Some(probe) = probe {
+            session_view::cross_probe(&probe.before_final);
+        }
+        if !admission.is_current().unwrap_or(false) {
+            return SessionView::unavailable();
+        }
+        // Pending::status performs the last retained witness check, then checks
+        // the immutable selection deadline. Do not cache a phase before this
+        // boundary: a queued inspection may outlive native review consent.
+        let candidate = state
+            .pending
+            .as_ref()
+            .map_or_else(SessionView::unavailable, |pending| {
+                SessionView::phase(pending.status(), Some(pending.review().kind))
+            });
+        #[cfg(test)]
+        if let Some(probe) = probe {
+            session_view::cross_probe(&probe.after_final);
+        }
+        candidate
+    }
+
+    pub(crate) fn status(&self) -> HostStatus {
         let Ok(state) = self.state.lock() else {
             return HostStatus::Unavailable;
         };
         match state.active.as_ref() {
             Some(active) => active.status(),
-            None if state.pending.is_some() => HostStatus::AwaitingConsent,
-            None => HostStatus::Unavailable,
+            None => state
+                .pending
+                .as_ref()
+                .map_or(HostStatus::Unavailable, Pending::status),
         }
     }
 
@@ -691,3 +985,11 @@ trait SyntheticReadClient: Send + 'static {
 #[cfg(test)]
 #[path = "openshell_host_tests.rs"]
 mod tests;
+
+#[cfg(all(test, feature = "native-exit-qualification"))]
+#[path = "native_exit_qualification.rs"]
+pub(crate) mod native_exit_qualification;
+
+#[cfg(all(test, feature = "native-credential-qualification"))]
+#[path = "native_credential_qualification.rs"]
+pub(crate) mod native_credential_qualification;

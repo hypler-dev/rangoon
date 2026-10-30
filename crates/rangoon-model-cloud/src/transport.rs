@@ -399,10 +399,10 @@ fn validate_headers(headers: &hyper::HeaderMap, cap: usize) -> Result<(), Diagno
         }
     }
     let mut encodings = headers.get_all(header::CONTENT_ENCODING).iter();
-    if let Some(value) = encodings.next() {
-        if !value.as_bytes().eq_ignore_ascii_case(b"identity") || encodings.next().is_some() {
-            return Err(Diagnostic::ResponseInvalid);
-        }
+    if let Some(value) = encodings.next()
+        && (!value.as_bytes().eq_ignore_ascii_case(b"identity") || encodings.next().is_some())
+    {
+        return Err(Diagnostic::ResponseInvalid);
     }
     if let Some(value) = headers.get(header::CONTENT_LENGTH) {
         let length: u64 = value

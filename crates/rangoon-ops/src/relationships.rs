@@ -217,12 +217,11 @@ pub fn relate_window(decoded: &DecodedWindow) -> Result<Relationships, Relations
             if ordinals.iter().any(|matching| stream_bad(*matching)) {
                 flags[ordinal][0] = true;
             }
-            if state == "unique_unverified" {
-                if let Some(context) = obs[ordinals[0]].context() {
-                    if !flow_equal(item.context().expect("selected context"), context) {
-                        flags[ordinal][4] = true;
-                    }
-                }
+            if state == "unique_unverified"
+                && let Some(context) = obs[ordinals[0]].context()
+                && !flow_equal(item.context().expect("selected context"), context)
+            {
+                flags[ordinal][4] = true;
             }
             references[ordinal].push(ReferenceLink {
                 field,
@@ -426,10 +425,9 @@ fn check_bindings(
                     flags[ordinal][7] = true;
                 }
                 if let Some(policy) = resolve(text(context, "policyRevisionId"), "policy_revision")
+                    && policy.field("gatewayId") != gateway.field("gatewayId")
                 {
-                    if policy.field("gatewayId") != gateway.field("gatewayId") {
-                        flags[ordinal][7] = true;
-                    }
+                    flags[ordinal][7] = true;
                 }
             }
         }

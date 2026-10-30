@@ -120,3 +120,43 @@ test('topology mode names an absent declared graph and escapes closed renderer t
   assert.match(html, /No declared topology is present/);
   assert.doesNotMatch(html, /<script>/);
 });
+
+test('max-size report renders bounded pages with honest matching totals and retained selection', () => {
+  const input = state();
+  input.view.events = Array.from({ length: 1024 }, (_, inputOrdinal) => ({ ...input.view.events[0], inputOrdinal, sequence: inputOrdinal + 1 }));
+  input.view.sourceCounts.eventCount = 1024;
+  input.filteredEvents = input.view.events;
+  input.page = 20; input.selectedOrdinal = 0;
+  const html = renderOperationsView(input, { recordKinds: RECORD_KINDS, codes: [] });
+  assert.equal((html.match(/data-operations-select=/g) ?? []).length, 48);
+  assert.match(html, /Page 21 of 21 · 1001–1024 of 1024 matches/);
+  assert.match(html, /Event #0 stays open in the inspector on another page/);
+  assert.match(html, /id="operations-reveal-selection"/);
+  assert.match(html, /data-operations-page="21" disabled/);
+  input.page = 0;
+  const first = renderOperationsView(input, { recordKinds: RECORD_KINDS, codes: [] });
+  assert.equal((first.match(/data-operations-select=/g) ?? []).length, 100);
+  assert.doesNotMatch(first, /operations-selection-notice/);
+  assert.match(first, /data-operations-page="-1" disabled/);
+});
+
+test('no-match recovery explains retained inspector and distinguishes filtering from empty report', () => {
+  const input = state(); input.ordinal = '999'; input.filteredEvents = [];
+  const html = renderOperationsView(input, { recordKinds: RECORD_KINDS, codes: [] });
+  assert.match(html, /outside these filters/);
+  assert.match(html, /id="operations-reset-filters" >Clear filters/);
+  assert.match(html, /Page 1 of 1 · 0–0 of 0 matches/);
+  assert.match(html, /No observations match these filters/);
+  input.view.events = []; input.view.sourceCounts.eventCount = 0; input.selectedOrdinal = null;
+  const empty = renderOperationsView(input, { recordKinds: RECORD_KINDS, codes: [] });
+  assert.match(empty, /No observations in this selected window/);
+  assert.doesNotMatch(empty, /operations-reveal-selection/);
+});
+
+test('activity-report heading matches navigation and observed counts use singular copy', () => {
+  const input = state();
+  const html = renderOperationsView(input, { recordKinds: RECORD_KINDS, codes: [] });
+  assert.match(html, /Activity <em>reports<\/em>/);
+  assert.match(html, /<strong>1<\/strong> evaluation<\/span>/);
+  assert.doesNotMatch(html, /<strong>1<\/strong> evaluations/);
+});

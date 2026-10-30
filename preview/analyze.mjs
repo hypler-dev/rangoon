@@ -1,10 +1,14 @@
+import { bindMarkdownFind } from './markdown-find.mjs';
+import { renderImportMarkdownLines, captureMarkdownReview, restoreMarkdownReview, jumpToMarkdownLine } from './markdown-review.mjs';
+import { createAgentFilesController } from './agent-files-model.mjs';
+import { renderAgentFilesView } from './agent-files-view.mjs';
 import { createAnalysisController, escapeText } from './analysis-model.mjs';
 import { createEngineController } from './engine-model.mjs';
 import { renderEngineView } from './engine-view.mjs';
 import { createAuthorityController, parseAuthorityHash } from './authority-catalog.mjs';
 import { bindAuthorityView, renderAuthorityContext } from './authority-view.mjs';
-import { createSkillsController, validCapabilityContent, validCapabilityTitle } from './skills-model.mjs';
-import { renderSkillsView } from './skills-view.mjs';
+import { createSkillsController, validCapabilityTitle } from './skills-model.mjs';
+import { renderSkillsView, getSkillsEditorPresentation, skillsDiscardMatches, syncSkillsEditorChrome } from './skills-view.mjs';
 import { createWorkspaceController } from './workspace-model.mjs';
 import { bindWorkspaceView } from './workspace-view.mjs';
 import { createCompositionController } from './composition-model.mjs';
@@ -18,18 +22,20 @@ import { createModelAssistanceController } from './model-assistance-model.mjs';
 import { bindModelAssistanceView } from './model-assistance-view.mjs';
 import { createCloudCredentialController } from './cloud-credential-model.mjs';
 import { icon } from './icons.mjs';
+import { openSkillInCompilation, skillCompileSelection } from './skill-compile-handoff.mjs';
 import { createStartupSplash } from './launch.mjs';
 import { bindWorkbenchNavigation, renderWorkbenchNavigation } from './workbench-navigation.mjs';
-import { createWorkspaceLockController } from './workspace-lock-model.mjs';
-import { renderWorkspaceGuard, renderWorkspaceLockDialog, renderWorkspaceCloseShell, workspaceCloseAnnouncement } from './workspace-lock-view.mjs';
+import { createWorkspaceLockController, workspaceSaveDisclosure } from './workspace-lock-model.mjs';
+import { renderWorkspaceGuard, renderWorkspaceLockDialog, renderWorkspaceCloseShell, workspaceCloseAnnouncement, createWorkspaceCloseQuit } from './workspace-lock-view.mjs';
+import { createDesktopStartupSession } from './desktop-startup-session.mjs';
+import { renderDesktopStartup } from './desktop-startup-view.mjs';
 import { createOperationsController, RECORD_KINDS } from './operations-model.mjs';
 import { renderOperationsView } from './operations-view.mjs';
 
 const app = document.querySelector('#analysis-app');
 const announcer = document.querySelector('#analysis-announcer');
-const startupSplash = createStartupSplash({ container: document.querySelector('#startup-splash'), app });
-const termHelp = bindTermHelp(app);
-const workbenchNavigation = bindWorkbenchNavigation(app, { window, document });
+let startupSplash = createStartupSplash({ container: document.querySelector('#startup-splash'), app });
+let startupSplashNeedsRefresh = false;
 const rawBridge = typeof window.__TAURI__?.core?.invoke === 'function'
   ? (command, args, options) => window.__TAURI__.core.invoke(command, args, options)
   : undefined;
@@ -40,21 +46,46 @@ let modelView = null;
 let cloudCredentialController = null;
 let workflowController = null;
 let operationsController = null;
+let agentFilesController = null;
+let agentFilesProjectionKey = null;
+let agentFilesPendingFocus = null;
 let operationsFocus = null;
 let authorityView = null;
 let nativeOperations = 0;
 let workspaceLock = null;
+let bridge = undefined;
+let startupSession = null;
+let termHelp = null;
+let workbenchNavigation = null;
 let controller = null;
 let lockDialog = null;
 let closeShellStatus = null;
-const sourceBlocked = () => !analysisReady || workspaceLock?.isBlocked();
+let authorityController = null;
+let engineController = null;
+let skillsController = null;
+let workspaceController = null;
+let lifecycleFenced = false;
+let startupQuitPending = false;
+const closedQuit = createWorkspaceCloseQuit({
+  invoke: rawBridge,
+  getState: () => workspaceLock?.getState(),
+  isFenced: () => lifecycleFenced,
+  onChange: () => {
+    if (!lifecycleFenced && workspaceLock?.isBlocked()) {
+      renderClosedWorkspace(workspaceLock.getState(), { force: true, focus: false });
+      if (!closedQuit.pending) document.querySelector('[data-workspace-close-quit]')?.focus({ preventScroll: true });
+    }
+  },
+});
+const sourceBlocked = () => !analysisReady || !workspaceLock || workspaceLock.isBlocked();
 const workspaceWrites = new Set(['save_analysis', 'create_capability', 'revise_capability', 'review_capability', 'restore_workspace_backup', 'delete_workspace_record']);
 function invalidateCompositions(message, except = null) {
   for (const [operation, composition] of compositionControllers) {
     if (operation !== except) composition.invalidatePreview(message);
   }
 }
-workspaceLock = createWorkspaceLockController({
+function createOrdinaryWorkspaceLock() {
+  workspaceLock = createWorkspaceLockController({
   invoke: rawBridge,
   beforeInvoke(command) {
     if (workspaceWrites.has(command)) invalidateCompositions('Workspace data may have changed. Preview this retained draft again before saving.');
@@ -71,15 +102,16 @@ workspaceLock = createWorkspaceLockController({
   purge: purgeWorkspaceRenderer,
   onChange: state => {
     if (state.blocked) renderClosedWorkspace(state);
-    else document.querySelector('[data-workspace-guard]')?.replaceWith(markupElement(renderWorkspaceGuard(state)));
+    else if (analysisReady) document.querySelector('[data-workspace-guard]')?.replaceWith(markupElement(renderWorkspaceGuard(state)));
   },
-});
-const bridge = workspaceLock.bridge;
+  });
+  bridge = workspaceLock.bridge;
+}
 const compositionRoutes = new Set(['decompose', 'merge', 'split']);
 const routeFromHash = () => {
   if (parseAuthorityHash(location.hash).matched) return 'authority-engines';
   const name = location.hash.slice(1);
-  return ['analysis', 'skills', 'workflows', 'compile', 'workspace', 'model-assistance', 'operations', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
+  return ['files', 'analysis', 'skills', 'workflows', 'compile', 'workspace', 'model-assistance', 'operations', 'engine', ...compositionRoutes].includes(name) ? name : 'analysis';
 };
 
 let theme = 'dark';
@@ -91,6 +123,8 @@ document.documentElement.dataset.theme = theme;
 let requestedFocus = null;
 let renderedSourceId = null;
 let route = routeFromHash();
+let navigationEpoch = 0;
+let markdownFindBinding = null;
 let retainedSourceScroll = null;
 let routeFocusPending = route;
 let engineCheckFocusPending = false;
@@ -99,6 +133,11 @@ let openEngineDetails = new Set();
 let skillsActionFocus = null;
 let skillsOriginalOpen = false;
 let skillsSavedOpen = false;
+let skillsDiscardConfirmation = null;
+let skillsRenderedCapability = null;
+const skillsDisclosureStates = new Map();
+let skillsRenderedSource = null;
+const skillsSourceDisclosures = new Map();
 let skillsCreateFocusPending = false;
 let analysisReady = false;
 let workspaceView = null;
@@ -107,6 +146,9 @@ let compositionViewRoute = null;
 let workflowView = null;
 let workflowVisited = false;
 let compilationActionFocus = null;
+let compilationHandoffRevision = null;
+let skillsCompileHandoff = { pending: false, error: null };
+let skillsCompileEpoch = 0;
 
 const text = value => escapeText(value);
 const formatBytes = value => new Intl.NumberFormat().format(value ?? 0);
@@ -121,6 +163,7 @@ const savedAt = snapshot => {
 };
 
 function renderRail() {
+  if (!workbenchNavigation || !workspaceLock) return '';
   const sameRoute = document.querySelector('.analysis-shell')?.dataset.area === route;
   const state = sameRoute ? workbenchNavigation.capture() : { open: false, focus: null };
   const markup = renderWorkbenchNavigation({ area: route, surface: 'workbench', theme, open: workbenchNavigation.compact() ? state.open : true, supplementary: () => renderAuthorityContext(route), workspaceGuard: () => renderWorkspaceGuard(workspaceLock.getState()) });
@@ -174,7 +217,13 @@ function renderWorkspace() {
   if (!document.querySelector('#workspace-root')) {
     workspaceView?.dispose();
     app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="workspace-root"></div></main></div>`;
-    workspaceView = bindWorkspaceView(document.querySelector('#workspace-root'), workspaceController);
+    workspaceView = bindWorkspaceView(document.querySelector('#workspace-root'), workspaceController, {
+      getStorageMode: () => {
+        const status = workspaceLock?.getState().status;
+        return !lifecycleFenced && status === 'open' ? 'managed_encrypted'
+          : !lifecycleFenced && status === 'legacy' ? 'legacy_plaintext' : 'unavailable';
+      },
+    });
   } else workspaceView.render();
   routeEntry = false;
   document.querySelector('#analysis-theme').innerHTML = `${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}`;
@@ -212,14 +261,7 @@ function renderWorkflow() {
 
 function sourceLines(report, active) {
   const activeSpan = report.fragments?.find(fragment => fragment.id === active)?.span;
-  const lines = report.source.content ? report.source.content.split('\n') : [];
-  if (lines.at(-1) === '') lines.pop();
-  if (!lines.length) return '<p class="analysis-note">The returned source is empty.</p>';
-  return lines.map((line, index) => {
-    const number = index + 1;
-    const selected = activeSpan && number >= activeSpan.startLine && number <= activeSpan.endLine;
-    return `<span class="analysis-line${selected ? ' analysis-line--selected' : ''}"><b>${number}</b><code>${text(line) || ' '}</code></span>`;
-  }).join('');
+  return renderImportMarkdownLines(report.source.content ?? '', activeSpan);
 }
 
 function reportView(state) {
@@ -296,8 +338,9 @@ function revealSelectedLine() {
 
 function render(state) {
   if (sourceBlocked()) return;
+  if (route !== 'files') { markdownFindBinding?.dispose(); markdownFindBinding = null; }
   if (route !== 'authority-engines') { authorityView?.dispose(); authorityView = null; }
-  document.title = route === 'authority-engines' ? 'Rangoon — Authority engines' : route === 'workflows' ? 'Rangoon — Workflows' : route === 'model-assistance' ? 'Rangoon — Model assistance' : compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'compile' ? 'Rangoon — Compile inspection' : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'operations' ? 'Rangoon — Operations window' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
+  document.title = route === 'files' ? 'Rangoon — Agent files' : route === 'authority-engines' ? 'Rangoon — Authority engines' : route === 'workflows' ? 'Rangoon — Workflows' : route === 'model-assistance' ? 'Rangoon — Model assistance' : compositionRoutes.has(route) ? `Rangoon — ${route[0].toUpperCase()}${route.slice(1)}` : route === 'compile' ? 'Rangoon — Compile inspection' : route === 'workspace' ? 'Rangoon — Workspace data' : route === 'operations' ? 'Rangoon — Activity reports' : route === 'engine' ? 'Rangoon — Engine integration' : route === 'skills' ? 'Rangoon — Local capabilities' : 'Rangoon — Import & Analyze';
   if (route === 'workflows') {
     compositionView?.dispose();
     compositionView = null;
@@ -316,6 +359,7 @@ function render(state) {
     compositionView = null;
     compositionViewRoute = null;
   }
+  if (route === 'files') { renderAgentFiles(); return; }
   if (route === 'model-assistance') { renderModelAssistance(); return; }
   modelView?.dispose();
   modelView = null;
@@ -352,7 +396,7 @@ function render(state) {
   app.innerHTML = `<div class="analysis-shell" data-area="${route}">
     ${renderRail()}
     <main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">
-      <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1 id="analysis-title" tabindex="-1">Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${icon('import',{size:16})}${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${icon('clear',{size:16})}${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${icon('save',{size:16})}${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
+      <section class="analysis-hero"><p class="analysis-kicker">DESKTOP / SOURCE ANALYSIS</p><h1 id="analysis-title" tabindex="-1">Import &amp; <em>Analyze</em></h1><p>Choose one Markdown file. Read source sections. Inspect original text. Results stay in this window until cleared. Save locally to reopen after restart.</p><div class="analysis-actions"><button id="analysis-choose" class="analysis-button analysis-button--primary" type="button" ${chooseDisabled ? 'disabled' : ''}>${icon('import',{size:16})}${state.busyAction === 'choose' ? 'Waiting for selection and analysis…' : 'Choose Markdown file'}</button><button id="analysis-clear" class="analysis-button" type="button" ${clearDisabled ? 'disabled' : ''}>${icon('clear',{size:16})}${state.busyAction === 'clear' ? 'Clearing analysis…' : 'Clear analysis'}</button></div>${hasReport ? `<div class="analysis-save"><p>${text(workspaceSaveDisclosure(workspaceLock.getState()))}</p><button id="analysis-save" class="analysis-button analysis-button--save" type="button" ${saveDisabled ? 'disabled' : ''}>${icon('save',{size:16})}${state.busyAction === 'save' ? 'Saving locally…' : 'Save locally'}</button></div>` : ''}<p id="analysis-status" class="analysis-status${error ? ' analysis-status--error' : ''}">${text(unavailable ? 'Open this page in the Rangoon desktop app to choose and analyze a local file.' : state.message)}</p>${error ? `<p class="analysis-alert" role="alert">${text(state.message)}${state.errorCode ? ` Error code: ${text(state.errorCode)}.` : ''}${hasReport ? ' Current analysis remains available.' : ''}</p>` : ''}</section>
       <section class="analysis-truth" aria-label="Analysis boundaries"><span>Native picker only</span><span>No scan or upload</span><span>Local save available</span><span>Sections are proposals, not semantic skills</span></section>
       ${renderTermHelp('analysis', ['source', 'saved-source', 'sections'])}
       ${snapshotsView(state)}
@@ -409,6 +453,47 @@ function renderEngine() {
   }
 }
 
+function renderAgentFiles() {
+  if (sourceBlocked() || !agentFilesController) return;
+  const active = document.activeElement;
+  const capture = active?.matches?.('[data-agent-files-query]') ? { selector: '[data-agent-files-query]', range: [active.selectionStart, active.selectionEnd] }
+    : active?.matches?.('[data-agent-files-type]') ? { selector: '[data-agent-files-type]' }
+      : active?.matches?.('[data-agent-files-findings]') ? { selector: '[data-agent-files-findings]' }
+        : active?.dataset?.agentFilesAction ? { selector: `[data-agent-files-action="${CSS.escape(active.dataset.agentFilesAction)}"]` }
+          : active?.dataset?.agentFilesMark ? { selector: `[data-agent-files-mark="${CSS.escape(active.dataset.agentFilesMark)}"]` }
+            : active?.dataset?.agentFilesOpen ? { selector: `[data-agent-files-open="${CSS.escape(active.dataset.agentFilesOpen)}"]` }
+              : active?.dataset?.agentFilesPage ? { selector: '[data-agent-files-page-status]' } : null;
+  const previousKey = document.querySelector('[data-agent-files-current]')?.dataset.agentFilesCurrent;
+  const detailsOpen = document.querySelector('.agent-files-details')?.open;
+  const markdownState = captureMarkdownReview(app);
+  const findState = markdownFindBinding?.capture();
+  markdownFindBinding?.dispose(); markdownFindBinding = null;
+  const state = agentFilesController.getState();
+  const desiredFocus = capture ?? agentFilesPendingFocus;
+  if (state.pending && desiredFocus) agentFilesPendingFocus = desiredFocus;
+  else if (!state.pending) agentFilesPendingFocus = null;
+  const projectionKey = JSON.stringify([state.query,state.typeFilter,state.findingFilter,state.page]);
+  const scrollTop = document.querySelector('.agent-files-table')?.scrollTop ?? 0;
+  app.innerHTML = `<div class="analysis-shell" data-area="files">${renderRail()}<main id="analysis-main" tabindex="-1">${renderAgentFilesView(state)}</main></div>`;
+  routeEntry = false;
+  if (projectionKey === agentFilesProjectionKey) { const list = document.querySelector('.agent-files-table'); if (list) list.scrollTop = scrollTop; }
+  agentFilesProjectionKey = projectionKey;
+  const inspector = document.querySelector('.agent-files-inspector');
+  if (inspector) { inspector.dataset.agentFilesCurrent = state.selectedKey ?? ''; inspector.setAttribute('data-agent-files-current', state.selectedKey ?? ''); }
+  if (previousKey === state.selectedKey) restoreMarkdownReview(app, markdownState);
+  const selectedContent = state.records.find(item => item.key === state.selectedKey)?.report?.source?.content;
+  if (typeof selectedContent === 'string') markdownFindBinding = bindMarkdownFind(app, selectedContent, previousKey === state.selectedKey ? findState : null);
+  if (detailsOpen && previousKey === state.selectedKey) document.querySelector('.agent-files-details')?.setAttribute('open','');
+  announcer.textContent = state.message;
+  if (routeFocusPending === 'files') { document.querySelector('.agent-files-header h1')?.focus({ preventScroll: true }); routeFocusPending = null; }
+  else if (desiredFocus) {
+    const target = document.querySelector(desiredFocus.selector);
+    if (target && !target.disabled) { target.focus({ preventScroll: true }); if (desiredFocus.range && typeof target.setSelectionRange === 'function') target.setSelectionRange(...desiredFocus.range); }
+    else if (state.pending === 'check') { document.querySelector('[data-agent-files-action="cancel-check"]')?.focus({preventScroll:true}); agentFilesPendingFocus = null; }
+    else if (!state.pending) (document.querySelector('[data-agent-files-action="check-selected"]:not([disabled])') ?? document.querySelector('[data-agent-files-action="choose"]'))?.focus({preventScroll:true});
+  }
+}
+
 function renderOperations() {
   if (sourceBlocked() || !operationsController) return;
   const active = document.activeElement;
@@ -417,7 +502,9 @@ function renderOperations() {
     : active?.dataset?.operationsFilter ? {
     selector: `[data-operations-filter="${CSS.escape(active.dataset.operationsFilter)}"]`,
     selection: typeof active.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null,
-  } : active?.dataset?.operationsSelect ? { selector: `[data-operations-select="${CSS.escape(active.dataset.operationsSelect)}"]` }
+  } : active?.dataset?.operationsPage ? { selector: '#operations-page-status' }
+    : ['operations-reset-filters', 'operations-reveal-selection'].includes(active?.id) ? { selector: `#${active.id}` }
+    : active?.dataset?.operationsSelect ? { selector: `[data-operations-select="${CSS.escape(active.dataset.operationsSelect)}"]` }
     : active?.dataset?.operationsMode ? { selector: `[data-operations-mode="${CSS.escape(active.dataset.operationsMode)}"]` }
       : active?.id === 'operations-choose' || active?.id === 'operations-clear' ? { selector: `#${active.id}` } : null);
   operationsFocus = null;
@@ -425,11 +512,12 @@ function renderOperations() {
   app.innerHTML = `<div class="analysis-shell" data-area="operations">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderOperationsView(state, { recordKinds: RECORD_KINDS, codes: ['duplicate_observation','event_identity_conflict','sequence_conflict','record_identity_conflict','sequence_gap','predecessor_missing','predecessor_conflict','prefix_fence_mismatch','prefix_watermark_mismatch','prefix_identity_conflict','scope_mismatch','correlation_mismatch','duplicate_node','node_record_missing','node_record_kind_mismatch','duplicate_edge','edge_endpoint_missing','edge_endpoint_ambiguous'] })}</main></div>`;
   routeEntry = false;
   if (decisionsOpen) document.querySelector('.operations-decisions')?.setAttribute('open', '');
-  const operationsAnnouncement = state.notice ?? (state.status === 'rejected'
+  if (state.status === 'choosing' && captured) operationsFocus = captured;
+  const operationsAnnouncement = (state.notice ?? (state.status === 'rejected'
     ? 'This local window was rejected. Choose a local window again.'
     : state.status === 'failed'
       ? 'This local inspection could not finish. Choose a local window again.'
-      : 'Operations window. Local inspection only.');
+      : 'Activity reports. Local inspection only.')) + (state.view ? ` ${state.filteredEvents.length} matching records. Page ${state.page + 1} of ${state.pageCount}.` : '');
   announcer.textContent = operationsAnnouncement;
   if (routeFocusPending === 'operations') { document.querySelector('#operations-title')?.focus({ preventScroll: true }); routeFocusPending = null; }
   else {
@@ -437,7 +525,7 @@ function renderOperations() {
     if (target && !target.disabled) {
       target.focus({ preventScroll: true });
       if (captured.selection && typeof target.setSelectionRange === 'function') target.setSelectionRange(...captured.selection);
-    }
+    } else if (captured && state.view) document.querySelector('#operations-page-status')?.focus({ preventScroll: true });
   }
 }
 
@@ -454,10 +542,24 @@ function renderSkills() {
   if (original) skillsOriginalOpen = original.open;
   const saved = document.querySelector('.skills-saved');
   if (saved) skillsSavedOpen = saved.open;
+  if (skillsRenderedCapability && document.querySelector('.skills-page')) {
+    skillsDisclosureStates.set(skillsRenderedCapability, {
+      advanced: Boolean(document.querySelector('.skills-advanced')?.open), original: skillsOriginalOpen, saved: skillsSavedOpen,
+    });
+  }
+  if (skillsRenderedSource && document.querySelector('.skills-source-create')) skillsSourceDisclosures.set(skillsRenderedSource, document.querySelector('.skills-source-create').open);
   const state = skillsController.getState();
-  app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderSkillsView(state)}</main></div>`;
+  skillsRenderedSource = state.source ? `${state.source.sourceId}:${state.source.fragmentId}` : 'no-source';
+  if (!skillsDiscardMatches(state, skillsDiscardConfirmation)) skillsDiscardConfirmation = null;
+  skillsRenderedCapability = state.selected?.id ?? null;
+  const disclosures = skillsDisclosureStates.get(skillsRenderedCapability);
+  skillsOriginalOpen = disclosures?.original ?? false;
+  skillsSavedOpen = disclosures?.saved ?? false;
+  app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderSkillsView(state, { discardConfirmation: skillsDiscardConfirmation, compileHandoff: skillsCompileHandoff })}</main></div>`;
   routeEntry = false;
   announcer.textContent = state.message;
+  if (skillsSourceDisclosures.has(skillsRenderedSource)) document.querySelector('.skills-source-create').open = skillsSourceDisclosures.get(skillsRenderedSource);
+  if (disclosures?.advanced) document.querySelector('.skills-advanced')?.setAttribute('open', '');
   if (skillsOriginalOpen) document.querySelector('.skills-original')?.setAttribute('open', '');
   if (skillsSavedOpen) document.querySelector('.skills-saved')?.setAttribute('open', '');
   const textarea = document.querySelector('#skills-content-input');
@@ -465,6 +567,7 @@ function renderSkills() {
   const library = document.querySelector('.skills-library__list');
   if (library) library.scrollTop = libraryScroll;
   if (routeFocusPending === 'skills') {
+    if (skillsCreateFocusPending) document.querySelector('.skills-source-create')?.setAttribute('open', '');
     document.querySelector(skillsCreateFocusPending ? '#skills-create-title' : '#skills-title')?.focus({ preventScroll: true });
     skillsCreateFocusPending = false;
     routeFocusPending = null;
@@ -496,6 +599,7 @@ function renderAuthority() {
       },
     });
   } else authorityView.render();
+  announcer.textContent = 'System coverage. Reference catalog only. No provider connection.';
   const themeControl = document.querySelector('#analysis-theme');
   if (themeControl) themeControl.innerHTML = `${icon('theme',{size:16})}${theme === 'light' ? 'Dark mode' : 'Light mode'}`;
   if (routeFocusPending === 'authority-engines') {
@@ -528,8 +632,11 @@ function renderCompilation() {
   for (const id of openDetails) document.getElementById(id)?.setAttribute('open', '');
   announcer.textContent = state.error || state.needsRefresh || state.bundleExport?.error || state.externalBundle?.error ? '' : state.message;
   if (routeFocusPending === 'compile') {
-    document.querySelector('#compile-title')?.focus({ preventScroll: true });
-    routeFocusPending = null;
+    const target = compilationHandoffRevision ? document.querySelector(`[data-compile-revision="${CSS.escape(compilationHandoffRevision)}"]`) : document.querySelector('#compile-title');
+    if (!state.pending && nativeOperations === 0) {
+      (target && !target.disabled ? target : document.querySelector('#compile-title'))?.focus({ preventScroll: true });
+      compilationHandoffRevision = null; routeFocusPending = null;
+    }
   } else {
     const target = !state.pending && nativeOperations === 0 && compilationActionFocus ? compilationActionFocus : focus;
     const element = target ? document.querySelector(target) : null;
@@ -538,7 +645,11 @@ function renderCompilation() {
   }
 }
 
-modelController = createModelAssistanceController({ invoke: bridge, onChange: () => { if (sourceBlocked()) return; if (route === 'model-assistance') renderModelAssistance(); } });
+function createContentControllers() {
+  if (controller || !workspaceLock || workspaceLock.isBlocked()) return false;
+  termHelp = bindTermHelp(app);
+  workbenchNavigation = bindWorkbenchNavigation(app, { window, document });
+  modelController = createModelAssistanceController({ invoke: bridge, onChange: () => { if (sourceBlocked()) return; if (route === 'model-assistance') renderModelAssistance(); } });
 workflowController = createWorkflowController({
   bridge,
   onChange: () => { if (sourceBlocked()) return; if (route === 'workflows') renderWorkflow(); },
@@ -548,17 +659,23 @@ workflowController = createWorkflowController({
     if (!refreshed) throw new Error('The saved workflow library could not be refreshed.');
   },
 });
-cloudCredentialController = createCloudCredentialController({ invoke: bridge, onChange: () => { if (sourceBlocked()) return; if (route === 'model-assistance') renderModelAssistance(); } });
-const authorityController = createAuthorityController({
+  cloudCredentialController = createCloudCredentialController({ invoke: bridge, onChange: () => { if (sourceBlocked()) return; if (route === 'model-assistance') renderModelAssistance(); } });
+  authorityController = createAuthorityController({
   onChange: () => { if (sourceBlocked()) return; if (route === 'authority-engines') authorityView?.render(); },
 });
 authorityController.setRoute(location.hash);
-const engineController = createEngineController({ invoke: bridge, onChange: () => {
+  engineController = createEngineController({ invoke: bridge, onChange: () => {
   if (sourceBlocked()) return;
   if (route === 'engine') renderEngine();
 } });
+agentFilesController = createAgentFilesController({ invoke: rawBridge ? bridge : undefined, openSavedSource: async ({ sourceId, sha256, byteLength }) => {
+  if (controller.getState().busyAction) return { outcome: 'busy' };
+  const opened = await controller.openSnapshot(sourceId, { sha256, byteLength });
+  const code = controller.getState().errorCode;
+  return { outcome: opened ? 'opened' : code === 'source_identity_mismatch' ? 'mismatch' : code === 'source_deleted' ? 'removed' : 'failed' };
+}, onChange: () => { if (!sourceBlocked() && route === 'files') renderAgentFiles(); } });
 operationsController = createOperationsController({ invoke: rawBridge ? bridge : undefined, onChange: () => { if (!sourceBlocked() && route === 'operations') renderOperations(); } });
-const skillsController = createSkillsController({ invoke: bridge, onChange: () => {
+  skillsController = createSkillsController({ invoke: bridge, onChange: () => {
   if (sourceBlocked()) return;
   if (route === 'skills') renderSkills();
   else if (analysisReady && route === 'compile') renderCompilation();
@@ -576,7 +693,7 @@ const skillsController = createSkillsController({ invoke: bridge, onChange: () =
 compilationController = createCompilationController({ invoke: bridge, onChange: () => {
   if (route === 'compile') renderCompilation();
 } });
-const workspaceController = createWorkspaceController({
+  workspaceController = createWorkspaceController({
   invoke: bridge,
   onChange: () => { if (sourceBlocked()) return; if (route === 'workspace') renderWorkspace(); },
   getDraftWarning: (kind, id) => kind === 'capability' && skillsController.hasUnsavedDraft(id),
@@ -607,13 +724,21 @@ for (const operation of compositionRoutes) {
     },
   }));
 }
-// The analysis constructor starts a saved-source read. Construct it only after metadata qualifies.
+  return true;
+}
+// The analysis constructor starts a saved-source read. Construct it only after ordinary protection qualifies.
 async function startWorkbench() {
-  renderClosedWorkspace(workspaceLock.getState());
-  await workspaceLock.initialize();
-  if (workspaceLock.isBlocked()) return;
+  if (!workspaceLock || workspaceLock.isBlocked() || !createContentControllers()) return false;
+  if (startupSplashNeedsRefresh) {
+    startupSplash = createStartupSplash({ container: document.querySelector('#startup-splash'), app });
+    startupSplash.openWorkbench();
+    startupSplashNeedsRefresh = false;
+  }
+  announcer.setAttribute('aria-live', 'polite');
   controller = createAnalysisController({ invoke: bridge, onChange: state => {
       if (sourceBlocked()) return;
+    if (state.snapshotsStatus === 'ready') agentFilesController?.acceptInitialSavedSnapshots(state.snapshots);
+    else if (state.snapshotsStatus === 'failed') agentFilesController?.acceptInitialSavedFailure(state.snapshotsError);
     skillsController.setSourceContext({
       report: state.report ? { ...state.report, selectedFragmentId: state.selectedFragmentId } : null,
       snapshots: state.snapshots,
@@ -634,21 +759,109 @@ async function startWorkbench() {
   void skillsController.list();
   if (route === 'compile') void compilationController.refresh();
   if (route === 'model-assistance') void modelController.load();
+  return true;
 }
-void startWorkbench();
+
+async function initializeFreshOrdinaryProtection() {
+  try {
+    if (lifecycleFenced || workspaceLock) return false;
+    createOrdinaryWorkspaceLock();
+    renderClosedWorkspace(workspaceLock.getState(), { force: true, focus: false });
+    await workspaceLock.initialize();
+    const ordinary = workspaceLock.getState();
+    if (lifecycleFenced || workspaceLock.isBlocked()) return false;
+    if (rawBridge && ordinary.status !== 'open') throw new Error('Managed startup handoff did not produce an ordinary open workspace.');
+    route = routeFromHash();
+    routeFocusPending = route;
+    routeEntry = true;
+    return startWorkbench();
+  } catch (error) {
+    analysisReady = false;
+    workspaceLock?.dispose();
+    bridge = undefined;
+    purgeWorkspaceRenderer();
+    throw error;
+  }
+}
+
+function renderStartup(state) {
+  if (lifecycleFenced || state?.status === 'handoff') return;
+  startupSplash.purgeForWorkspaceLock();
+  startupSplashNeedsRefresh = true;
+  closeShellStatus = null;
+  app.inert = false;
+  app.removeAttribute('aria-hidden');
+  app.innerHTML = renderDesktopStartup(state, {
+    theme,
+    unavailableQuit: Boolean(rawBridge),
+    quitPending: startupQuitPending,
+  });
+  const skip = document.querySelector('#analysis-skip');
+  skip?.setAttribute('inert', '');
+  if (skip) skip.hidden = true;
+  // Startup card owns the only polite live region while native work is pending.
+  announcer.setAttribute('aria-live', 'off');
+  announcer.textContent = '';
+  if (state?.status !== 'working') document.querySelector('#desktop-startup-title')?.focus({ preventScroll: true });
+}
+
+function mountStartup() {
+  if (!rawBridge) {
+    void initializeFreshOrdinaryProtection();
+    return;
+  }
+  startupSession = createDesktopStartupSession({
+    invoke: rawBridge,
+    purge: purgeWorkspaceRenderer,
+    onChange: renderStartup,
+    onHandoff: initializeFreshOrdinaryProtection,
+  });
+  renderStartup(startupSession.getState());
+  void startupSession.initialize();
+}
+mountStartup();
 
 app.addEventListener('click', event => {
+  if (event.target.closest('button[data-desktop-startup-theme]')) {
+    theme = theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem('rangoon-theme', theme); } catch {}
+    if (startupSession) renderStartup(startupSession.getState());
+    document.querySelector('button[data-desktop-startup-theme]')?.focus({ preventScroll: true });
+    return;
+  }
+  const unavailableQuit = event.target.closest('[data-desktop-startup-unavailable-quit]');
+  if (unavailableQuit) {
+    if (!rawBridge || startupQuitPending || lifecycleFenced) return;
+    startupQuitPending = true;
+    renderStartup(startupSession?.getState() ?? { status: 'unavailable' });
+    void rawBridge('workspace_startup_quit', {}).catch(() => {
+      startupQuitPending = false;
+      if (!lifecycleFenced) renderStartup(startupSession?.getState() ?? { status: 'unavailable' });
+    });
+    return;
+  }
+  const startupAction = event.target.closest('[data-desktop-startup-action]');
+  if (startupAction) {
+    void startupSession?.perform(startupAction.dataset.desktopStartupAction);
+    return;
+  }
   if (event.target.closest('#analysis-theme')) {
     theme = theme === 'light' ? 'dark' : 'light';
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem('rangoon-theme', theme); } catch {}
-    if (sourceBlocked()) renderClosedWorkspace(workspaceLock.getState(), { force: true, focus: false });
+    if (sourceBlocked() && workspaceLock) renderClosedWorkspace(workspaceLock.getState(), { force: true, focus: false });
     else { requestedFocus = 'theme'; render(controller.getState()); }
     document.querySelector('#analysis-theme')?.focus({ preventScroll: true });
     return;
   }
   if (event.target.closest('[data-workspace-protection-action]')) {
-    void workspaceLock.beginProtection();
+    if (closedQuit.pending || lifecycleFenced) return;
+    void workspaceLock?.beginProtection();
+    return;
+  }
+  if (event.target.closest('[data-workspace-close-quit]')) {
+    void closedQuit.request();
     return;
   }
   if (sourceBlocked()) return;
@@ -697,9 +910,35 @@ app.addEventListener('click', event => {
     }
     return;
   }
+  const markdownJump = event.target.closest('[data-md-jump]');
+  if (markdownJump) return jumpToMarkdownLine(app, Number(markdownJump.dataset.mdJump));
+  const fileAction = event.target.closest('[data-agent-files-action]');
+  if (fileAction && !fileAction.disabled) {
+    const actions = { choose: 'choose', 'choose-folder': 'chooseFolder', 'clear-folder': 'clearFolder', refresh: 'refresh', 'select-page': 'selectPage', 'clear-selection': 'clearSelection', 'check-selected': 'checkSelected', 'cancel-check': 'cancelCheck', 'clear-selected-files': 'clearSelectedFiles' };
+    if (fileAction.dataset.agentFilesAction === 'open-source') {
+      const originatingRoute = route;
+      const originatingNavigation = navigationEpoch;
+      return agentFilesController.openInAnalysis().then(opened => {
+        if (!opened || sourceBlocked() || navigationEpoch !== originatingNavigation || route !== originatingRoute || location.hash !== '#files') return;
+        requestedFocus = null; location.hash = '#analysis';
+      });
+    }
+    if (fileAction.dataset.agentFilesAction === 'back-to-list') { const heading = document.querySelector('.agent-files-library h2'); heading?.focus({preventScroll:true}); heading?.scrollIntoView({block:'start',behavior:'instant'}); return; }
+    if (fileAction.dataset.agentFilesAction === 'import') { location.hash = '#analysis'; return; }
+    const method = actions[fileAction.dataset.agentFilesAction];
+    if (method) return agentFilesController[method]();
+  }
+  const fileOpen = event.target.closest('[data-agent-files-open]');
+  if (fileOpen && !fileOpen.disabled) return agentFilesController.open(fileOpen.dataset.agentFilesOpen).then(() => { if (!sourceBlocked() && route === 'files') { const heading = document.querySelector('.agent-files-source h2') ?? document.querySelector('.agent-files-inspector h2'); heading?.focus({preventScroll:true}); if (window.matchMedia('(max-width:1240px)').matches) heading?.scrollIntoView({block:'start',behavior:'instant'}); } });
+  const filePage = event.target.closest('[data-agent-files-page]');
+  if (filePage && !filePage.disabled) return agentFilesController.setPage(Number(filePage.dataset.agentFilesPage));
   if (event.target.closest('#engine-check')) { engineCheckFocusPending = true; return engineController.check(); }
   if (event.target.closest('#operations-choose')) { operationsFocus = { selector: '#operations-choose' }; return operationsController.choose(); }
   if (event.target.closest('#operations-clear')) { operationsFocus = { selector: '#operations-choose' }; return operationsController.clear(); }
+  if (event.target.closest('#operations-reset-filters')) { operationsFocus = { selector: '[data-operations-filter="ordinal"]' }; return operationsController.resetFilters(); }
+  if (event.target.closest('#operations-reveal-selection')) { operationsFocus = { selector: '#operations-page-status' }; return operationsController.revealSelected(); }
+  const operationPage = event.target.closest('[data-operations-page]');
+  if (operationPage) { operationsFocus = { selector: '#operations-page-status' }; return operationsController.setPage(Number(operationPage.dataset.operationsPage)); }
   const operationSelect = event.target.closest('[data-operations-select]');
   if (operationSelect) { operationsFocus = { selector: `[data-operations-select="${CSS.escape(operationSelect.dataset.operationsSelect)}"]` }; return operationsController.select(Number(operationSelect.dataset.operationsSelect)); }
   const operationMode = event.target.closest('[data-operations-mode]');
@@ -709,6 +948,35 @@ app.addEventListener('click', event => {
   const revision = event.target.closest('[data-revision]');
   if (revision && skillsController.getState().selected) { skillsActionFocus = `[data-revision="${CSS.escape(revision.dataset.revision)}"]`; return skillsController.open(skillsController.getState().selected.id, revision.dataset.revision); }
   if (event.target.closest('#skills-create')) { skillsActionFocus = '#skills-editor-title'; return skillsController.create(skillsController.getState().createTitle); }
+  if (event.target.closest('#skills-discard')) {
+    const state = skillsController.getState();
+    if (!getSkillsEditorPresentation(state).canDiscard) return;
+    skillsDiscardConfirmation = Object.fromEntries(['capabilityId', 'baseRevisionId', 'title', 'content'].map(key => [key, state.draft[key]]));
+    skillsActionFocus = '#skills-discard-cancel'; return renderSkills();
+  }
+  if (event.target.closest('#skills-discard-cancel')) {
+    skillsDiscardConfirmation = null; skillsActionFocus = '#skills-discard'; return renderSkills();
+  }
+  if (event.target.closest('#skills-discard-confirm')) {
+    const expected = skillsDiscardConfirmation; skillsDiscardConfirmation = null;
+    skillsActionFocus = '#skills-editor-state';
+    if (!skillsController.discardDraft(expected)) renderSkills();
+    return;
+  }
+  if (event.target.closest('#skills-open-compile')) {
+    if (route !== 'skills' || location.hash !== '#skills' || nativeOperations || skillsCompileHandoff.pending || !skillCompileSelection(skillsController.getState())) return;
+    const request = ++skillsCompileEpoch;
+    const navigation = navigationEpoch;
+    const isCurrent = () => !sourceBlocked() && request === skillsCompileEpoch && navigation === navigationEpoch && route === 'skills' && location.hash === '#skills';
+    skillsCompileHandoff = { pending: true, error: null }; renderSkills();
+    return openSkillInCompilation({ skills: skillsController, compilation: compilationController, isCurrent }).catch(() => false).then(opened => {
+      if (!isCurrent()) return;
+      skillsCompileHandoff = { pending: false, error: opened ? null : 'Could not open this saved revision. Check your selection, or reload Skills and try again.' };
+      if (!opened) { skillsActionFocus = '#skills-open-compile'; renderSkills(); return; }
+      compilationHandoffRevision = compilationController.getState().selected.revision.id;
+      location.hash = '#compile';
+    });
+  }
   if (event.target.closest('#skills-save')) { skillsActionFocus = '#skills-save'; return skillsController.save(); }
   if (event.target.closest('#skills-review')) { skillsActionFocus = '#skills-review'; return skillsController.review(); }
   if (event.target.closest('#skills-reload-list')) return skillsController.list();
@@ -730,6 +998,20 @@ app.addEventListener('click', event => {
   if (event.target.closest('#analysis-retry-snapshots')) return controller.listSnapshots();
 
 });
+
+// Capture disclosure changes before navigation replaces the Skills DOM.
+app.addEventListener('toggle', event => {
+  if (sourceBlocked() || !event.target.isConnected || !event.target.closest('.skills-page')) return;
+  if (event.target.matches('.skills-source-create') && skillsRenderedSource) {
+    skillsSourceDisclosures.set(skillsRenderedSource, event.target.open);
+  } else if (skillsRenderedCapability && event.target.matches('.skills-advanced, .skills-original, .skills-saved')) {
+    skillsDisclosureStates.set(skillsRenderedCapability, {
+      advanced: Boolean(document.querySelector('.skills-advanced')?.open),
+      original: Boolean(document.querySelector('.skills-original')?.open),
+      saved: Boolean(document.querySelector('.skills-saved')?.open),
+    });
+  }
+}, true);
 
 app.addEventListener('keydown', event => {
   if (sourceBlocked()) return;
@@ -766,19 +1048,9 @@ app.addEventListener('input', event => {
   }
   if (!event.target.matches('#skills-title-input, #skills-content-input')) return;
   skillsController.updateDraft(event.target.matches('#skills-title-input') ? { title: event.target.value } : { content: event.target.value });
-  const skills = skillsController.getState();
-  const draft = skills.draft;
-  const titleOK = validCapabilityTitle(draft?.title);
-  const contentOK = validCapabilityContent(draft?.content);
-  document.querySelector('#skills-title-count').textContent = `${new TextEncoder().encode(draft?.title ?? '').length} / 160 UTF-8 bytes${titleOK ? '' : ' · use one nonblank line'}`;
-  document.querySelector('#skills-content-count').textContent = `${new TextEncoder().encode(draft?.content ?? '').length} / 262144 UTF-8 bytes${contentOK ? '' : ' · content cannot be blank or contain NUL'}`;
-  const save = document.querySelector('#skills-save');
-  const review = document.querySelector('#skills-review');
-  const blocked = !skills.bridgeAvailable || skills.pending || skills.needsReload || skills.viewedRevisionId !== skills.selected?.latestRevisionId;
-  if (save) save.disabled = Boolean(blocked || !draft?.dirty || !titleOK || !contentOK);
-  if (review) review.disabled = Boolean(blocked || draft?.dirty || !titleOK || !contentOK || skills.selected?.revision.review);
-  const draftStatus = document.querySelector('#skills-draft-status');
-  if (draftStatus) draftStatus.textContent = draft?.dirty ? 'Unsaved edits. Save a revision before review.' : 'Local content review does not validate, publish or authorize execution.';
+  skillsDiscardConfirmation = null;
+  document.querySelector('.skills-discard-confirmation')?.remove();
+  syncSkillsEditorChrome(document, skillsController.getState(), { compileHandoff: skillsCompileHandoff });
 });
 
 app.addEventListener('change', event => {
@@ -793,7 +1065,22 @@ app.addEventListener('change', event => {
   if (!skillsController.setLibraryFilters(filters)) event.target.value = event.target.matches('#skills-review-filter') ? state.reviewFilter : state.originFilter;
 });
 
+app.addEventListener('input', event => {
+  if (sourceBlocked() || !agentFilesController) return;
+  if (event.target.matches('[data-agent-files-query]')) agentFilesController.setQuery(event.target.value);
+});
+app.addEventListener('change', event => {
+  if (sourceBlocked() || !agentFilesController) return;
+  if (event.target.matches('[data-agent-files-type]')) agentFilesController.setType(event.target.value);
+  if (event.target.matches('[data-agent-files-findings]')) agentFilesController.setFindingFilter(event.target.value);
+  if (event.target.matches('[data-agent-files-mark]')) agentFilesController.mark(event.target.dataset.agentFilesMark);
+});
+
 window.addEventListener('hashchange', () => {
+  navigationEpoch += 1;
+  skillsCompileEpoch += 1;
+  skillsCompileHandoff = { pending: false, error: null };
+  if (routeFromHash() !== 'compile') compilationHandoffRevision = null;
   if (sourceBlocked()) return;
   retainSourceScroll();
   const nextRoute = routeFromHash();
@@ -807,18 +1094,19 @@ window.addEventListener('hashchange', () => {
   operationsFocus = null;
   authorityController.setRoute(location.hash);
   render(controller.getState());
+  if (route === 'files' && agentFilesController.getState().status === 'idle' && controller.getState().snapshotsStatus !== 'loading') void agentFilesController.refresh();
   if (route === 'workspace') void workspaceController.load();
   if (route === 'workflows') void workflowController.load();
   if (route === 'model-assistance' && modelController.getState().status === 'idle') void modelController.load();
-  if (route === 'compile' && compilationController.getState().listStatus === 'idle') void compilationController.refresh();
+  if (route === 'compile') void compilationController.load();
   if (compositionRoutes.has(route) && compositionControllers.get(route).getState().status !== 'idle') void compositionControllers.get(route).load();
 });
 
 window.addEventListener('beforeunload', event => {
-  if (sourceBlocked()) return;
-  if (!skillsController.hasUnsavedDrafts() && !workflowController.getState().dirty && !workflowController.getState().fieldEdit && ![...compositionControllers.values()].some(composition => composition.getState().dirty)) return;
-  event.preventDefault();
-  event.returnValue = '';
+  if (!sourceBlocked() && (skillsController.hasUnsavedDrafts() || workflowController.getState().dirty || workflowController.getState().fieldEdit || [...compositionControllers.values()].some(composition => composition.getState().dirty))) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
 });
 
 function markupElement(markup) {
@@ -880,23 +1168,36 @@ function openWorkspaceLockDialog() {
 }
 
 function purgeWorkspaceRenderer() {
+  skillsCompileEpoch += 1;
+  skillsCompileHandoff = { pending: false, error: null };
+  compilationHandoffRevision = null;
   let healthy = true;
   const attempt = callback => { try { if (callback() === false) healthy = false; } catch { healthy = false; } };
+  attempt(() => markdownFindBinding?.dispose());
+  markdownFindBinding = null;
   // Detach subscriptions before controllers publish their empty states.
   for (const binding of [compositionView, workflowView, workspaceView, modelView]) attempt(() => binding?.purgeForWorkspaceLock());
   attempt(() => authorityView?.dispose());
   compositionView = workflowView = workspaceView = modelView = authorityView = null;
   for (const composition of compositionControllers.values()) attempt(() => purgeCompositionViewCache(composition));
-  for (const family of [controller, skillsController, workflowController, compilationController, workspaceController, modelController, cloudCredentialController, operationsController, ...compositionControllers.values()]) attempt(() => family?.purgeForWorkspaceLock());
-  attempt(() => authorityController.clearFilters());
-  attempt(() => authorityController.setRoute('#authority-engines'));
+  for (const family of [agentFilesController, controller, skillsController, workflowController, compilationController, workspaceController, modelController, cloudCredentialController, operationsController, ...compositionControllers.values()]) attempt(() => family?.purgeForWorkspaceLock());
+  attempt(() => authorityController?.clearFilters());
+  attempt(() => authorityController?.setRoute('#authority-engines'));
+  agentFilesProjectionKey = agentFilesPendingFocus = null;
   requestedFocus = renderedSourceId = retainedSourceScroll = routeFocusPending = skillsActionFocus = compilationActionFocus = compositionViewRoute = operationsFocus = null;
+  skillsDiscardConfirmation = skillsRenderedCapability = null;
+  skillsDisclosureStates.clear();
+  skillsSourceDisclosures.clear();
+  skillsRenderedSource = null;
   skillsOriginalOpen = skillsSavedOpen = skillsCreateFocusPending = engineCheckFocusPending = workflowVisited = routeEntry = false;
   route = '';
   attempt(() => openEngineDetails.clear());
-  attempt(() => workbenchNavigation.dispose());
-  attempt(() => termHelp.dispose());
+  attempt(() => workbenchNavigation?.dispose());
+  attempt(() => termHelp?.dispose());
+  workbenchNavigation = null;
+  termHelp = null;
   attempt(() => startupSplash.purgeForWorkspaceLock());
+  startupSplashNeedsRefresh = true;
   attempt(() => removeLockDialog());
   attempt(() => document.getSelection()?.removeAllRanges());
   attempt(() => { announcer.textContent = ''; });
@@ -905,10 +1206,10 @@ function purgeWorkspaceRenderer() {
 }
 
 function renderClosedWorkspace(state, { force = false, focus = true } = {}) {
-  const shellKey = `${state.status}:${state.layout ?? 'none'}:${state.pending === true ? 'pending' : 'ready'}:${state.canProtect === true ? 'action' : 'closed'}`;
+  const shellKey = `${state.status}:${state.layout ?? 'none'}:${state.pending === true ? 'pending' : 'ready'}:${state.canProtect === true ? 'action' : 'closed'}:${closedQuit.pending ? 'quitting' : closedQuit.failed ? 'quit-failed' : 'idle'}`;
   if (!force && closeShellStatus === shellKey) return;
   closeShellStatus = shellKey;
-  app.innerHTML = renderWorkspaceCloseShell(state, { theme });
+  app.innerHTML = renderWorkspaceCloseShell(state, { theme, quitAvailable: closedQuit.available, quitPending: closedQuit.pending, quitFailed: closedQuit.failed });
   app.inert = false;
   app.removeAttribute('aria-hidden');
   document.title = 'Rangoon — Workspace';
@@ -916,14 +1217,21 @@ function renderClosedWorkspace(state, { force = false, focus = true } = {}) {
   const skip = document.querySelector('#analysis-skip');
   skip?.setAttribute('inert', '');
   if (skip) skip.hidden = true;
+  announcer.setAttribute('aria-live', 'polite');
   announcer.textContent = workspaceCloseAnnouncement(state);
   if (focus) document.querySelector('#workspace-close-title')?.focus({ preventScroll: true });
 }
 
-window.addEventListener('pagehide', () => workspaceLock.dispose(), { once: true });
-window.addEventListener('pageshow', event => {
-  if (event.persisted) {
-    workspaceLock.dispose();
-    renderClosedWorkspace(workspaceLock.getState(), { force: true });
-  }
-});
+function fenceRenderer() {
+  if (lifecycleFenced) return;
+  lifecycleFenced = true;
+  closedQuit.dispose();
+  analysisReady = false;
+  startupSession?.dispose();
+  workspaceLock?.dispose();
+  purgeWorkspaceRenderer();
+  renderClosedWorkspace({ status: 'recovery_required', layout: null, pending: false, canProtect: false }, { force: true, focus: false });
+}
+
+window.addEventListener('pagehide', fenceRenderer, { once: true });
+window.addEventListener('pageshow', event => { if (event.persisted) fenceRenderer(); });

@@ -74,7 +74,7 @@ impl Registry {
             open: Mutex::new(None),
         }
     }
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     pub(crate) fn poison_for_test(&self) {
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let _held = self.open.lock().unwrap();

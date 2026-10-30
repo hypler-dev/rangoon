@@ -17,7 +17,15 @@ mod composition_recovery;
 mod composition_recovery_tests;
 mod compositions;
 mod encryption;
+mod instruction_history;
+mod instruction_history_backup;
 pub use encryption::WorkspaceKey;
+pub use instruction_history::{
+    InstructionChange, InstructionEvent, InstructionHistoryDeletion, InstructionPhase,
+    InstructionTarget, MAX_INSTRUCTION_BYTES, MAX_INSTRUCTION_CHANGES, MAX_INSTRUCTION_EVENTS,
+    MAX_INSTRUCTION_HISTORY_BYTES,
+};
+mod recovery_copy;
 mod workspace_data;
 #[cfg(test)]
 mod workspace_data_tests;
@@ -37,9 +45,11 @@ pub use composition_recovery::{
     CompositionDeletionPlan, CompositionRestorePlan, CompositionWorkspaceData, RecoveryCounts,
 };
 pub use compositions::{CompositionPreview, CompositionReceipt};
-pub use workflow_backup::WorkspaceBackup;
+pub use workflow_backup::{ExistingWorkspaceCapture, WorkspaceBackup};
 pub use workflow_deletion::{WorkflowDeletionPlan, WorkflowRecordKind};
-pub use workflow_recovery::{WorkflowRecoveryCounts, WorkflowRestorePlan};
+pub use workflow_recovery::{
+    EmptyWorkflowRestorePlan, WorkflowRecoveryCounts, WorkflowRestorePlan,
+};
 pub use workflow_saves::{WorkflowSavePlan, WorkflowSaveReceipt};
 pub use workflow_views::{
     WorkflowDetail, WorkflowReference, WorkflowReferenceStatus, WorkflowRevisionSummary,
@@ -113,6 +123,7 @@ pub enum StoreError {
     CompositionDependencyMissing,
     CompilationInvalid,
     RecordInUse,
+    InstructionHistoryInvalid,
     WorkflowInvalid,
     WorkflowNotFound,
     WorkflowConflict,
@@ -122,6 +133,10 @@ pub enum StoreError {
 impl StoreError {
     pub fn public(self) -> (&'static str, &'static str) {
         match self {
+            Self::InstructionHistoryInvalid => (
+                "instruction_history_invalid",
+                "Instruction history is invalid or incomplete. No instruction file was changed.",
+            ),
             Self::EncryptionUnavailable => (
                 "encryption_unavailable",
                 "The qualified encrypted storage backend is unavailable. No plaintext fallback was used.",
@@ -349,7 +364,7 @@ impl Workspace {
             initialize_or_verify(&tx)?;
         }
         let version: i64 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if matches!(version, 3 | 4) && !allow_composition {
+        if matches!(version, 3..=5) && !allow_composition {
             return Err(StoreError::UnsupportedSchema);
         }
         if allow_composition {
@@ -530,9 +545,12 @@ impl Workspace {
         }
         // Reject unsupported files before changing their persistent journal mode.
         let version: i64 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
+        if version == 5 && self.key.is_none() {
+            return Err(StoreError::EncryptionUnavailable);
+        }
         if version != 0 {
             verify_schema_mode(&db, allow_workflows)?;
-            if matches!(version, 3 | 4) {
+            if matches!(version, 3..=5) {
                 db.set_limit(
                     Limit::SQLITE_LIMIT_LENGTH,
                     (rangoon_compose::MAX_DRAFT_BYTES + 4096) as i32,
@@ -685,13 +703,13 @@ fn verify_schema(db: &Connection) -> Result<(), StoreError> {
 }
 fn verify_schema_mode(db: &Connection, allow_workflows: bool) -> Result<(), StoreError> {
     let version: i64 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-    if !((1..=3).contains(&version) || allow_workflows && version == 4) {
+    if !((1..=3).contains(&version) || allow_workflows && matches!(version, 4 | 5)) {
         return Err(StoreError::UnsupportedSchema);
     }
     let app_id: i64 = db.pragma_query_value(None, "application_id", |r| r.get(0))?;
-    let mut query = db.prepare("SELECT type, name, sql FROM sqlite_schema WHERE name NOT IN ('sqlite_autoindex_snapshots_1','sqlite_autoindex_capabilities_1','sqlite_autoindex_revisions_1','sqlite_autoindex_reviews_1','sqlite_autoindex_compositions_1','sqlite_autoindex_composition_applications_1','sqlite_autoindex_derived_capabilities_1','sqlite_autoindex_derived_capabilities_2','sqlite_autoindex_revision_derivations_1','sqlite_autoindex_revision_derivations_2') AND NOT (?1 AND name IN ('sqlite_autoindex_workflows_1','sqlite_autoindex_workflow_revisions_1')) ORDER BY name")?;
+    let mut query = db.prepare("SELECT type, name, sql FROM sqlite_schema WHERE name NOT IN ('sqlite_autoindex_snapshots_1','sqlite_autoindex_capabilities_1','sqlite_autoindex_revisions_1','sqlite_autoindex_reviews_1','sqlite_autoindex_compositions_1','sqlite_autoindex_composition_applications_1','sqlite_autoindex_derived_capabilities_1','sqlite_autoindex_derived_capabilities_2','sqlite_autoindex_revision_derivations_1','sqlite_autoindex_revision_derivations_2') AND NOT (?1 AND name IN ('sqlite_autoindex_workflows_1','sqlite_autoindex_workflow_revisions_1','sqlite_autoindex_instruction_changes_1','sqlite_autoindex_instruction_events_1')) ORDER BY name")?;
     let schema: Vec<(String, String, String)> = query
-        .query_map([allow_workflows && version == 4], |r| {
+        .query_map([allow_workflows && matches!(version, 4 | 5)], |r| {
             Ok((r.get(0)?, r.get(1)?, r.get(2)?))
         })?
         .collect::<Result<_, _>>()?;
@@ -704,16 +722,23 @@ fn verify_schema_mode(db: &Connection, allow_workflows: bool) -> Result<(), Stor
                 .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
         );
     }
-    if matches!(version, 3 | 4) {
+    if matches!(version, 3..=5) {
         expected.extend(
             composition_records::SCHEMAS
                 .iter()
                 .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
         );
     }
-    if version == 4 {
+    if version >= 4 {
         expected.extend(
             workflow_records::SCHEMAS
+                .iter()
+                .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
+        );
+    }
+    if version == 5 {
+        expected.extend(
+            instruction_history::SCHEMAS
                 .iter()
                 .map(|(name, sql)| ("table".into(), (*name).into(), (*sql).into())),
         );

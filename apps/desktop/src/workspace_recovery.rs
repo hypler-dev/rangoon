@@ -132,6 +132,25 @@ pub struct RecoveryPreview {
     pub outcome: &'static str,
     pub inventory: WorkflowWorkspaceData,
 }
+
+/// Native display facts about an unfinished empty initialization. There is no
+/// database to authenticate and no inventory or content-access authority.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmptyProvisioningPreview {
+    pub id: String,
+    pub workspace_id: String,
+    pub attempt_id: String,
+    pub status: &'static str,
+}
+
+pub(super) struct RetainedEmpty {
+    token: String,
+    record: Checkpoint,
+    binding: Vec<u8>,
+    directories: Directories,
+    key: RetainedKey,
+}
 pub(super) struct Retained {
     token: String,
     record: Checkpoint,
@@ -258,7 +277,7 @@ impl Owner {
         {
             return Err(Error::WriteUncertain);
         }
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(if record.phase == Phase::Pending {
             Fault::BeforeIntentWrite
         } else {
@@ -268,7 +287,7 @@ impl Owner {
             .map_err(|_| Error::WriteUncertain)?;
         file.write_all(&record.bytes())
             .map_err(|_| Error::WriteUncertain)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(if record.phase == Phase::Pending {
             Fault::BeforeIntentSync
         } else {
@@ -276,7 +295,7 @@ impl Owner {
         })?;
         file.sync_all().map_err(|_| Error::WriteUncertain)?;
         sync_directory(&self.root).map_err(|_| Error::WriteUncertain)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(if record.phase == Phase::Pending {
             Fault::BeforeIntentReadback
         } else {
@@ -380,7 +399,11 @@ impl Owner {
     /// Explicit trusted-host inspection only. The caller must obtain consent
     /// before vault access. No key creation, store mutation or unlock occurs.
     pub fn inspect_recovery(&mut self, vault: &impl Vault) -> Result<RecoveryPreview, Error> {
-        if self.opened.is_some() || self.pending.is_some() || self.reconciliation.is_some() {
+        if self.opened.is_some()
+            || self.pending.is_some()
+            || self.reconciliation.is_some()
+            || self.empty_provisioning.is_some()
+        {
             return Err(Error::Busy);
         }
         self.check_control()?;
@@ -486,19 +509,19 @@ impl Owner {
                     .open(&path)
                     .map_err(|_| Error::WriteUncertain)?;
                 verify_file(&file, &path)?;
-                #[cfg(all(test, feature = "encrypted-workspace"))]
+                #[cfg(all(test, feature = "encrypted-workspace", unix))]
                 self.fail_at(Fault::BeforeReconcileReadyWrite)?;
                 opened.binding.ready = true;
                 file.seek(SeekFrom::Start(0))
                     .map_err(|_| Error::WriteUncertain)?;
                 file.write_all(&opened.binding.bytes())
                     .map_err(|_| Error::WriteUncertain)?;
-                #[cfg(all(test, feature = "encrypted-workspace"))]
+                #[cfg(all(test, feature = "encrypted-workspace", unix))]
                 self.fail_at(Fault::BeforeReconcileReadySync)?;
                 file.sync_all().map_err(|_| Error::WriteUncertain)?;
                 sync_directory(&self.root)?;
                 verify_file(&file, &path)?;
-                #[cfg(all(test, feature = "encrypted-workspace"))]
+                #[cfg(all(test, feature = "encrypted-workspace", unix))]
                 self.fail_at(Fault::BeforeReconcileReadyReadback)?;
                 if self.read_binding()? != opened.binding.bytes() {
                     return Err(Error::WriteUncertain);
@@ -524,4 +547,227 @@ impl Owner {
             other => other,
         }
     }
+
+    /// Inspect only after native consent. Replacing an inspection always drops
+    /// its earlier key custody, including when the new inspection fails.
+    pub fn inspect_empty_provisioning(
+        &mut self,
+        vault: &impl Vault,
+    ) -> Result<EmptyProvisioningPreview, Error> {
+        self.empty_provisioning = None;
+        if self.opened.is_some() || self.pending.is_some() || self.reconciliation.is_some() {
+            return Err(Error::Busy);
+        }
+        self.check_control()?;
+        let record = self.empty_provisioning_record()?;
+        let binding_bytes = self.read_binding()?;
+        let binding = Binding::decode(&binding_bytes)?;
+        let directories = self.directories(&binding)?;
+        self.check_empty_provisioning(&record, &binding_bytes, &directories)?;
+        let slot = self.slot(vault, &binding.identity)?;
+        let key = workspace_keys::read_key(&slot).map_err(Error::Key)?;
+        self.check_empty_provisioning(&record, &binding_bytes, &directories)?;
+        let token = WorkspaceId::generate()
+            .map_err(|_| Error::Unavailable)?
+            .as_hex();
+        if token == record.record.workspace || token == record.record.attempt {
+            return Err(Error::Unavailable);
+        }
+        let preview = EmptyProvisioningPreview {
+            id: token.clone(),
+            workspace_id: record.record.workspace.clone(),
+            attempt_id: record.record.attempt.clone(),
+            status: "uninitialized",
+        };
+        self.empty_provisioning = Some(RetainedEmpty {
+            token,
+            record,
+            binding: binding_bytes,
+            directories,
+            key,
+        });
+        Ok(preview)
+    }
+
+    fn empty_provisioning_record(&self) -> Result<Checkpoint, Error> {
+        let checkpoint = self.read_operation()?.ok_or(Error::RecoveryRequired)?;
+        if checkpoint.damaged
+            || checkpoint.slots[1].is_some()
+            || checkpoint.record.phase != Phase::Pending
+            || checkpoint.record.operation != Operation::CreateEmpty
+            || checkpoint.record.sequence != 1
+        {
+            return Err(Error::RecoveryRequired);
+        }
+        Ok(checkpoint)
+    }
+
+    fn check_empty_provisioning(
+        &self,
+        record: &Checkpoint,
+        binding_bytes: &[u8],
+        directories: &Directories,
+    ) -> Result<(), Error> {
+        self.check_control()?;
+        let binding = Binding::decode(binding_bytes)?;
+        if binding.ready
+            || binding.identity.as_hex() != record.record.workspace
+            || self.empty_provisioning_record()? != *record
+            || self.read_binding()? != binding_bytes
+        {
+            return Err(Error::Stale);
+        }
+        self.unchanged_directories(&binding, directories)?;
+        exact_children(&self.root, &[CONTROL, BINDING, PARENT, FILES[0]])?;
+        exact_children(&self.root.join(PARENT), &[&binding.identity.as_hex()])?;
+        exact_children(&self.directory(&binding), &[])?;
+        self.unchanged_directories(&binding, directories)?;
+        self.check_control()
+    }
+
+    /// Consume one native-confirmed InitializeEmpty plan. Never create a key,
+    /// repeat a completed initialization, restore content or unlock the client.
+    pub fn finish_empty_provisioning(
+        &mut self,
+        token: &str,
+        vault: &impl Vault,
+    ) -> Result<(), Error> {
+        if !self
+            .empty_provisioning
+            .as_ref()
+            .is_some_and(|plan| plan.token == token)
+        {
+            return Err(Error::Stale);
+        }
+        let retained = self.empty_provisioning.take().ok_or(Error::Stale)?;
+        let mut attempted = false;
+        let result = (|| {
+            self.check_empty_provisioning(
+                &retained.record,
+                &retained.binding,
+                &retained.directories,
+            )?;
+            let mut binding = Binding::decode(&retained.binding)?;
+            let slot = self.slot(vault, &binding.identity)?;
+            let workspace =
+                workspace_keys::verified_workspace(&slot, &retained.key, self.directory(&binding))
+                    .map_err(Error::Key)?;
+            self.check_empty_provisioning(
+                &retained.record,
+                &retained.binding,
+                &retained.directories,
+            )?;
+            attempted = true;
+            // This store entry point exclusively creates the missing file and
+            // refuses an existing destination, including partial/empty files.
+            workspace
+                .initialize_empty_encrypted()
+                .map_err(|_| Error::WriteUncertain)?;
+            let previous = self.database(&binding)?;
+            let inventory = workspace.workflow_data().map_err(|_| Error::StoreInvalid)?;
+            if !inventory.sources.is_empty()
+                || !inventory.capabilities.is_empty()
+                || !inventory.workflows.is_empty()
+            {
+                return Err(Error::StoreInvalid);
+            }
+            self.unchanged_database(&binding, &previous)?;
+            self.unchanged_directories(&binding, &retained.directories)?;
+            exact_children(&self.directory(&binding), &[DATABASE])?;
+            let _verified =
+                workspace_keys::verified_workspace(&slot, &retained.key, self.directory(&binding))
+                    .map_err(Error::Key)?;
+            self.check_control()?;
+            self.unchanged_database(&binding, &previous)?;
+            self.unchanged_directories(&binding, &retained.directories)?;
+            exact_children(&self.directory(&binding), &[DATABASE])?;
+            if self.read_binding()? != retained.binding
+                || self.read_operation()?.as_ref() != Some(&retained.record)
+            {
+                return Err(Error::Stale);
+            }
+            sync_directory(&self.directory(&binding))?;
+            self.finish_provisioning_binding(
+                &mut binding,
+                &retained.binding,
+                &retained.directories,
+            )?;
+            exact_children(&self.directory(&binding), &[DATABASE])?;
+            if self.read_operation()?.as_ref() != Some(&retained.record) {
+                return Err(Error::Stale);
+            }
+            let opened = Opened {
+                binding,
+                retained: retained.key,
+                workspace,
+                directories: retained.directories,
+            };
+            self.observe_operation(&opened)
+        })();
+        self.lock();
+        self.recovery = result.is_err();
+        match result {
+            Err(_) if attempted => Err(Error::WriteUncertain),
+            other => other,
+        }
+    }
+
+    fn finish_provisioning_binding(
+        &self,
+        binding: &mut Binding,
+        expected: &[u8],
+        directories: &Directories,
+    ) -> Result<(), Error> {
+        self.check_control()?;
+        self.unchanged_directories(binding, directories)?;
+        let path = self.root.join(BINDING);
+        let mut file = options()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .map_err(|_| Error::WriteUncertain)?;
+        verify_file(&file, &path)?;
+        if self.read_binding()? != expected {
+            return Err(Error::Stale);
+        }
+        exact_children(&self.directory(binding), &[DATABASE])?;
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
+        self.fail_at(Fault::BeforeReconcileReadyWrite)?;
+        binding.ready = true;
+        file.seek(SeekFrom::Start(0))
+            .map_err(|_| Error::WriteUncertain)?;
+        file.write_all(&binding.bytes())
+            .map_err(|_| Error::WriteUncertain)?;
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
+        self.fail_at(Fault::BeforeReconcileReadySync)?;
+        file.sync_all().map_err(|_| Error::WriteUncertain)?;
+        sync_directory(&self.root)?;
+        verify_file(&file, &path)?;
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
+        self.fail_at(Fault::BeforeReconcileReadyReadback)?;
+        if self.read_binding()? != binding.bytes() {
+            return Err(Error::WriteUncertain);
+        }
+        exact_children(&self.directory(binding), &[DATABASE])?;
+        self.unchanged_directories(binding, directories)
+    }
+}
+
+fn exact_children(path: &Path, names: &[&str]) -> Result<(), Error> {
+    let mut actual = fs::read_dir(path)
+        .map_err(|_| Error::RecoveryRequired)?
+        .take(names.len() + 1)
+        .map(|entry| entry.map(|entry| entry.file_name()))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| Error::RecoveryRequired)?;
+    let mut expected = names
+        .iter()
+        .map(|name| std::ffi::OsString::from(*name))
+        .collect::<Vec<_>>();
+    actual.sort();
+    expected.sort();
+    if actual != expected {
+        return Err(Error::RecoveryRequired);
+    }
+    Ok(())
 }

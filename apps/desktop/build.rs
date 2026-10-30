@@ -1,6 +1,9 @@
 fn main() {
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(
         tauri_build::AppManifest::new().commands(&[
+            "workspace_startup_status",
+            "workspace_startup_action",
+            "workspace_startup_quit",
             "get_workspace_close_state",
             "get_workspace_control_state",
             "get_workspace_protection_state",
@@ -11,6 +14,8 @@ fn main() {
             "begin_workspace_close",
             "acknowledge_workspace_purge",
             "select_and_analyze",
+            "select_and_inspect_sources",
+            "select_and_list_sources",
             "select_and_inspect_operations",
             "list_snapshots",
             "save_analysis",
@@ -28,6 +33,9 @@ fn main() {
             "inspect_instruction_bundle",
             "get_workspace_data",
             "export_workspace_backup",
+            "create_workspace_recovery_key",
+            "export_encrypted_workspace_backup",
+            "prepare_encrypted_workspace_restore",
             "prepare_workspace_restore",
             "restore_workspace_backup",
             "inspect_workspace_deletion",

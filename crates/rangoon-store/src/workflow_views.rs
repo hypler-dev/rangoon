@@ -195,7 +195,11 @@ pub(super) fn data(
     reusable_bytes: u64,
 ) -> Result<WorkflowWorkspaceData, StoreError> {
     Ok(WorkflowWorkspaceData {
-        schema_version: "rangoon.workspace-data.v2",
+        schema_version: if records.version == 5 {
+            "rangoon.workspace-data.v3"
+        } else {
+            "rangoon.workspace-data.v2"
+        },
         state_id: records.state_id()?,
         records: workflow_recovery::counts(records),
         database_bytes,

@@ -3230,6 +3230,7 @@ dependencies = [
  "rangoon-model-cloud",
  "rangoon-model-local",
  "rangoon-model-session",
+ "rangoon-native-credential-input",
  "rangoon-openshell-client",
  "rangoon-ops",
  "rangoon-store",
@@ -3269,6 +3270,7 @@ dependencies = [
  "rangoon-compile",
  "rangoon-domain",
  "rangoon-import",
+ "rustix",
  "serde",
 ]
 
@@ -3335,6 +3337,18 @@ dependencies = [
  "rangoon-store",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rangoon-native-credential-input"
+version = "0.1.0-dev"
+dependencies = [
+ "block2",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "tauri",
+ "zeroize",
 ]
 
 [[package]]

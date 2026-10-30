@@ -6,10 +6,10 @@ use rangoon_compose::application::Request as CompositionRequest;
 use rangoon_domain::AnalysisReport;
 use rangoon_domain::capability_v1::{CapabilityDetail, CapabilitySummary};
 use rangoon_store::{
-    CapabilityReceiptV1, CompositionPreview, CompositionReceipt, SaveReceipt, SnapshotMetadata,
-    WorkflowDeletionPlan, WorkflowDetail, WorkflowRecordKind, WorkflowRestorePlan,
-    WorkflowSavePlan, WorkflowSaveReceipt, WorkflowSummary, WorkflowWorkspaceData, Workspace,
-    WorkspaceBackup, WorkspaceCompilation,
+    CapabilityReceiptV1, CompositionPreview, CompositionReceipt, EmptyWorkflowRestorePlan,
+    SaveReceipt, SnapshotMetadata, WorkflowDeletionPlan, WorkflowDetail, WorkflowRecordKind,
+    WorkflowRestorePlan, WorkflowSavePlan, WorkflowSaveReceipt, WorkflowSummary,
+    WorkflowWorkspaceData, Workspace, WorkspaceBackup, WorkspaceCompilation,
 };
 use rangoon_workflow::records::WorkflowRevision;
 use serde::Serialize;
@@ -21,7 +21,7 @@ use std::{
 
 #[path = "workspace_recovery.rs"]
 mod recovery;
-pub use recovery::{Operation as RecoveryOperation, RecoveryPreview};
+pub use recovery::{EmptyProvisioningPreview, Operation as RecoveryOperation, RecoveryPreview};
 
 #[path = "workspace_protection.rs"]
 mod protection;
@@ -186,11 +186,12 @@ pub struct Owner {
     opened: Option<Opened>,
     recovery: bool,
     reconciliation: Option<recovery::Retained>,
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    empty_provisioning: Option<recovery::RetainedEmpty>,
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     fault: Option<Fault>,
 }
 
-#[cfg(all(test, feature = "encrypted-workspace"))]
+#[cfg(all(test, feature = "encrypted-workspace", unix))]
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Fault {
     BeforeProvisionWrite,
@@ -220,21 +221,42 @@ enum DataMutation {
 }
 
 impl Owner {
-    /// Explicit native acquisition; default builds do not touch the filesystem.
+    /// Explicit native acquisition. This opens no credential slot or database.
     pub fn acquire(host_root: PathBuf) -> Result<Self, Error> {
+        Self::acquire_inner(host_root, true)
+    }
+
+    /// Acquire only an existing control file. A disappeared control is never
+    /// repaired, even when the caller previously observed a valid workspace.
+    pub fn acquire_existing(host_root: PathBuf) -> Result<Self, Error> {
+        Self::acquire_inner(host_root, false)
+    }
+
+    fn acquire_inner(host_root: PathBuf, create_control: bool) -> Result<Self, Error> {
+        // Native custody requires stable file/directory identity and durability
+        // checks. No equivalent non-Unix backend is qualified or implemented.
+        if !cfg!(unix) {
+            return Err(Error::Unavailable);
+        }
         workspace_keys::ensure_backend().map_err(|_| Error::BackendUnavailable)?;
         let root_metadata = plain_directory(&host_root)?;
         let path = host_root.join(CONTROL);
         let mut options = options();
-        options.read(true).write(true).create_new(true);
-        let control = match options.open(&path) {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                regular(&fs::symlink_metadata(&path).map_err(|_| Error::Unavailable)?)?;
-                options.create_new(false);
-                options.open(&path).map_err(|_| Error::Unavailable)?
+        options.read(true).write(true);
+        let control = if !create_control {
+            regular(&fs::symlink_metadata(&path).map_err(|_| Error::Unavailable)?)?;
+            options.open(&path).map_err(|_| Error::Unavailable)?
+        } else {
+            options.create_new(true);
+            match options.open(&path) {
+                Ok(file) => file,
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    regular(&fs::symlink_metadata(&path).map_err(|_| Error::Unavailable)?)?;
+                    options.create_new(false);
+                    options.open(&path).map_err(|_| Error::Unavailable)?
+                }
+                Err(_) => return Err(Error::Unavailable),
             }
-            Err(_) => return Err(Error::Unavailable),
         };
         verify_file(&control, &path)?;
         if control.metadata().map_err(|_| Error::Unavailable)?.len() != 0 {
@@ -255,7 +277,8 @@ impl Owner {
             opened: None,
             recovery: false,
             reconciliation: None,
-            #[cfg(all(test, feature = "encrypted-workspace"))]
+            empty_provisioning: None,
+            #[cfg(all(test, feature = "encrypted-workspace", unix))]
             fault: None,
         };
         owner.check_control()?;
@@ -283,7 +306,11 @@ impl Owner {
         if self.recovery {
             return Err(Error::RecoveryRequired);
         }
-        if self.opened.is_some() || self.pending.is_some() || self.reconciliation.is_some() {
+        if self.opened.is_some()
+            || self.pending.is_some()
+            || self.reconciliation.is_some()
+            || self.empty_provisioning.is_some()
+        {
             return Err(Error::Busy);
         }
         self.check_control()
@@ -551,7 +578,7 @@ impl Owner {
             .create_new(true)
             .open(&path)
             .map_err(|_| Error::WriteUncertain)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeProvisionWrite)?;
         file.write_all(&binding.bytes())
             .map_err(|_| Error::WriteUncertain)?;
@@ -589,7 +616,7 @@ impl Owner {
         sync_directory(&self.directory(&binding))?;
         let provisioning = binding.bytes();
         binding.ready = true;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeReadyWrite)?;
         self.check_control()?;
         self.unchanged_directories(&binding, &directories)?;
@@ -601,11 +628,11 @@ impl Owner {
             .map_err(|_| Error::WriteUncertain)?;
         file.write_all(&binding.bytes())
             .map_err(|_| Error::WriteUncertain)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeReadySync)?;
         file.sync_all().map_err(|_| Error::WriteUncertain)?;
         sync_directory(&self.root)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeReadyReadback)?;
         if self.read_binding()? != binding.bytes() {
             return Err(Error::WriteUncertain);
@@ -853,7 +880,7 @@ impl Owner {
         result: Result<WorkflowSaveReceipt, rangoon_store::StoreError>,
         previous: Metadata,
     ) -> Result<WorkflowSaveReceipt, Error> {
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         if self.fail_at(Fault::AfterWorkflowSave).is_err() {
             self.lock();
             self.recovery = true;
@@ -909,6 +936,41 @@ impl Owner {
         self.finish_data_mutation(result, previous, DataMutation::Restore)
     }
 
+    /// Trusted host-only preparation for a separately created empty destination.
+    pub fn prepare_adoption_restore(
+        &mut self,
+        vault: &impl Vault,
+        backup: &WorkspaceBackup,
+        source_schema: u32,
+    ) -> Result<EmptyWorkflowRestorePlan, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .prepare_empty_workflow_restore(backup, source_schema);
+        self.finish_read(result, previous)
+    }
+
+    /// Uses existing Restore durable intent/uncertainty handling; no new operation code.
+    pub fn restore_adoption(
+        &mut self,
+        vault: &impl Vault,
+        backup: &WorkspaceBackup,
+        prepared: &EmptyWorkflowRestorePlan,
+    ) -> Result<WorkflowWorkspaceData, Error> {
+        let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::Restore)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .restore_empty_workflow_backup(backup, prepared);
+        self.finish_data_mutation(result, previous, DataMutation::Restore)
+    }
+
     /// Returns an exact dependency-aware logical deletion plan, not authority.
     pub fn inspect_workflow_deletion(
         &mut self,
@@ -949,7 +1011,7 @@ impl Owner {
         previous: Metadata,
         _mutation: DataMutation,
     ) -> Result<WorkflowWorkspaceData, Error> {
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         {
             let fault = match _mutation {
                 DataMutation::Restore => Fault::AfterRestore,
@@ -1069,7 +1131,7 @@ impl Owner {
         result: Result<CompositionReceipt, rangoon_store::StoreError>,
         previous: Metadata,
     ) -> Result<CompositionReceipt, Error> {
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         if self.fail_at(Fault::AfterCompositionApply).is_err() {
             self.lock();
             self.recovery = true;
@@ -1140,7 +1202,7 @@ impl Owner {
         result: Result<CapabilityReceiptV1, rangoon_store::StoreError>,
         previous: Metadata,
     ) -> Result<CapabilityReceiptV1, Error> {
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         if self.fail_at(Fault::AfterCapabilityMutation).is_err() {
             self.lock();
             self.recovery = true;
@@ -1162,7 +1224,7 @@ impl Owner {
             .ok_or(Error::Locked)?
             .workspace
             .save_v1(source);
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         if self.fail_at(Fault::AfterSave).is_err() {
             self.lock();
             self.recovery = true;
@@ -1175,6 +1237,7 @@ impl Owner {
         self.advance_composition_generation();
         self.pending = None;
         self.reconciliation = None;
+        self.empty_provisioning = None;
         self.opened = None;
     }
     fn advance_composition_generation(&mut self) {
@@ -1189,11 +1252,11 @@ impl Owner {
     pub fn requires_recovery(&self) -> bool {
         self.recovery
     }
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     fn inject_fault(&mut self, fault: Fault) {
         self.fault = Some(fault);
     }
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     fn fail_at(&self, fault: Fault) -> Result<(), Error> {
         if self.fault == Some(fault) {
             Err(Error::WriteUncertain)
@@ -1254,7 +1317,7 @@ fn same_file(a: &Metadata, b: &Metadata) -> bool {
     #[cfg(not(unix))]
     {
         let _ = (a, b);
-        true
+        false
     }
 }
 fn verify_file(file: &File, path: &Path) -> Result<(), Error> {
@@ -1330,6 +1393,22 @@ fn sync_directory(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 #[path = "workspace_session_tests.rs"]
 mod tests;
+
+#[cfg(all(test, unix))]
+#[path = "workspace_adoption_owner_tests.rs"]
+mod adoption_tests;
+
+#[cfg(all(test, unix, feature = "encrypted-workspace"))]
+#[path = "workspace_startup_owner_tests.rs"]
+mod startup_owner_tests;
+
+#[cfg(all(test, unix, feature = "encrypted-workspace"))]
+#[path = "workspace_empty_provisioning_tests.rs"]
+mod empty_provisioning_tests;
+
+#[cfg(all(test, not(unix)))]
+#[path = "workspace_unsupported_owner_tests.rs"]
+mod unsupported_owner_tests;

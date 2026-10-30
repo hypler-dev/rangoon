@@ -268,6 +268,8 @@ pub(super) fn encode(records: &Records) -> Result<Vec<u8>, StoreError> {
     if !(1..=3).contains(&records.version)
         || !records.workflows.owners.is_empty()
         || !records.workflows.revisions.is_empty()
+        || !records.history.changes.is_empty()
+        || !records.history.events.is_empty()
     {
         return Err(StoreError::UnsupportedSchema);
     }
@@ -430,12 +432,14 @@ pub(super) fn ensure_schema(db: &Connection, version: i64) -> Result<(), StoreEr
     verify_schema(db)
 }
 pub(super) fn canonical_database(records: &Records) -> Result<Connection, StoreError> {
-    if records.version == 4 {
+    if matches!(records.version, 4 | 5) {
         return workflow_backup::canonical_database(records);
     }
     if !(1..=3).contains(&records.version)
         || !records.workflows.owners.is_empty()
         || !records.workflows.revisions.is_empty()
+        || !records.history.changes.is_empty()
+        || !records.history.events.is_empty()
     {
         return Err(StoreError::UnsupportedSchema);
     }

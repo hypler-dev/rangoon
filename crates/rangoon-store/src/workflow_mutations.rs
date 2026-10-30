@@ -16,18 +16,26 @@ pub(super) fn read_records(db: &Connection) -> Result<Records, StoreError> {
 
 pub(super) fn ensure_schema(db: &Connection, target: i64) -> Result<(), StoreError> {
     let current: i64 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-    if !(1..=4).contains(&target) || !(0..=4).contains(&current) || target < current {
+    if !(1..=5).contains(&target) || !(0..=5).contains(&current) || target < current {
         return Err(StoreError::UnsupportedSchema);
     }
-    if current == 4 {
+    if current == target && current >= 4 {
         return verify_schema_mode(db, true);
     }
-    composition_backup::ensure_schema(db, target.min(3))?;
-    if target == 4 {
-        for (_, sql) in workflow_records::SCHEMAS {
+    if current < 4 {
+        composition_backup::ensure_schema(db, target.min(3))?;
+        if target >= 4 {
+            for (_, sql) in workflow_records::SCHEMAS {
+                db.execute_batch(sql)?;
+            }
+            db.pragma_update(None, "user_version", 4)?;
+        }
+    }
+    if current < 5 && target == 5 {
+        for (_, sql) in instruction_history::SCHEMAS {
             db.execute_batch(sql)?;
         }
-        db.pragma_update(None, "user_version", 4)?;
+        db.pragma_update(None, "user_version", 5)?;
     }
     verify_schema_mode(db, true)
 }
@@ -96,6 +104,22 @@ pub(super) fn insert_additions(
                         .map_err(|_| StoreError::Corrupt)?,
                     row.saved_at_ms
                 ],
+            )?;
+        }
+    }
+    for (id, change) in &result.history.changes {
+        if !current.history.changes.contains_key(id) {
+            db.execute(
+                "INSERT INTO instruction_changes VALUES (?1,?2)",
+                params![id, change.bytes()?.as_slice()],
+            )?;
+        }
+    }
+    for (id, event) in &result.history.events {
+        if !current.history.events.contains_key(id) {
+            db.execute(
+                "INSERT INTO instruction_events VALUES (?1,?2)",
+                params![id, event.bytes()?],
             )?;
         }
     }

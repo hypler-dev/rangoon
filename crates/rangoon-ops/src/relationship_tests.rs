@@ -92,6 +92,36 @@ fn document(value: &Value) -> Value {
     serde_json::to_value(related.document()).unwrap()
 }
 
+fn inspection_documents(value: &Value) -> (Value, Value) {
+    let decoded = decode_window(&serde_json::to_vec(value).unwrap()).unwrap();
+    let projection = project_window(&decoded).unwrap();
+    let relationships = relate_window(&decoded).unwrap();
+    let delegations = inspect_delegations(&decoded).unwrap();
+    let approvals = inspect_approvals(&decoded).unwrap();
+    let lifecycle = inspect_lifecycle(&decoded).unwrap();
+    let view = build_operator_view(
+        &decoded,
+        &projection,
+        &relationships,
+        &delegations,
+        &approvals,
+        &lifecycle,
+    )
+    .unwrap();
+    (
+        serde_json::to_value(relationships.document()).unwrap(),
+        serde_json::to_value(view.document()).unwrap(),
+    )
+}
+
+fn cross_producer_actor_event(record: Value) -> Value {
+    let mut observed = event(1, 510, record, Value::Null);
+    observed["producerId"] = json!(oid(12));
+    observed["fenceId"] = json!(oid(22));
+    observed["previousEventId"] = Value::Null;
+    observed
+}
+
 fn link_codes(document: &Value, record_id: &str) -> Vec<String> {
     document["eventLinks"]
         .as_array()
@@ -207,6 +237,133 @@ fn missing_wrong_kind_ambiguous_and_exact_repeat_references_remain_explicit() {
         .unwrap();
     assert_eq!(actor_reference["status"], "unique_unverified");
     assert_eq!(actor_reference["matchingEventOrdinals"], json!([0, 9]));
+}
+
+#[test]
+fn cross_producer_identical_actor_is_unique_unverified_and_minimized() {
+    let mut value = window();
+    value["tail"]
+        .as_array_mut()
+        .unwrap()
+        .push(cross_producer_actor_event(actor()));
+
+    let (relationships, view) = inspection_documents(&value);
+    let actor_reference = link(&relationships, &oid(108))["references"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["field"] == "actorId")
+        .unwrap();
+    assert_eq!(actor_reference["status"], "unique_unverified");
+    assert_eq!(actor_reference["matchingEventOrdinals"], json!([0, 9]));
+    assert_eq!(view["sourceCounts"]["eventCount"], 10);
+    assert_eq!(view["sourceCounts"]["producerCount"], 2);
+    assert_eq!(view["events"].as_array().unwrap().len(), 10);
+    assert_eq!(
+        view["events"][0],
+        json!({
+            "inputOrdinal": 0, "producerOrdinal": 0, "fenceOrdinal": 0,
+            "sequence": 1, "recordKind": "actor", "reportedValue": null,
+            "structuralDiagnostics": [], "issueStages": [], "references": []
+        })
+    );
+    assert_eq!(
+        view["events"][9],
+        json!({
+            "inputOrdinal": 9, "producerOrdinal": 1, "fenceOrdinal": 0,
+            "sequence": 1, "recordKind": "actor", "reportedValue": null,
+            "structuralDiagnostics": [], "issueStages": [], "references": []
+        })
+    );
+    for (field, expected) in [
+        ("authority", "none"),
+        ("authenticity", "unverified"),
+        ("eligibility", "unknown"),
+        ("execution", "unavailable"),
+        ("outcome", "unknown"),
+        ("coverage", "unknown"),
+    ] {
+        assert_eq!(view[field], expected);
+    }
+    let rendered = serde_json::to_string(&view).unwrap();
+    for source_only in [
+        oid(100),
+        oid(501),
+        oid(510),
+        oid(11),
+        oid(12),
+        oid(21),
+        oid(22),
+        digest(5),
+        digest(8),
+    ] {
+        assert!(
+            !rendered.contains(&source_only),
+            "source identity leaked: {source_only}"
+        );
+    }
+}
+
+#[test]
+fn cross_producer_changed_actor_is_ambiguous_and_conflicting() {
+    let mut value = window();
+    let mut changed_actor = actor();
+    changed_actor["canonicalSubjectId"] = json!(oid(201));
+    value["tail"]
+        .as_array_mut()
+        .unwrap()
+        .push(cross_producer_actor_event(changed_actor));
+
+    let (relationships, view) = inspection_documents(&value);
+    let request = link(&relationships, &oid(108));
+    let actor_reference = request["references"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["field"] == "actorId")
+        .unwrap();
+    assert_eq!(actor_reference["status"], "ambiguous");
+    assert_eq!(actor_reference["matchingEventOrdinals"], json!([0, 9]));
+    assert_eq!(request["assessment"], "ambiguous");
+    assert_eq!(view["structuralState"], "conflict");
+    for ordinal in [0, 9] {
+        assert_eq!(
+            view["events"][ordinal]["structuralDiagnostics"],
+            json!(["record_identity_conflict"])
+        );
+        assert_eq!(
+            view["events"][ordinal]["issueStages"],
+            json!(["structural", "delegations"])
+        );
+    }
+    for (field, expected) in [
+        ("authority", "none"),
+        ("authenticity", "unverified"),
+        ("eligibility", "unknown"),
+        ("execution", "unavailable"),
+        ("outcome", "unknown"),
+        ("coverage", "unknown"),
+    ] {
+        assert_eq!(view[field], expected);
+    }
+    let rendered = serde_json::to_string(&view).unwrap();
+    for source_only in [
+        oid(100),
+        oid(201),
+        oid(501),
+        oid(510),
+        oid(11),
+        oid(12),
+        oid(21),
+        oid(22),
+        digest(5),
+        digest(8),
+    ] {
+        assert!(
+            !rendered.contains(&source_only),
+            "source identity leaked: {source_only}"
+        );
+    }
 }
 
 #[test]

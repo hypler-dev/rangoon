@@ -351,20 +351,19 @@ impl Inspector<'_> {
         }) {
             flags[4] = true;
         }
-        if o.kind() == "approval_decision" {
-            if let Some(d) = v["delegationId"]
+        if o.kind() == "approval_decision"
+            && let Some(d) = v["delegationId"]
                 .as_str()
                 .and_then(|id| self.value(id, "delegation"))
-            {
-                references.push(self.reference(
-                    budget,
-                    &mut flags,
-                    "delegation.delegateId",
-                    None,
-                    text(d, "delegateId"),
-                    "actor",
-                )?);
-            }
+        {
+            references.push(self.reference(
+                budget,
+                &mut flags,
+                "delegation.delegateId",
+                None,
+                text(d, "delegateId"),
+                "actor",
+            )?);
         }
         Ok((flags, references))
     }
@@ -815,13 +814,12 @@ fn local_votes(
                     _ => (),
                 }
             }
-            if !blocked(&local) {
-                if let Some(required) = stage.row.required_reported_subject_count {
-                    local[24] |= votes.approve_subjects < required as usize;
-                    local[23] |=
-                        stage.row.reported_human_required && votes.human_approve_subjects == 0;
-                    stage.row.reported_votes = Some(votes);
-                }
+            if !blocked(&local)
+                && let Some(required) = stage.row.required_reported_subject_count
+            {
+                local[24] |= votes.approve_subjects < required as usize;
+                local[23] |= stage.row.reported_human_required && votes.human_approve_subjects == 0;
+                stage.row.reported_votes = Some(votes);
             }
             stage.local = local;
             stage.final_flags = local;

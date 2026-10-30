@@ -1,0 +1,11 @@
+{
+  "schema": "rangoon.native-credential-cases.v1",
+  "cases": [
+    { "id": "accept-read" },
+    { "id": "cancel-review" },
+    { "id": "stop-queued" },
+    { "id": "stop-open" },
+    { "id": "expire-open" },
+    { "id": "parent-close" }
+  ]
+}

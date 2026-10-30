@@ -465,7 +465,7 @@ fn parse_authorization(
         native_state: required_string(object, "state")?.to_owned(),
         state_projection: state_projection(
             required_string(object, "state")?,
-            &["issued", "consumed", "expired", "revoked"],
+            &["active", "consumed", "cancelled", "expired", "revoked"],
         ),
         state_effective_at: required_string(object, "state_effective_at")?.to_owned(),
         active: required_bool(object, "active")?,
@@ -533,7 +533,7 @@ fn parse_operation(
             state_projection: state_projection(
                 state,
                 &[
-                    "created",
+                    "prepared",
                     "dispatching",
                     "outcome_unknown",
                     "completed",
@@ -583,36 +583,34 @@ fn validate_selected_ids(
     nested_attempt: Option<&LnsatAttemptEvidence>,
     standalone_attempt: Option<&LnsatAttemptEvidence>,
 ) -> Result<(), LnsatEvidenceError> {
-    if let (Some(selected), Some(value)) = (input.selected_authorization_id, authorization) {
-        if selected != value.authorization_id {
-            return Err(LnsatEvidenceError::IdMismatch);
-        }
+    if let (Some(selected), Some(value)) = (input.selected_authorization_id, authorization)
+        && selected != value.authorization_id
+    {
+        return Err(LnsatEvidenceError::IdMismatch);
     }
-    if let (Some(selected), Some(value)) = (input.selected_operation_id, operation) {
-        if selected != value.operation_id {
-            return Err(LnsatEvidenceError::IdMismatch);
-        }
+    if let (Some(selected), Some(value)) = (input.selected_operation_id, operation)
+        && selected != value.operation_id
+    {
+        return Err(LnsatEvidenceError::IdMismatch);
     }
-    if let (Some(selected), Some(value)) = (input.selected_authorization_id, operation) {
-        if selected != value.authorization_id {
-            return Err(LnsatEvidenceError::IdMismatch);
-        }
+    if let (Some(selected), Some(value)) = (input.selected_authorization_id, operation)
+        && selected != value.authorization_id
+    {
+        return Err(LnsatEvidenceError::IdMismatch);
     }
-    if let Some(value) = nested_attempt {
-        if input.selected_operation_id != Some(value.operation_id.as_str())
+    if let Some(value) = nested_attempt
+        && (input.selected_operation_id != Some(value.operation_id.as_str())
             || input
                 .selected_operation_attempt_id
-                .is_some_and(|selected| selected != value.operation_attempt_id)
-        {
-            return Err(LnsatEvidenceError::IdMismatch);
-        }
+                .is_some_and(|selected| selected != value.operation_attempt_id))
+    {
+        return Err(LnsatEvidenceError::IdMismatch);
     }
-    if let Some(value) = standalone_attempt {
-        if input.selected_operation_id != Some(value.operation_id.as_str())
-            || input.selected_operation_attempt_id != Some(value.operation_attempt_id.as_str())
-        {
-            return Err(LnsatEvidenceError::IdMismatch);
-        }
+    if let Some(value) = standalone_attempt
+        && (input.selected_operation_id != Some(value.operation_id.as_str())
+            || input.selected_operation_attempt_id != Some(value.operation_attempt_id.as_str()))
+    {
+        return Err(LnsatEvidenceError::IdMismatch);
     }
     Ok(())
 }
@@ -626,19 +624,23 @@ fn validate_joins(
 ) -> Result<(), LnsatEvidenceError> {
     if let (Some(authorization), Some(selected_operation_id)) =
         (authorization, input.selected_operation_id)
+        && authorization.operation_id != selected_operation_id
     {
-        if authorization.operation_id != selected_operation_id {
-            return Err(LnsatEvidenceError::ReferenceMismatch);
-        }
+        return Err(LnsatEvidenceError::ReferenceMismatch);
     }
-    if operation.is_none() {
-        if let (Some(authorization), Some(attempt)) = (authorization, standalone_attempt) {
-            if authorization.project_ref != attempt.project_ref
-                || authorization.resource_ref != attempt.resource_ref
-            {
-                return Err(LnsatEvidenceError::ScopeMismatch);
+    if let Some(authorization) = authorization {
+        for attempt in [nested_attempt, standalone_attempt].into_iter().flatten() {
+            if authorization.adapter_ref != attempt.adapter_ref {
+                return Err(LnsatEvidenceError::ReferenceMismatch);
             }
         }
+    }
+    if operation.is_none()
+        && let (Some(authorization), Some(attempt)) = (authorization, standalone_attempt)
+        && (authorization.project_ref != attempt.project_ref
+            || authorization.resource_ref != attempt.resource_ref)
+    {
+        return Err(LnsatEvidenceError::ScopeMismatch);
     }
     if let (Some(authorization), Some(operation)) = (authorization, operation) {
         if authorization.authorization_id != operation.authorization_id {
@@ -667,10 +669,10 @@ fn validate_joins(
             }
         }
     }
-    if let (Some(nested), Some(standalone)) = (nested_attempt, standalone_attempt) {
-        if nested != standalone {
-            return Err(LnsatEvidenceError::AttemptMismatch);
-        }
+    if let (Some(nested), Some(standalone)) = (nested_attempt, standalone_attempt)
+        && nested != standalone
+    {
+        return Err(LnsatEvidenceError::AttemptMismatch);
     }
     Ok(())
 }

@@ -303,7 +303,7 @@ fn dropped_tauri_waiter_keeps_the_drain_open_until_its_callback_returns() {
     );
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_owner_close_locks_without_vault_io_or_plaintext_fallback() {
     let root = TestRoot::new("close-managed-owner");
@@ -353,7 +353,7 @@ fn managed_owner_close_locks_without_vault_io_or_plaintext_fallback() {
     );
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn existing_owner_recovery_cannot_be_reported_as_a_successful_close() {
     let root = TestRoot::new("close-managed-recovery");

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { COMPILATION_PROFILES, createCompilationController } from '../preview/compilation-model.mjs';
+import { openSkillInCompilation } from '../preview/skill-compile-handoff.mjs';
 
 const fixture = JSON.parse(await readFile(new URL('../fixtures/compilation/instruction-v1.json', import.meta.url), 'utf8'));
 const bundleFixture = JSON.parse(await readFile(new URL('../fixtures/compilation/instruction-bundle-v1.json', import.meta.url), 'utf8'));
@@ -454,4 +455,110 @@ test('bundle cancellation clears old receipt and unavailable hashing fails close
     assert.equal(await external.inspectBundle(), false);
     assert.equal(external.getState().externalBundle.status, 'failed');
   } finally { Object.defineProperty(globalThis, 'crypto', descriptor); }
+});
+
+test('Skills handoff plus Compile route entry reads the exact revision only once', async () => {
+  const detail = detailFor(candidateCase); const calls = [];
+  const model = createCompilationController({ invoke: async (command, args) => {
+    calls.push([command, args]);
+    return command === 'list_capabilities' ? { outcome: 'listed', capabilities: [summaryFor(detail)] } : { outcome: 'opened', capability: detail };
+  } });
+  const state = { bridgeAvailable: true, pending: null, needsReload: false, viewedRevisionId: detail.revision.id,
+    selected: detail, draft: { capabilityId: detail.id, baseRevisionId: detail.revision.id, dirty: false } };
+  model.invalidate();
+  assert.equal(await model.open(detail.id, detail.revision.id), false);
+  assert.equal(await openSkillInCompilation({ skills: { getState: () => state }, compilation: model, isCurrent: () => true }), true);
+  await model.load();
+  assert.deepEqual(calls, [['list_capabilities', undefined], ['open_capability', { capabilityId: detail.id, revisionId: detail.revision.id }]]);
+  assert.equal(model.getState().listStatus, 'ready'); assert.equal(model.getState().capabilities.length, 1);
+  assert.equal(model.getState().needsRefresh, false); assert.equal(model.getState().report, null);
+  assert.equal(model.getState().selected.revision.id, detail.revision.id);
+});
+
+test('pinned handoff never accepts current-head substitution or missing revision ID', async () => {
+  const detail = detailFor(candidateCase); let reads = 0;
+  const model = createCompilationController({ invoke: async command => {
+    if (command === 'list_capabilities') return { outcome: 'listed', capabilities: [summaryFor(detail)] };
+    reads++; return { outcome: 'opened', capability: detail };
+  } });
+  assert.equal(await model.openPinnedRevision(detail.id, null), false); assert.equal(reads, 0);
+  assert.equal(await model.openPinnedRevision(detail.id, nextRevisionId), false);
+  assert.equal(model.getState().selected, null); assert.equal(reads, 1);
+});
+
+test('pinned read cancellation, invalidation and lock discard late results and refuse duplicate reads', async () => {
+  const detail = detailFor(candidateCase);
+  for (const phase of ['list_capabilities', 'open_capability']) for (const reason of ['navigation', 'invalidation', 'lock']) {
+    let release, current = true; const calls = [];
+    const model = createCompilationController({ invoke: async command => {
+      calls.push(command);
+      if (command === phase) await new Promise(resolve => { release = resolve; });
+      return command === 'list_capabilities' ? { outcome: 'listed', capabilities: [summaryFor(detail)] } : { outcome: 'opened', capability: detail };
+    } });
+    const pending = model.openPinnedRevision(detail.id, detail.revision.id, { isCurrent: () => current });
+    for (let step = 0; step < 8 && !release; step++) await Promise.resolve();
+    assert.equal(typeof release, 'function');
+    assert.equal(await model.openPinnedRevision(detail.id, detail.revision.id), false);
+    if (reason === 'navigation') current = false;
+    if (reason === 'invalidation') model.invalidate();
+    if (reason === 'lock') model.purgeForWorkspaceLock();
+    release(); assert.equal(await pending, false);
+    assert.deepEqual(calls, phase === 'list_capabilities' ? ['list_capabilities'] : ['list_capabilities', 'open_capability']);
+    assert.equal(model.getState().selected, null); assert.equal(model.getState().pending, null);
+    assert.equal(model.getState().capabilities.length, 0);
+    assert.equal(model.getState().needsRefresh, reason === 'invalidation');
+  }
+});
+
+test('failed library does not block an independently validated pin and explicit refresh retries', async () => {
+  const detail = detailFor(candidateCase); let validList = false; const calls = [];
+  const model = createCompilationController({ invoke: async command => {
+    calls.push(command);
+    if (command === 'list_capabilities') return validList ? { outcome: 'listed', capabilities: [summaryFor(detail)] } : { outcome: 'listed', capabilities: [{ invalid: true }] };
+    return { outcome: 'opened', capability: detail };
+  } });
+  model.invalidate();
+  assert.equal(await model.openPinnedRevision(detail.id, detail.revision.id), true);
+  assert.deepEqual(calls, ['list_capabilities', 'open_capability']);
+  assert.equal(model.getState().selected.revision.id, detail.revision.id);
+  assert.equal(model.getState().listStatus, 'failed'); assert.equal(model.getState().capabilities.length, 0);
+  assert.equal(model.getState().needsRefresh, false); assert.equal(model.getState().pending, null);
+  await model.load();
+  assert.deepEqual(calls, ['list_capabilities', 'open_capability']);
+  validList = true; calls.length = 0;
+  assert.equal(await model.refresh(), true);
+  assert.equal(model.getState().listStatus, 'ready'); assert.equal(model.getState().capabilities.length, 1);
+  assert.deepEqual(calls, ['list_capabilities', 'open_capability']);
+  calls.length = 0;
+  assert.equal(await model.openPinnedRevision(detail.id, detail.revision.id), true);
+  assert.deepEqual(calls, ['open_capability']);
+});
+
+test('failed pin after failed library keeps the previous selection and stale gate', async () => {
+  const detail = detailFor(candidateCase); const calls = [];
+  const model = createCompilationController({ invoke: async command => {
+    calls.push(command);
+    if (command === 'list_capabilities') throw new Error('synthetic list failure');
+    return { outcome: 'opened', capability: detail };
+  } });
+  await model.open(detail.id, detail.revision.id); model.invalidate(); calls.length = 0;
+  assert.equal(await model.openPinnedRevision(detail.id, nextRevisionId), false);
+  assert.deepEqual(calls, ['list_capabilities', 'open_capability']);
+  assert.equal(model.getState().selected.revision.id, detail.revision.id);
+  assert.equal(model.getState().needsRefresh, true); assert.equal(model.getState().pending, null);
+  assert.equal(model.getState().listStatus, 'failed');
+  await model.load();
+  assert.deepEqual(calls, ['list_capabilities', 'open_capability']);
+});
+
+test('synchronous observers cannot start a pinned read after lock or navigation', async () => {
+  const detail = detailFor(candidateCase);
+  for (const lock of [false, true]) {
+    let current = true; let model;
+    model = createCompilationController({ invoke: () => assert.fail('no read after observer invalidation'), onChange: state => {
+      if (state.pending === 'open') { current = false; if (lock) model.purgeForWorkspaceLock(); }
+    } });
+    assert.equal(await model.openPinnedRevision(detail.id, detail.revision.id, { isCurrent: () => current }), false);
+    assert.equal(model.getState().pending, null); assert.equal(model.getState().selected, null);
+  }
 });

@@ -236,8 +236,15 @@ impl NativeRecordKind {
 pub enum DataResult {
     Loaded {
         workspace: WorkspaceData,
+        encrypted_recovery_supported: bool,
     },
     Exported {
+        backup_id: String,
+        byte_length: usize,
+    },
+    RecoveryKeyCreated,
+    EncryptedExported {
+        format: &'static str,
         backup_id: String,
         byte_length: usize,
     },
@@ -313,6 +320,147 @@ fn pick(app: &AppHandle, exporting: bool) -> Result<Option<std::path::PathBuf>, 
             })
         })
         .transpose()
+}
+
+fn pick_recovery(
+    app: &AppHandle,
+    key: bool,
+    saving: bool,
+) -> Result<Option<std::path::PathBuf>, PublicError> {
+    let window = app.get_webview_window("main").ok_or(PublicError {
+        code: "workspace_unavailable",
+        message: "The native recovery picker is unavailable.",
+    })?;
+    let (label, extension, name, title) = match (key, saving) {
+        (true, true) => (
+            "Rangoon recovery key",
+            "rangoon-key",
+            "Rangoon.rangoon-key",
+            "Save recovery key separately from your backup",
+        ),
+        (true, false) => (
+            "Rangoon recovery key",
+            "rangoon-key",
+            "Rangoon.rangoon-key",
+            "Choose the recovery key for this backup",
+        ),
+        (false, true) => (
+            "Encrypted Rangoon backup",
+            "rangoon-encrypted",
+            "Rangoon.rangoon-encrypted",
+            "Save encrypted workspace backup",
+        ),
+        (false, false) => (
+            "Encrypted Rangoon backup",
+            "rangoon-encrypted",
+            "Rangoon.rangoon-encrypted",
+            "Choose encrypted workspace backup",
+        ),
+    };
+    let dialog = app
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .add_filter(label, &[extension])
+        .set_title(title);
+    let selected = if saving {
+        dialog.set_file_name(name).blocking_save_file()
+    } else {
+        dialog.blocking_pick_file()
+    };
+    selected
+        .map(|value| {
+            value
+                .into_path()
+                .map_err(|_| crate::encrypted_recovery::invalid())
+        })
+        .transpose()
+}
+
+#[tauri::command]
+pub async fn create_workspace_recovery_key(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> DataResult {
+    let operation = match app
+        .state::<SourceAccess>()
+        .for_request(&workspace)
+        .begin_file()
+    {
+        Ok(op) => op,
+        Err(error) => return admission(error),
+    };
+    match tauri::async_runtime::spawn_blocking(move || {
+        operation.create_recovery_key(|| pick_recovery(&app, true, true))
+    })
+    .await
+    {
+        Ok(completed) => completed.deliver(),
+        Err(_) => DataResult::Failed {
+            error: PublicError {
+                code: "workspace_recovery_output_uncertain",
+                message: "Key creation did not return a confirmed result. A secret key file may remain; inspect your selected location before retrying.",
+            },
+        },
+    }
+}
+#[tauri::command]
+pub async fn export_encrypted_workspace_backup(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> DataResult {
+    let operation = match app
+        .state::<SourceAccess>()
+        .for_request(&workspace)
+        .begin_file()
+    {
+        Ok(op) => op,
+        Err(error) => return admission(error),
+    };
+    match tauri::async_runtime::spawn_blocking(move || {
+        operation.export_encrypted_backup(
+            || pick_recovery(&app, true, false),
+            || pick_recovery(&app, false, true),
+            crate::encrypted_recovery::write_cipher,
+            crate::encrypted_recovery::read_cipher,
+        )
+    })
+    .await
+    {
+        Ok(completed) => completed.deliver(),
+        Err(_) => DataResult::Failed {
+            error: PublicError {
+                code: "workspace_recovery_output_uncertain",
+                message: "Backup did not return a confirmed result. A file may remain; inspect your selected output and use a new name before retrying.",
+            },
+        },
+    }
+}
+#[tauri::command]
+pub async fn prepare_encrypted_workspace_restore(
+    workspace: crate::workspace_requests::WorkspaceRequest,
+    app: AppHandle,
+) -> DataResult {
+    let access = app.state::<SourceAccess>().for_request(&workspace);
+    let operation = match access.begin_file() {
+        Ok(op) => op,
+        Err(error) => return admission(error),
+    };
+    match tauri::async_runtime::spawn_blocking(move || {
+        operation.prepare_encrypted_restore(
+            || pick_recovery(&app, false, false),
+            || pick_recovery(&app, true, false),
+            crate::encrypted_recovery::read_cipher,
+        )
+    })
+    .await
+    {
+        Ok(completed) => completed.deliver(),
+        Err(_) => {
+            access.purge_data_controls();
+            failure(StoreError::Unavailable)
+        }
+    }
 }
 
 #[tauri::command]

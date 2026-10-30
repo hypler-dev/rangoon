@@ -25,6 +25,38 @@ const state = (overrides = {}) => ({
 const nativeReport = (overrides = {}) => ({ outcome: 'compiled', schemaVersion: 'rangoon.compilation-inspection.v1', observedCurrentHead: revisionId, compilation: candidate, candidateManifestJson: JSON.stringify(candidate.candidate.manifest), ...overrides });
 const externalReport = (overrides = {}) => ({ outcome: 'inspected', schemaVersion: 'rangoon.instruction-bundle-file.v1', inspection: { schemaVersion: 'rangoon.instruction-bundle-inspection.v1', bundleId: `instruction-bundle:${'a'.repeat(64)}`, sha256: 'b'.repeat(64), byteLength: 512, compilation: candidate, verification: 'internal_consistency_only', authority: 'none' }, candidateManifestJson: JSON.stringify(candidate.candidate.manifest), ...overrides });
 
+const withoutDetails = html => html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '');
+
+test('keeps compilation identities behind closed details without hiding export limits or results', () => {
+  const receipt = { bundleId: `instruction-bundle:${'c'.repeat(64)}`, candidateId: candidate.candidate.candidateId, sha256: candidate.artifact.sha256, byteLength: 512, authority: 'none' };
+  const html = renderCompilationPage(state({ report: nativeReport(), bundleExport: { status: 'exported', receipt, error: null } }));
+  for (const id of ['compile-artifact-details', 'compile-evidence-details', 'compile-export-identity-details', 'compile-export-receipt-details', 'compile-selection-details']) {
+    assert.match(html, new RegExp(`<details id="${id}" class="workbench-technical"><summary>Technical details</summary>`));
+  }
+  const basic = withoutDetails(html);
+  assert.doesNotMatch(basic, /<dt>(?:SHA-256|Candidate ID|Capability ID|Bundle ID|Expected candidate)<\/dt>/);
+  assert.doesNotMatch(basic, /<small>capability:|<small>revision:/);
+  assert.match(basic, /Write completed/);
+  assert.match(basic, /plaintext/);
+  assert.match(basic, /does not install or run instructions/);
+  assert.match(basic, /Authority: none/);
+  assert.match(basic, /id="compile-export"/);
+  assert.match(html, new RegExp(candidate.artifact.sha256));
+  assert.match(html, new RegExp(receipt.bundleId));
+});
+
+test('external inspection keeps provenance accessible while making its limited verification visible', () => {
+  const html = renderCompilationPage(state({ tab: 'external', externalBundle: { status: 'inspected', report: externalReport(), previous: null, error: null } }));
+  assert.match(html, /<details id="compile-external-details" class="workbench-technical"><summary>Technical details<\/summary>/);
+  const basic = withoutDetails(html);
+  assert.match(basic, /Internal consistency only/);
+  assert.match(basic, /not authentication/);
+  assert.match(basic, /<dt>Skill<\/dt>/);
+  assert.match(basic, /<dt>Format<\/dt>/);
+  assert.doesNotMatch(basic, /<dt>Bundle SHA-256<\/dt>|<dt>Candidate identity<\/dt>/);
+  assert.match(html, /internal_consistency_only/);
+});
+
 test('renders exact compiled fixture with noneditable escaped source and canonical manifest', () => {
   const html = renderCompilationPage(state({ report: nativeReport() }));
   assert.match(html, /id="compile-title" tabindex="-1"/);
@@ -70,7 +102,7 @@ test('uses real tab semantics and exposes fixed controller hooks', () => {
   assert.match(html, /id="compile-selection"/);
   assert.match(html, /id="compile-capability-list"/);
   assert.match(html, /id="compile-revision-list"/);
-  assert.match(html, /read-only compilation. Separate file actions can export or inspect/);
+  assert.match(html, /Compile a saved revision into instruction text. Export and inspection/);
   assert.doesNotMatch(html, /cannot edit, review, export, install or run/);
 });
 
@@ -193,7 +225,7 @@ test('shows blocked and review-required reports, ordered diagnostics, historical
   assert.match(reviewRequired, /Local review required/);
   assert.match(reviewRequired, /No candidate manifest/);
   const staleCandidate = renderCompilationPage(state({ reportStale: true, report: nativeReport() }));
-  assert.match(staleCandidate, /Retained\/stale · Static candidate/);
+  assert.match(staleCandidate, /Retained\/stale · Export candidate/);
 });
 
 test('compilation css keeps wide columns, stacks evidence, then one column and no visual claims', () => {

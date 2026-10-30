@@ -39,7 +39,7 @@ test('close shell is source-free and retains only theme and help controls', () =
 });
 
 test('protection shell exposes exactly one fixed action for eligible absent or locked layouts', () => {
-  for (const [layout, label] of [['absent', 'Set up workspace'], ['locked', 'Unlock workspace']]) {
+  for (const [layout, label] of [['absent', 'Set up encrypted workspace'], ['locked', 'Unlock workspace']]) {
     const shell = renderWorkspaceCloseShell({ status: 'protection', layout, canProtect: true, pending: false });
     assert.match(shell, new RegExp(`>${label}<`));
     assert.match(shell, /data-workspace-protection-action/);
@@ -94,5 +94,29 @@ test('closed announcements use fixed source-free copy for every state and malfor
     const announcement = workspaceCloseAnnouncement({ status, message: 'private-text', attemptId: 'private-token' });
     assert.ok(announcement.length > 30);
     assert.doesNotMatch(announcement, /private-text|private-token/);
+  }
+});
+
+
+test('fresh setup after Cancel retains canonical title, description, Details and native Quit', () => {
+  const shell = renderWorkspaceCloseShell({ status: 'protection', layout: 'absent', canProtect: true, pending: false }, { quitAvailable: true });
+  assert.match(shell, /Set up encrypted workspace/);
+  assert.match(shell, /Create an encrypted workspace on this computer\./);
+  assert.match(shell, /<summary>Details<\/summary>/);
+  assert.match(shell, /No original copy is part of this setup\./);
+  assert.match(shell, /Encrypted portable backup unavailable\./);
+  assert.match(shell, /data-workspace-close-quit>Quit Rangoon/);
+  assert.doesNotMatch(renderWorkspaceCloseShell({ status: 'protection', layout: 'absent', canProtect: true }), /data-workspace-close-quit/);
+});
+
+test('generic recovery provides conditional preservation guidance without diagnosing missing key', () => {
+  for (const state of [{ status: 'recovery_required' }, { status: 'protection', layout: 'recovery_required' }]) {
+    const shell = renderWorkspaceCloseShell({ ...state, diagnostic: 'private diagnostic', key: 'secret-key' }, { quitAvailable: true });
+    assert.match(shell, /Keep workspace files intact/);
+    assert.match(shell, /If operating-system account or credential-store access changed/);
+    assert.match(shell, /If the original key is unavailable, Rangoon cannot replace it/);
+    assert.match(shell, /does not repair damaged workspace files/);
+    assert.match(shell, /data-workspace-close-quit/);
+    assert.doesNotMatch(shell, /data-workspace-protection-action|private diagnostic|secret-key/);
   }
 });

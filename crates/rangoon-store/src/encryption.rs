@@ -96,7 +96,7 @@ mod keyed {
         let verify = || -> rusqlite::Result<()> {
             key(db, secret)?;
             if file_bytes != 0 {
-                if file_bytes % 4096 != 0 {
+                if !file_bytes.is_multiple_of(4096) {
                     return Err(rusqlite::Error::InvalidQuery);
                 }
                 // Consume only row existence. Never retrieve page/error text.

@@ -302,19 +302,18 @@ pub fn map_openshell_window(
         }
         let fingerprint = serde_json::to_string(&mapped)
             .map_err(|_| OpenShellObservationError::SerializationFailed)?;
-        if let Some(event_id) = mapped.event_id.as_deref() {
-            if let Some(previous) =
+        if let Some(event_id) = mapped.event_id.as_deref()
+            && let Some(previous) =
                 event_fingerprints.insert(event_id.to_owned(), fingerprint.clone())
-            {
-                diagnostics.push(MappedDiagnostic {
-                    code: if previous == fingerprint {
-                        "repeated_event_id"
-                    } else {
-                        "conflicting_event_id"
-                    },
-                    event_id: Some(event_id.to_owned()),
-                });
-            }
+        {
+            diagnostics.push(MappedDiagnostic {
+                code: if previous == fingerprint {
+                    "repeated_event_id"
+                } else {
+                    "conflicting_event_id"
+                },
+                event_id: Some(event_id.to_owned()),
+            });
         }
         items.push(mapped);
     }

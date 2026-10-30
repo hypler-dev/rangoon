@@ -25,7 +25,7 @@ struct IssuedPreview {
 // copies are never used as mutation input.
 pub(super) enum CompositionHandle {
     Legacy(Arc<CompositionPreview>),
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(feature = "encrypted-workspace")]
     Managed(String),
 }
 
@@ -40,7 +40,7 @@ impl RoutedCompositionPreview {
             handle: CompositionHandle::Legacy(Arc::new(prepared)),
         }
     }
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(feature = "encrypted-workspace")]
     pub(super) fn managed(
         prepared: rangoon_desktop::workspace_session::CompositionConfirmation,
     ) -> Self {
