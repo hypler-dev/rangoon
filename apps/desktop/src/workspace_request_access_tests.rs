@@ -1,4 +1,4 @@
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use super::super::reopen::Kind;
 use super::*;
 use crate::{
@@ -119,7 +119,7 @@ fn callback_custody_survives_waiter_drop_for_a_current_request() {
     assert_eq!(drain.is_quiescent(), Ok(true));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn source_control_revoke_and_unlock_resume_rotate_the_actual_managed_request() {
     let root = TestRoot::new("request-source-control");
@@ -169,7 +169,7 @@ fn source_control_revoke_and_unlock_resume_rotate_the_actual_managed_request() {
     drop(lease);
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_close_discards_retained_read_only_picker_result() {
     let root = TestRoot::new("operations-managed-close");

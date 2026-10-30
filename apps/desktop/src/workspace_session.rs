@@ -187,11 +187,11 @@ pub struct Owner {
     recovery: bool,
     reconciliation: Option<recovery::Retained>,
     empty_provisioning: Option<recovery::RetainedEmpty>,
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     fault: Option<Fault>,
 }
 
-#[cfg(all(test, feature = "encrypted-workspace"))]
+#[cfg(all(test, feature = "encrypted-workspace", unix))]
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Fault {
     BeforeProvisionWrite,
@@ -233,6 +233,11 @@ impl Owner {
     }
 
     fn acquire_inner(host_root: PathBuf, create_control: bool) -> Result<Self, Error> {
+        // Native custody requires stable file/directory identity and durability
+        // checks. No equivalent non-Unix backend is qualified or implemented.
+        if !cfg!(unix) {
+            return Err(Error::Unavailable);
+        }
         workspace_keys::ensure_backend().map_err(|_| Error::BackendUnavailable)?;
         let root_metadata = plain_directory(&host_root)?;
         let path = host_root.join(CONTROL);
@@ -273,7 +278,7 @@ impl Owner {
             recovery: false,
             reconciliation: None,
             empty_provisioning: None,
-            #[cfg(all(test, feature = "encrypted-workspace"))]
+            #[cfg(all(test, feature = "encrypted-workspace", unix))]
             fault: None,
         };
         owner.check_control()?;
@@ -573,7 +578,7 @@ impl Owner {
             .create_new(true)
             .open(&path)
             .map_err(|_| Error::WriteUncertain)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeProvisionWrite)?;
         file.write_all(&binding.bytes())
             .map_err(|_| Error::WriteUncertain)?;
@@ -611,7 +616,7 @@ impl Owner {
         sync_directory(&self.directory(&binding))?;
         let provisioning = binding.bytes();
         binding.ready = true;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeReadyWrite)?;
         self.check_control()?;
         self.unchanged_directories(&binding, &directories)?;
@@ -623,11 +628,11 @@ impl Owner {
             .map_err(|_| Error::WriteUncertain)?;
         file.write_all(&binding.bytes())
             .map_err(|_| Error::WriteUncertain)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeReadySync)?;
         file.sync_all().map_err(|_| Error::WriteUncertain)?;
         sync_directory(&self.root)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeReadyReadback)?;
         if self.read_binding()? != binding.bytes() {
             return Err(Error::WriteUncertain);
@@ -875,7 +880,7 @@ impl Owner {
         result: Result<WorkflowSaveReceipt, rangoon_store::StoreError>,
         previous: Metadata,
     ) -> Result<WorkflowSaveReceipt, Error> {
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         if self.fail_at(Fault::AfterWorkflowSave).is_err() {
             self.lock();
             self.recovery = true;
@@ -1006,7 +1011,7 @@ impl Owner {
         previous: Metadata,
         _mutation: DataMutation,
     ) -> Result<WorkflowWorkspaceData, Error> {
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         {
             let fault = match _mutation {
                 DataMutation::Restore => Fault::AfterRestore,
@@ -1126,7 +1131,7 @@ impl Owner {
         result: Result<CompositionReceipt, rangoon_store::StoreError>,
         previous: Metadata,
     ) -> Result<CompositionReceipt, Error> {
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         if self.fail_at(Fault::AfterCompositionApply).is_err() {
             self.lock();
             self.recovery = true;
@@ -1197,7 +1202,7 @@ impl Owner {
         result: Result<CapabilityReceiptV1, rangoon_store::StoreError>,
         previous: Metadata,
     ) -> Result<CapabilityReceiptV1, Error> {
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         if self.fail_at(Fault::AfterCapabilityMutation).is_err() {
             self.lock();
             self.recovery = true;
@@ -1219,7 +1224,7 @@ impl Owner {
             .ok_or(Error::Locked)?
             .workspace
             .save_v1(source);
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         if self.fail_at(Fault::AfterSave).is_err() {
             self.lock();
             self.recovery = true;
@@ -1247,11 +1252,11 @@ impl Owner {
     pub fn requires_recovery(&self) -> bool {
         self.recovery
     }
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     fn inject_fault(&mut self, fault: Fault) {
         self.fault = Some(fault);
     }
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     fn fail_at(&self, fault: Fault) -> Result<(), Error> {
         if self.fault == Some(fault) {
             Err(Error::WriteUncertain)
@@ -1312,7 +1317,7 @@ fn same_file(a: &Metadata, b: &Metadata) -> bool {
     #[cfg(not(unix))]
     {
         let _ = (a, b);
-        true
+        false
     }
 }
 fn verify_file(file: &File, path: &Path) -> Result<(), Error> {
@@ -1388,18 +1393,22 @@ fn sync_directory(path: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 #[path = "workspace_session_tests.rs"]
 mod tests;
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 #[path = "workspace_adoption_owner_tests.rs"]
 mod adoption_tests;
 
-#[cfg(all(test, feature = "encrypted-workspace"))]
+#[cfg(all(test, unix, feature = "encrypted-workspace"))]
 #[path = "workspace_startup_owner_tests.rs"]
 mod startup_owner_tests;
 
-#[cfg(all(test, feature = "encrypted-workspace"))]
+#[cfg(all(test, unix, feature = "encrypted-workspace"))]
 #[path = "workspace_empty_provisioning_tests.rs"]
 mod empty_provisioning_tests;
+
+#[cfg(all(test, not(unix)))]
+#[path = "workspace_unsupported_owner_tests.rs"]
+mod unsupported_owner_tests;

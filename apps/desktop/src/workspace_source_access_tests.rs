@@ -1,5 +1,5 @@
 use super::*;
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use std::collections::BTreeMap;
 use std::{
     fs,
@@ -770,13 +770,14 @@ fn source_binding_keeps_private_dispatch_and_native_owned_startup_factory() {
     }
     assert!(!main.contains("read_saved_composition_source"));
     assert!(
-        source.contains("#[cfg(all(test, feature = \"encrypted-workspace\"))]\n    fn managed")
+        source
+            .contains("#[cfg(all(test, feature = \"encrypted-workspace\", unix))]\n    fn managed")
     );
     assert!(!source.contains("pub(super) fn managed<"));
     assert!(!main.contains("SourceAccess::managed_locked"));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[derive(Default)]
 struct ThreadVaultState {
     slots: BTreeMap<String, Option<Vec<u8>>>,
@@ -784,25 +785,25 @@ struct ThreadVaultState {
     substitute_identity: Option<rangoon_desktop::workspace_keys::WorkspaceId>,
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[derive(Clone, Default)]
 struct ThreadVault(Arc<Mutex<ThreadVaultState>>);
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 struct ThreadSlot {
     identity: rangoon_desktop::workspace_keys::WorkspaceId,
     lookup: String,
     state: Arc<Mutex<ThreadVaultState>>,
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 impl ThreadVault {
     fn substitute_identity(&self, identity: rangoon_desktop::workspace_keys::WorkspaceId) {
         self.0.lock().unwrap().substitute_identity = Some(identity);
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 impl rangoon_desktop::workspace_session::Vault for ThreadVault {
     type Slot = ThreadSlot;
 
@@ -825,7 +826,7 @@ impl rangoon_desktop::workspace_session::Vault for ThreadVault {
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 impl rangoon_desktop::workspace_keys::Store for ThreadSlot {
     fn identity(&self) -> &rangoon_desktop::workspace_keys::WorkspaceId {
         &self.identity
@@ -855,7 +856,7 @@ impl rangoon_desktop::workspace_keys::Store for ThreadSlot {
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn encrypted_access(root: &TestRoot, vault: &ThreadVault) -> (SourceAccess, String) {
     use rangoon_desktop::workspace_session::Owner;
 
@@ -869,7 +870,7 @@ fn encrypted_access(root: &TestRoot, vault: &ThreadVault) -> (SourceAccess, Stri
     )
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_owner_dispatches_encrypted_sources_and_reopens_without_plaintext() {
     use rangoon_desktop::workspace_session::Owner;
@@ -918,7 +919,7 @@ fn managed_owner_dispatches_encrypted_sources_and_reopens_without_plaintext() {
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_locked_wrong_slot_and_bad_binding_fail_without_legacy_fallback() {
     use rangoon_desktop::{workspace_keys::WorkspaceId, workspace_session::Owner};
@@ -1002,9 +1003,11 @@ mod model_inputs;
 #[path = "workspace_close_tests.rs"]
 mod workspace_close;
 
+#[cfg(unix)]
 #[path = "workspace_reopen_tests.rs"]
 mod reopen_controls;
 
+#[cfg(unix)]
 #[path = "workspace_close_control_tests.rs"]
 mod supervisor_controls;
 
@@ -1020,15 +1023,18 @@ mod exit_hold;
 #[path = "workspace_request_access_tests.rs"]
 mod request_admission;
 
+#[cfg(unix)]
 #[path = "workspace_setup_tests.rs"]
 mod setup_commands;
 
+#[cfg(unix)]
 #[path = "workspace_protection_access_tests.rs"]
 mod protection_status;
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[path = "workspace_managed_bootstrap_tests.rs"]
 mod managed_bootstrap_tests;
 
+#[cfg(unix)]
 #[path = "workspace_recovery_file_tests.rs"]
 mod recovery_files;

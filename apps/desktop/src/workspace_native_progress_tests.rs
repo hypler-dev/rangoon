@@ -7,7 +7,7 @@ use crate::workspace_close::{
     failure::{Host, Monitor, Progress},
     handle_main_window_event, main_window_destroyed,
 };
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use rangoon_desktop::workspace_session::Owner;
 #[cfg(feature = "encrypted-workspace")]
 use std::sync::{
@@ -21,7 +21,7 @@ fn view_json(view: View) -> serde_json::Value {
     serde_json::to_value(view).unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn managed_access(root: &TestRoot, vault: &ThreadVault) -> SourceAccess {
     SourceAccess::managed(
         Gate::new(),
@@ -30,7 +30,7 @@ fn managed_access(root: &TestRoot, vault: &ThreadVault) -> SourceAccess {
     )
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn explicit_close_waits_for_held_callback_without_renderer_ack_then_releases_key() {
     let root = TestRoot::new("native-progress-held-callback");
@@ -117,7 +117,7 @@ fn main_window_destruction_classifier_is_exact_and_source_free() {
     ));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn main_window_destroyed_dispatches_close_and_wake_only_for_main_destroyed() {
     let root = TestRoot::new("native-window-destroyed");

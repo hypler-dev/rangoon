@@ -1,14 +1,14 @@
 #[cfg(feature = "encrypted-workspace")]
 use super::*;
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use crate::cloud_custody::{Custody, Phase as CredentialPhase};
 #[cfg(feature = "encrypted-workspace")]
 use crate::workspace_close::{
     View, WorkspaceClose,
     failure::{Host, Monitor, Progress, wait_for_progress},
 };
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use rangoon_desktop::workspace_session::Owner;
 #[cfg(feature = "encrypted-workspace")]
 use std::{
@@ -27,7 +27,7 @@ fn view_json(view: View) -> serde_json::Value {
     serde_json::to_value(view).unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn locked_managed(root: &TestRoot, vault: &ThreadVault) -> SourceAccess {
     SourceAccess::managed(
         Gate::new(),
@@ -49,7 +49,7 @@ fn assert_terminal(access: &SourceAccess) {
     assert_eq!(ticket.release_key(), Ok(false));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn local_profile() -> Vec<u8> {
     serde_json::to_vec(&serde_json::json!({
         "schemaVersion": "rangoon.local-profile-request.v1",
@@ -62,7 +62,7 @@ fn local_profile() -> Vec<u8> {
     .unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn local_selection(source_id: &str) -> Vec<u8> {
     serde_json::to_vec(&serde_json::json!({
         "schemaVersion": "rangoon.local-selection.v1",
@@ -72,7 +72,7 @@ fn local_selection(source_id: &str) -> Vec<u8> {
     .unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn locked_actual_owner_latches_every_source_boundary_and_blocks_model_inputs() {
     for boundary in ["list", "open", "save"] {
@@ -102,7 +102,7 @@ fn locked_actual_owner_latches_every_source_boundary_and_blocks_model_inputs() {
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn healthy_validation_refusal_keeps_actual_owner_open() {
     let root = TestRoot::new("failure-healthy-validation");
@@ -128,7 +128,7 @@ fn healthy_validation_refusal_keeps_actual_owner_open() {
     ));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn open_owner_integrity_failure_purges_selection_through_actual_model_reader() {
     let root = TestRoot::new("failure-open-owner-model-reader");
@@ -162,7 +162,7 @@ fn open_owner_integrity_failure_purges_selection_through_actual_model_reader() {
     ));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn terminal_failure_notifies_once_and_close_progress_never_claims_locked() {
     let root = TestRoot::new("failure-notify-close");
@@ -277,7 +277,7 @@ fn successful_backend_payloads_never_cross_the_fatal_failure_fence() {
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn held_model_or_credential_lease_keeps_fatal_close_drain_nonquiescent() {
     for credential in [false, true] {

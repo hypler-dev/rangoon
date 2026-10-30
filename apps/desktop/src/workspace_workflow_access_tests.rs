@@ -931,7 +931,7 @@ fn workflow_completion_drop_keeps_read_only_draft_but_purges_unobserved_authorin
     );
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_workflow_routing_encrypts_reopens_and_refuses_locked_without_fallback() {
     use rangoon_desktop::workspace_session::Owner;

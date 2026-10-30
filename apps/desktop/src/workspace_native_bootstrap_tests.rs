@@ -4,14 +4,16 @@ use crate::workspace_close::WorkspaceClose;
 #[cfg(feature = "encrypted-workspace")]
 use crate::workspace_requests::WorkspaceRequest;
 use rangoon_desktop::workspace_lifecycle::Lane;
+#[cfg(all(feature = "encrypted-workspace", unix))]
+use rangoon_desktop::workspace_session::Owner;
 #[cfg(feature = "encrypted-workspace")]
 use rangoon_desktop::{
     workspace_keys::{Error as KeyError, Store, WorkspaceId},
-    workspace_session::{Owner, Vault},
+    workspace_session::Vault,
 };
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use rangoon_store::Workspace;
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use serde_json::json;
 use std::{
     fs,
@@ -19,7 +21,7 @@ use std::{
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use std::{
     io::{Read, Write},
     process::{Child, Command, Stdio},
@@ -27,17 +29,17 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use tauri::ipc::InvokeBody;
 #[cfg(feature = "encrypted-workspace")]
 use zeroize::Zeroizing;
 
 struct TestRoot(PathBuf);
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 struct ChildGuard(Child);
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 impl Drop for ChildGuard {
     fn drop(&mut self) {
         let _ = self.0.kill();
@@ -111,7 +113,7 @@ fn view(close: &WorkspaceClose) -> serde_json::Value {
     serde_json::to_value(close.inspect(|_| true)).unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn acknowledgement(view: &serde_json::Value) -> Vec<u8> {
     serde_json::to_vec(&json!({
         "schemaVersion": "rangoon.workspace-purge-ack.v1",
@@ -121,7 +123,7 @@ fn acknowledgement(view: &serde_json::Value) -> Vec<u8> {
     .unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn action_request(
     view: &serde_json::Value,
     action: &str,
@@ -139,21 +141,21 @@ fn action_request(
     .unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn completed_c1(close: &WorkspaceClose) -> serde_json::Value {
     let closing = view(close);
     assert_eq!(closing["state"], "closing");
     serde_json::to_value(close.acknowledge(&acknowledgement(&closing), |_| true)).unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn closed_startup_cycle(close: &WorkspaceClose) {
     let started = serde_json::to_value(close.begin(|_| true)).unwrap();
     assert_eq!(started["state"], "closing");
     assert_eq!(completed_c1(close)["state"], "locked");
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn control_preparation(
     view: &serde_json::Value,
     action: &str,
@@ -170,7 +172,7 @@ fn control_preparation(
     .unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn control_cycle(view: &serde_json::Value) -> crate::workspace_close::setup::Cycle {
     crate::workspace_close::setup::Cycle::parse(&InvokeBody::Raw(
         serde_json::to_vec(&json!({
@@ -183,7 +185,7 @@ fn control_cycle(view: &serde_json::Value) -> crate::workspace_close::setup::Cyc
     .unwrap()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn confirmed_native_setup_action(close: &WorkspaceClose, action: &str) {
     let locked = view(close);
     let prepared = serde_json::to_value(crate::workspace_close::setup::prepare(
@@ -210,17 +212,17 @@ fn confirmed_native_setup_action(close: &WorkspaceClose, action: &str) {
     assert_eq!(opened["reload"], true);
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn confirmed_create_empty(close: &WorkspaceClose) {
     confirmed_native_setup_action(close, "create_empty");
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn confirmed_unlock(close: &WorkspaceClose) {
     confirmed_native_setup_action(close, "unlock");
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn ordinary_lock(close: &WorkspaceClose, host: &crate::workspace_startup_host::Host) {
     let retired = host.retire_for_ordinary_close();
     assert!(retired.is_none());
@@ -232,7 +234,7 @@ fn ordinary_lock(close: &WorkspaceClose, host: &crate::workspace_startup_host::H
     );
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn status_with_current_c1(host: &crate::workspace_startup_host::Host) -> serde_json::Value {
     serde_json::to_value(host.status(
         |_| true,
@@ -386,7 +388,7 @@ impl Store for CountingSlot {
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn managed_locked(root: &TestRoot, gate: Gate, vault: &CountingVault) -> SourceAccess {
     SourceAccess::managed_locked(gate, root.0.clone(), vault.clone()).unwrap()
 }
@@ -403,7 +405,7 @@ fn assert_no_client(access: &SourceAccess) {
     ));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_startup_closes_before_present_and_exact_ack_locks_without_client() {
     let root = TestRoot::new("managed-order");
@@ -453,7 +455,7 @@ fn managed_startup_closes_before_present_and_exact_ack_locks_without_client() {
     assert_eq!(vault.counts(), (0, 0, 0));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_missing_anchor_refuses_before_cleanup_or_window() {
     let root = TestRoot::new("managed-anchor");
@@ -495,7 +497,7 @@ fn managed_missing_anchor_refuses_before_cleanup_or_window() {
     assert_eq!(vault.counts(), (0, 0, 0));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_failed_cleanup_or_window_never_claims_clean_startup() {
     for panic_cleanup in [false, true] {
@@ -572,7 +574,7 @@ fn managed_failed_cleanup_or_window_never_claims_clean_startup() {
     assert_eq!(vault.counts(), (0, 0, 0));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_duplicate_or_exit_latched_startup_refuses() {
     let root = TestRoot::new("managed-duplicate");
@@ -648,7 +650,7 @@ fn deferred_factory_has_no_metadata_key_or_client_before_a_closed_cycle() {
     assert!(!close.clean_native_completion());
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn startup_status_requires_completed_c0_and_current_c1_without_side_effects() {
     let root = TestRoot::new("startup-c0-c1");
@@ -674,7 +676,7 @@ fn startup_status_requires_completed_c0_and_current_c1_without_side_effects() {
     assert_eq!(view(&close)["state"], "closing");
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn fresh_setup_binds_only_locked_owner_then_hands_off_without_key_or_client() {
     let root = TestRoot::new("fresh-setup");
@@ -706,7 +708,7 @@ fn fresh_setup_binds_only_locked_owner_then_hands_off_without_key_or_client() {
     assert_eq!(view(&close)["state"], "locked");
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn bound_existing_owner_rejects_wrong_selected_identity_before_vault_or_client_access() {
     use crate::{workspace_source_access::ControlKind, workspace_startup::StartupRoots};
@@ -764,7 +766,7 @@ fn bound_existing_owner_rejects_wrong_selected_identity_before_vault_or_client_a
     assert!(close.startup_acknowledged().is_err());
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn legacy_review_stale_copy_cancel_and_verified_adoption_keep_native_custody_across_locks() {
     let root = TestRoot::new("legacy-router");
@@ -906,7 +908,7 @@ fn legacy_review_stale_copy_cancel_and_verified_adoption_keep_native_custody_acr
     );
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn close_begin_cancels_ready_startup_then_retired_plan_keeps_real_drain_until_drop() {
     let root = TestRoot::new("retired-plan");
@@ -940,7 +942,7 @@ fn close_begin_cancels_ready_startup_then_retired_plan_keeps_real_drain_until_dr
     assert_eq!(completed_c1(&close)["state"], "locked");
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn fenced_native_copy_cannot_create_destination_or_key_after_blocked_confirmation_returns() {
     let root = TestRoot::new("blocked-native-copy");
@@ -1015,7 +1017,7 @@ fn fenced_native_copy_cannot_create_destination_or_key_after_blocked_confirmatio
     assert_no_client(&source);
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn fatal_source_failure_retires_ready_startup_without_resumable_client() {
     let root = TestRoot::new("fatal-ready-startup");
@@ -1042,7 +1044,7 @@ fn fatal_source_failure_retires_ready_startup_without_resumable_client() {
     assert!(!close.clean_native_completion());
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn ordinary_lock_preserves_only_completed_handoff_across_confirmed_unlock_cycles() {
     let root = TestRoot::new("ordinary-handoff");
@@ -1086,7 +1088,7 @@ fn ordinary_lock_preserves_only_completed_handoff_across_confirmed_unlock_cycles
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn ordinary_lock_retires_busy_copy_before_result_or_custody_can_revive() {
     let root = TestRoot::new("ordinary-busy-copy");
@@ -1163,7 +1165,7 @@ fn ordinary_lock_retires_busy_copy_before_result_or_custody_can_revive() {
     assert!(host.cleanup_consistent(true));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn terminal_exit_overrides_handoff_and_repeated_ordinary_lock_cannot_revive_it() {
     let root = TestRoot::new("terminal-handoff");
@@ -1193,7 +1195,7 @@ fn terminal_exit_overrides_handoff_and_repeated_ordinary_lock_cannot_revive_it()
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 #[ignore = "Disposable process child; only the Legacy fixture supplies its root and fake vault"]
 fn legacy_adoption_process_child() {

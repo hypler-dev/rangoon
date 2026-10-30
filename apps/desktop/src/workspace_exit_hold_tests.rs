@@ -8,7 +8,7 @@ use crate::workspace_close::{
         CLEAN_EXIT_CODE, ExitAction, ExitCoordinator, Host, Monitor, Progress, RECOVERY_EXIT_CODE,
     },
 };
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use rangoon_desktop::workspace_session::Owner;
 #[cfg(feature = "encrypted-workspace")]
 use std::sync::{
@@ -17,7 +17,7 @@ use std::sync::{
     mpsc,
 };
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn managed_access(root: &TestRoot, vault: &ThreadVault) -> SourceAccess {
     SourceAccess::managed(
         Gate::new(),
@@ -62,7 +62,7 @@ fn restart_code_passes_through_without_creating_an_exit_hold() {
     assert!(!coordinator.send(CLEAN_EXIT_CODE));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn held_callback_allows_clean_exit_only_after_actual_native_completion() {
     let root = TestRoot::new("exit-hold-held-callback");

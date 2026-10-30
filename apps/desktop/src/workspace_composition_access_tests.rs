@@ -604,7 +604,7 @@ fn composition_and_compile_close_truthfully_keep_leases_and_never_replay() {
     );
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_routes_keep_owner_token_native_and_ciphertext_unreadable() {
     use rangoon_desktop::workspace_session::Owner;

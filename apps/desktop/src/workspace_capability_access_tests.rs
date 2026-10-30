@@ -665,7 +665,7 @@ fn capability_legacy_malformed_arguments_stay_bounded_and_do_not_create_records(
     }
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_capability_access_encrypts_reopens_and_refuses_locked_wrong_slot_and_binding() {
     use rangoon_desktop::{workspace_keys::WorkspaceId, workspace_session::Owner};
@@ -756,7 +756,7 @@ fn managed_capability_access_encrypts_reopens_and_refuses_locked_wrong_slot_and_
     assert!(!root.0.join("workspace.sqlite3").exists());
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_capability_malformed_attempt_fences_recovery_without_retry_or_fallback() {
     let root = TestRoot::new("managed-capability-recovery");
@@ -823,7 +823,7 @@ fn managed_capability_malformed_attempt_fences_recovery_without_retry_or_fallbac
     assert!(!root.0.join("workspace.sqlite3").exists());
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_capability_bad_binding_refuses_without_legacy_fallback() {
     let root = TestRoot::new("managed-capability-binding");

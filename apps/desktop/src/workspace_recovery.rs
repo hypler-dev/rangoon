@@ -277,7 +277,7 @@ impl Owner {
         {
             return Err(Error::WriteUncertain);
         }
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(if record.phase == Phase::Pending {
             Fault::BeforeIntentWrite
         } else {
@@ -287,7 +287,7 @@ impl Owner {
             .map_err(|_| Error::WriteUncertain)?;
         file.write_all(&record.bytes())
             .map_err(|_| Error::WriteUncertain)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(if record.phase == Phase::Pending {
             Fault::BeforeIntentSync
         } else {
@@ -295,7 +295,7 @@ impl Owner {
         })?;
         file.sync_all().map_err(|_| Error::WriteUncertain)?;
         sync_directory(&self.root).map_err(|_| Error::WriteUncertain)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(if record.phase == Phase::Pending {
             Fault::BeforeIntentReadback
         } else {
@@ -509,19 +509,19 @@ impl Owner {
                     .open(&path)
                     .map_err(|_| Error::WriteUncertain)?;
                 verify_file(&file, &path)?;
-                #[cfg(all(test, feature = "encrypted-workspace"))]
+                #[cfg(all(test, feature = "encrypted-workspace", unix))]
                 self.fail_at(Fault::BeforeReconcileReadyWrite)?;
                 opened.binding.ready = true;
                 file.seek(SeekFrom::Start(0))
                     .map_err(|_| Error::WriteUncertain)?;
                 file.write_all(&opened.binding.bytes())
                     .map_err(|_| Error::WriteUncertain)?;
-                #[cfg(all(test, feature = "encrypted-workspace"))]
+                #[cfg(all(test, feature = "encrypted-workspace", unix))]
                 self.fail_at(Fault::BeforeReconcileReadySync)?;
                 file.sync_all().map_err(|_| Error::WriteUncertain)?;
                 sync_directory(&self.root)?;
                 verify_file(&file, &path)?;
-                #[cfg(all(test, feature = "encrypted-workspace"))]
+                #[cfg(all(test, feature = "encrypted-workspace", unix))]
                 self.fail_at(Fault::BeforeReconcileReadyReadback)?;
                 if self.read_binding()? != opened.binding.bytes() {
                     return Err(Error::WriteUncertain);
@@ -731,19 +731,19 @@ impl Owner {
             return Err(Error::Stale);
         }
         exact_children(&self.directory(binding), &[DATABASE])?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeReconcileReadyWrite)?;
         binding.ready = true;
         file.seek(SeekFrom::Start(0))
             .map_err(|_| Error::WriteUncertain)?;
         file.write_all(&binding.bytes())
             .map_err(|_| Error::WriteUncertain)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeReconcileReadySync)?;
         file.sync_all().map_err(|_| Error::WriteUncertain)?;
         sync_directory(&self.root)?;
         verify_file(&file, &path)?;
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(all(test, feature = "encrypted-workspace", unix))]
         self.fail_at(Fault::BeforeReconcileReadyReadback)?;
         if self.read_binding()? != binding.bytes() {
             return Err(Error::WriteUncertain);

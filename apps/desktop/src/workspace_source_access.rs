@@ -985,7 +985,7 @@ impl SourceAccess {
     }
     /// Retained fixture constructor for earlier isolated Owner/exit regressions.
     /// Ordinary startup uses deferred acquisition and the startup host instead.
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     pub(super) fn managed_locked<V: rangoon_desktop::workspace_session::Vault + Send + 'static>(
         gate: Gate,
         root: PathBuf,
@@ -1021,7 +1021,7 @@ impl SourceAccess {
             true,
         )
     }
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     fn managed<V: rangoon_desktop::workspace_session::Vault + Send + 'static>(
         gate: Gate,
         owner: rangoon_desktop::workspace_session::Owner,

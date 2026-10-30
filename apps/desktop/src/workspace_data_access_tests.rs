@@ -4,7 +4,7 @@ use crate::data_controls::{DataResult, NativeRecordKind};
 use crate::instruction_bundles::{self, BundleResult};
 use rangoon_compile::Profile;
 use std::fs;
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tauri::ipc::InvokeBody;
 
@@ -171,7 +171,7 @@ fn legacy_backup_restore_and_deletion_keep_exact_selected_bytes() {
     ));
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_refuses_plaintext_export_before_picker_then_restores_and_deletes() {
     let source_root = TestRoot::new("data-access-managed-source");

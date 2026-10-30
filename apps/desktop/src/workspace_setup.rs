@@ -209,7 +209,7 @@ impl ProtectionResponse {
     pub(crate) fn observe(close: &WorkspaceClose) -> Self {
         Self::observe_after(close, || {})
     }
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(all(test, feature = "encrypted-workspace", unix))]
     pub(crate) fn observe_after_for_test(
         close: &WorkspaceClose,
         after_read: impl FnOnce(),

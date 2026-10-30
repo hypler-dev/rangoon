@@ -113,7 +113,7 @@ fn route_cloud(
         .deliver()
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 fn save_through_access(access: &SourceAccess, source: &AnalysisReport) {
     select(access, source);
     assert!(matches!(
@@ -207,7 +207,7 @@ fn legacy_typed_reader_preserves_current_and_historical_capability_body_and_mani
     assert_eq!(std::fs::read(database).unwrap(), before);
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_owner_typed_reader_packs_unicode_source_and_capability_history_without_plaintext() {
     let root = TestRoot::new("model-input-managed");
@@ -262,7 +262,7 @@ fn managed_owner_typed_reader_packs_unicode_source_and_capability_history_withou
     assert!(!root.0.join("workspace.sqlite3").exists());
 }
 
-#[cfg(feature = "encrypted-workspace")]
+#[cfg(all(feature = "encrypted-workspace", unix))]
 #[test]
 fn managed_locked_or_missing_source_never_falls_back_to_legacy_workspace() {
     use rangoon_desktop::workspace_session::Owner;
