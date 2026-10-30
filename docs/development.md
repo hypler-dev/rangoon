@@ -1,6 +1,14 @@
 # Development status
 ## Full application source publication — October 29, 2026
 
+### Windows lint completion during PR 55
+
+At `9a4c17ad6a0f030e4531b1c0ee4e03a40324aeb1`, six of seven jobs pass in both the push and pull-request matrices. Windows desktop executes all 51 library tests, 359 main tests and 22 doctests successfully, with one main test ignored. The three non-Unix acquisition-refusal tests pass. Warnings-denied Clippy then rejects an unused Unix-only event import, two directory builders whose mutation is Unix-specific, and test-only adoption/startup helpers whose callers are Unix-only. These failures remain recorded; tests passing do not waive lint or build gates.
+
+Root owns the exact six-file correction: `README.md`, this ledger, `apps/desktop/src/workspace_adoption.rs`, `workspace_startup.rs`, `workspace_startup_tests.rs`, and `workspace_native_progress_tests.rs`. Directory builders retain identical Unix mode `0700` and non-Unix construction behavior while scoping mutability to the Unix block. Only unused fixture helpers/imports gain matching Unix guards; the Windows conversion refusal and generic lifecycle tests remain enabled. No lint allowance, skipped validator, production permission change, new dependency or provider/vault operation is introduced. Existing ISO/OpenSSF development controls remain unchanged. Pinned local checks and fresh independent read-only review precede another exact-head matrix; results are recorded below before publication.
+
+Final local validation for this six-file lint correction passes pinned desktop formatting, all 739 tests (including one isolated child run; four ignored), all-target Clippy with warnings denied, reference/document checks over 638 authored files and eight reference images, toolchain coherence, accepted intent and whitespace. Fresh independent native read-only review passes without P1/P2/P3 findings; it confirms unchanged Unix directory permissions and preserved generic Windows cases. JavaScript 628-test and 12-case rendered evidence is reused for unchanged renderer surfaces. The complete exact-head CI matrix remains required before merge; previous Windows test success alone is insufficient. The public PR provides the final run and merge state.
+
 ### Unsupported-platform custody correction during PR 55
 
 The next exact-head run passed six of seven jobs, including both Linux core and encrypted desktop checks. Windows compiled the encrypted desktop but exposed 42 library-test failures. Most were Unix-style fixture reads of the live mandatory-locked zero-byte control file. Two exposed a more important mismatch: the app already refuses non-Unix startup, but direct `Owner` acquisition remained reachable while its non-Unix file-identity comparison always returned true. A replacement control could therefore pass that direct library path. These failures are retained; changing expectations to accept replacement or disabling locks would conceal the missing boundary.

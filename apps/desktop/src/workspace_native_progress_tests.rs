@@ -1,11 +1,13 @@
 #[cfg(feature = "encrypted-workspace")]
 use super::*;
 
+#[cfg(all(feature = "encrypted-workspace", unix))]
+use crate::workspace_close::handle_main_window_event;
 #[cfg(feature = "encrypted-workspace")]
 use crate::workspace_close::{
     View, WorkspaceClose,
     failure::{Host, Monitor, Progress},
-    handle_main_window_event, main_window_destroyed,
+    main_window_destroyed,
 };
 #[cfg(all(feature = "encrypted-workspace", unix))]
 use rangoon_desktop::workspace_session::Owner;

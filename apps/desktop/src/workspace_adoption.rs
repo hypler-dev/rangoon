@@ -37,7 +37,7 @@ pub(super) enum Error {
     SameProcess,
     WriteUncertain,
 }
-#[cfg(test)]
+#[cfg(all(test, unix))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Status {
     NoAttempt,
@@ -275,12 +275,14 @@ fn sync(path: &Path) -> Result<(), Error> {
         .map_err(|_| Error::WriteUncertain)
 }
 fn create_directory(path: &Path) -> Result<(), Error> {
-    let mut builder = fs::DirBuilder::new();
+    let builder = fs::DirBuilder::new();
     #[cfg(unix)]
-    {
+    let builder = {
         use std::os::unix::fs::DirBuilderExt;
+        let mut builder = builder;
         builder.mode(0o700);
-    }
+        builder
+    };
     builder.create(path).map_err(|_| Error::WriteUncertain)
 }
 
@@ -533,7 +535,7 @@ impl Journal {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 pub(super) fn inspect(anchor: &Path) -> Status {
     if !cfg!(unix) {
         return Status::UnsupportedPlatform;
@@ -1088,7 +1090,7 @@ impl Conversion {
             native_binding: None,
         })
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     fn synthetic_consent(&self) -> CopyConsent {
         CopyConsent {
             token: self.token.clone(),
@@ -1144,7 +1146,7 @@ impl Conversion {
             permit.checkpoint().map_err(|_| Error::Unavailable)
         })
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(super) fn copy(self, consent: CopyConsent, vault: &impl Vault) -> Result<(), Error> {
         self.copy_checked(consent, vault, &mut || Ok(()))
     }
@@ -1246,7 +1248,7 @@ impl Verification {
         revalidate(&self.anchor, &mut self.capture)?;
         self.journal.check(None)
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(super) fn prepare(anchor: PathBuf) -> Result<Self, Error> {
         Self::prepare_checked(anchor, &mut || Ok(()))
     }
@@ -1316,7 +1318,7 @@ impl Verification {
             native_binding: None,
         })
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     fn synthetic_consent(&self) -> VerifyConsent {
         VerifyConsent {
             token: self.token.clone(),
@@ -1364,7 +1366,7 @@ impl Verification {
             permit.checkpoint().map_err(|_| Error::Unavailable)
         })
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(super) fn select(self, consent: VerifyConsent, vault: &impl Vault) -> Result<(), Error> {
         self.select_checked(consent, vault, &mut || Ok(()))
     }

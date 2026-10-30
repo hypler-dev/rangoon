@@ -1,6 +1,6 @@
 //! Startup observations and retained Legacy capture. The native host owns
 //! confirmation, lifecycle coordination and conversion; these observations grant no authority.
-#[cfg(test)]
+#[cfg(all(test, unix))]
 use rangoon_store::WorkflowRecoveryCounts;
 use rangoon_store::{ExistingWorkspaceCapture, Workspace};
 use std::{
@@ -358,23 +358,23 @@ impl RetainedSource {
         self.revalidate()?;
         self.capture.take().ok_or(Error::Changed)
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     fn capture(&self) -> Result<&ExistingWorkspaceCapture, Error> {
         self.capture.as_ref().ok_or(Error::Changed)
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(super) fn schema_version(&self) -> Result<u32, Error> {
         self.capture()?.schema_version().map_err(|_| Error::Changed)
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(super) fn inventory(&self) -> Result<&WorkflowRecoveryCounts, Error> {
         self.capture()?.inventory().map_err(|_| Error::Changed)
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(super) fn digest(&self) -> Result<&str, Error> {
         self.capture()?.digest().map_err(|_| Error::Changed)
     }
-    #[cfg(test)]
+    #[cfg(all(test, unix))]
     pub(super) fn archive(&self) -> Result<&[u8], Error> {
         self.capture()?.archive().map_err(|_| Error::Changed)
     }
@@ -609,12 +609,14 @@ impl EmptyProvisioningProof {
 }
 
 fn create_startup_directory(path: &Path) -> Result<(), Error> {
-    let mut builder = fs::DirBuilder::new();
+    let builder = fs::DirBuilder::new();
     #[cfg(unix)]
-    {
+    let builder = {
         use std::os::unix::fs::DirBuilderExt;
+        let mut builder = builder;
         builder.mode(0o700);
-    }
+        builder
+    };
     builder.create(path).map_err(|_| Error::Changed)?;
     let parent = path.parent().ok_or(Error::Changed)?;
     fs::File::open(parent)

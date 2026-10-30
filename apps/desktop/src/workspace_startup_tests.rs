@@ -7,9 +7,13 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(unix)]
 const DATABASE: &str = "workspace.sqlite3";
+#[cfg(unix)]
 const CONTROL: &str = "encrypted-workspace.lock";
+#[cfg(unix)]
 const BINDING: &str = "encrypted-workspace.binding";
+#[cfg(unix)]
 const PARENT: &str = "encrypted-workspaces";
 
 static NEXT_ROOT: AtomicUsize = AtomicUsize::new(0);
@@ -36,6 +40,7 @@ impl TestDir {
         }
     }
 
+    #[cfg(unix)]
     fn join(&self, name: &str) -> PathBuf {
         self.root.join(name)
     }
@@ -47,16 +52,19 @@ impl Drop for TestDir {
     }
 }
 
+#[cfg(unix)]
 fn write(path: impl AsRef<Path>, bytes: &[u8]) {
     fs::write(path, bytes).unwrap();
 }
 
+#[cfg(unix)]
 fn legacy(root: &Path, bytes: &[u8]) {
     let directory = root.join("source-workspace");
     fs::create_dir(&directory).unwrap();
     write(directory.join(DATABASE), bytes);
 }
 
+#[cfg(unix)]
 fn managed(root: &Path) {
     let directory = root.join("managed-workspace");
     fs::create_dir(&directory).unwrap();
