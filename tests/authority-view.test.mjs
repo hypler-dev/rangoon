@@ -12,6 +12,12 @@ test('compact workspace puts neutral adapter state, controls, and LNSAT-first li
   assert.match(html, /id="authority-title"/); assert.match(html, /Adapters<\/span> Unavailable/);
   assert.match(html, /Search catalog <input[^>]*maxlength="160"/); assert.match(html, /Category <select/);
   assert.ok(html.indexOf('authority-controls') < html.indexOf('authority-workbench'));
+  assert.ok(html.indexOf('authority-hero') < html.indexOf('foundation-context'));
+  assert.ok(html.indexOf('foundation-context') < html.indexOf('authority-controls'));
+  assert.match(html, /id="foundation-context-title">Foundations/);
+  assert.match(html, /data-foundation="vusl"[\s\S]*?foundation-card__mark--vusl[\s\S]*?Shared language[\s\S]*?Integration planned/);
+  assert.match(html, /data-foundation="lnsat"[\s\S]*?foundation-card__mark--lnsat[\s\S]*?Authority engine[\s\S]*?Adapter unavailable/);
+  assert.equal((html.match(/data-authority-card="vusl"/g) ?? []).length, 0);
   assert.ok(html.indexOf('authority-workbench') < html.indexOf('Plan module roles'));
   assert.ok(html.indexOf('Plan module roles') < html.indexOf('Compare module references'));
   assert.ok(html.indexOf('data-authority-card="lnsat"') < html.indexOf('data-authority-card="agentgateway"'));
@@ -84,6 +90,7 @@ test('renderer projects trusted immutable fields and ignores forged selection/re
 test('context links remain closed-catalog routes and source has no network or native dispatch', async () => {
   const html = renderAuthorityContext('workflows');
   assert.match(html, /#authority-engines\/lnsat\/from\/workflows/); assert.match(html, /no active binding/);
+  assert.match(html, /authority-context__foundation/); assert.match(html, /<span>LNSAT<\/span>/);
   assert.equal(renderAuthorityContext('unknown-area'), '');
   const source = await readFile(new URL('../preview/authority-view.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|WebSocket|navigator\.sendBeacon|invoke\(|tauri/i);

@@ -339,3 +339,52 @@ test('confirmed deletion clears only that skill draft and prevents a late open f
   assert.equal(controller.hasUnsavedDrafts(), false);
   assert.equal(controller.getState().pending, null);
 });
+
+const discardSnapshot = controller => Object.fromEntries(['capabilityId', 'baseRevisionId', 'title', 'content'].map(key => [key, controller.getState().draft?.[key]]));
+
+test('discard is exact, local and resets only the selected unsaved draft', async () => {
+  const calls = [];
+  const other = detail({ id: capabilityId2, latestRevisionId: revisionId2, revision: revision({ id: revisionId2 }), history: [summary(revision({ id: revisionId2 }))] });
+  const controller = createSkillsController({ invoke: async (command, args) => {
+    calls.push(command); return command === 'list_capabilities' ? listed() : { outcome: 'opened', capability: args.capabilityId === capabilityId2 ? other : detail(), alreadyApplied: false };
+  } });
+  await controller.open(capabilityId2); controller.updateDraft({ content: 'Other draft' });
+  await controller.open(capabilityId); controller.updateDraft({ title: 'My draft', content: 'Local changes' });
+  const expected = discardSnapshot(controller); const before = calls.length;
+  for (const key of ['capabilityId', 'baseRevisionId', 'title', 'content']) assert.equal(controller.discardDraft({ ...expected, [key]: 'stale' }), false);
+  assert.equal(controller.getState().draft.content, 'Local changes');
+  assert.equal(controller.discardDraft(expected), true);
+  assert.equal(calls.length, before);
+  assert.equal(controller.getState().draft.content, content);
+  assert.equal(controller.getState().draft.dirty, false);
+  assert.equal(controller.discardDraft(expected), false);
+  await controller.open(capabilityId2); assert.equal(controller.getState().draft.content, 'Other draft');
+});
+
+test('discard preserves conflict reload gate and cannot revive a locked draft', async () => {
+  const calls = [];
+  const controller = createSkillsController({ invoke: async command => {
+    calls.push(command); return command === 'open_capability' ? { outcome: 'opened', capability: detail(), alreadyApplied: false } : { outcome: 'failed', error: { code: 'capability_conflict', message: 'Conflict' } };
+  } });
+  await controller.open(capabilityId); controller.updateDraft({ content: 'Changed' }); await controller.save();
+  assert.equal(controller.getState().needsReload, true);
+  assert.equal(controller.discardDraft(discardSnapshot(controller)), true);
+  assert.equal(controller.getState().needsReload, true);
+  const before = calls.length; await controller.review(); await controller.save(); assert.equal(calls.length, before);
+  controller.updateDraft({ content: 'Another local draft' }); const expected = discardSnapshot(controller);
+  controller.purgeForWorkspaceLock(); assert.equal(controller.discardDraft(expected), false); assert.equal(controller.getState().selected, null);
+});
+
+test('pending and historical views refuse discard without changing the retained current draft', async () => {
+  const next = revision({ id: revisionId2, parentRevisionId: revisionId, content: 'Current saved', createdAtMs: 2 });
+  let release;
+  const controller = createSkillsController({ invoke: async (command, args) => {
+    if (command === 'list_capabilities') return listed();
+    if (args.revisionId) return new Promise(resolve => { release = () => resolve({ outcome: 'opened', capability: detail({ latestRevisionId: revisionId2, history: [summary(revision()), summary(next)] }), alreadyApplied: false }); });
+    return { outcome: 'opened', capability: detail({ latestRevisionId: revisionId2, revision: next, history: [summary(revision()), summary(next)] }), alreadyApplied: false };
+  } });
+  await controller.open(capabilityId); controller.updateDraft({ content: 'Retained current' }); const expected = discardSnapshot(controller);
+  const opening = controller.open(capabilityId, revisionId); assert.equal(controller.discardDraft(expected), false);
+  release(); await opening; assert.equal(controller.discardDraft(expected), false);
+  await controller.open(capabilityId); assert.equal(controller.getState().draft.content, 'Retained current');
+});

@@ -512,6 +512,90 @@ fn decision_counts_remain_byte_identical_when_all_source_ids_change() {
 }
 
 #[test]
+fn nondecision_record_kind_counts_must_match_even_with_equal_event_totals() {
+    let value = window(1_000, true);
+    let valid = inspect(&value);
+    let valid: Value = serde_json::from_slice(valid.canonical_bytes()).unwrap();
+    assert_eq!(valid["sourceCounts"]["eventCount"], 2);
+
+    for replacement in RECORD_KINDS.iter().copied().filter(|kind| {
+        !matches!(
+            *kind,
+            "actor" | "evaluation" | "approval_decision" | "authorization" | "attempt"
+        )
+    }) {
+        let (
+            decoded,
+            mut projection,
+            mut relationships,
+            mut delegations,
+            mut approvals,
+            mut lifecycle,
+        ) = inspection_parts(&value);
+        assert_eq!(projection.document.timeline[0].record_kind, "actor");
+        projection.document.timeline[0].record_kind = replacement.to_owned();
+        projection.canonical = serde_json::to_vec(&projection.document).unwrap();
+        let projection_digest = projection.canonical_digest();
+        relationships.document.structural_projection_digest = projection_digest.clone();
+        relationships.canonical = serde_json::to_vec(&relationships.document).unwrap();
+        delegations.document.structural_projection_digest = projection_digest.clone();
+        delegations.canonical = serde_json::to_vec(&delegations.document).unwrap();
+        approvals.document.structural_projection_digest = projection_digest.clone();
+        approvals.document.relationship_digest = relationships.canonical_digest();
+        approvals.document.delegation_digest = delegations.canonical_digest();
+        approvals.canonical = serde_json::to_vec(&approvals.document).unwrap();
+        lifecycle.document.structural_projection_digest = projection_digest;
+        lifecycle.document.relationship_digest = relationships.canonical_digest();
+        lifecycle.document.delegation_digest = delegations.canonical_digest();
+        lifecycle.document.approval_digest = approvals.canonical_digest();
+        lifecycle.canonical = serde_json::to_vec(&lifecycle.document).unwrap();
+
+        assert_eq!(
+            projection.document.timeline.len(),
+            decoded.inventory().event_count()
+        );
+        let result = build_operator_view(
+            &decoded,
+            &projection,
+            &relationships,
+            &delegations,
+            &approvals,
+            &lifecycle,
+        );
+        assert_eq!(
+            result.unwrap_err(),
+            OperatorViewError::StageMismatch,
+            "non-decision kind {replacement} must not bypass per-kind counts"
+        );
+    }
+}
+
+#[test]
+fn each_record_kind_inventory_count_mismatch_is_rejected() {
+    let value = window(1_000, true);
+    for kind in RECORD_KINDS {
+        let (mut decoded, projection, relationships, delegations, approvals, lifecycle) =
+            inspection_parts(&value);
+        let source_digest = decoded.canonical_digest().to_owned();
+        *decoded.inventory.record_counts.get_mut(kind).unwrap() += 1;
+        assert_eq!(decoded.canonical_digest(), source_digest);
+        assert_eq!(
+            build_operator_view(
+                &decoded,
+                &projection,
+                &relationships,
+                &delegations,
+                &approvals,
+                &lifecycle,
+            )
+            .unwrap_err(),
+            OperatorViewError::StageMismatch,
+            "inventory count for {kind} must match the observed timeline"
+        );
+    }
+}
+
+#[test]
 fn reference_aggregate_ceiling_is_atomic_for_internal_malformed_stage_data() {
     let value = request_evaluation_window(1_000);
     let (decoded, projection, mut relationships, delegations, mut approvals, mut lifecycle) =

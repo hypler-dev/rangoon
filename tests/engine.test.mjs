@@ -10,6 +10,10 @@ const status = () => structuredClone(fixture);
 test('browser and loading views disable checks and keep runtime unknown', async () => {
   const browser = createEngineController();
   const browserView = renderEngineView(browser.getState());
+  assert.match(browserView, /engine-identity__mark[\s\S]*assets\/authority\/lnsat-mark\.webp/);
+  assert.match(browserView, /Inspect Rangoon’s local LNSAT integration status. Local capability work stays available./);
+  assert.match(browserView, /data-foundation="vusl"[\s\S]*Integration planned/);
+  assert.match(browserView, /data-foundation="lnsat"[\s\S]*Adapter unavailable/);
   assert.match(browserView, /id="engine-check"[^>]*disabled/);
   assert.match(browserView, /Browser only; no native result/);
   assert.match(browserView, /Not checked; unknown/);

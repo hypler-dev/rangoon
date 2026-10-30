@@ -1,0 +1,76 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Rangoon Encrypted Qualification",
+  "version": "0.1.0-dev",
+  "identifier": "si.rangoon.encrypted-qualification",
+  "build": {
+    "frontendDist": "../../../preview"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost; font-src 'self'; connect-src ipc: http://ipc.localhost; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'",
+      "capabilities": [
+        {
+          "identifier": "e1c4-local-authoring",
+          "description": "Disposable native encryption qualification; local lifecycle and authoring only.",
+          "local": true,
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "allow-workspace-startup-status",
+            "allow-workspace-startup-action",
+            "allow-workspace-startup-quit",
+            "allow-get-workspace-close-state",
+            "allow-get-workspace-control-state",
+            "allow-get-workspace-protection-state",
+            "allow-prepare-workspace-control",
+            "allow-confirm-workspace-control",
+            "allow-cancel-workspace-control",
+            "allow-get-workspace-request-state",
+            "allow-begin-workspace-close",
+            "allow-acknowledge-workspace-purge",
+            "allow-select-and-analyze",
+            "allow-list-snapshots",
+            "allow-save-analysis",
+            "allow-open-snapshot",
+            "allow-read-composition-source",
+            "allow-clear-analysis",
+            "allow-get-engine-status",
+            "allow-list-capabilities",
+            "allow-open-capability",
+            "allow-create-capability",
+            "allow-revise-capability",
+            "allow-review-capability",
+            "allow-compile-capability",
+            "allow-export-instruction-bundle",
+            "allow-inspect-instruction-bundle",
+            "allow-get-workspace-data",
+            "allow-export-workspace-backup",
+            "allow-create-workspace-recovery-key",
+            "allow-export-encrypted-workspace-backup",
+            "allow-prepare-encrypted-workspace-restore",
+            "allow-prepare-workspace-restore",
+            "allow-restore-workspace-backup",
+            "allow-preview-composition",
+            "allow-commit-composition",
+            "allow-list-workflows",
+            "allow-open-workflow",
+            "allow-begin-workflow-draft",
+            "allow-inspect-workflow-save",
+            "allow-commit-workflow-save",
+            "allow-clear-workflow-draft"
+          ]
+        }
+      ]
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": [
+      "../icons/32x32.png"
+    ]
+  }
+}

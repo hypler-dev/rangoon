@@ -3,11 +3,11 @@ license = "Apache-2.0"
 name = "rangoon-desktop"
 version = "0.1.0-dev"
 edition = "2024"
-rust-version = "1.98"
+rust-version = "1.99.1"
 publish = false
 repository = "https://github.com/hypler-dev/rangoon"
 
-# Keep native WebView dependencies out of the portable Rust 1.85 core workspace.
+# Keep native WebView dependencies separate from the portable core workspace.
 [workspace]
 resolver = "3"
 
@@ -16,6 +16,7 @@ tauri-build = "=2.7.1"
 
 [dependencies]
 tauri = "=2.12.1"
+rangoon-native-credential-input = { path = "native-input" }
 tauri-plugin-dialog = "=2.8.1"
 rangoon-host = { path = "../../crates/rangoon-host" }
 rangoon-ops = { path = "../../crates/rangoon-ops" }
@@ -33,7 +34,7 @@ sha2 = "=0.11.0"
 rangoon-model-session = { path = "../../crates/rangoon-model-session" }
 rangoon-model-cloud = { path = "../../crates/rangoon-model-cloud" }
 rangoon-model-local = { path = "../../crates/rangoon-model-local" }
-tokio = { version = "=1.53.2", default-features = false, features = ["sync"] }
+tokio = { version = "=1.53.2", default-features = false, features = ["sync", "rt", "net", "time"] }
 serde = { version = "=1.0.229", features = ["derive"] }
 
 zeroize = "=1.9.0"
@@ -57,6 +58,33 @@ rangoon-openshell-client = { path = "../../crates/rangoon-openshell-client", fea
 tokio = { version = "=1.53.2", default-features = false, features = ["macros", "rt-multi-thread"] }
 
 [features]
-default = ["custom-protocol"]
+native-credential-qualification = ["tauri/unstable"]
+native-exit-qualification = []
+native-encrypted-qualification = []
+default = ["custom-protocol", "encrypted-workspace"]
 custom-protocol = ["tauri/custom-protocol"]
 encrypted-workspace = ["rangoon-store/encrypted-sqlite"]
+
+# Explicit custom test executable; ordinary cargo test never launches it.
+[[test]]
+name = "native-exit-qualification"
+path = "src/main.rs"
+harness = false
+test = false
+required-features = ["native-exit-qualification", "encrypted-workspace"]
+
+# Explicit real-renderer encrypted qualification; never an ordinary test entry.
+[[test]]
+name = "native-encrypted-qualification"
+path = "src/main.rs"
+harness = false
+test = false
+required-features = ["native-encrypted-qualification", "encrypted-workspace"]
+
+# Explicit parented native entry qualification; ordinary tests never launch it.
+[[test]]
+name = "native-credential-qualification"
+path = "src/main.rs"
+harness = false
+test = false
+required-features = ["native-credential-qualification", "encrypted-workspace"]

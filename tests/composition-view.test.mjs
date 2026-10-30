@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bindCompositionView, byteRangeText, purgeCompositionViewCache, renderCompositionView, textareaSelectionRange } from '../preview/composition-view.mjs';
+import { bindCompositionView, byteRangeText, compositionSelectionExcerpt, purgeCompositionViewCache, renderCompositionView, textareaSelectionRange } from '../preview/composition-view.mjs';
 
 const sourceId = `source:${'1'.repeat(64)}`;
 const capabilityId = `capability:${'2'.repeat(64)}`;
@@ -285,4 +285,176 @@ test('keeps the picker unchanged before drafting and adds local dock controls af
   assert.match(html, /data-workspace-resize="right"[^>]*role="separator"[^>]*aria-valuenow="320"/);
   assert.match(html, /data-workspace-collapse="right"/);
   assert.doesNotMatch(html, /Fit graph/);
+});
+
+test('contextual composition starts with disabled selection actions and closed advanced operations', () => {
+  const html = renderCompositionView(initial({ draft }));
+  assert.match(html, /aria-label="Add source selection to recipe"/);
+  assert.match(html, /data-composition-apply="assign" disabled>Assign selection/);
+  assert.match(html, /data-composition-range-options >/);
+  assert.doesNotMatch(html, /data-composition-range-options open/);
+  assert.match(html, /Working selection/);
+  assert.match(html, /Recipe edits leave original files unchanged/);
+});
+
+test('section quick selection retains exact range context, escapes provenance and makes reassignment explicit', () => {
+  const section = { title: '<Review & evidence>', startByte: 0, endByte: byteLength };
+  const html = renderCompositionView(initial({ draft, inputs: [{ ...input, sections: [section] }] }), { selectedRange: { inputIndex: 0, startByte: 0, endByte: byteLength }, sourceInputIndex: 0 });
+  assert.match(html, /data-composition-section="0:0" aria-pressed="true"/);
+  assert.match(html, /&lt;Review &amp; evidence&gt;/);
+  assert.match(html, /Existing placements of this range will be reassigned/);
+  assert.match(html, /Duplicate keeps both/);
+  assert.doesNotMatch(html, /data-composition-apply="assign" disabled/);
+  assert.match(html, /data-composition-working-provenance/);
+});
+
+test('invalid, mismatched-input and pending selections cannot enable contextual actions', () => {
+  const range = { inputIndex: 0, startByte: 0, endByte: byteLength };
+  for (const [state, ui] of [
+    [initial({ draft }), { selectedRange: { ...range, endByte: byteLength + 1 } }],
+    [initial({ draft }), { selectedRange: range, sourceInputIndex: 1 }],
+    [initial({ draft, pending: 'preview' }), { selectedRange: range }],
+    [initial({ draft, bridgeAvailable: false }), { selectedRange: range }],
+  ]) assert.match(renderCompositionView(state, ui), /data-composition-apply="assign" disabled/);
+});
+
+test('working selection stays bounded and is independent of native preview saveability', () => {
+  const value = 'x'.repeat(1024);
+  const state = initial({ draft, inputs: [{ ...input, content: value }] });
+  const html = renderCompositionView(state, { selectedRange: { inputIndex: 0, startByte: 0, endByte: 1024 }, rangeOptionsOpen: true });
+  const excerpt = html.match(/<pre data-composition-working-excerpt[^>]*>([^<]*)<\/pre>/)[1];
+  assert.equal(excerpt.length, 161);
+  assert.match(html, /data-composition-range-options open/);
+  assert.match(html, /Preview required/);
+  assert.match(html.match(/<button id="composition-save"[^>]*>/)[0], /disabled/);
+});
+
+function selectionRoot() {
+  const listeners = new Map();
+  const document = { activeElement: null, addEventListener() {}, removeEventListener() {}, createTextNode: value => ({ value }), defaultView: { addEventListener() {}, removeEventListener() {} } };
+  let nodes = new Map();
+  const create = (attribute, value = '', dataset = {}) => {
+    const node = { value: '', dataset, selectionStart: 0, selectionEnd: 0, disabled: false, hidden: false, textContent: '', open: false, tagName: 'BUTTON',
+      getAttributeNames: () => [attribute], getAttribute: name => name === attribute ? value : null,
+      hasAttribute: name => name === attribute, setAttribute(name, value) { this[name] = value; },
+      matches: selector => selector.split(',').some(s => s.trim() === `[${attribute}]`), closest: () => node,
+      focus: () => { document.activeElement = node; }, setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; },
+    };
+    nodes.set(`[${attribute}]`, node); return node;
+  };
+  const root = { ownerDocument: document, renders: 0, contains: node => [...nodes.values()].includes(node),
+    set innerHTML(html) {
+      this.html = html; this.renders++; nodes = new Map();
+      create('data-composition-source').tagName = 'TEXTAREA';
+      create('data-composition-range-output').tagName = 'SELECT';
+      create('data-composition-range-reason').tagName = 'INPUT';
+      create('data-composition-range-content').tagName = 'TEXTAREA';
+      create('data-composition-range-options').open = /data-composition-range-options open/.test(html);
+      create('data-composition-range-unsaved'); create('data-composition-range-binding'); create('data-composition-return-range');
+      for (const attribute of ['data-composition-selection','data-composition-selection-effect','data-composition-working-title','data-composition-working-state','data-composition-working-excerpt','data-composition-working-destination','data-composition-working-target','data-composition-working-provenance']) create(attribute);
+      create('data-composition-apply','assign',{ compositionApply: 'assign' });
+      create('data-composition-clear-range','',{ compositionClearRange: '' });
+      create('data-composition-range-summary');
+    },
+    querySelector(selector) { return selector === '[data-composition-range-options] summary' ? nodes.get('[data-composition-range-summary]') : nodes.get(selector) ?? null; },
+    querySelectorAll(selector) {
+      if (selector.includes('[data-composition-range-reason]')) return [nodes.get('[data-composition-range-reason]'),nodes.get('[data-composition-range-content]')].filter(Boolean);
+      if (selector === '[data-composition-apply],[data-composition-conflict-range]') return [nodes.get('[data-composition-apply]')].filter(Boolean);
+      return [];
+    },
+    addEventListener: (name, fn) => listeners.set(name, fn), removeEventListener: name => listeners.delete(name),
+    fire: (name, target, extra = {}) => listeners.get(name)?.({ target, ...extra }),
+  };
+  return root;
+}
+const settleView = () => new Promise(resolve => setImmediate(resolve));
+
+test('bound selection updates only contextual DOM, keeps destination and clears after successful assign', async () => {
+  const root = selectionRoot(); const calls = []; const outputs = [draft.outputs[0], { title: 'Second', pieces: [] }];
+  const state = initial({ draft: { ...draft, outputs }, targets: [{kind:'new'},{kind:'new'}] });
+  const binding = bindCompositionView(root, { getState: () => state, applyRange(range, options) { calls.push({ range, options }); return true; } });
+  const destination = root.querySelector('[data-composition-range-output]'); destination.value = '1'; root.fire('change', destination);
+  const area = root.querySelector('[data-composition-source]'); area.selectionStart = 0; area.selectionEnd = 8;
+  const renders = root.renders; root.fire('select', area);
+  assert.equal(root.renders, renders); assert.equal(root.querySelector('[data-composition-apply]').disabled, false);
+  assert.equal(root.querySelector('[data-composition-working-destination]').textContent, 'Second');
+  root.fire('click', root.querySelector('[data-composition-apply]')); await settleView();
+  assert.equal(calls.length, 1); assert.equal(calls[0].options.outputIndex, 1); assert.equal(calls[0].options.kind, 'assign');
+  assert.equal(root.querySelector('[data-composition-range-output]').value, '1');
+  assert.equal(root.querySelector('[data-composition-apply]').disabled, true);
+  assert.equal(root.ownerDocument.activeElement, root.querySelector('[data-composition-source]'));
+  binding.dispose();
+});
+
+test('unapplied advanced text is preserved and blocks assignment instead of being silently discarded', async () => {
+  const root = selectionRoot(); let calls = 0;
+  const binding = bindCompositionView(root, { getState: () => initial({ draft }), applyRange() { calls++; return true; } });
+  const area = root.querySelector('[data-composition-source]'); area.selectionStart = 0; area.selectionEnd = 8; root.fire('select', area);
+  const replacement = root.querySelector('[data-composition-range-content]'); replacement.value = 'Unapplied replacement'; root.fire('input', replacement);
+  root.fire('click', root.querySelector('[data-composition-apply]')); await settleView();
+  assert.equal(calls, 0); assert.equal(root.querySelector('[data-composition-range-content]').value, 'Unapplied replacement');
+  assert.equal(root.querySelector('[data-composition-range-options]').open, true); assert.match(root.html, /Finish or cancel unapplied selection edits/);
+  root.fire('click', root.querySelector('[data-composition-clear-range]')); await settleView();
+  assert.equal(root.querySelector('[data-composition-range-content]').value, ''); assert.equal(root.querySelector('[data-composition-apply]').disabled, true);
+  binding.dispose();
+});
+
+test('ordinary route disposal retains live fields and output/disclosure; lock purge does not', () => {
+  const state = initial({ draft: { ...draft, outputs: [draft.outputs[0], {title:'Second',pieces:[]}] } });
+  const controller = { getState: () => state }; const first = selectionRoot(); const binding = bindCompositionView(first, controller);
+  const output = first.querySelector('[data-composition-range-output]'); output.value = '1'; first.fire('change', output);
+  first.querySelector('[data-composition-range-options]').open = true;
+  first.querySelector('[data-composition-range-reason]').value = 'Live unsubmitted reason';
+  binding.dispose(); const second = selectionRoot(); const restored = bindCompositionView(second, controller);
+  assert.equal(second.querySelector('[data-composition-range-output]').value, '1'); assert.equal(second.querySelector('[data-composition-range-options]').open, true);
+  assert.equal(second.querySelector('[data-composition-range-reason]').value, 'Live unsubmitted reason');
+  restored.purgeForWorkspaceLock(); const third = selectionRoot(); const clean = bindCompositionView(third, controller);
+  assert.equal(third.querySelector('[data-composition-range-reason]').value, ''); assert.equal(third.querySelector('[data-composition-range-options]').open, false);
+  assert.equal(third.querySelector('[data-composition-range-output]').value, '0'); clean.dispose();
+});
+
+test('missing advanced-operation reason keeps the selection and focuses an actionable validation field', async () => {
+  const root = selectionRoot(); let calls = 0;
+  const binding = bindCompositionView(root, { getState: () => initial({ draft }), applyRange() { calls++; return true; } });
+  const area = root.querySelector('[data-composition-source]'); area.selectionStart = 0; area.selectionEnd = 8; root.fire('select', area);
+  const action = root.querySelector('[data-composition-apply]'); action.dataset.compositionApply = 'replace'; root.fire('click', action);
+  assert.equal(calls, 0); assert.match(root.html, /Add a reason before/);
+  assert.equal(root.ownerDocument.activeElement, root.querySelector('[data-composition-range-reason]'));
+  assert.equal(root.querySelector('[data-composition-apply]').disabled, false);
+  const reason = root.querySelector('[data-composition-range-reason]'); reason.value = 'Explicit reason'; root.fire('input', reason);
+  const retry = root.querySelector('[data-composition-apply]'); retry.dataset.compositionApply = 'replace'; root.fire('click', retry); await settleView();
+  assert.equal(calls, 1); binding.dispose();
+});
+
+test('quick section selection and returning to range-bound edits update DOM without rerender or wrong-range mutation', async () => {
+  const value = 'Alpha\nBeta\n'; const calls = [];
+  const state = initial({ draft: { ...draft, outputs: [{title:'Output',pieces:[]}] }, inputs: [{...input,content:value,byteLength:11,sections:[{title:'Alpha',startByte:0,endByte:6},{title:'Beta',startByte:6,endByte:11}]}] });
+  const root = selectionRoot(); const binding = bindCompositionView(root, {getState:()=>state,applyRange(range,options){calls.push({range,options});return true;}});
+  const section = index => { const node={tagName:'BUTTON',dataset:{compositionSection:`0:${index}`},hasAttribute:()=>false,matches:()=>false};node.closest=()=>node;return node; };
+  const initialRenders=root.renders;const firstSection=section(0);root.ownerDocument.activeElement=firstSection;root.fire('click',firstSection);assert.equal(root.renders,initialRenders);
+  assert.equal(root.ownerDocument.activeElement,firstSection);
+  assert.equal(root.querySelector('[data-composition-source]').selectionEnd,6);
+  const reason=root.querySelector('[data-composition-range-reason]');reason.value='Alpha only';root.fire('input',reason);
+  const replacement=root.querySelector('[data-composition-range-content]');replacement.value='New Alpha';root.fire('input',replacement);
+  root.fire('click',section(1));assert.equal(root.renders,initialRenders);
+  assert.equal(root.querySelector('[data-composition-apply]').disabled,true);
+  assert.equal(root.querySelector('[data-composition-range-content]').disabled,true);
+  assert.equal(root.querySelector('[data-composition-return-range]').hidden,false);
+  assert.match(root.querySelector('[data-composition-range-binding]').textContent,/bytes 0–6/);
+  const bad=root.querySelector('[data-composition-apply]');bad.dataset.compositionApply='replace';root.fire('click',bad);await settleView();assert.equal(calls.length,0);
+  assert.equal(root.querySelector('[data-composition-range-content]').value,'New Alpha');
+  const beforeReturn=root.renders;root.fire('click',root.querySelector('[data-composition-return-range]'));assert.equal(root.renders,beforeReturn);
+  assert.equal(root.querySelector('[data-composition-source]').selectionStart,0);assert.equal(root.querySelector('[data-composition-source]').selectionEnd,6);
+  const good=root.querySelector('[data-composition-apply]');good.dataset.compositionApply='replace';root.fire('click',good);await settleView();
+  assert.equal(calls.length,1);assert.deepEqual(calls[0].range,{inputIndex:0,startByte:0,endByte:6});assert.equal(calls[0].options.content,'New Alpha');binding.dispose();
+});
+
+test('selection excerpt bounds large spans, preserves astral code points, and rejects invalid byte boundaries',()=>{
+ const large='x'.repeat(4*1024*1024);
+ assert.equal(compositionSelectionExcerpt(large,{inputIndex:0,startByte:0,endByte:large.length}),'x'.repeat(160)+'…');
+ const value='a'.repeat(159)+'🦀Z';const range={inputIndex:0,startByte:0,endByte:164};
+ assert.equal(compositionSelectionExcerpt(value,range),'a'.repeat(159)+'🦀…');
+ assert.equal(compositionSelectionExcerpt('🦀',{inputIndex:0,startByte:1,endByte:4}),null);
+ assert.equal(compositionSelectionExcerpt('abc',{inputIndex:0,startByte:0,endByte:4}),null);
+ assert.equal(compositionSelectionExcerpt('\ud800',{inputIndex:0,startByte:0,endByte:3}),null);
 });

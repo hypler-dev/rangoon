@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorkspaceLockController } from '../preview/workspace-lock-model.mjs';
+import { createWorkspaceController } from '../preview/workspace-model.mjs';
 
 const clientId = 'ab'.repeat(32);
 const closeState = () => ({
@@ -24,6 +25,35 @@ const deferred = () => {
   const promise = new Promise((ok, fail) => { resolve = ok; reject = fail; });
   return { promise, resolve, reject };
 };
+
+test('encrypted recovery controller routes every native action through the current request header', async () => {
+  const workspaceData = {
+    schemaVersion: 'rangoon.workspace-data.v2', stateId: 'workspace:' + '7'.repeat(64),
+    records: { sources: 0, capabilities: 0, revisions: 0, reviews: 0, recipes: 0, applications: 0, derivations: 0, workflows: 0, workflowRevisions: 0 },
+    sources: [], capabilities: [], workflows: [], databaseBytes: 12288, reusableBytes: 0,
+  };
+  const nativeCalls = [];
+  const lock = createWorkspaceLockController({ invoke: async (command,args,options) => {
+    if (command === 'get_workspace_close_state') return closeState();
+    if (command === 'get_workspace_request_state') return requestState();
+    assert.deepEqual(options, { headers: { 'x-rangoon-workspace-client': clientId } });
+    nativeCalls.push([command,args]);
+    if (command === 'get_workspace_data') return { outcome: 'loaded', workspace: workspaceData, encryptedRecoverySupported: true };
+    if (command === 'create_workspace_recovery_key') return { outcome: 'recovery_key_created' };
+    if (command === 'export_encrypted_workspace_backup') return { outcome: 'encrypted_exported', format: 'rangoon.recovery.sqlcipher.v1', backupId: 'backup:' + '8'.repeat(64), byteLength: 12288 };
+    if (command === 'prepare_encrypted_workspace_restore') return { outcome: 'cancelled' };
+    throw new Error('unexpected native command');
+  } });
+  await lock.initialize();
+  const controller = createWorkspaceController({ invoke: lock.bridge });
+  await controller.load();
+  controller.requestEncryptedExport(); await controller.createRecoveryKey(); await controller.confirmEncryptedExport(); await controller.prepareEncryptedRestore();
+  assert.deepEqual(nativeCalls.map(([name]) => name), ['get_workspace_data','create_workspace_recovery_key','export_encrypted_workspace_backup','prepare_encrypted_workspace_restore']);
+  assert.ok(nativeCalls.every(([,args]) => args === undefined));
+  lock.dispose();
+  for (const name of ['create_workspace_recovery_key','export_encrypted_workspace_backup','prepare_encrypted_workspace_restore']) await assert.rejects(lock.bridge(name), /closed/);
+  assert.equal(nativeCalls.length,4);
+});
 
 function fixture(implementation, extra = {}) {
   const calls = [];
@@ -100,6 +130,8 @@ test('ordinary bridge refuses bootstrap and lifecycle calls and cannot refresh a
   });
   await f.controller.initialize();
   for (const command of [
+    'workspace_startup_status',
+    'workspace_startup_action',
     'get_workspace_close_state',
     'get_workspace_request_state',
     'begin_workspace_close',

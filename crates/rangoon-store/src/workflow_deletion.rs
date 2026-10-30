@@ -81,6 +81,7 @@ fn deletion_plan(
             )?;
             result.version = current.version;
             result.workflows = current.workflows.clone();
+            result.history = current.history.clone();
             (base_plan.title, base_plan.dependencies, result)
         }
     };
@@ -144,7 +145,7 @@ fn commit_deletion(
         }
         WorkflowRecordKind::Capability => {
             tx.execute("DELETE FROM reviews WHERE revision_id IN (SELECT revision_id FROM revisions WHERE capability_id=?1)", [&plan.id])?;
-            if matches!(current.version, 3 | 4) {
+            if matches!(current.version, 3..=5) {
                 tx.execute("DELETE FROM revision_derivations WHERE revision_id IN (SELECT revision_id FROM revisions WHERE capability_id=?1)", [&plan.id])?;
             }
             tx.execute("DELETE FROM revisions WHERE capability_id=?1", [&plan.id])?;
@@ -152,7 +153,7 @@ fn commit_deletion(
                 "DELETE FROM capabilities WHERE capability_id=?1",
                 [&plan.id],
             )?;
-            if matches!(current.version, 3 | 4) {
+            if matches!(current.version, 3..=5) {
                 tx.execute(
                     "DELETE FROM derived_capabilities WHERE capability_id=?1",
                     [&plan.id],
@@ -169,7 +170,7 @@ fn commit_deletion(
             tx.execute("DELETE FROM workflows WHERE workflow_id=?1", [&plan.id])?;
         }
     }
-    if matches!(current.version, 3 | 4) {
+    if matches!(current.version, 3..=5) {
         for id in current
             .applications
             .keys()

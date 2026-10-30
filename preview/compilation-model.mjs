@@ -310,6 +310,39 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
     return { detail };
   }
 
+  function listedCapabilities(result) {
+    return result?.outcome === 'listed' && Array.isArray(result.capabilities) && result.capabilities.length <= 128
+      && new Set(result.capabilities.map(item => item?.id)).size === result.capabilities.length
+      && result.capabilities.every(validateCapabilitySummary) ? result.capabilities : null;
+  }
+
+  async function openSaved(capabilityId, revisionId, { isCurrent = () => true, replaceStale = false } = {}) {
+    if (!bridgeAvailable || state.pending || (state.needsRefresh && !replaceStale)
+      || !id(capabilityId, 'capability:') || (revisionId !== null && !id(revisionId, 'revision:')) || !isCurrent()) return false;
+    const request = ++epoch;
+    const lock = lockEpoch;
+    set({ pending: 'open', error: null, message: 'Opening saved skill revision…' });
+    // A synchronous observer can navigate or close the workspace before IPC starts.
+    if (request !== epoch || lock !== lockEpoch) return false;
+    if (!isCurrent()) { set({ pending: null, message: 'Selection changed. Choose a saved revision again.' }); return false; }
+    let initialLibrary = null;
+    const loadLibrary = replaceStale && state.listStatus === 'idle';
+    if (loadLibrary) {
+      const listed = await call('list_capabilities', undefined, lock);
+      if (request !== epoch || lock !== lockEpoch) return false;
+      if (!isCurrent()) { set({ pending: null, message: 'Selection changed. Choose a saved revision again.' }); return false; }
+      initialLibrary = listedCapabilities(listed);
+    }
+    const opened = await openSelection(capabilityId, revisionId, request, lock);
+    if (!opened) return false;
+    if (!isCurrent()) { set({ pending: null, message: 'Selection changed. Choose a saved revision again.' }); return false; }
+    if (opened.error) { set({ ...(loadLibrary && !initialLibrary ? { listStatus: 'failed' } : {}), pending: null, error: opened.error, message: opened.error.message }); return false; }
+    set({ ...(loadLibrary ? { capabilities: clone(initialLibrary ?? state.capabilities), listStatus: initialLibrary ? 'ready' : 'failed' } : {}),
+      selected: opened.detail, pending: null, ...clearReport(), needsRefresh: false, error: null,
+      message: opened.detail.revision.id === opened.detail.latestRevisionId ? 'Saved skill current head selected.' : 'Saved historical skill revision selected.' });
+    return true;
+  }
+
   const controller = {
     getState: () => clone(state),
     setTab(tab) {
@@ -321,17 +354,12 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
       set({ profile, ...clearReport(), error: null, message: profile ? 'Compilation profile selected. Choose Compile to inspect exact local output.' : 'Choose a closed compilation profile.' });
       return true;
     },
-    async open(capabilityId, revisionId = null) {
-      if (!bridgeAvailable || state.pending || state.needsRefresh || !id(capabilityId, 'capability:') || (revisionId !== null && !id(revisionId, 'revision:'))) return false;
-      const request = ++epoch;
-      const lock = lockEpoch;
-      set({ pending: 'open', error: null, message: 'Opening saved skill revision…' });
-      const opened = await openSelection(capabilityId, revisionId, request, lock);
-      if (!opened) return false;
-      if (opened.error) { set({ pending: null, error: opened.error, message: opened.error.message }); return false; }
-      set({ selected: opened.detail, pending: null, ...clearReport(), error: null, message: opened.detail.revision.id === opened.detail.latestRevisionId ? 'Saved skill current head selected.' : 'Saved historical skill revision selected.' });
-      return true;
+    open(capabilityId, revisionId = null) { return openSaved(capabilityId, revisionId); },
+    openPinnedRevision(capabilityId, revisionId, { isCurrent = () => true } = {}) {
+      if (!id(revisionId, 'revision:')) return Promise.resolve(false);
+      return openSaved(capabilityId, revisionId, { isCurrent, replaceStale: true });
     },
+    load() { return state.listStatus === 'idle' ? controller.refresh() : Promise.resolve(false); },
     async refresh() {
       if (!bridgeAvailable || state.pending) return false;
       const request = ++epoch;
@@ -340,8 +368,7 @@ export function createCompilationController({ invoke, onChange = () => {} } = {}
       set({ listStatus: 'loading', pending: 'refresh', error: null, message: 'Refreshing saved local skills…' });
       const listed = await call('list_capabilities', undefined, lock);
       if (request !== epoch || lock !== lockEpoch) return false;
-      const capabilities = listed?.outcome === 'listed' && Array.isArray(listed.capabilities) && listed.capabilities.length <= 128
-        && new Set(listed.capabilities.map(item => item?.id)).size === listed.capabilities.length && listed.capabilities.every(validateCapabilitySummary) ? listed.capabilities : null;
+      const capabilities = listedCapabilities(listed);
       if (!capabilities) { const issue = failure(listed); set({ listStatus: 'failed', pending: null, error: issue, message: issue.message }); return false; }
       if (!prior) { set({ listStatus: 'ready', capabilities: clone(capabilities), pending: null, needsRefresh: false, error: null, message: capabilities.length ? 'Saved local skills refreshed. Choose one to inspect.' : 'No saved local skills are available yet.' }); return true; }
       if (!capabilities.some(item => item.id === prior.id)) { set({ listStatus: 'ready', capabilities: clone(capabilities), pending: null }); clearSelection('Selected saved skill was removed.'); return true; }

@@ -1,0 +1,115 @@
+/* Reference-aligned final layer: quiet chrome, readable content, full hit targets. */
+.analysis-shell{--bg:#171b22;--surface:#20252e;--raised:#282f39;--line:#38414e;--ink:#edf0f6;--muted:#b0bbc9;--faint:#93a0b3;--ui-hairline:color-mix(in srgb,var(--line) 58%,transparent);background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root[data-theme=light] .analysis-shell{--bg:#f5f7fb;--surface:#fff;--raised:#f2f5fa;--line:#d9e0eb;--ink:#202b40;--muted:#526279;--faint:#61738c}
+.analysis-shell[data-area]>main{padding:20px 22px}
+.analysis-shell .analysis-rail{background:var(--surface);border-color:var(--ui-hairline);gap:14px;padding:18px 10px 14px}
+.analysis-shell .analysis-nav-groups{gap:10px}.analysis-shell .analysis-nav-group{gap:0}
+.analysis-shell .analysis-nav-group>p{font:600 10px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:.07em;color:var(--muted);margin-bottom:4px}
+.analysis-shell .analysis-nav-group a{min-height:44px;padding:6px 10px;border-left-width:2px;border-radius:7px}
+.analysis-shell .analysis-nav-group a[aria-current=page]{box-shadow:none;background:color-mix(in srgb,var(--orange) 7%,var(--surface))}
+.analysis-shell .analysis-button{min-height:44px;padding:6px 11px;border-color:var(--ui-hairline);border-radius:8px;background:var(--surface);font-size:12px;font-weight:550;line-height:1.35}
+.analysis-shell .analysis-button--primary{background:#ff8a40;border-color:#ff8a40;color:#251306;font-weight:650}
+.analysis-shell .analysis-button--save{color:var(--orange)}
+.analysis-shell .analysis-kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:10px;font-weight:600;letter-spacing:.07em;color:var(--muted);margin-bottom:5px}
+.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero){padding:15px 18px;border-color:var(--ui-hairline);border-radius:12px;margin-bottom:10px}
+.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero) h1{font-size:28px;letter-spacing:-.8px;font-weight:650}
+.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero)>p:not(.analysis-kicker){font-size:12px;line-height:1.5}
+.analysis-shell :is(.skills-library,.skills-editor,.skills-provenance){border-color:var(--ui-hairline);border-radius:10px}
+.analysis-shell .skills-panel-head{padding:12px 14px}.analysis-shell .skills-panel-head h2{font-size:15px;font-weight:600}
+.analysis-shell .skills-library__item{border-color:var(--ui-hairline)}
+/* One page header and one toolbar replace stacked status/filter/card bands. */
+.analysis-shell .agent-files-header{padding:0 0 12px;margin:0;border:0;border-radius:0;background:none;align-items:center;gap:16px}
+.analysis-shell .agent-files-header .analysis-kicker{display:none}
+.analysis-shell .agent-files-header h1{font-size:26px;font-weight:650;letter-spacing:-.7px;line-height:1.2}
+.analysis-shell .agent-files-header h1 em{color:var(--ink)}
+.analysis-shell .agent-files-status{font-size:12px;margin:5px 0 0;line-height:1.4}
+.analysis-shell .agent-files-header__actions{align-items:flex-start;gap:6px;max-width:500px}
+.analysis-shell .agent-files-limits{border:0;background:none;margin:0;min-width:0;max-width:100%;border-radius:8px}
+.analysis-shell .agent-files-limits summary{padding:6px 10px;color:var(--muted);font-weight:500;font-size:12px;border:1px solid var(--ui-hairline);border-radius:8px}
+.analysis-shell .agent-files-limits[open]{flex-basis:100%;width:100%}
+.analysis-shell .agent-files-limits>div{border:0;padding:4px 10px 10px;background:var(--surface);border-radius:8px}
+.analysis-shell .agent-files-toolbar{border:1px solid var(--ui-hairline);border-radius:10px;background:var(--surface);margin:0 0 10px;padding:9px 12px 6px}
+.analysis-shell .agent-files-filters{padding:0;border:0;border-radius:0;background:none;gap:9px;grid-template-columns:minmax(180px,1fr) minmax(130px,.4fr) minmax(130px,.4fr)}
+.analysis-shell .agent-files-filters label{font-size:11px;font-weight:500;gap:4px}
+.analysis-shell .agent-files-filters :is(input,select){padding:6px 9px;border-radius:7px;border-color:var(--ui-hairline);background:var(--raised);font-family:inherit;font-size:12px}
+.analysis-shell .agent-files-toolbar-info{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 12px}
+.analysis-shell .agent-files-summary{gap:14px;margin:5px 0 0}
+.analysis-shell .agent-files-summary span{padding:0;border:0;background:none;font-size:11px;line-height:1.6}
+.analysis-shell .agent-files-summary strong{font:600 12px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.analysis-shell .agent-files-brief{margin:5px 0 0;font-size:11px;line-height:1.6}
+.analysis-shell .agent-files-workbench--review{grid-template-columns:minmax(210px,.65fr) minmax(340px,1.9fr) minmax(240px,.8fr);gap:10px}
+.analysis-shell :is(.agent-files-library,.agent-files-source,.agent-files-inspector){border-color:var(--ui-hairline);border-radius:10px;background:var(--surface)}
+.analysis-shell .agent-files-panel-head{padding:10px 12px;align-items:center;border-color:var(--ui-hairline);min-height:59px}
+.analysis-shell .agent-files-panel-head h2{font-size:14px;font-weight:600;letter-spacing:-.2px}
+.analysis-shell .agent-files-panel-head .analysis-kicker{font-size:9px;margin-bottom:3px}
+.analysis-shell .agent-files-bulk{gap:4px;padding:5px 8px;border-color:var(--ui-hairline)}
+.analysis-shell .agent-files-bulk .analysis-button{background:transparent;border-color:transparent;font-size:11px;padding-inline:7px}
+.analysis-shell .agent-files-group>h3{padding:7px 10px;background:transparent;border-color:var(--ui-hairline);font-size:10px;letter-spacing:.04em}
+.analysis-shell .agent-files-table{max-height:min(57vh,600px)}
+.analysis-shell .agent-files-row{border-color:var(--ui-hairline)}
+.analysis-shell .agent-files-mark{border:0}.analysis-shell .agent-files-mark input{width:15px;height:15px}
+.analysis-shell .agent-files-open{padding:6px 9px;font-weight:400;gap:5px 7px;border-left-width:2px}
+.analysis-shell .agent-files-workbench--review .agent-files-open{grid-template-columns:14px minmax(0,1fr);min-height:64px}
+.analysis-shell .agent-files-workbench--review .agent-files-row__type{display:none}
+.analysis-shell .agent-files-row__name{font-size:12px;font-weight:550;line-height:1.4}
+.analysis-shell .agent-files-row__time{font-size:10px;line-height:1.4;margin-top:2px;white-space:normal}
+.analysis-shell .agent-files-row__state{font-size:10px;line-height:1.3;color:var(--muted)}
+.analysis-shell .agent-files-row__state--failed{color:var(--red)}
+.analysis-shell .agent-files-file-icon{width:11px;height:14px;border-color:var(--faint)}
+.analysis-shell .agent-files-pagination{padding:5px 8px;gap:4px}.analysis-shell .agent-files-pagination p{font-size:10px}
+.analysis-shell .agent-files-inspector__section{padding:10px 12px;border-color:var(--ui-hairline)}
+.analysis-shell .agent-files-inspector__section h3{font-size:12px;font-weight:600;margin-bottom:6px}
+.analysis-shell .agent-files-muted,.analysis-shell .agent-files-activity>div{font-size:11px;line-height:1.5}
+.analysis-shell .agent-files-activity{gap:5px;margin-bottom:7px}.analysis-shell .agent-files-details{padding-inline:12px}
+/* Continuous source surface: folds are navigation, not nested dashboard cards. */
+.analysis-shell .md-review{--md-blue:#9bbef3;--md-green:#afcba7;--md-purple:#c7b5de}
+:root[data-theme=light] .analysis-shell .md-review{--md-blue:#285c9d;--md-green:#326b3a;--md-purple:#765193}
+.analysis-shell .md-review-help{padding:6px 12px;font-size:11px;background:transparent}
+.analysis-shell .md-review details>summary{font-size:11px;font-weight:500;padding:4px 9px;gap:7px;background:transparent;border-color:var(--ui-hairline)}
+.analysis-shell .md-review details>summary small{font-size:10px}
+.analysis-shell .md-outline{border-color:var(--ui-hairline)}
+.analysis-shell .md-outline nav{max-height:150px;padding-bottom:5px}.analysis-shell .md-outline button{font-size:11px;padding-block:4px;font-weight:400}
+.analysis-shell .md-source{max-height:70vh;background:var(--surface);font-size:12px;line-height:1.7}
+.analysis-shell .md-section{margin-left:3px;border-left-color:var(--ui-hairline)}
+.analysis-shell .md-section>summary{border-top:0;border-bottom:1px solid var(--ui-hairline);background:none}
+.analysis-shell .md-code-block{margin:3px 6px;border-color:var(--ui-hairline);border-radius:5px;background:color-mix(in srgb,var(--raised) 48%,var(--surface))}
+.analysis-shell .md-token--heading{color:var(--md-blue);font-weight:550}
+.analysis-shell .md-line-number{color:var(--faint)}
+@media(max-width:1240px){.analysis-shell .agent-files-workbench--review{grid-template-columns:minmax(0,1fr)}.analysis-shell .agent-files-header__actions{max-width:none}}
+@media(max-width:800px){.analysis-shell .analysis-rail{padding:10px 12px;gap:8px}.analysis-shell[data-area]>main{padding:14px}.analysis-shell .analysis-nav-groups{gap:10px}}
+@media(max-width:620px){.analysis-shell .agent-files-header{display:grid;gap:8px;padding-bottom:10px}.analysis-shell .agent-files-header__actions{display:flex;flex-wrap:wrap;width:100%}.analysis-shell .agent-files-header__actions>.analysis-button{flex:1 1 100px}.analysis-shell .agent-files-limits{flex:1 1 100px}.analysis-shell .agent-files-limits[open]{flex-basis:100%}.analysis-shell .agent-files-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.analysis-shell .agent-files-filters label:first-child{grid-column:1/-1}.analysis-shell .agent-files-toolbar{padding:8px 10px 6px}.analysis-shell .agent-files-header h1{font-size:24px}.analysis-shell .agent-files-toolbar-info{gap:2px}.analysis-shell .agent-files-bulk .analysis-button{white-space:normal}.analysis-shell .agent-files-summary{gap:10px}}
+@media(prefers-reduced-motion:reduce){.analysis-shell *{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+@media(forced-colors:active){.analysis-shell{--ui-hairline:CanvasText;background:Canvas;color:CanvasText}.analysis-shell :is(.analysis-button,.agent-files-toolbar,.agent-files-library,.agent-files-source,.agent-files-inspector,.md-code-block){border-color:CanvasText;background:Canvas;color:CanvasText}.analysis-shell .analysis-nav-group a[aria-current=page]{border-left-color:Highlight}.analysis-shell .md-token{color:CanvasText}}
+
+.analysis-shell .agent-files-handoff{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 12px;border-bottom:1px solid var(--ui-hairline)}
+.analysis-shell .agent-files-handoff small{flex:1 1 160px;font-size:11px;line-height:1.45;color:var(--muted)}
+.analysis-shell .agent-files-handoff .analysis-button{min-height:44px;white-space:normal}
+
+/* Find stays secondary until requested; controls keep full keyboard/touch targets. */
+.analysis-shell .md-review-help{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-block:2px}
+.analysis-shell .md-review :is([data-md-find-toggle],.md-find-panel button){min-height:44px;padding:5px 10px;border:1px solid var(--ui-hairline);border-radius:7px;background:var(--surface);color:var(--ink);font:500 11px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;white-space:normal}
+.analysis-shell .md-review [data-md-find-toggle]{border-color:transparent;background:transparent;color:var(--muted)}
+.analysis-shell .md-find-panel{padding:8px 10px;border-bottom:1px solid var(--ui-hairline);background:var(--raised)}
+.analysis-shell .md-find-panel[hidden]{display:none}
+.analysis-shell .md-find-controls{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap}
+.analysis-shell .md-find-controls>label:first-child{flex:1 1 160px;min-width:0;display:grid;gap:4px;font-size:11px}
+.analysis-shell .md-find-label{color:var(--muted)}
+.analysis-shell .md-find-controls input[type=search]{min-height:44px;width:100%;min-width:0;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.analysis-shell .md-find-case{display:flex;gap:6px;align-items:center;min-height:44px;font-size:11px;white-space:nowrap;padding-inline:4px}
+.analysis-shell .md-find-case input{accent-color:var(--orange);width:15px;height:15px}
+.analysis-shell .md-find-meta{display:flex;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;margin-top:5px;font-size:11px;color:var(--muted);line-height:1.5}
+.analysis-shell .md-find-meta small{font-size:10px}
+.analysis-shell .md-source mark[data-md-find-hit]{background:color-mix(in srgb,var(--orange) 21%,var(--surface));color:inherit;border-radius:2px}
+.analysis-shell .md-source mark.md-find-hit--active{background:color-mix(in srgb,var(--orange) 38%,var(--surface));outline:1px solid var(--orange)}
+@media(max-width:620px){.analysis-shell .md-find-controls>label:first-child{flex-basis:100%}.analysis-shell .md-find-meta small{display:block}}
+@media(forced-colors:active){.analysis-shell .md-source mark[data-md-find-hit]{background:Canvas;color:CanvasText;border-bottom:1px solid Highlight}.analysis-shell .md-source mark.md-find-hit--active{outline:2px solid Highlight}.analysis-shell .md-find-panel :is(button,input){border-color:CanvasText;background:Canvas;color:CanvasText}}
+
+/* Folder discovery uses the existing library and inspector hierarchy. */
+.analysis-shell .agent-files-folder-summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 12px;border:1px solid var(--ui-hairline);border-radius:8px;background:var(--surface);font-size:12px}
+.analysis-shell .agent-files-folder-summary>p{flex:1 1 220px;margin:0;overflow-wrap:anywhere}
+.analysis-shell .agent-files-folder-summary details{flex:0 1 auto;font-size:11px;color:var(--muted)}
+.analysis-shell .agent-files-folder-summary summary{min-height:44px;display:flex;align-items:center;cursor:pointer}
+.analysis-shell .agent-files-row__path{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;color:var(--muted)}
+.analysis-shell .agent-files-inspector dd{min-width:0;overflow-wrap:anywhere}
+
+.analysis-shell .agent-files-folder-summary details[open]{flex-basis:100%}

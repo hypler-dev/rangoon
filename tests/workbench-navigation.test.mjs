@@ -47,7 +47,7 @@ function fixture({ compact = true } = {}) {
 }
 
 test('shared definition keeps all real routes, stable destinations, and one current item', () => {
-  assert.equal(WORKBENCH_NAVIGATION.routes.flatMap(([, links]) => links).length, 12);
+  assert.equal(WORKBENCH_NAVIGATION.routes.flatMap(([, links]) => links).length, 13);
   const workbench = renderWorkbenchNavigation({ area: 'workflows', surface: 'workbench' });
   assert.match(workbench, /href="#workflows" aria-current="page"/);
   assert.equal((workbench.match(/aria-current="page"/g) ?? []).length, 1);
@@ -153,4 +153,20 @@ test('persisted pagehide keeps compact listeners while ordinary pagehide dispose
   assert.equal(page.drawer.open, true);
   page.change(false);
   assert.equal(page.drawer.open, true);
+});
+
+
+test('focused navigation preserves every destination without presenting execution as a workbench action', () => {
+  const html = renderWorkbenchNavigation({ area: 'operations', surface: 'workbench' });
+  const expected = ['files', 'analysis', 'skills', 'decompose', 'merge', 'split', 'compile', 'operations', 'workspace', 'workflows', 'model-assistance', 'authority-engines', 'engine'];
+  const actual = [...html.matchAll(/href="#([^" ]+)"/g)].map(match => match[1]);
+  assert.deepEqual(actual, ['analysis', ...expected]); // Brand returns to import; each route appears once in navigation.
+  assert.match(html, /href="#operations" aria-current="page"[^>]*>[\s\S]*?<span>Activity reports<\/span>/);
+  assert.match(html, /href="#compile"[^>]*>[\s\S]*?<span>Compile & export<\/span>/);
+  const advanced = html.slice(html.indexOf('aria-label="Advanced"'), html.indexOf('aria-label="Samples and prototypes"'));
+  for (const id of ['workflows', 'model-assistance', 'authority-engines', 'engine']) assert.ok(advanced.includes(`href="#${id}"`));
+  assert.match(advanced, /Workflow definitions/);
+  assert.match(advanced, /System coverage/);
+  assert.match(html, /Samples &amp; prototypes/);
+  assert.doesNotMatch(html, /Connect OpenHands|Run agent|Live fleet|OpenHands connected/);
 });

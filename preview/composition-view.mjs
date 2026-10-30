@@ -126,23 +126,64 @@ function inputPicker(state, ui = {}) {
 function selectedInputs(state) {
   const values = state.inputs ?? [];
   const locked = Boolean(state.draft);
-  const countText = state.operation === 'decompose' ? 'Choose one saved source.' : state.operation === 'merge' ? 'Choose 2–16 pinned revisions.' : 'Choose one pinned revision.';
+  const countText = locked ? `${values.length} saved input${values.length === 1 ? '' : 's'} in this recipe` : state.operation === 'decompose' ? 'Choose one saved source.' : state.operation === 'merge' ? 'Choose 2–16 pinned revisions.' : 'Choose one pinned revision.';
   const validInputCount = state.operation === 'merge' ? values.length >= 2 && values.length <= 16 : values.length === 1;
   const action = locked ? '<p class="composition-note">Inputs locked after draft start. Discard draft to change them.</p>' : `<button id="composition-start" class="analysis-button analysis-button--primary" type="button" ${validInputCount && !disabled(state) ? '' : 'disabled'}>${pending(state) ? 'Working…' : 'Start draft'}</button>`;
   return `<section class="composition-inputs" aria-label="Chosen composition inputs"><header><div><p class="analysis-kicker">PINNED INPUTS</p><h2>${text(countText)}</h2></div>${action}</header>${values.length ? `<ol>${values.map((item, index) => `<li><div><strong>${text(inputTitle(item))}</strong><small>${inputKind(item) === 'revision' && item.latestRevisionId && item.reference?.revisionId !== item.latestRevisionId ? 'Historical · ' : ''}${text(short(inputIdentity(item)))} · ${Number(item.content ? bytes(item.content) : item.byteLength ?? 0).toLocaleString()} bytes</small>${inputKind(item) === 'revision' && item.history?.length ? `<label class="composition-revision-choice">Revision <select data-composition-replace-revision="${index}" ${disabled(state) || locked ? 'disabled' : ''}>${item.history.map(revision => option(revision.id, item.reference?.revisionId, `${revision.title ?? item.title}${revision.id === item.latestRevisionId ? ' · latest saved revision' : ' · historical'}`)).join('')}</select></label>` : ''}</div>${locked ? '' : `<div class="composition-row-actions"><button type="button" class="analysis-button analysis-button--small" data-composition-move-input="${index}" data-composition-delta="-1" ${disabled(state) || index === 0 ? 'disabled' : ''}>Move up</button><button type="button" class="analysis-button analysis-button--small" data-composition-move-input="${index}" data-composition-delta="1" ${disabled(state) || index === values.length - 1 ? 'disabled' : ''}>Move down</button><button type="button" class="analysis-button analysis-button--small" data-composition-remove-input="${index}" ${disabled(state) ? 'disabled' : ''}>Remove</button></div>`}</li>`).join('')}</ol>` : `<p class="composition-note">${text(countText)} Exact selected revisions remain pinned; no latest revision is substituted silently.</p>`}</section>`;
 }
 
-function rangeActions(state) {
-  const outputs = state.draft?.outputs ?? [];
-  const selection = `<p class="composition-selection" data-composition-selection>No source span selected. Select text in a read-only source pane, then choose an action.</p>`;
-  return `<section class="composition-range-actions"><div><p class="analysis-kicker">RANGE ACTION</p><h3>Selected bytes</h3>${selection}</div><label>Output <select data-composition-range-output ${disabled(state) ? 'disabled' : ''}>${outputs.map((item, index) => option(index, 0, `Output ${index + 1}: ${item.title || 'Untitled'}`)).join('')}</select></label><label>Reason <input data-composition-range-reason maxlength="1024" placeholder="Required for duplicate, replace, exclude" ${disabled(state) ? 'disabled' : ''}></label><label class="composition-range-content">Replacement text <textarea data-composition-range-content maxlength="262144" placeholder="Required for Replace" ${disabled(state) ? 'disabled' : ''}></textarea></label><div class="composition-range-buttons"><button type="button" class="analysis-button" data-composition-apply="assign" ${disabled(state) ? 'disabled' : ''}>Assign to output</button><button type="button" class="analysis-button" data-composition-apply="duplicate" ${disabled(state) ? 'disabled' : ''}>Duplicate deliberately</button><button type="button" class="analysis-button" data-composition-apply="replace" ${disabled(state) ? 'disabled' : ''}>Replace</button><button type="button" class="analysis-button" data-composition-apply="exclude" ${disabled(state) ? 'disabled' : ''}>Exclude</button><button type="button" class="analysis-button analysis-button--small" data-composition-conflict-range ${disabled(state) ? 'disabled' : ''}>Add range to conflict</button><button type="button" class="analysis-button analysis-button--small" data-composition-clear-range ${disabled(state) ? 'disabled' : ''}>Cancel</button></div></section>`;
+// Presentation-only byte-boundary scan: never copies/decodes the full selected
+// span just to display an excerpt. Native composition still validates mutations.
+export function compositionSelectionExcerpt(content, range) {
+  if (typeof content !== 'string' || !safeRange(range)) return null;
+  let byte = 0; let offset = 0; let start = -1; let end = -1;
+  while (offset <= content.length) {
+    if (byte === range.startByte) start = offset;
+    if (byte === range.endByte) { end = offset; break; }
+    if (byte > range.endByte || offset === content.length) break;
+    const code = content.codePointAt(offset);
+    if (code >= 0xd800 && code <= 0xdfff) return null;
+    byte += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4;
+    offset += code > 0xffff ? 2 : 1;
+  }
+  if (start < 0 || end < start) return null;
+  let cut = start; let points = 0;
+  while (cut < end && points < 160) { cut += content.codePointAt(cut) > 0xffff ? 2 : 1; points++; }
+  return content.slice(start, cut) + (cut < end ? '…' : '');
+}
+function selectionContext(state, ui = {}) {
+  const range = safeRange(ui.selectedRange);
+  const source = range ? state.inputs?.[range.inputIndex] : null;
+  const excerpt = source ? compositionSelectionExcerpt(source.content ?? '', range) : null;
+  const valid = excerpt !== null && range?.inputIndex === (ui.sourceInputIndex ?? 0);
+  const outputIndex = Number.isSafeInteger(ui.rangeOutputIndex) && state.draft?.outputs?.[ui.rangeOutputIndex] ? ui.rangeOutputIndex : 0;
+  return { range: valid ? range : null, source: valid ? source : null, excerpt: valid ? excerpt : '', outputIndex };
 }
 
-function sourcePane(state) {
+function placementHint(state, range) {
+  if (!range) return 'Choose source text and an output.';
+  const placed = (state.draft?.outputs ?? []).some(output => (output.pieces ?? []).some(value => { const existing = pieceRange(value); return existing && overlap(existing, range); }));
+  return placed ? 'Existing placements of this range will be reassigned. Duplicate keeps both.' : 'Place source-backed text in this output; the original file stays unchanged.';
+}
+
+function workingSelection(state, ui = {}) {
+  const context = selectionContext(state, ui);
+  return `<section class="composition-working-selection" aria-label="Working selection"><p class="analysis-kicker">WORKING SELECTION</p><h2 data-composition-working-title>${text(context.source ? inputTitle(context.source) : 'Choose source text')}</h2><p data-composition-working-state>${context.range ? `${context.range.endByte - context.range.startByte} bytes selected · original read-only` : 'Select a section or highlight exact source text.'}</p><pre data-composition-working-excerpt ${context.range ? '' : 'hidden'}>${text(context.excerpt)}</pre><div class="composition-working-destination"><span>Destination</span><strong data-composition-working-destination>${text(state.draft?.outputs?.[context.outputIndex]?.title || 'Untitled output')}</strong><small data-composition-working-target>${text(targetLabel(state.targets?.[context.outputIndex], state.targetDetails?.[context.outputIndex]))}</small></div><details><summary>Selection details</summary><p data-composition-working-provenance>${text(context.range ? `${inputIdentity(context.source)} · ${rangeLabel(context.range)}` : 'No source range selected.')}</p></details><p>Recipe edits leave original files unchanged.</p></section>`;
+}
+
+function rangeActions(state, ui = {}) {
+  const outputs = state.draft?.outputs ?? [];
+  const context = selectionContext(state, ui);
+  const inactive = disabled(state) || !context.range;
+  return `<section class="composition-range-actions composition-range-rail" aria-label="Add source selection to recipe"><div class="composition-range-rail__selection"><p class="analysis-kicker">SELECT → ADD TO RECIPE</p><p class="composition-selection" data-composition-selection role="status">${text(context.range ? `${context.range.endByte - context.range.startByte} bytes selected. Original source stays read-only.` : 'Select a section or highlight exact source text.')}</p></div><label class="composition-range-rail__output">Add to output<select data-composition-range-output ${disabled(state) ? 'disabled' : ''}>${outputs.map((item, index) => option(index, context.outputIndex, `Output ${index + 1}: ${item.title || 'Untitled'}`)).join('')}</select></label><p class="composition-range-effect" data-composition-selection-effect>${text(placementHint(state, context.range))}</p><div class="composition-range-rail__primary"><button type="button" class="analysis-button analysis-button--primary" data-composition-apply="assign" ${inactive ? 'disabled' : ''}>Assign selection</button><button type="button" class="analysis-button" data-composition-clear-range ${inactive ? 'disabled' : ''}>Cancel selection</button></div><details class="composition-range-more" data-composition-range-options ${ui.rangeOptionsOpen ? 'open' : ''}><summary>More operations <small data-composition-range-unsaved hidden>Unapplied edits</small></summary><p data-composition-range-binding role="status" hidden></p><button type="button" class="analysis-button" data-composition-return-range hidden>Return to edited selection</button><p>Duplicate, replace or exclude an exact range deliberately. These changes still require a native preview before save.</p><label>Reason<input data-composition-range-reason maxlength="1024" placeholder="Required for duplicate, replace or exclude" ${inactive ? 'disabled' : ''}></label><label>Replacement text<textarea data-composition-range-content maxlength="262144" placeholder="Only used by Replace selection" ${inactive ? 'disabled' : ''}></textarea></label><div class="composition-range-buttons"><button type="button" class="analysis-button" data-composition-apply="duplicate" ${inactive ? 'disabled' : ''}>Duplicate selection</button><button type="button" class="analysis-button" data-composition-apply="replace" ${inactive ? 'disabled' : ''}>Replace selection</button><button type="button" class="analysis-button" data-composition-apply="exclude" ${inactive ? 'disabled' : ''}>Exclude selection</button><button type="button" class="analysis-button" data-composition-conflict-range ${inactive ? 'disabled' : ''}>Add range to conflict</button></div></details></section>`;
+}
+
+function sourcePane(state, ui = {}) {
   const inputs = state.inputs ?? [];
-  const sourceOptions = inputs.map((item, index) => option(index, 0, `Input ${index + 1}: ${inputTitle(item)}${item.revisionId && item.revisionId !== item.latestRevisionId ? ' · historical' : ''}`)).join('');
-  const content = inputs[0]?.content ?? '';
-  return `<section class="composition-source-pane" aria-label="Original pinned input"><header><div><p class="analysis-kicker">SOURCE / SELECTABLE ORIGINAL</p><h2>Exact saved text</h2></div><label>Input <select data-composition-source-input ${disabled(state) ? 'disabled' : ''}>${sourceOptions}</select></label></header><textarea class="composition-source-text" data-composition-source data-composition-scroll="source" readonly spellcheck="false" aria-label="Select source text for composition actions">${text(content)}</textarea>${rangeActions(state)}</section>`;
+  const inputIndex = Number.isSafeInteger(ui.sourceInputIndex) && inputs[ui.sourceInputIndex] ? ui.sourceInputIndex : 0;
+  const sourceOptions = inputs.map((item, index) => option(index, inputIndex, `Input ${index + 1}: ${inputTitle(item)}${item.revisionId && item.revisionId !== item.latestRevisionId ? ' · historical' : ''}`)).join('');
+  const sections = graphSourceSections(state, inputIndex);
+  return `<section class="composition-source-pane" aria-label="Original pinned input"><header><div><p class="analysis-kicker">ORIGINAL / READ ONLY</p><h2>Choose content to combine</h2></div><label>Input<select data-composition-source-input ${disabled(state) ? 'disabled' : ''}>${sourceOptions}</select></label></header>${sections.length ? `<section class="composition-source-outline" aria-label="Source sections"><h3>Quick select a section</h3><div>${sections.map((section, sectionIndex) => `<button type="button" data-composition-section="${inputIndex}:${sectionIndex}" aria-pressed="${Boolean(safeRange(ui.selectedRange) && sameRange(ui.selectedRange, section.range))}" ${disabled(state) ? 'disabled' : ''}><span>${text(section.title)}</span><small>${section.range.endByte - section.range.startByte} bytes</small></button>`).join('')}</div></section>` : '<p class="composition-note">Highlight text below to select an exact range.</p>'}${rangeActions(state, ui)}<textarea class="composition-source-text" data-composition-source data-composition-scroll="source" readonly spellcheck="false" aria-label="Select source text for composition actions">${text(inputs[inputIndex]?.content ?? '')}</textarea></section>`;
 }
 
 function piece(piece, outputIndex, pieceIndex, state) {
@@ -189,7 +230,7 @@ function graph(state, ui = {}) {
     return `<section class="composition-graph__source"><header><button type="button" class="composition-graph__source-title" data-composition-graph-source="${inputIndex}" aria-label="Source ${inputIndex + 1} actions" ${locked ? 'disabled' : ''}><span class="composition-port" aria-hidden="true"></span><strong>Source ${inputIndex + 1}</strong><small>${text(inputTitle(item))}</small></button></header>${sections.length ? `<ol>${sections.map((section, sectionIndex) => `<li><button type="button" draggable="${locked ? 'false' : 'true'}" data-composition-graph-section="${inputIndex}:${sectionIndex}" data-composition-draft-version="${Number(state.draftVersion ?? 0)}" title="${text(rangeLabel(section.range))}" ${locked ? 'disabled' : ''}>${text(section.title)}<small>${text(rangeLabel(section.range))}</small><span class="composition-port composition-port--source" aria-hidden="true"></span></button></li>`).join('')}</ol>` : '<p>No analyzer sections. Select an exact source range in Source.</p>'}</section>`;
   }).join('') || '<p class="composition-note">Choose saved inputs first.</p>';
   const outputCards = outputs.map((output, outputIndex) => `<article class="composition-graph__output" data-composition-graph-output="${outputIndex}" data-composition-drop-output="${outputIndex}"><header><button type="button" class="composition-graph__output-title" data-composition-graph-output-button="${outputIndex}" aria-label="Output ${outputIndex + 1} actions" ${locked ? 'disabled' : ''}><span class="composition-port" aria-hidden="true"></span><strong>Output ${outputIndex + 1}</strong><small>${text(output.title || 'Untitled')}</small></button><button type="button" class="composition-actions" data-composition-graph-output-actions="${outputIndex}" aria-label="Output ${outputIndex + 1} actions" ${locked ? 'disabled' : ''}>Actions</button></header><p>${text(targetLabel(state.targets?.[outputIndex], state.targetDetails?.[outputIndex]))}</p><ol>${(output.pieces ?? []).map((value, pieceIndex) => { const range = pieceRange(value); const active = ui.connectFrom?.kind === 'piece' && ui.connectFrom.outputIndex === outputIndex && ui.connectFrom.pieceIndex === pieceIndex; return `<li class="composition-graph__piece${active ? ' is-connecting' : ''}" data-composition-drop-piece="${outputIndex}:${pieceIndex}"><button type="button" draggable="${locked ? 'false' : 'true'}" data-composition-graph-piece="${outputIndex}:${pieceIndex}" data-composition-draft-version="${Number(state.draftVersion ?? 0)}" aria-pressed="${active}" title="${text(range ? sourceExcerpt(state, range) : value.kind === 'authored' ? 'Authored text block' : 'Piece')}" ${locked ? 'disabled' : ''}><strong>${text(value.kind === 'copy' ? 'Copy' : value.kind === 'replace' ? 'Replace' : 'Authored')}</strong><small>${text(range ? sourceExcerpt(state, range) : value.reason || 'Authored text')}</small><small>${text(range ? rangeLabel(range) : 'No source range')}</small><span class="composition-port composition-port--piece" aria-hidden="true"></span></button><button type="button" class="composition-actions" data-composition-graph-piece-actions="${outputIndex}:${pieceIndex}" aria-label="Piece ${pieceIndex + 1} actions" ${locked ? 'disabled' : ''}>Actions</button></li>`; }).join('') || '<li class="composition-graph__empty">No pieces yet. Drop a section or add authored text.</li>'}</ol></article>`).join('');
-  return `<section class="composition-graph" aria-label="Editable composition graph"><header><div><p class="analysis-kicker">GRAPH / SAME RECORDS</p><h2>Recipe connections</h2></div><button type="button" class="analysis-button analysis-button--small" data-composition-graph-add-output ${disabled(state) || state.operation === 'merge' || outputs.length >= 16 ? 'disabled' : ''}>Add output</button></header><p class="composition-graph__help">Lines label exact source ranges. Drag or connect a piece to move it. Source sections assign only when whole section remains unassigned; duplicate and replace stay in Source actions.</p>${ui.notice ? `<p class="composition-graph__notice" role="status">${text(ui.notice)}</p>` : ''}<div class="composition-canvas"><svg class="composition-canvas__wires" data-composition-wires aria-hidden="true"></svg><div class="composition-canvas__sources">${sources}</div><div class="composition-canvas__links" aria-label="Derived recipe links">${outputs.flatMap((output, outputIndex) => (output.pieces ?? []).map((value, pieceIndex) => { const range = pieceRange(value); return `<div class="composition-canvas__link"><span class="composition-canvas__line" aria-hidden="true"></span><span>${text(range ? `${rangeLabel(range)} → Output ${outputIndex + 1}` : `Authored → Output ${outputIndex + 1}`)}</span></div>`; })).join('') || '<p>No piece links yet.</p>'}</div><div class="composition-canvas__outputs">${outputCards}</div></div>${graphMenu(state, ui)}<p>Graph edits same ordered recipe records. It does not create executable workflow nodes.</p></section>`;
+  return `<section class="composition-graph" aria-label="Editable composition graph"><header><div><p class="analysis-kicker">GRAPH / SAME RECORDS</p><h2>Recipe connections</h2></div><button type="button" class="analysis-button analysis-button--small" data-composition-graph-add-output ${disabled(state) || state.operation === 'merge' || outputs.length >= 16 ? 'disabled' : ''}>Add output</button></header><p class="composition-graph__help">Lines label exact source ranges. Drag or connect a piece to move it. Source sections assign only when whole section remains unassigned; duplicate and replace stay in Source actions.</p><div class="composition-canvas"><svg class="composition-canvas__wires" data-composition-wires aria-hidden="true"></svg><div class="composition-canvas__sources">${sources}</div><div class="composition-canvas__links" aria-label="Derived recipe links">${outputs.flatMap((output, outputIndex) => (output.pieces ?? []).map((value, pieceIndex) => { const range = pieceRange(value); return `<div class="composition-canvas__link"><span class="composition-canvas__line" aria-hidden="true"></span><span>${text(range ? `${rangeLabel(range)} → Output ${outputIndex + 1}` : `Authored → Output ${outputIndex + 1}`)}</span></div>`; })).join('') || '<p>No piece links yet.</p>'}</div><div class="composition-canvas__outputs">${outputCards}</div></div>${graphMenu(state, ui)}<p>Graph edits same ordered recipe records. It does not create executable workflow nodes.</p></section>`;
 }
 
 function annotationList(state) {
@@ -213,7 +254,7 @@ function previewPanel(state) {
 
 function coveragePanel(state) {
   const coverage = previewCoverage(state);
-  return `<section class="composition-coverage"><p class="analysis-kicker">COVERAGE</p><h2>Actual ledger</h2>${coverage.length ? `<ol>${coverage.map(item => `<li><strong>${text(item.disposition ?? 'unknown')}</strong><span>${text(rangeLabel(item.range))}${item.duplicationAcknowledged ? ' · acknowledged duplicate' : ''}</span></li>`).join('')}</ol>` : '<p>Prepare a native preview to inspect copied, duplicated, replaced, excluded and unassigned byte spans.</p>'}<button type="button" data-composition-jump-unassigned class="analysis-button analysis-button--small" ${coverage.some(item => item.disposition === 'unassigned') ? '' : 'disabled'}>Reveal first unassigned span</button></section>`;
+  return `<section class="composition-coverage"><p class="analysis-kicker">COVERAGE</p><h2>Source coverage</h2>${coverage.length ? `<ol>${coverage.map(item => `<li><strong>${text(item.disposition ?? 'unknown')}</strong><span>${text(rangeLabel(item.range))}${item.duplicationAcknowledged ? ' · acknowledged duplicate' : ''}</span></li>`).join('')}</ol>` : '<p>Prepare a native preview to inspect copied, duplicated, replaced, excluded and unassigned byte spans.</p>'}<button type="button" data-composition-jump-unassigned class="analysis-button analysis-button--small" ${coverage.some(item => item.disposition === 'unassigned') ? '' : 'disabled'}>Reveal first unassigned span</button></section>`;
 }
 
 export function renderCompositionView(state, graphUi = {}) {
@@ -221,13 +262,13 @@ export function renderCompositionView(state, graphUi = {}) {
   const phase = state.draft ? 'recipe' : 'inputs';
   const layout = graphUi.workspaceLayout ?? { desktop: false, left: 240, right: 320, leftCollapsed: false, rightCollapsed: false };
   const dock = (side, label, body, needsRestore = false) => `<div class="workspace-dock workspace-dock--${side}${layout[`${side}Collapsed`] ? ' workspace-dock--collapsed' : ''}" data-workspace-dock="${side}"><button type="button" class="workspace-expand" data-workspace-expand="${side}" ${layout[`${side}Collapsed`] ? '' : 'hidden'}>Expand ${label}</button><button type="button" class="workspace-collapse" data-workspace-collapse="${side}" ${layout.desktop && !layout[`${side}Collapsed`] ? '' : 'hidden'}>Collapse ${label}</button><button type="button" class="workspace-resize" data-workspace-resize="${side}" role="separator" tabindex="0" aria-label="Resize ${label}" aria-orientation="vertical" aria-valuemin="${side === 'left' ? 208 : 280}" aria-valuemax="${layout[`${side}Max`] ?? (side === 'left' ? 360 : 440)}" aria-valuenow="${layout[side]}" aria-valuetext="${layout[side]} pixels" ${layout.desktop && !layout[`${side}Collapsed`] ? '' : 'hidden'}></button>${needsRestore && layout[`${side}Collapsed`] ? '<button type="button" class="analysis-button analysis-button--small" data-workspace-expand="right">Restore unsaved recipe fields</button>' : ''}${body.replace('<aside ', `<aside ${layout[`${side}Collapsed`] ? 'hidden ' : ''}`)}</div>`;
-  const draftWorkbench = `<div class="composition-workbench" data-workspace-workbench data-workspace-desktop="${layout.desktop}" style="--workspace-palette-width:${layout.left}px;--workspace-inspector-width:${layout.right}px;--workspace-palette-track:${layout.leftCollapsed ? 44 : layout.left}px;--workspace-inspector-track:${layout.rightCollapsed ? 44 : layout.right}px">${dock('left', 'inputs', `<aside class="composition-left">${selectedInputs(state)}${coveragePanel(state)}</aside>`)}<main class="composition-main"><div data-composition-panel="source">${sourcePane(state)}</div><div data-composition-panel="recipe" hidden>${outputCards(state)}</div><div data-composition-panel="graph" hidden>${graph(state, graphUi)}</div></main>${dock('right', 'inspector', `<aside class="composition-inspector"><header><p class="analysis-kicker">INSPECTOR</p><h2>Recipe details</h2></header><p>Original input remains read-only. Reasons and annotations remain visible with every preview.</p>${annotationList(state)}</aside>`, true)}</div>`;
-  return `<section class="composition-page" aria-labelledby="composition-title" aria-busy="${pending(state)}"><header class="composition-hero"><p class="analysis-kicker">${icon(operation === 'merge' ? 'merge' : 'decompose', { size: 16 })} LOCAL COMPOSITION / ${text(operation.toUpperCase())}</p><h1 id="composition-title" tabindex="-1">${text(label(operation))} <em>saved content.</em></h1><p>${operation === 'decompose' ? 'Turn one saved source into explicitly covered local skills.' : operation === 'merge' ? 'Combine pinned saved revisions with explicit provenance and separators.' : 'Divide one pinned saved revision into explicit output recipes.'} No provider, engine, file scan or execution runs here.</p><p class="composition-status${state.error ? ' composition-status--error' : ''}" role="status">${text(state.message ?? '')}</p></header>${renderTermHelp('composition', ['recipe', 'coverage', 'preview', 'revision'])}${!state.draft ? `<div class="composition-start-grid">${inputPicker(state, graphUi)}${selectedInputs(state)}</div>` : `<nav class="composition-tabs" aria-label="Composition editor views"><button type="button" data-composition-tab="source" aria-pressed="true">Source</button><button type="button" data-composition-tab="recipe" aria-pressed="false">Recipe</button><button type="button" data-composition-tab="graph" aria-pressed="false">Graph</button><span>${state.dirty ? 'Unsaved draft' : 'Saved local result'}</span><div class="composition-history"><button type="button" class="analysis-button analysis-button--small" data-composition-undo ${disabled(state) || !state.canUndo ? 'disabled' : ''}>Undo</button><button type="button" class="analysis-button analysis-button--small" data-composition-redo ${disabled(state) || !state.canRedo ? 'disabled' : ''}>Redo</button></div><button type="button" class="analysis-button analysis-button--small" data-workspace-reset>Reset workspace</button><button type="button" id="composition-reset" class="analysis-button analysis-button--small" ${disabled(state) ? 'disabled' : ''}>Discard draft</button></nav>${draftWorkbench}${previewPanel(state)}`}</section>`;
+  const draftWorkbench = `<div class="composition-workbench" data-workspace-workbench data-workspace-desktop="${layout.desktop}" style="--workspace-palette-width:${layout.left}px;--workspace-inspector-width:${layout.right}px;--workspace-palette-track:${layout.leftCollapsed ? 44 : layout.left}px;--workspace-inspector-track:${layout.rightCollapsed ? 44 : layout.right}px">${dock('left', 'inputs', `<aside class="composition-left">${selectedInputs(state)}${coveragePanel(state)}</aside>`)}<main class="composition-main"><div data-composition-panel="source">${sourcePane(state, graphUi)}</div><div data-composition-panel="recipe" hidden>${outputCards(state)}</div><div data-composition-panel="graph" hidden>${graph(state, graphUi)}</div></main>${dock('right', 'inspector', `<aside class="composition-inspector"><header><p class="analysis-kicker">INSPECTOR</p><h2>Recipe details</h2></header>${workingSelection(state, graphUi)}<p>Original input remains read-only. Reasons and annotations remain visible with every preview.</p>${annotationList(state)}</aside>`, true)}</div>`;
+  return `<section class="composition-page" aria-labelledby="composition-title" aria-busy="${pending(state)}"><header class="composition-hero"><p class="analysis-kicker">${icon(operation === 'merge' ? 'merge' : 'decompose', { size: 16 })} LOCAL COMPOSITION / ${text(operation.toUpperCase())}</p><h1 id="composition-title" tabindex="-1">${text(label(operation))} <em>saved content.</em></h1><p>${operation === 'decompose' ? 'Turn one saved source into explicitly covered local skills.' : operation === 'merge' ? 'Combine pinned saved revisions with explicit provenance and separators.' : 'Divide one pinned saved revision into explicit output recipes.'} No provider, engine, file scan or execution runs here.</p><p class="composition-status${state.error ? ' composition-status--error' : ''}" role="status">${text(state.message ?? '')}</p></header>${renderTermHelp('composition', ['recipe', 'coverage', 'preview', 'revision'])}${!state.draft ? `<div class="composition-start-grid">${inputPicker(state, graphUi)}${selectedInputs(state)}</div>` : `<nav class="composition-tabs" aria-label="Composition editor views"><button type="button" data-composition-tab="source" aria-pressed="true">Source</button><button type="button" data-composition-tab="recipe" aria-pressed="false">Recipe</button><button type="button" data-composition-tab="graph" aria-pressed="false">Graph</button><span>${state.dirty ? 'Unsaved draft' : 'Saved local result'}</span><div class="composition-history"><button type="button" class="analysis-button analysis-button--small" data-composition-undo ${disabled(state) || !state.canUndo ? 'disabled' : ''}>Undo</button><button type="button" class="analysis-button analysis-button--small" data-composition-redo ${disabled(state) || !state.canRedo ? 'disabled' : ''}>Redo</button></div><button type="button" class="analysis-button analysis-button--small" data-workspace-reset>Reset workspace</button><button type="button" id="composition-reset" class="analysis-button analysis-button--small" ${disabled(state) ? 'disabled' : ''}>Discard draft</button></nav>${graphUi.notice ? `<p class="composition-action-notice" role="status">${text(graphUi.notice)}</p>` : ''}${draftWorkbench}${previewPanel(state)}`}</section>`;
 }
 
 export function bindCompositionView(root, controller, { onOpenSkill = () => {} } = {}) {
-  const retained = bindingState.get(controller) ?? { tab: 'source', sourceInputIndex: 0, selectedRange: null, focus: null, nextFocus: null, conflictRanges: [], scroll: new Map(), formDrafts: new Map(), formBaseline: new Map(), reveal: null, menu: null, connectFrom: null, notice: '', drag: null, menuFocus: null, cacheLayout: null, draftVersion: null, inputFilter: '' };
-  let { tab, sourceInputIndex, selectedRange, conflictRanges, focus, nextFocus, scroll, formDrafts, formBaseline = new Map(), reveal, menu, connectFrom, notice, drag, menuFocus, cacheLayout: retainedCacheLayout = null, draftVersion: retainedDraftVersion = null, inputFilter = '' } = retained;
+  const retained = bindingState.get(controller) ?? { tab: 'source', sourceInputIndex: 0, selectedRange: null, focus: null, nextFocus: null, conflictRanges: [], scroll: new Map(), formDrafts: new Map(), formBaseline: new Map(), reveal: null, menu: null, connectFrom: null, notice: '', drag: null, menuFocus: null, cacheLayout: null, draftVersion: null, inputFilter: '', rangeOutputIndex: 0, rangeOptionsOpen: false, rangeEditRange: null, rangeEditSourceId: null };
+  let { tab, sourceInputIndex, selectedRange, conflictRanges, focus, nextFocus, scroll, formDrafts, formBaseline = new Map(), reveal, menu, connectFrom, notice, drag, menuFocus, cacheLayout: retainedCacheLayout = null, draftVersion: retainedDraftVersion = null, inputFilter = '', rangeOutputIndex = 0, rangeOptionsOpen = false, rangeEditRange = null, rangeEditSourceId = null } = retained;
   const clearDraftKeys = new Set();
   let discardFormDrafts = false;
   let graphResizeObserver = null;
@@ -243,17 +284,18 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
   const hasPendingFormEdits = (ignored = new Set()) => [...root.querySelectorAll(localFormSelector)].some(node => !ignored.has(compositionDataKey(node)) && formValueChanged(node));
   const invokeStructural = action => { if (disposed) return; Promise.resolve(action()).then(result => { if (!disposed && result) discardFormDrafts = true; }).finally(() => { if (!disposed) render(); }); };
   const guardStructural = action => {
-    if (hasPendingFormEdits()) { notice = structuralNotice; tab = 'graph'; menu = null; render(); return; }
+    if (hasPendingFormEdits()) { notice = structuralNotice; menu = null; render(); return; }
     notice = ''; invokeStructural(action);
   };
   const clearLocal = key => { clearDraftKeys.add(key); notice = ''; render(); };
   const remember = () => {
+    rangeOptionsOpen = root.querySelector('[data-composition-range-options]')?.open ?? rangeOptionsOpen;
     const active = root.ownerDocument?.activeElement;
     if (active && root.contains(active)) {
       const name = active.getAttributeNames?.().find(attribute => attribute.startsWith('data-composition-'));
       if (name) focus = { selector: `[${name}${active.getAttribute(name) ? `="${CSS.escape(active.getAttribute(name))}"` : ''}]`, start: active.selectionStart, end: active.selectionEnd };
     }
-    if (discardFormDrafts) formDrafts.clear();
+    if (discardFormDrafts) { formDrafts.clear(); rangeEditRange = null; rangeEditSourceId = null; }
     root.querySelectorAll(localFormSelector).forEach(node => {
       const key = compositionDataKey(node);
       if (discardFormDrafts || clearDraftKeys.has(key)) formDrafts.delete(key);
@@ -324,17 +366,22 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     const nextLayout = cacheLayout(renderState);
     if (lastDraftVersion !== null && cacheLayoutChanged(lastCacheLayout, nextLayout, lastDraftVersion, Number(renderState.draftVersion ?? 0))) {
       discardFormDrafts = true; formDrafts.clear(); clearDraftKeys.clear();
-      if (!nextLayout) { selectedRange = null; conflictRanges = []; connectFrom = null; drag = null; menu = null; }
+      if (!nextLayout) { selectedRange = null; conflictRanges = []; connectFrom = null; drag = null; menu = null; rangeOutputIndex = 0; rangeOptionsOpen = false; }
     }
     remember();
     const requestedFocus = nextFocus;
     nextFocus = null;
-    root.innerHTML = renderCompositionView(renderState, { menu, connectFrom, notice, inputFilter, workspaceLayout: workspace.getState() });
+    root.innerHTML = renderCompositionView(renderState, { menu, connectFrom, notice, inputFilter, sourceInputIndex, selectedRange, rangeOutputIndex, rangeOptionsOpen, workspaceLayout: workspace.getState() });
     root.querySelectorAll('[data-composition-panel]').forEach(node => { node.hidden = node.dataset.compositionPanel !== tab; });
     root.querySelectorAll('[data-composition-tab]').forEach(node => node.setAttribute('aria-pressed', String(node.dataset.compositionTab === tab)));
     const textarea = root.querySelector('[data-composition-source]');
     const item = renderState.inputs?.[sourceInputIndex];
     if (textarea && item) textarea.value = item.content ?? '';
+    if (textarea && item && selectedRange?.inputIndex === sourceInputIndex) {
+      const start = normalizedOffsetForByte(item.content ?? '', selectedRange.startByte);
+      const end = normalizedOffsetForByte(item.content ?? '', selectedRange.endByte);
+      if (start !== null && end !== null) textarea.setSelectionRange(start, end);
+    }
     const inputSelect = root.querySelector('[data-composition-source-input]');
     if (inputSelect) inputSelect.value = String(sourceInputIndex);
     observeGraphEdges();
@@ -349,8 +396,10 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
       const saved = scroll.get(node.dataset.compositionScroll);
       if (saved) { node.scrollTop = saved.top; node.scrollLeft = saved.left; }
     });
-    const description = root.querySelector('[data-composition-selection]');
-    if (description) description.textContent = selectedRange ? `${rangeLabel(selectedRange)} selected. ${byteRangeText(item?.content ?? '', selectedRange) ?? ''}` : 'No source span selected. Select text in a read-only source pane, then choose an action.';
+    if (!renderState.draft?.outputs?.[rangeOutputIndex]) rangeOutputIndex = 0;
+    const outputSelect = root.querySelector('[data-composition-range-output]');
+    if (outputSelect) outputSelect.value = String(rangeOutputIndex);
+    syncSelectionUI();
     root.querySelector('[data-composition-conflict-basket]')?.replaceChildren(root.ownerDocument.createTextNode(conflictRanges.length ? `${conflictRanges.length} conflict range${conflictRanges.length === 1 ? '' : 's'} selected. Add at least two.` : 'Select at least two source ranges with “Add range to conflict” in inspector.'));
     if (reveal) {
       const revealItem = controller.getState().inputs?.[reveal.inputIndex];
@@ -362,20 +411,48 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
       const next = requestedFocus ?? focus;
       const node = workspace.getState().rightCollapsed && next.selector?.startsWith('[data-composition-') ? root.querySelector('[data-workspace-expand="right"]') : root.querySelector(next.selector);
       node?.focus({ preventScroll: true });
+      if (next.reveal) node?.scrollIntoView?.({block:'nearest',behavior:'instant'});
       if (node && Number.isInteger(next.start) && Number.isInteger(next.end) && 'setSelectionRange' in node) node.setSelectionRange(next.start, next.end);
     }
     if (menuFocus) { root.querySelector('[data-composition-context] button')?.focus({ preventScroll: true }); menuFocus = null; }
     lastCacheLayout = nextLayout; lastDraftVersion = Number(renderState.draftVersion ?? 0);
   };
-  const selection = () => {
+  const syncSelectionUI = (state = controller.getState()) => {
+    const context = selectionContext(state, { selectedRange, sourceInputIndex, rangeOutputIndex });
+    const setText = (selector, value) => { const node = root.querySelector(selector); if (node) node.textContent = value; };
+    setText('[data-composition-selection-effect]', placementHint(state, context.range));
+    root.querySelectorAll('[data-composition-section]').forEach(node => { const [inputIndex, sectionIndex] = node.dataset.compositionSection.split(':').map(Number); const range = graphSourceRanges(state, inputIndex)[sectionIndex]; node.setAttribute('aria-pressed', String(Boolean(context.range && range && sameRange(context.range, range)))); });
+    setText('[data-composition-selection]', context.range ? `${context.range.endByte - context.range.startByte} bytes selected. Original source stays read-only.` : 'Select a section or highlight exact source text.');
+    setText('[data-composition-working-title]', context.source ? inputTitle(context.source) : 'Choose source text');
+    setText('[data-composition-working-state]', context.range ? `${context.range.endByte - context.range.startByte} bytes selected · original read-only` : 'Select a section or highlight exact source text.');
+    setText('[data-composition-working-excerpt]', context.excerpt);
+    const excerpt = root.querySelector('[data-composition-working-excerpt]'); if (excerpt) excerpt.hidden = !context.range;
+    setText('[data-composition-working-destination]', state.draft?.outputs?.[context.outputIndex]?.title || 'Untitled output');
+    setText('[data-composition-working-target]', targetLabel(state.targets?.[context.outputIndex], state.targetDetails?.[context.outputIndex]));
+    setText('[data-composition-working-provenance]', context.range ? `${inputIdentity(context.source)} · ${rangeLabel(context.range)}` : 'No source range selected.');
+    const unapplied = [...root.querySelectorAll('[data-composition-range-reason],[data-composition-range-content]')].some(formValueChanged);
+    const boundSource = rangeEditRange ? state.inputs?.[rangeEditRange.inputIndex] : null;
+    const bindingAvailable = Boolean(boundSource && inputIdentity(boundSource) === rangeEditSourceId);
+    const mismatched = unapplied && (!context.range || !rangeEditRange || !sameRange(context.range, rangeEditRange) || !bindingAvailable);
+    root.querySelectorAll('[data-composition-apply],[data-composition-conflict-range]').forEach(node => { node.disabled = disabled(state) || !context.range || mismatched; });
+    root.querySelectorAll('[data-composition-range-reason],[data-composition-range-content]').forEach(node => { node.disabled = disabled(state) || !context.range || mismatched; });
+    const unsaved = root.querySelector('[data-composition-range-unsaved]'); if (unsaved) unsaved.hidden = !unapplied;
+    const clear = root.querySelector('[data-composition-clear-range]'); if (clear) { clear.textContent = unapplied ? 'Cancel selection edits' : 'Cancel selection'; clear.disabled = disabled(state) || (!context.range && !unapplied); }
+    const binding = root.querySelector('[data-composition-range-binding]');
+    if (binding) { binding.hidden = !mismatched; binding.textContent = mismatched ? `Unapplied edits belong to ${rangeEditRange && bindingAvailable ? `${inputTitle(boundSource)} · ${rangeLabel(rangeEditRange)}` : 'an earlier selection'}. Return to that selection or cancel these edits before changing another range.` : ''; }
+    const back = root.querySelector('[data-composition-return-range]'); if (back) { back.hidden = !mismatched || !bindingAvailable; back.disabled = disabled(state); }
+    if (mismatched) { const options = root.querySelector('[data-composition-range-options]'); if (options) options.open = true; rangeOptionsOpen = true; }
+  };
+  const selection = event => {
     if (disposed) return null;
     const area = root.querySelector('[data-composition-source]');
-    const item = controller.getState().inputs?.[sourceInputIndex];
+    if (event?.target && event.target !== area) return selectedRange;
+    const state = controller.getState(); const item = state.inputs?.[sourceInputIndex];
     if (!area || !item) return null;
-    const range = textareaSelectionRange(item.content ?? '', area.selectionStart, area.selectionEnd, sourceInputIndex);
-    if (range) selectedRange = range;
-    return range;
+    const range = safeRange(textareaSelectionRange(item.content ?? '', area.selectionStart, area.selectionEnd, sourceInputIndex));
+    selectedRange = range; syncSelectionUI(state); return range;
   };
+
   const sourceSection = (inputIndex, sectionIndex) => graphSourceRanges(controller.getState(), inputIndex)[sectionIndex] ?? null;
   const rangeAssignable = range => {
     const draft = controller.getState().draft;
@@ -384,6 +461,16 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     return !assigned.some(item => overlap(item, range)) && !(draft.exclusions ?? []).map(item => safeRange(item.range)).filter(Boolean).some(item => overlap(item, range));
   };
   const revealRange = range => { selectedRange = range; sourceInputIndex = range.inputIndex; tab = 'source'; reveal = range; nextFocus = { selector: '[data-composition-source]' }; menu = null; connectFrom = null; render(); };
+  const selectVisibleRange = range => {
+    const area = root.querySelector('[data-composition-source]'); const current = controller.getState();
+    const start = normalizedOffsetForByte(current.inputs?.[range.inputIndex]?.content ?? '', range.startByte);
+    const end = normalizedOffsetForByte(current.inputs?.[range.inputIndex]?.content ?? '', range.endByte);
+    if (area && tab === 'source' && range.inputIndex === sourceInputIndex && start !== null && end !== null) {
+      selectedRange = range; notice = ''; root.querySelector('.composition-action-notice')?.remove();
+      area.setSelectionRange(start, end); syncSelectionUI(current); return;
+    }
+    return revealRange(range);
+  };
   const openMenu = (next, origin) => { menu = { ...next, version: next.version ?? (next.range ? Number(controller.getState().draftVersion ?? 0) : undefined), origin }; menuFocus = true; render(); };
   const closeMenu = () => { const origin = menu?.origin; menu = null; if (origin) nextFocus = { selector: origin }; render(); };
   const dismissMenu = () => { if (!menu) return; menu = null; menuFocus = null; root.querySelector('[data-composition-context]')?.remove(); };
@@ -423,10 +510,19 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
     if (target.dataset.workspaceCollapse) { workspace.toggle(target.dataset.workspaceCollapse); render(); return root.querySelector(`[data-workspace-expand="${target.dataset.workspaceCollapse}"]`)?.focus({ preventScroll: true }); }
     if (target.dataset.workspaceExpand) { workspace.toggle(target.dataset.workspaceExpand); render(); return root.querySelector(`[data-workspace-collapse="${target.dataset.workspaceExpand}"]`)?.focus({ preventScroll: true }); }
     if (target.tagName !== 'SELECT' && !target.closest('[data-composition-context]') && menu && !target.matches('[data-composition-graph-source], [data-composition-graph-section], [data-composition-graph-piece], [data-composition-graph-output-button], [data-composition-graph-output-actions], [data-composition-graph-piece-actions]')) menu = null;
+    if (target.hasAttribute('data-composition-return-range')) {
+      if (rangeEditRange && inputIdentity(controller.getState().inputs?.[rangeEditRange.inputIndex]) === rangeEditSourceId) { selectVisibleRange(rangeEditRange); const field = root.querySelector('[data-composition-range-reason]'); field?.focus({preventScroll:true}); field?.scrollIntoView?.({block:'nearest',behavior:'instant'}); return; }
+      return;
+    }
+    if (target.dataset.compositionSection) {
+      const [inputIndex, sectionIndex] = target.dataset.compositionSection.split(':').map(Number);
+      const range = sourceSection(inputIndex, sectionIndex); if (!range) return;
+      return selectVisibleRange(range);
+    }
     if (target.dataset.compositionTab) { tab = target.dataset.compositionTab; return render(); }
     if (target.hasAttribute('data-composition-undo')) return guardStructural(() => typeof controller.undo === 'function' ? controller.undo() : false);
     if (target.hasAttribute('data-composition-redo')) return guardStructural(() => typeof controller.redo === 'function' ? controller.redo() : false);
-    if (target.matches('#composition-start')) return invoke(() => controller.startDraft());
+    if (target.matches('#composition-start')) { nextFocus = { selector: '[data-composition-source-input]', reveal: true }; return invoke(() => controller.startDraft()); }
     if (target.matches('#composition-reset')) {
       if (!root.ownerDocument.defaultView?.confirm('Discard this in-memory composition draft? Selected inputs remain.')) return;
       return Promise.resolve(controller.resetDraft()).then(result => {
@@ -444,11 +540,19 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
       if (!range) return render();
       const reason = root.querySelector('[data-composition-range-reason]')?.value ?? '';
       const content = root.querySelector('[data-composition-range-content]')?.value ?? '';
+      if ((reason.length || content.length) && (!rangeEditRange || !sameRange(range, rangeEditRange) || inputIdentity(controller.getState().inputs?.[range.inputIndex]) !== rangeEditSourceId)) { notice = 'Unapplied edits belong to a different source selection. Return to that selection or cancel its edits first.'; return render(); }
+      if (target.dataset.compositionApply !== 'assign' && !reason.trim()) { notice = 'Add a reason before duplicating, replacing or excluding source text.'; const options = root.querySelector('[data-composition-range-options]'); if (options) options.open = true; rangeOptionsOpen = true; nextFocus = { selector: '[data-composition-range-reason]' }; return render(); }
+      if (target.dataset.compositionApply === 'assign' && (reason.length || content.length)) { notice = 'Finish or cancel unapplied selection edits under More operations before assigning this range.'; rangeOptionsOpen = true; const options = root.querySelector('[data-composition-range-options]'); if (options) options.open = true; return render(); }
+      if (['duplicate', 'exclude'].includes(target.dataset.compositionApply) && content.length) { notice = 'Replacement text is present. Use Replace selection or clear that text first.'; return render(); }
       const currentRangeFields = new Set(['data-composition-range-reason:', 'data-composition-range-content:']);
       if (hasPendingFormEdits(currentRangeFields)) { notice = structuralNotice; return render(); }
-      notice = ''; return invokeStructural(() => controller.applyRange(range, { kind: target.dataset.compositionApply, outputIndex: index, content, reason }));
+      notice = ''; return invokeStructural(() => {
+        const result = controller.applyRange(range, { kind: target.dataset.compositionApply, outputIndex: index, content, reason });
+        if (result) { selectedRange = null; nextFocus = { selector: '[data-composition-source]' }; }
+        return result;
+      });
     }
-    if (target.hasAttribute('data-composition-clear-range')) { clearDraftKeys.add('data-composition-range-reason:'); clearDraftKeys.add('data-composition-range-content:'); return clearLocal(''); }
+    if (target.hasAttribute('data-composition-clear-range')) { clearDraftKeys.add('data-composition-range-reason:'); clearDraftKeys.add('data-composition-range-content:'); selectedRange = null; rangeEditRange = null; rangeEditSourceId = null; nextFocus = { selector: '[data-composition-source]' }; return clearLocal(''); }
     if (target.matches('[data-composition-conflict-range]')) { const range = selection(); if (range && !conflictRanges.some(item => item.inputIndex === range.inputIndex && item.startByte === range.startByte && item.endByte === range.endByte)) conflictRanges = [...conflictRanges, range]; return render(); }
     if (target.dataset.compositionMoveOutput) return guardStructural(() => controller.moveOutput(Number(target.dataset.compositionMoveOutput), Number(target.dataset.compositionDelta)));
     if (target.dataset.compositionRemoveOutput) return guardStructural(() => controller.removeOutput(Number(target.dataset.compositionRemoveOutput)));
@@ -511,6 +615,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
   const changed = event => {
     if (disposed) return;
     const target = event.target;
+    if (target.matches('[data-composition-range-output]')) { rangeOutputIndex = Number(target.value); syncSelectionUI(); return; }
     if (target.matches('[data-composition-source-input]')) { sourceInputIndex = Number(target.value); selectedRange = null; return render(); }
     if (target.dataset.compositionReplaceRevision) return invoke(() => controller.replaceRevision(Number(target.dataset.compositionReplaceRevision), target.value));
     if (target.dataset.compositionOutputTitle) return invokeClear(() => controller.setOutputTitle(Number(target.dataset.compositionOutputTitle), target.value), [`data-composition-output-title:${target.dataset.compositionOutputTitle}`]);
@@ -519,6 +624,13 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
   };
   const input = event => {
     if (disposed) return;
+    if (event.target.matches('[data-composition-range-reason],[data-composition-range-content]')) {
+      const state = controller.getState();
+      const unapplied = [...root.querySelectorAll('[data-composition-range-reason],[data-composition-range-content]')].some(formValueChanged);
+      if (!unapplied) { rangeEditRange = null; rangeEditSourceId = null; }
+      else if (!rangeEditRange && selectedRange) { rangeEditRange = { ...selectedRange }; rangeEditSourceId = inputIdentity(state.inputs?.[selectedRange.inputIndex]); }
+      syncSelectionUI(state); return;
+    }
     if (!event.target.matches('[data-composition-picker-filter]')) return;
     inputFilter = event.target.value;
     render();
@@ -534,6 +646,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
       if (event.target.dataset.compositionGraphOutputButton !== undefined) return openMenu({ kind: 'output', outputIndex: Number(event.target.dataset.compositionGraphOutputButton) }, `[data-composition-graph-output-button="${event.target.dataset.compositionGraphOutputButton}"]`);
       return openMenu({ kind: 'source', inputIndex: Number(event.target.dataset.compositionGraphSource), range: null }, `[data-composition-graph-source="${event.target.dataset.compositionGraphSource}"]`);
     }
+    if (event.key === 'Escape' && root.querySelector('[data-composition-range-options]')?.open) { event.preventDefault(); rangeOptionsOpen = false; root.querySelector('[data-composition-range-options]').open = false; root.querySelector('[data-composition-range-options] summary')?.focus(); return; }
     if (event.key === 'Escape' && workspace.cancel()) { event.preventDefault(); event.stopPropagation?.(); return; }
     if (event.key === 'Escape') { if (menu) return closeMenu(); connectFrom = null; selectedRange = null; notice = ''; return render(); }
     if (menu && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
@@ -595,7 +708,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
   };
   const pointerdown = event => { if (disposed) return; const resize = event.target.closest?.('[data-workspace-resize]'); if (resize && workspace.start(resize.dataset.workspaceResize, event, resize)) event.preventDefault(); };
   const pointermove = event => { if (!disposed) workspace.move(event); };
-  const pointerup = event => { if (!disposed) workspace.finish(event); };
+  const pointerup = event => { if (!disposed) { workspace.finish(event); if (event.target.matches?.('[data-composition-source]')) selection(event); } };
   const pointercancel = event => { if (!disposed) workspace.cancel(event.pointerId); };
   const lostpointercapture = event => { if (!disposed) workspace.cancel(event.pointerId); };
   const workspaceResizeObserver = root.ownerDocument.defaultView?.ResizeObserver ? new root.ownerDocument.defaultView.ResizeObserver(() => { if (!disposed) syncWorkspaceBounds(); }) : null;
@@ -604,6 +717,7 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
   root.addEventListener('change', changed);
   root.addEventListener('input', input);
   root.addEventListener('keyup', selection);
+  root.addEventListener('select', selection);
   root.addEventListener('keydown', key);
   root.addEventListener('contextmenu', context);
   root.addEventListener('focusout', menuFocusout);
@@ -622,13 +736,14 @@ export function bindCompositionView(root, controller, { onOpenSkill = () => {} }
   root.ownerDocument.defaultView?.addEventListener?.('resize', workspaceWindowResize);
   const dispose = ({ preserveCache = true } = {}) => {
     if (disposed) return;
+    if (preserveCache) remember();
     disposed = true;
     drag = null; workspace.dispose(); workspaceResizeObserver?.disconnect(); root.ownerDocument.defaultView?.removeEventListener?.('resize', workspaceWindowResize); graphResizeObserver?.disconnect(); graphResizeObserver = null;
-    if (preserveCache) bindingState.set(controller, { tab, sourceInputIndex, selectedRange, conflictRanges: [...conflictRanges], focus, nextFocus, scroll: new Map(scroll), formDrafts: new Map(formDrafts), formBaseline: new Map(formBaseline), reveal, menu, connectFrom, notice, drag: null, menuFocus, cacheLayout: lastCacheLayout, draftVersion: lastDraftVersion, inputFilter });
+    if (preserveCache) bindingState.set(controller, { tab, sourceInputIndex, selectedRange, conflictRanges: [...conflictRanges], focus, nextFocus, scroll: new Map(scroll), formDrafts: new Map(formDrafts), formBaseline: new Map(formBaseline), reveal, menu, connectFrom, notice, drag: null, menuFocus, cacheLayout: lastCacheLayout, draftVersion: lastDraftVersion, inputFilter, rangeOutputIndex, rangeOptionsOpen, rangeEditRange, rangeEditSourceId });
     else purgeCompositionViewCache(controller);
     clearRetainedCache(retained); retainedCacheLayout = null; retainedDraftVersion = null; inputFilter = '';
-    scroll.clear(); formDrafts.clear(); formBaseline.clear(); clearDraftKeys.clear(); conflictRanges = []; selectedRange = null; focus = null; nextFocus = null; reveal = null; menu = null; connectFrom = null; notice = ''; menuFocus = null; lastCacheLayout = null; lastDraftVersion = null;
-    root.removeEventListener('click', clicked); root.removeEventListener('change', changed); root.removeEventListener('input', input); root.removeEventListener('keyup', selection); root.removeEventListener('keydown', key); root.removeEventListener('contextmenu', context); root.removeEventListener('focusout', menuFocusout); root.removeEventListener('dragstart', dragstart); root.removeEventListener('dragover', dragover); root.removeEventListener('drop', drop); root.removeEventListener('dragend', dragend); root.removeEventListener('pointerdown', pointerdown); root.removeEventListener('pointermove', pointermove); root.removeEventListener('pointerup', pointerup); root.removeEventListener('pointercancel', pointercancel); root.removeEventListener('lostpointercapture', lostpointercapture); root.ownerDocument.removeEventListener('click', documentClick);
+    scroll.clear(); formDrafts.clear(); formBaseline.clear(); clearDraftKeys.clear(); conflictRanges = []; selectedRange = null; focus = null; nextFocus = null; reveal = null; menu = null; connectFrom = null; notice = ''; menuFocus = null; lastCacheLayout = null; lastDraftVersion = null; rangeOutputIndex = 0; rangeOptionsOpen = false; rangeEditRange = null; rangeEditSourceId = null;
+    root.removeEventListener('click', clicked); root.removeEventListener('change', changed); root.removeEventListener('input', input); root.removeEventListener('keyup', selection); root.removeEventListener('select', selection); root.removeEventListener('keydown', key); root.removeEventListener('contextmenu', context); root.removeEventListener('focusout', menuFocusout); root.removeEventListener('dragstart', dragstart); root.removeEventListener('dragover', dragover); root.removeEventListener('drop', drop); root.removeEventListener('dragend', dragend); root.removeEventListener('pointerdown', pointerdown); root.removeEventListener('pointermove', pointermove); root.removeEventListener('pointerup', pointerup); root.removeEventListener('pointercancel', pointercancel); root.removeEventListener('lostpointercapture', lostpointercapture); root.ownerDocument.removeEventListener('click', documentClick);
   };
   return { render, dispose, purgeForWorkspaceLock: () => dispose({ preserveCache: false }) };
 }
@@ -643,8 +758,8 @@ function normalizedOffsetForByte(content, byte) {
     const width = code > 0xffff ? 2 : 1;
     if (source[original] === '\r') {
       const next = source[original + 1] === '\n' ? 2 : 1;
-      total += bytes(source.slice(original, original + next)); original += next; normalized += 1;
-    } else { total += bytes(String.fromCodePoint(code)); original += width; normalized += width; }
+      total += next; original += next; normalized += 1;
+    } else { total += code <= 0x7f ? 1 : code <= 0x7ff ? 2 : code <= 0xffff ? 3 : 4; original += width; normalized += width; }
   }
   return null;
 }

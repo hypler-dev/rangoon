@@ -782,48 +782,47 @@ fn event_refs(
         }
         _ => (),
     }
-    if matches!(kind, "authorization" | "attempt" | "suspension") {
-        if let Some(id) = item.predecessor() {
-            let expected_kind: &'static str = match kind {
-                "authorization" => "authorization",
-                "attempt" => "attempt",
-                "suspension" => "suspension",
-                _ => return Err(LifecycleError::SerializationFailed),
-            };
-            refs.push(reference(
-                index,
-                tainted,
-                budget,
-                flags,
-                ReferenceRequest {
-                    field: "previousObservationId",
-                    list_index: None,
-                    id,
-                    expected: expected_kind,
-                },
-            )?);
-        }
+    if matches!(kind, "authorization" | "attempt" | "suspension")
+        && let Some(id) = item.predecessor()
+    {
+        let expected_kind: &'static str = match kind {
+            "authorization" => "authorization",
+            "attempt" => "attempt",
+            "suspension" => "suspension",
+            _ => return Err(LifecycleError::SerializationFailed),
+        };
+        refs.push(reference(
+            index,
+            tainted,
+            budget,
+            flags,
+            ReferenceRequest {
+                field: "previousObservationId",
+                list_index: None,
+                id,
+                expected: expected_kind,
+            },
+        )?);
     }
     if matches!(
         kind,
         "authorization" | "attempt" | "suspension" | "coverage"
-    ) {
-        if let Some(ids) = item.value.get("evidenceIds").and_then(Value::as_array) {
-            for (i, id) in ids.iter().enumerate() {
-                if let Some(id) = id.as_str() {
-                    refs.push(reference(
-                        index,
-                        tainted,
-                        budget,
-                        flags,
-                        ReferenceRequest {
-                            field: "evidenceIds",
-                            list_index: Some(i),
-                            id,
-                            expected: "evidence",
-                        },
-                    )?);
-                }
+    ) && let Some(ids) = item.value.get("evidenceIds").and_then(Value::as_array)
+    {
+        for (i, id) in ids.iter().enumerate() {
+            if let Some(id) = id.as_str() {
+                refs.push(reference(
+                    index,
+                    tainted,
+                    budget,
+                    flags,
+                    ReferenceRequest {
+                        field: "evidenceIds",
+                        list_index: Some(i),
+                        id,
+                        expected: "evidence",
+                    },
+                )?);
             }
         }
     }
@@ -832,17 +831,13 @@ fn event_refs(
             && link.expected_kind != "evidence"
             && link.expected_kind != "gateway_revision"
             && link.field != "previousObservationId"
+            && let Some(record) = index.get(&link.record_id)
+            && let Some(first) = observations.get(record.first)
+            && first.value.get("context").is_some()
+            && item.value.get("context").is_some()
+            && !flow_equal(&item.value, &first.value)
         {
-            if let Some(record) = index.get(&link.record_id) {
-                if let Some(first) = observations.get(record.first) {
-                    if first.value.get("context").is_some()
-                        && item.value.get("context").is_some()
-                        && !flow_equal(&item.value, &first.value)
-                    {
-                        mark(flags, "context_mismatch");
-                    }
-                }
-            }
+            mark(flags, "context_mismatch");
         }
     }
     Ok(refs)
@@ -1109,10 +1104,9 @@ pub fn inspect_lifecycle(decoded: &DecodedWindow) -> Result<LifecycleInspection,
                             .get(id)
                             .and_then(|record| earliest_sequence(record, &observations)),
                         earliest_sequence(parent_record, &observations),
-                    ) {
-                        if current_seq <= parent_seq {
-                            mark(&mut chain_flags, "sequence_mismatch");
-                        }
+                    ) && current_seq <= parent_seq
+                    {
+                        mark(&mut chain_flags, "sequence_mismatch");
                     }
                     if binding(item) != binding(parent) {
                         mark(&mut chain_flags, "binding_mismatch");

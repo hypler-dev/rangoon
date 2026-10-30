@@ -34,6 +34,72 @@ pub(crate) struct Flight {
     disarmed: bool,
 }
 
+/// Borrowed custody for bounded native startup work. It cannot outlive the
+/// Flight, be decoded from IPC, or resume the content registry.
+#[cfg(feature = "encrypted-workspace")]
+pub(crate) struct StartupPermit<'a> {
+    flight: &'a Flight,
+}
+
+/// Retained native plan identity. Neither a request ID nor a standalone grant:
+/// every use still requires the same live coordinator and exact control cycle.
+#[cfg(feature = "encrypted-workspace")]
+pub(crate) struct StartupBinding {
+    coordinator: std::sync::Weak<Mutex<State>>,
+    serial: u64,
+}
+
+#[cfg(feature = "encrypted-workspace")]
+impl StartupPermit<'_> {
+    pub(crate) fn binding(&self) -> Result<StartupBinding, ControlError> {
+        self.checkpoint()?;
+        Ok(StartupBinding {
+            coordinator: Arc::downgrade(&self.flight.close.state),
+            serial: self.flight.serial,
+        })
+    }
+    pub(crate) fn check_binding(&self, binding: &StartupBinding) -> Result<(), ControlError> {
+        if binding.serial != self.flight.serial
+            || !binding
+                .coordinator
+                .upgrade()
+                .is_some_and(|coordinator| Arc::ptr_eq(&coordinator, &self.flight.close.state))
+        {
+            return Err(ControlError::Stale);
+        }
+        self.checkpoint()
+    }
+    pub(crate) fn checkpoint(&self) -> Result<(), ControlError> {
+        if self.flight.stage != Stage::New || !self.flight.current() {
+            return Err(ControlError::Stale);
+        }
+        let control = self.flight.control.as_ref().ok_or(ControlError::Stale)?;
+        control.startup_checkpoint()?;
+        // C0 cleanup allowed this control to be created. Source-bearing startup
+        // work also needs the fresh C1 renderer acknowledgment; caller-supplied
+        // identities and the old completed cycle cannot stand in for it.
+        let ready = self.flight.close.state.lock().is_ok_and(|state| {
+            !state.exiting
+                && !state.failed
+                && state.control.as_ref().is_some_and(|retained| {
+                    retained.serial == self.flight.serial && retained.active
+                })
+                && state.attempt.as_ref().is_some_and(|attempt| {
+                    attempt.progress.lock().is_ok_and(|progress| {
+                        progress.healthy
+                            && progress.initial_done
+                            && !progress.finishing
+                            && progress.acknowledged
+                    })
+                })
+        });
+        if !ready {
+            return Err(ControlError::Unavailable);
+        }
+        control.startup_checkpoint()
+    }
+}
+
 fn attempt(
     ticket: CloseTicket,
     id: Option<String>,
@@ -58,6 +124,58 @@ fn random(bytes: &mut [u8]) -> Result<(), ()> {
 }
 
 impl WorkspaceClose {
+    /// Observation for the bounded native waiter only. A true value is not a
+    /// permit: the retained Flight still rechecks its exact serial and lease.
+    #[cfg(feature = "encrypted-workspace")]
+    pub(crate) fn startup_acknowledged(&self) -> Result<bool, ControlError> {
+        let state = self.state.lock().map_err(|_| ControlError::Unavailable)?;
+        if state.exiting
+            || state.failed
+            || self.source.failure_latched()
+            || !state.control.as_ref().is_some_and(|retained| {
+                retained.kind == ControlKind::Startup
+                    && retained.stage == Stage::New
+                    && retained.active
+            })
+        {
+            return Err(ControlError::Unavailable);
+        }
+        let attempt = state.attempt.as_ref().ok_or(ControlError::Unavailable)?;
+        let progress = attempt
+            .progress
+            .lock()
+            .map_err(|_| ControlError::Unavailable)?;
+        if !progress.healthy || !progress.initial_done || progress.finishing {
+            return Err(ControlError::Unavailable);
+        }
+        Ok(progress.acknowledged)
+    }
+
+    /// Native startup may begin only from the coordinator's actual completed
+    /// close. Returned identifiers match requests; they do not replace custody.
+    #[cfg(feature = "encrypted-workspace")]
+    pub(crate) fn locked_startup_cycle(&self) -> Result<(String, String), ControlError> {
+        let state = self.state.lock().map_err(|_| ControlError::Unavailable)?;
+        if state.exiting
+            || state.control.is_some()
+            || self.source.failure_latched()
+            || !healthy_attempt(&state)
+        {
+            return Err(ControlError::Unavailable);
+        }
+        let attempt = state.attempt.as_ref().ok_or(ControlError::Unavailable)?;
+        let progress = attempt
+            .progress
+            .lock()
+            .map_err(|_| ControlError::Unavailable)?;
+        if !progress.native_done || !progress.acknowledged {
+            return Err(ControlError::Unavailable);
+        }
+        Ok((
+            attempt.id.clone().ok_or(ControlError::Unavailable)?,
+            attempt.epoch.clone().ok_or(ControlError::Unavailable)?,
+        ))
+    }
     /// Call only after native consent policy and main-window identity are
     /// qualified. This private seam does not establish either by itself.
     #[cfg(test)]
@@ -387,6 +505,49 @@ fn healthy_attempt(state: &State) -> bool {
         })
 }
 impl Flight {
+    #[cfg(feature = "encrypted-workspace")]
+    pub(crate) fn check_bound_identity(&mut self, expected: &str) -> Result<(), ControlError> {
+        if self.stage != Stage::New {
+            return Err(ControlError::Invalid);
+        }
+        self.apply(|control| control.check_bound_identity(expected))
+    }
+    #[cfg(feature = "encrypted-workspace")]
+    pub(crate) fn startup_cycle(&self) -> Result<(String, String), ControlError> {
+        if self.stage != Stage::New || !self.current() {
+            return Err(ControlError::Stale);
+        }
+        self.control
+            .as_ref()
+            .ok_or(ControlError::Stale)?
+            .startup_checkpoint()?;
+        let state = self
+            .close
+            .state
+            .lock()
+            .map_err(|_| ControlError::Unavailable)?;
+        let attempt = state.attempt.as_ref().ok_or(ControlError::Stale)?;
+        Ok((
+            attempt.id.clone().ok_or(ControlError::Unavailable)?,
+            attempt.epoch.clone().ok_or(ControlError::Unavailable)?,
+        ))
+    }
+    #[cfg(feature = "encrypted-workspace")]
+    pub(crate) fn startup_permit(&self) -> Result<StartupPermit<'_>, ControlError> {
+        let permit = StartupPermit { flight: self };
+        permit.checkpoint()?;
+        Ok(permit)
+    }
+    #[cfg(feature = "encrypted-workspace")]
+    pub(crate) fn bind_locked_owner(
+        &mut self,
+        proof: crate::workspace_startup::BindingProof,
+    ) -> Result<(), ControlError> {
+        if self.stage != Stage::New {
+            return Err(ControlError::Invalid);
+        }
+        self.apply(|control| control.bind_locked_owner(proof))
+    }
     fn current(&self) -> bool {
         self.close.state.lock().is_ok_and(|s| {
             !s.exiting

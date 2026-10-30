@@ -4,13 +4,15 @@ Authority: [intent.md](intent.md). Experience acceptance: [product-experience.md
 
 ## Run from source
 
-The portable analyzer/host workspace retains Rust 1.85. The native shell is a separate workspace, uses Rust 1.98, and pins released Tauri 2.12.1, tauri-build 2.7.1 and dialog plugin 2.8.1. It reuses the static Rangoon frontend without adding a JavaScript build tool or duplicating the Rust parser.
+The portable analyzer/host workspace and separate native shell now share Rust 1.99.1, pinned by the root `rust-toolchain.toml` and both Cargo manifests. This raises the former 1.85/1.98 compiler floors to align with VUSL, without adding a VUSL dependency. The shell still pins Tauri 2.12.1, tauri-build 2.7.1 and dialog plugin 2.8.1. It reuses the static Rangoon frontend without adding a JavaScript build tool or duplicating the Rust parser.
 
 Install the relevant [Tauri native build prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS: Xcode command-line tools on macOS, Microsoft C++ build tools and WebView2 on Windows, or the documented WebKitGTK 4.1 development libraries on Linux. Installing prerequisites is a developer action, not something imported instructions trigger.
 
 ```sh
-cargo run --manifest-path apps/desktop/Cargo.toml --locked
+cargo +1.99.1 run --manifest-path apps/desktop/Cargo.toml --locked
 ```
+
+Run `node scripts/check-source-rust.mjs --desktop` for pinned source validation, or `--check-config` for version coherence only. The validator never installs tools; use `--toolchain-bin /absolute/path/to/bin` for an already provisioned isolated toolchain. Source checks remain separate from native GUI and packaged-release qualification.
 
 Choose `fixtures/contracts/AGENTS.md` from the native picker for the first test. The browser-only preview cannot invoke the native analyzer; its analysis page explains that state. No Node server or localhost HTTP API is started by the desktop app. Installer bundling is disabled.
 

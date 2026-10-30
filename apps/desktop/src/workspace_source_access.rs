@@ -1,5 +1,4 @@
-//! Private typed source, capability and workflow routing. Production construction remains legacy;
-//! managed encrypted Owner construction is confined to synthetic tests.
+//! Private typed source, capability and workflow routing through native custody.
 #[cfg(test)]
 use super::admit;
 use super::{
@@ -44,7 +43,7 @@ use std::{
 #[derive(Clone, Copy)]
 enum Error {
     Store(StoreError),
-    #[cfg(all(test, feature = "encrypted-workspace"))]
+    #[cfg(feature = "encrypted-workspace")]
     Managed(rangoon_desktop::workspace_session::Error),
     Cleared,
     WriteUncertain,
@@ -83,7 +82,7 @@ impl Error {
                 "workspace_write_completed",
                 "The local change completed before the workspace closed. Reopen and inspect saved content; closing did not undo the change.",
             ),
-            #[cfg(all(test, feature = "encrypted-workspace"))]
+            #[cfg(feature = "encrypted-workspace")]
             Self::Managed(error) => {
                 use rangoon_desktop::workspace_session::Error as ManagedError;
                 match error {
@@ -103,7 +102,7 @@ impl Error {
         PublicError { code, message }
     }
     fn managed_failure(self) -> bool {
-        #[cfg(all(test, feature = "encrypted-workspace"))]
+        #[cfg(feature = "encrypted-workspace")]
         if matches!(self, Self::Managed(_)) {
             return true;
         }
@@ -171,6 +170,21 @@ impl Error {
 }
 
 trait Backend: Send {
+    fn content_bound(&self) -> bool {
+        true
+    }
+    #[cfg(feature = "encrypted-workspace")]
+    fn control_check_identity(&mut self, _expected: &str) -> Result<(), ControlOwnerError> {
+        Err(ControlOwnerError::ConsentRequired)
+    }
+    #[cfg(feature = "encrypted-workspace")]
+    fn control_bind_owner(
+        &mut self,
+        _root: &Path,
+        _existing: bool,
+    ) -> Result<(), ControlOwnerError> {
+        Err(ControlOwnerError::BackendUnavailable)
+    }
     fn control_layout(&self) -> ControlLayout {
         ControlLayout::Unavailable
     }
@@ -254,6 +268,12 @@ trait Backend: Send {
         revision: &str,
         profile: rangoon_compile::Profile,
     ) -> Result<WorkspaceCompilation, Error>;
+    fn encrypted_recovery_supported(&self) -> bool {
+        false
+    }
+    fn capture_recovery_snapshot(&mut self) -> Result<Vec<u8>, Error> {
+        Err(Error::EncryptedRecoveryUnavailable)
+    }
     fn plaintext_backup_export_allowed(&self) -> bool;
     fn export_workflow_backup(&mut self) -> Result<Vec<u8>, Error>;
     fn prepare_workflow_restore(&mut self, backup: &Backup) -> Result<RestorePlan, Error>;
@@ -386,7 +406,7 @@ impl Backend for Legacy {
                 .store()?
                 .apply_composition(&prepared, acknowledged)
                 .map_err(Error::Store),
-            #[cfg(all(test, feature = "encrypted-workspace"))]
+            #[cfg(feature = "encrypted-workspace")]
             CompositionHandle::Managed(_) => Err(Error::Store(StoreError::CompositionInvalid)),
         }
     }
@@ -439,60 +459,126 @@ impl Backend for Legacy {
     }
 }
 
-#[cfg(all(test, feature = "encrypted-workspace"))]
+#[cfg(feature = "encrypted-workspace")]
 struct Managed<V> {
-    owner: rangoon_desktop::workspace_session::Owner,
+    owner: Option<rangoon_desktop::workspace_session::Owner>,
+    fixed_root: Option<PathBuf>,
     vault: V,
 }
-#[cfg(all(test, feature = "encrypted-workspace"))]
+#[cfg(feature = "encrypted-workspace")]
 impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V> {
+    fn content_bound(&self) -> bool {
+        self.owner.is_some()
+    }
+    fn control_check_identity(&mut self, expected: &str) -> Result<(), ControlOwnerError> {
+        let owner = self.owner.as_mut().ok_or(ControlOwnerError::Locked)?;
+        let result = owner.prepare_unlock().and_then(|preview| {
+            if preview.workspace_id == expected {
+                Ok(())
+            } else {
+                Err(ControlOwnerError::InvalidBinding)
+            }
+        });
+        // Inspection never retains an unlock preparation or opens a key slot.
+        owner.lock();
+        result
+    }
+    fn control_bind_owner(&mut self, root: &Path, existing: bool) -> Result<(), ControlOwnerError> {
+        if self.owner.is_some() || self.fixed_root.as_deref() != Some(root) {
+            return Err(ControlOwnerError::ConsentRequired);
+        }
+        let owner = if existing {
+            rangoon_desktop::workspace_session::Owner::acquire_existing(root.to_owned())?
+        } else {
+            rangoon_desktop::workspace_session::Owner::acquire(root.to_owned())?
+        };
+        self.owner = Some(owner);
+        Ok(())
+    }
     fn control_layout(&self) -> ControlLayout {
-        self.owner.inspect_layout()
+        self.owner
+            .as_ref()
+            .map_or(ControlLayout::Unavailable, |owner| owner.inspect_layout())
     }
     fn control_prepare(&mut self, kind: reopen::Kind) -> Result<ControlPreview, ControlOwnerError> {
+        let owner = self.owner.as_mut().ok_or(ControlOwnerError::Locked)?;
         match kind {
-            reopen::Kind::CreateEmpty => self.owner.prepare_create_empty(),
-            reopen::Kind::Unlock => self.owner.prepare_unlock(),
-            reopen::Kind::Recovery => Err(ControlOwnerError::ConsentRequired),
+            reopen::Kind::CreateEmpty => owner.prepare_create_empty(),
+            reopen::Kind::Unlock => owner.prepare_unlock(),
+            reopen::Kind::Recovery | reopen::Kind::Startup => {
+                Err(ControlOwnerError::ConsentRequired)
+            }
         }
     }
     fn control_confirm(&mut self, id: &str) -> Result<(), ControlOwnerError> {
-        self.owner.confirm(id, &self.vault)
+        self.owner
+            .as_mut()
+            .ok_or(ControlOwnerError::Locked)?
+            .confirm(id, &self.vault)
     }
     fn control_inspect(&mut self) -> Result<RecoveryPreview, ControlOwnerError> {
-        self.owner.inspect_recovery(&self.vault)
+        self.owner
+            .as_mut()
+            .ok_or(ControlOwnerError::Locked)?
+            .inspect_recovery(&self.vault)
     }
     fn control_reconcile(&mut self, id: &str) -> Result<(), ControlOwnerError> {
-        self.owner.confirm_recovery(id, &self.vault)
+        self.owner
+            .as_mut()
+            .ok_or(ControlOwnerError::Locked)?
+            .confirm_recovery(id, &self.vault)
     }
     fn control_is_open(&self) -> bool {
-        self.owner.is_unlocked() && !self.owner.requires_recovery()
+        self.owner
+            .as_ref()
+            .is_some_and(|owner| owner.is_unlocked() && !owner.requires_recovery())
     }
-
     fn ordinary_closed_error(&self) -> Error {
-        Error::Managed(if self.owner.requires_recovery() {
-            ControlOwnerError::RecoveryRequired
-        } else {
-            ControlOwnerError::Locked
-        })
+        Error::Managed(
+            if self
+                .owner
+                .as_ref()
+                .is_some_and(|owner| owner.requires_recovery())
+            {
+                ControlOwnerError::RecoveryRequired
+            } else {
+                ControlOwnerError::Locked
+            },
+        )
     }
-
     fn close_session(&mut self) -> bool {
-        let healthy_for_reopen = !self.owner.requires_recovery();
-        self.owner.lock();
+        let Some(owner) = self.owner.as_mut() else {
+            return true;
+        };
+        let healthy_for_reopen = !owner.requires_recovery();
+        owner.lock();
         healthy_for_reopen
     }
     fn list(&mut self) -> Result<Vec<SnapshotMetadata>, Error> {
-        self.owner.list(&self.vault).map_err(Error::Managed)
+        self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
+            .list(&self.vault)
+            .map_err(Error::Managed)
     }
     fn open(&mut self, id: &str) -> Result<AnalysisReport, Error> {
-        self.owner.open(&self.vault, id).map_err(Error::Managed)
+        self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
+            .open(&self.vault, id)
+            .map_err(Error::Managed)
     }
     fn save(&mut self, report: &AnalysisReport) -> Result<SaveReceipt, Error> {
-        self.owner.save(&self.vault, report).map_err(Error::Managed)
+        self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
+            .save(&self.vault, report)
+            .map_err(Error::Managed)
     }
     fn list_capabilities(&mut self) -> Result<Vec<CapabilitySummary>, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .list_capabilities(&self.vault)
             .map_err(Error::Managed)
     }
@@ -502,6 +588,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         revision: Option<&str>,
     ) -> Result<CapabilityDetail, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .open_capability(&self.vault, id, revision)
             .map_err(Error::Managed)
     }
@@ -512,6 +600,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         title: &str,
     ) -> Result<CapabilityReceiptV1, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .create_capability(&self.vault, source, fragment, title)
             .map_err(Error::Managed)
     }
@@ -523,6 +613,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         content: &str,
     ) -> Result<CapabilityReceiptV1, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .revise_capability(&self.vault, id, expected, title, content)
             .map_err(Error::Managed)
     }
@@ -532,21 +624,29 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         expected: &str,
     ) -> Result<CapabilityReceiptV1, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .review_capability(&self.vault, id, expected)
             .map_err(Error::Managed)
     }
     fn workflow_data(&mut self) -> Result<WorkflowWorkspaceData, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .workflow_data(&self.vault)
             .map_err(Error::Managed)
     }
     fn list_workflows(&mut self) -> Result<Vec<WorkflowSummary>, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .list_workflows(&self.vault)
             .map_err(Error::Managed)
     }
     fn open_workflow(&mut self, id: &str, revision: Option<&str>) -> Result<WorkflowDetail, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .open_workflow(&self.vault, id, revision)
             .map_err(Error::Managed)
     }
@@ -555,6 +655,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         candidate: &WorkflowRevision,
     ) -> Result<WorkflowSavePlan, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .inspect_workflow_save(&self.vault, candidate)
             .map_err(Error::Managed)
     }
@@ -564,6 +666,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         expected: &str,
     ) -> Result<WorkflowSaveReceipt, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .save_workflow(&self.vault, candidate, expected)
             .map_err(Error::Managed)
     }
@@ -572,6 +676,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         request: &rangoon_compose::application::Request,
     ) -> Result<RoutedCompositionPreview, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .prepare_composition_confirmation(&self.vault, request)
             .map(RoutedCompositionPreview::managed)
             .map_err(Error::Managed)
@@ -584,6 +690,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         match handle {
             CompositionHandle::Managed(token) => self
                 .owner
+                .as_mut()
+                .ok_or(Error::Managed(ControlOwnerError::Locked))?
                 .confirm_composition(&self.vault, &token, acknowledged)
                 .map_err(Error::Managed),
             CompositionHandle::Legacy(_) => Err(Error::Store(StoreError::CompositionInvalid)),
@@ -596,7 +704,19 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         profile: rangoon_compile::Profile,
     ) -> Result<WorkspaceCompilation, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .compile_capability(&self.vault, id, revision, profile)
+            .map_err(Error::Managed)
+    }
+    fn encrypted_recovery_supported(&self) -> bool {
+        crate::encrypted_recovery::supported()
+    }
+    fn capture_recovery_snapshot(&mut self) -> Result<Vec<u8>, Error> {
+        self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
+            .export_workflow_backup(&self.vault)
             .map_err(Error::Managed)
     }
     fn plaintext_backup_export_allowed(&self) -> bool {
@@ -607,6 +727,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
     }
     fn prepare_workflow_restore(&mut self, backup: &Backup) -> Result<RestorePlan, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .prepare_workflow_restore(&self.vault, backup)
             .map_err(Error::Managed)
     }
@@ -616,6 +738,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         plan: &RestorePlan,
     ) -> Result<WorkflowWorkspaceData, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .restore_workflow_backup(&self.vault, backup, plan)
             .map_err(Error::Managed)
     }
@@ -625,6 +749,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         id: &str,
     ) -> Result<DeletionPlan, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .inspect_workflow_deletion(&self.vault, kind, id)
             .map_err(Error::Managed)
     }
@@ -633,6 +759,8 @@ impl<V: rangoon_desktop::workspace_session::Vault + Send> Backend for Managed<V>
         plan: &DeletionPlan,
     ) -> Result<WorkflowWorkspaceData, Error> {
         self.owner
+            .as_mut()
+            .ok_or(Error::Managed(ControlOwnerError::Locked))?
             .delete_workflow_record(&self.vault, plan)
             .map_err(Error::Managed)
     }
@@ -779,6 +907,7 @@ enum Caller {
     HostFixture,
 }
 impl SourceAccess {
+    #[cfg(test)]
     fn new(gate: Gate, backend: Box<dyn Backend>) -> Self {
         Self::with_mode(gate, backend, false)
     }
@@ -839,13 +968,58 @@ impl SourceAccess {
     pub(super) fn request_view(&self) -> crate::workspace_requests::View {
         self.0.clients.view()
     }
+    #[cfg(test)]
     pub(super) fn legacy(gate: Gate, root: Result<PathBuf, StoreError>) -> Self {
         Self::new(gate, Box::new(Legacy(root)))
+    }
+    /// Pathless refusal state for a missing encrypted backend or native anchor.
+    /// The error carrier cannot open storage. Managed request custody remains
+    /// enabled, so a Legacy request can never acquire content permissions.
+    pub(super) fn unavailable(gate: Gate) -> Self {
+        Self::with_mode(gate, Box::new(Legacy(Err(StoreError::Unavailable))), true)
     }
     #[cfg(test)]
     pub(super) fn close_protocol_fixture(gate: Gate) -> Self {
         // Memory-only protocol fixtures; real keyed Owner closure is tested separately.
         Self::with_mode(gate, Box::new(Legacy(Err(StoreError::Unavailable))), true).host_fixture()
+    }
+    /// Retained fixture constructor for earlier isolated Owner/exit regressions.
+    /// Ordinary startup uses deferred acquisition and the startup host instead.
+    #[cfg(all(test, feature = "encrypted-workspace"))]
+    pub(super) fn managed_locked<V: rangoon_desktop::workspace_session::Vault + Send + 'static>(
+        gate: Gate,
+        root: PathBuf,
+        vault: V,
+    ) -> Result<Self, ControlOwnerError> {
+        let owner = rangoon_desktop::workspace_session::Owner::acquire(root)?;
+        Ok(Self::with_mode(
+            gate,
+            Box::new(Managed {
+                owner: Some(owner),
+                fixed_root: None,
+                vault,
+            }),
+            true,
+        ))
+    }
+    /// Fixed encrypted mode with no Owner, filesystem access or credential lookup.
+    #[cfg(feature = "encrypted-workspace")]
+    pub(super) fn managed_deferred<
+        V: rangoon_desktop::workspace_session::Vault + Send + 'static,
+    >(
+        gate: Gate,
+        root: PathBuf,
+        vault: V,
+    ) -> Self {
+        Self::with_mode(
+            gate,
+            Box::new(Managed {
+                owner: None,
+                fixed_root: Some(root),
+                vault,
+            }),
+            true,
+        )
     }
     #[cfg(all(test, feature = "encrypted-workspace"))]
     fn managed<V: rangoon_desktop::workspace_session::Vault + Send + 'static>(
@@ -853,7 +1027,16 @@ impl SourceAccess {
         owner: rangoon_desktop::workspace_session::Owner,
         vault: V,
     ) -> Self {
-        Self::with_mode(gate, Box::new(Managed { owner, vault }), true).host_fixture()
+        Self::with_mode(
+            gate,
+            Box::new(Managed {
+                owner: Some(owner),
+                fixed_root: None,
+                vault,
+            }),
+            true,
+        )
+        .host_fixture()
     }
     #[cfg(test)]
     fn host_fixture(mut self) -> Self {
@@ -944,6 +1127,12 @@ impl SourceAccess {
         };
         let mut backend = self.0.backend.lock().map_err(|_| lock_error)?;
         if !current() {
+            watch.armed = false;
+            return Err(Error::Store(StoreError::Unavailable));
+        }
+        if !backend.content_bound() {
+            // Unbound is a closed startup state, not an authenticated session or
+            // a corruption event. Do not invoke ordinary work or its watchdog.
             watch.armed = false;
             return Err(Error::Store(StoreError::Unavailable));
         }
@@ -1350,7 +1539,10 @@ impl SourceAccess {
             }
         };
         match tauri::async_runtime::spawn_blocking(move || {
-            let result = ticket.call(|backend| backend.workflow_data());
+            let result = ticket.call(|backend| {
+                let data = backend.workflow_data()?;
+                Ok((data, backend.encrypted_recovery_supported()))
+            });
             WorkflowInventoryCompletion {
                 ticket,
                 result: Some(result),
@@ -1601,8 +1793,205 @@ impl<T> ModelInputCompletion<T> {
 }
 
 /// Picker/file callbacks carry the same real lease as typed workspace access.
+#[cfg(test)]
+type RecoveryCheckpoint = Box<dyn FnOnce()>;
+#[cfg(test)]
+std::thread_local! {
+    static RECOVERY_CHECKPOINT: std::cell::RefCell<Option<RecoveryCheckpoint>> = const { std::cell::RefCell::new(None) };
+    static RECOVERY_CAPTURE_CHECKPOINT: std::cell::RefCell<Option<RecoveryCheckpoint>> = const { std::cell::RefCell::new(None) };
+}
 pub(super) struct FileOperation(CapabilityTicket);
+#[cfg(all(feature = "native-encrypted-qualification", target_os = "macos"))]
+impl SourceAccess {
+    /// Fixed synthetic qualification observation, never mounted as an IPC command.
+    pub(super) fn qualification_recovery_snapshot(&self) -> Result<(String, usize), PublicError> {
+        // Use the registered current native request, just like the workbench.
+        // An unbound host fixture must not mask missing production request custody.
+        let unavailable = || Error::Store(StoreError::Unavailable).public();
+        let view = serde_json::to_value(self.request_view()).map_err(|_| unavailable())?;
+        let client = view["clientId"].as_str().ok_or_else(unavailable)?;
+        let request = self.request_context("main", Some(client));
+        let bound = self.for_request(&request);
+        let operation = bound
+            .begin_file()
+            .map_err(|_| Error::Store(StoreError::Unavailable).public())?;
+        operation
+            .require_encrypted_recovery()
+            .map_err(Error::public)?;
+        let bytes = zeroize::Zeroizing::new(
+            operation
+                .0
+                .call(|backend| backend.capture_recovery_snapshot())
+                .map_err(Error::public)?,
+        );
+        #[cfg(test)]
+        if let Some(probe) = RECOVERY_CHECKPOINT.with(|cell| cell.borrow_mut().take()) {
+            probe();
+        }
+        operation.current().map_err(Error::public)?;
+        let backup = Backup::decode(&bytes).map_err(|error| Error::Store(error).public())?;
+        operation.current().map_err(Error::public)?;
+        Ok((backup.id().to_owned(), backup.byte_length()))
+    }
+}
 impl FileOperation {
+    fn require_encrypted_recovery(&self) -> Result<(), Error> {
+        if self
+            .0
+            .call(|backend| Ok(backend.encrypted_recovery_supported()))?
+        {
+            Ok(())
+        } else {
+            Err(Error::EncryptedRecoveryUnavailable)
+        }
+    }
+    pub(super) fn create_recovery_key(
+        self,
+        pick: impl FnOnce() -> Result<Option<PathBuf>, PublicError>,
+    ) -> DataCompletion {
+        let result = (|| {
+            self.require_encrypted_recovery()?;
+            let Some(path) = self.pick(pick)? else {
+                return Ok(DataResult::Cancelled);
+            };
+            self.current()?;
+            crate::encrypted_recovery::create_key(&path).map_err(Error::from_host)?;
+            Ok(DataResult::RecoveryKeyCreated)
+        })();
+        DataCompletion {
+            ticket: self.0,
+            result: Some(result),
+            authoring: false,
+            write: false,
+        }
+    }
+    pub(super) fn export_encrypted_backup(
+        self,
+        pick_key: impl FnOnce() -> Result<Option<PathBuf>, PublicError>,
+        pick_output: impl FnOnce() -> Result<Option<PathBuf>, PublicError>,
+        write: impl FnOnce(&Path, &[u8]) -> Result<(), PublicError>,
+        read: impl FnOnce(&Path) -> Result<Vec<u8>, PublicError>,
+    ) -> DataCompletion {
+        let mut output_attempted = false;
+        let result = (|| {
+            use crate::encrypted_recovery as recovery;
+            self.require_encrypted_recovery()?;
+            let Some(key_path) = self.pick(pick_key)? else {
+                return Ok(DataResult::Cancelled);
+            };
+            let key = recovery::read_key(&key_path).map_err(Error::from_host)?;
+            self.current()?;
+            let Some(output) = self.pick(pick_output)? else {
+                return Ok(DataResult::Cancelled);
+            };
+            let original = zeroize::Zeroizing::new(
+                self.0.call(|backend| backend.capture_recovery_snapshot())?,
+            );
+            #[cfg(test)]
+            if let Some(probe) = RECOVERY_CAPTURE_CHECKPOINT.with(|cell| cell.borrow_mut().take()) {
+                probe();
+            }
+            self.current()?;
+            let backup = Backup::decode(&original)?;
+            self.current()?;
+            let ciphertext = recovery::encode(&backup, &key).map_err(Error::from_host)?;
+            #[cfg(test)]
+            if let Some(probe) = RECOVERY_CHECKPOINT.with(|cell| cell.borrow_mut().take()) {
+                probe();
+            }
+            self.current()?;
+            let current = zeroize::Zeroizing::new(
+                self.0.call(|backend| backend.capture_recovery_snapshot())?,
+            );
+            if *current != *original {
+                return Err(Error::Host(
+                    "workspace_recovery_source_changed",
+                    "The workspace changed while preparing backup. Create a fresh backup; no output was written.",
+                ));
+            }
+            drop(current);
+            self.current()?;
+            output_attempted = true;
+            write(&output, &ciphertext).map_err(Error::from_host)?;
+            self.current()?;
+            // Verify the selected file, through a new stage and SQLite connection.
+            let written = read(&output).map_err(Error::from_host)?;
+            self.current()?;
+            if written != ciphertext {
+                return Err(Error::from_host(recovery::invalid()));
+            }
+            self.current()?;
+            let checked = recovery::decode(&written, &key).map_err(Error::from_host)?;
+            if !checked.same_recovery_records(&backup)? {
+                return Err(Error::from_host(recovery::invalid()));
+            }
+            let current = zeroize::Zeroizing::new(
+                self.0.call(|backend| backend.capture_recovery_snapshot())?,
+            );
+            if *current != *original {
+                return Err(Error::from_host(recovery::invalid()));
+            }
+            self.current()?;
+            Ok(DataResult::EncryptedExported {
+                format: recovery::FORMAT,
+                backup_id: checked.id().to_owned(),
+                byte_length: written.len(),
+            })
+        })();
+        let result = if output_attempted && result.is_err() {
+            Err(Error::Host(
+                "workspace_recovery_output_uncertain",
+                "Backup did not return a verified result. A file may remain; inspect your selected output and create a fresh backup with a new name.",
+            ))
+        } else {
+            result
+        };
+        DataCompletion {
+            ticket: self.0,
+            result: Some(result),
+            authoring: false,
+            write: false,
+        }
+    }
+    pub(super) fn prepare_encrypted_restore(
+        self,
+        pick_backup: impl FnOnce() -> Result<Option<PathBuf>, PublicError>,
+        pick_key: impl FnOnce() -> Result<Option<PathBuf>, PublicError>,
+        read: impl FnOnce(&Path) -> Result<Vec<u8>, PublicError>,
+    ) -> DataCompletion {
+        let result = (|| {
+            use crate::encrypted_recovery as recovery;
+            self.require_encrypted_recovery()?;
+            let Some(path) = self.pick(pick_backup)? else {
+                return Ok(DataResult::Cancelled);
+            };
+            let bytes = read(&path).map_err(Error::from_host)?;
+            self.current()?;
+            let Some(key_path) = self.pick(pick_key)? else {
+                return Ok(DataResult::Cancelled);
+            };
+            let key = recovery::read_key(&key_path).map_err(Error::from_host)?;
+            self.current()?;
+            let backup = recovery::decode(&bytes, &key).map_err(Error::from_host)?;
+            self.current()?;
+            let plan = self
+                .0
+                .call(|backend| backend.prepare_workflow_restore(&backup))?;
+            self.current()?;
+            self.0
+                .access
+                .0
+                .backup
+                .stage_routed(backup, plan.clone(), self.0.lease.witness())?;
+            Ok(DataResult::RestoreReady { plan })
+        })();
+        DataCompletion {
+            ticket: self.0,
+            result: Some(result),
+            authoring: true,
+            write: false,
+        }
+    }
     fn current(&self) -> Result<(), Error> {
         if self.0.current() {
             Ok(())
@@ -1871,12 +2260,20 @@ impl DataCompletion {
             {
                 Error::WriteCompleted.data()
             }
-            Ok(DataResult::Exported { .. }) if !current => DataResult::Failed {
+            Ok(DataResult::RecoveryKeyCreated) if !current => DataResult::Failed {
                 error: PublicError {
-                    code: "workspace_export_completed",
-                    message: "Export completed before the workspace closed. Closing did not undo the file; inspect your selected output.",
+                    code: "workspace_recovery_key_created",
+                    message: "The secret recovery key file was created before the workspace closed. Closing did not remove it; inspect your selected location before creating another key.",
                 },
             },
+            Ok(DataResult::Exported { .. } | DataResult::EncryptedExported { .. }) if !current => {
+                DataResult::Failed {
+                    error: PublicError {
+                        code: "workspace_export_completed",
+                        message: "Export completed before the workspace closed. Closing did not undo the file; inspect your selected output.",
+                    },
+                }
+            }
             Ok(_) if !current => Error::Store(StoreError::Unavailable).data(),
             Ok(result) => result,
             Err(error) => error.data(),
@@ -2131,7 +2528,7 @@ impl Drop for WorkflowCompletion {
 }
 struct WorkflowInventoryCompletion {
     ticket: CapabilityTicket,
-    result: Option<Result<WorkflowWorkspaceData, Error>>,
+    result: Option<Result<(WorkflowWorkspaceData, bool), Error>>,
 }
 impl WorkflowInventoryCompletion {
     fn deliver(mut self) -> DataResult {
@@ -2155,7 +2552,10 @@ impl WorkflowInventoryCompletion {
             self.ticket.access.purge_workflow_authoring();
         }
         match result {
-            Ok(workspace) => DataResult::Loaded { workspace },
+            Ok((workspace, encrypted_recovery_supported)) => DataResult::Loaded {
+                workspace,
+                encrypted_recovery_supported,
+            },
             Err(error) => DataResult::Failed {
                 error: error.public(),
             },

@@ -44,7 +44,7 @@ test('the pinned official SVG contains only closed inert geometry and original a
 
 test('format badges keep native browser refusal and never assert vendor runtime support', () => {
   const html = renderCompilationPage({ bridgeAvailable: false, capabilities: [], listStatus: 'unavailable', profile: 'claude_md_v1' });
-  assert.match(html, /claude-spark-clay.svg/); assert.match(html, /Format only · runtime unqualified/); assert.match(html, /Provider-independent text profile/);
+  assert.match(html, /claude-spark-clay.svg/); assert.match(html, /Text format only · target loading not verified/); assert.match(html, /Standard instruction format/);
   assert.match(html.match(/<button\b[^>]*id="compile-generate"[^>]*>/)[0], /disabled/);
   assert.doesNotMatch(html, /supported integration|connected to Claude|approved by Claude|cdn\./i);
 });

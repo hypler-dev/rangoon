@@ -27,7 +27,7 @@ The manifest embeds only existing revision/provenance references and an unauthen
 
 ## Pure API and verification
 
-Add a `bundle` module to `rangoon-compile`, retaining its Rust 1.85 and no-I/O boundary. Use existing dependencies only.
+Add a `bundle` module to `rangoon-compile`, retaining its Rust 1.99.1 and no-I/O boundary. Use existing dependencies only.
 
 - `encode_bundle(&CompilationReport) -> Result<EncodedBundle, BundleError>` accepts only a fully consistent candidate report. The returned structure contains exact `bytes` and an `inspection`. Reject unreviewed/blocked reports and mutated public report fields. Encoding must pass the same verifier and require its reconstructed compilation report to equal the supplied report; do not trust caller-controlled candidate IDs or manifest fields.
 - `inspect_bundle(&[u8]) -> Result<BundleInspection, BundleError>` validates an untrusted file in memory. It does not mutate storage, consult the environment, load includes, install files, invoke a provider or grant authority.

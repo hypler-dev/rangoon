@@ -1,0 +1,21 @@
+# Historical E1d-1 experiment. Excluded from Rangoon's active workspaces.
+[workspace]
+resolver = "3"
+
+[package]
+name = "rangoon-recovery"
+version = "0.1.0-dev"
+edition = "2024"
+rust-version = "1.99.1"
+license = "Apache-2.0"
+publish = false
+repository = "https://github.com/hypler-dev/rangoon"
+description = "Retired unmounted recovery envelope experiment; not product recovery"
+
+[dependencies]
+age = { version = "=0.11.5", default-features = false }
+zeroize = "=1.9.0"
+
+[dev-dependencies]
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.151"

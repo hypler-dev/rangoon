@@ -1,13 +1,13 @@
 [workspace]
 members = ["crates/rangoon-domain", "crates/rangoon-import", "crates/rangoon-cli", "crates/rangoon-host", "crates/rangoon-store", "crates/rangoon-engine", "crates/rangoon-compose", "crates/rangoon-compile", "crates/rangoon-model-assistance", "crates/rangoon-model-local", "crates/rangoon-model-session", "crates/rangoon-model-cloud", "crates/rangoon-workflow", "crates/rangoon-ops", "crates/rangoon-integrations", "crates/rangoon-language", "crates/rangoon-openshell-client"]
-exclude = ["apps/desktop"]
+exclude = ["apps/desktop", "crates/rangoon-recovery"]
 resolver = "3"
 
 [workspace.package]
 license = "Apache-2.0"
 version = "0.1.0-dev"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.99.1"
 publish = false
 repository = "https://github.com/hypler-dev/rangoon"
 

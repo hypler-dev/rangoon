@@ -1,11 +1,14 @@
 {
   "identifier": "source-analysis",
-  "description": "The local main workbench can inspect and save sources, inspect one bounded operations window through a native picker and privacy-minimized read-only view, derive and review inert skills, compose inert skills from saved inputs, inspect compiled instruction text, explicitly export or inspect plaintext instruction bundles, manage local backups and record deletion, author immutable inert workflow revisions, inspect inert engine status, and read source-free encrypted layout status and request native-confirmed empty encrypted setup or unlock when a qualified managed host is available. Renderer-supplied paths, SQL and engine requests are never accepted.",
+  "description": "The local main workbench can inspect and save sources, explicitly list bounded metadata from a native-selected folder without reading its contents, inspect one bounded operations window through a native picker and privacy-minimized read-only view, derive and review inert skills, compose inert skills from saved inputs, inspect compiled instruction text, explicitly export or inspect plaintext instruction bundles, manage local backups and record deletion, author immutable inert workflow revisions, inspect inert engine status, and read source-free encrypted layout status and request native-confirmed empty encrypted setup or unlock when a qualified managed host is available. Renderer-supplied paths, SQL and engine requests are never accepted.",
   "windows": [
     "main"
   ],
   "local": true,
   "permissions": [
+    "allow-workspace-startup-status",
+    "allow-workspace-startup-action",
+    "allow-workspace-startup-quit",
     "allow-get-workspace-close-state",
     "allow-get-workspace-control-state",
     "allow-get-workspace-protection-state",
@@ -16,6 +19,8 @@
     "allow-begin-workspace-close",
     "allow-acknowledge-workspace-purge",
     "allow-select-and-analyze",
+    "allow-select-and-inspect-sources",
+    "allow-select-and-list-sources",
     "allow-select-and-inspect-operations",
     "allow-list-snapshots",
     "allow-save-analysis",
@@ -33,6 +38,9 @@
     "allow-inspect-instruction-bundle",
     "allow-get-workspace-data",
     "allow-export-workspace-backup",
+    "allow-create-workspace-recovery-key",
+    "allow-export-encrypted-workspace-backup",
+    "allow-prepare-encrypted-workspace-restore",
     "allow-prepare-workspace-restore",
     "allow-restore-workspace-backup",
     "allow-inspect-workspace-deletion",

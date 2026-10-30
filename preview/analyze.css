@@ -1,3 +1,4 @@
+@import url('./markdown-review.css');
 .analysis-shell{display:grid;grid-template-columns:210px minmax(0,1fr);min-height:100vh;background:radial-gradient(circle at 85% 0,color-mix(in srgb,var(--orange) 11%,transparent),transparent 30%),var(--bg);color:var(--ink)}
 .workspace-lock-dialog{width:min(520px,calc(100vw - 28px));border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);box-shadow:0 30px 120px #0008}
 .workspace-lock-dialog::backdrop{background:#05080bba;backdrop-filter:blur(4px)}
@@ -27,3 +28,25 @@
 @media (prefers-reduced-motion:reduce){.skills-library__item{transition:none}}@media (forced-colors:active){.skills-library,.skills-library__filters,.skills-library__item,.skills-library__hidden{border-color:CanvasText;background:Canvas;color:CanvasText}.skills-library__item--active{border-left-color:Highlight}.skills-library__filters input,.skills-library__filters select{border-color:CanvasText;background:Canvas;color:CanvasText}}
 
 @media (max-width:460px){.workspace-lock-dialog__actions{flex-direction:column}.workspace-lock-dialog__actions button{width:100%}}
+
+/* Skills editing: compact work area, explicit local state and progressive details. */
+.skills-hero h1{font-size:clamp(28px,3vw,40px);line-height:1.12;margin:8px 0}
+.skills-source-create{border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:16px 0;min-width:0}
+.skills-source-create>summary,.skills-advanced>summary,.skills-saved>summary,.skills-original>summary{min-height:44px;box-sizing:border-box;padding:12px;cursor:pointer;overflow-wrap:anywhere}
+.skills-source-create>summary{font-weight:650}.skills-source-create>summary span{display:block;font-weight:400;font-size:12px;color:var(--muted);margin-top:4px}
+.skills-source-create .skills-source{border:0;margin:0;padding-top:0}
+.skills-panel-head{align-items:flex-start;flex-wrap:wrap;gap:12px}
+.skills-panel-head>div{min-width:0;flex:1}.skills-panel-head h2{overflow-wrap:anywhere}
+.skills-revision-context{font-size:12px;line-height:1.6;color:var(--muted);margin:6px 0 0}
+.skills-editor-state{display:inline-flex;align-items:center;min-height:32px;border:1px solid var(--line);border-radius:8px;padding:4px 9px;box-sizing:border-box;font-size:12px;font-weight:650;background:var(--raised);white-space:normal}
+.skills-editor-state[data-kind=dirty],.skills-editor-state[data-kind=conflict]{border-color:var(--orange);color:var(--ink)}
+.skills-edit-hint{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 12px}
+.skills-actions{display:flex;flex-wrap:wrap;gap:8px}.skills-actions button,.skills-discard-confirmation button,.skills-historical button,.skills-conflict button{min-height:44px}
+.skills-discard-confirmation{border:1px solid var(--orange);border-radius:10px;padding:12px;margin:12px 0;background:var(--raised)}
+.skills-discard-confirmation p{margin:0 0 10px;font-size:13px;line-height:1.5}.skills-discard-confirmation>div{display:flex;gap:8px;flex-wrap:wrap}
+.skills-record-summary{display:grid;gap:8px;font-size:12px;line-height:1.6;margin:12px 0}.skills-record-summary p{margin:0;color:var(--muted)}
+.skills-advanced{border:1px solid var(--line);border-radius:8px;margin:12px 0}.skills-advanced .skills-fields{padding:0 12px}.skills-fields dd{overflow-wrap:anywhere}
+.skills-history__item{min-height:60px}.skills-history__item small{line-height:1.6}
+.skills-page :is(button,input,select,textarea,summary):focus-visible{outline:2px solid var(--orange);outline-offset:3px}
+@media(max-width:759px){.skills-source-create .skills-source{grid-template-columns:minmax(0,1fr)}.skills-actions button{flex:1 1 130px}.skills-editor-state{white-space:normal}.skills-workbench{min-width:0}}
+.skills-page #skills-reload-list{min-height:44px}

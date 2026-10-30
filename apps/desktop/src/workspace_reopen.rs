@@ -9,6 +9,8 @@ pub(crate) enum Kind {
     CreateEmpty,
     Unlock,
     Recovery,
+    #[cfg(feature = "encrypted-workspace")]
+    Startup,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ControlError {
@@ -131,6 +133,51 @@ impl CloseTicket {
     }
 }
 impl Control {
+    #[cfg(feature = "encrypted-workspace")]
+    pub(crate) fn check_bound_identity(&mut self, expected: &str) -> Result<(), ControlError> {
+        if self.kind != Kind::Startup || self.phase != Phase::New {
+            return Err(ControlError::Invalid);
+        }
+        let result = self.run(|backend| backend.control_check_identity(expected));
+        if result.is_err() {
+            self.mark_cleanup_failed();
+            self.fail();
+        }
+        result
+    }
+    /// Startup work keeps the real closed-operation lease. Request identities
+    /// cannot replace this check or publish an ordinary content client.
+    #[cfg(feature = "encrypted-workspace")]
+    pub(crate) fn startup_checkpoint(&self) -> Result<(), ControlError> {
+        if self.kind != Kind::Startup || self.phase != Phase::New {
+            return Err(ControlError::Invalid);
+        }
+        if !self.current() {
+            return Err(ControlError::Stale);
+        }
+        Ok(())
+    }
+    /// Bind once under actual closed-operation custody. This proof is created
+    /// only by the native fixed-root inspector, never by IPC or a UI action.
+    #[cfg(feature = "encrypted-workspace")]
+    pub(crate) fn bind_locked_owner(
+        &mut self,
+        proof: crate::workspace_startup::BindingProof,
+    ) -> Result<(), ControlError> {
+        if self.phase != Phase::New || !self.current() || proof.check_before().is_err() {
+            self.mark_cleanup_failed();
+            self.fail();
+            return Err(ControlError::Invalid);
+        }
+        let root = proof.root();
+        let result = self.run(|backend| backend.control_bind_owner(&root, proof.existing()));
+        if result.is_err() || proof.check_after().is_err() {
+            self.mark_cleanup_failed();
+            self.fail();
+            return Err(ControlError::Unavailable);
+        }
+        Ok(())
+    }
     fn current(&self) -> bool {
         self.lease
             .as_ref()
@@ -210,7 +257,7 @@ impl Control {
         }
     }
     pub(crate) fn prepare(&mut self) -> Result<ControlPreview, ControlError> {
-        if self.phase != Phase::New || self.kind == Kind::Recovery {
+        if self.phase != Phase::New || !matches!(self.kind, Kind::CreateEmpty | Kind::Unlock) {
             self.fail();
             return Err(ControlError::Invalid);
         }
@@ -220,7 +267,7 @@ impl Control {
         Ok(value)
     }
     pub(crate) fn confirm(&mut self, id: &str) -> Result<(), ControlError> {
-        if self.phase != Phase::Prepared || self.kind == Kind::Recovery {
+        if self.phase != Phase::Prepared || !matches!(self.kind, Kind::CreateEmpty | Kind::Unlock) {
             self.fail();
             return Err(ControlError::Invalid);
         }
@@ -261,7 +308,10 @@ impl Control {
         })
     }
     fn resume_inner(mut self, after_resume: impl FnOnce()) -> Result<(), ControlError> {
-        if self.kind == Kind::Recovery || self.phase != Phase::Confirmed || !self.current() {
+        if !matches!(self.kind, Kind::CreateEmpty | Kind::Unlock)
+            || self.phase != Phase::Confirmed
+            || !self.current()
+        {
             return Err(ControlError::Invalid);
         }
         let (mut slot, healthy) = self

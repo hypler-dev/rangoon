@@ -42,6 +42,7 @@ function boundedSnapshots(snapshots) {
 export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
   let state = { ...EMPTY_STATE, status: typeof invoke === 'function' ? 'idle' : 'unavailable' };
   let snapshotRequestId = 0;
+  let openingSavedSource = null;
   let workspaceIdentity = Symbol('analysis-workspace');
 
   const publish = () => onChange({ ...state });
@@ -56,6 +57,7 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
 
   const controller = {
     purgeForWorkspaceLock() {
+      openingSavedSource = null;
       ++snapshotRequestId;
       workspaceIdentity = Symbol('analysis-workspace');
       const requestId = state.requestId + 1;
@@ -67,6 +69,7 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
       });
     },
     noteSnapshotDeleted(sourceId) {
+      if (openingSavedSource?.sourceId === sourceId) openingSavedSource.deleted = true;
       ++snapshotRequestId;
       setState({
         snapshots: state.snapshots.filter(item => item.sourceId !== sourceId),
@@ -158,20 +161,33 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
         setState({ status: 'failed', busyAction: null, errorCode: resultCode(result), message: resultMessage(result) });
       }
     },
-    async openSnapshot(sourceId) {
-      if (!sourceId || !canStart('open')) return;
+    async openSnapshot(sourceId, expected = null) {
+      if (typeof sourceId !== 'string' || !/^source:[a-f0-9]{64}$/.test(sourceId) || !canStart('open')) return false;
+      if (expected !== null && (!expected || Object.keys(expected).length !== 2
+        || !/^[a-f0-9]{64}$/.test(expected.sha256) || !Number.isSafeInteger(expected.byteLength)
+        || expected.byteLength < 0 || expected.byteLength > 262144)) return false;
+      const opening = { sourceId, deleted: false };
+      openingSavedSource = opening;
       const requestId = state.requestId + 1;
       const identity = workspaceIdentity;
       setState({ status: 'pending', busyAction: 'open', requestId, errorCode: null, message: 'Opening saved source…' });
-      if (identity !== workspaceIdentity) return;
+      if (identity !== workspaceIdentity) return false;
       let result;
       try {
         result = await invoke('open_snapshot', { sourceId });
       } catch {
         result = failedResult();
       }
-      if (identity !== workspaceIdentity || state.requestId !== requestId) return;
-      if (result?.outcome === 'analyzed' && result.report) {
+      if (identity !== workspaceIdentity || state.requestId !== requestId) return false;
+      if (openingSavedSource === opening) openingSavedSource = null;
+      if (opening.deleted) {
+        setState({ status: 'failed', busyAction: null, errorCode: 'source_deleted', message: 'The saved source was removed while opening. Previous analysis remains available.' });
+        return false;
+      }
+      const returned = result?.report?.source;
+      const mismatch = result?.outcome === 'analyzed' && (!returned || returned.id !== sourceId
+        || expected && (returned.sha256 !== expected.sha256 || returned.byteLength !== expected.byteLength));
+      if (result?.outcome === 'analyzed' && result.report && !mismatch) {
         setState({
           status: 'analyzed',
           busyAction: null,
@@ -180,8 +196,12 @@ export function createAnalysisController({ invoke, onChange = () => {} } = {}) {
           errorCode: null,
           message: 'Saved source opened. All sections remain unreviewed.',
         });
+        return identity === workspaceIdentity && state.requestId === requestId;
       } else {
-        setState({ status: 'failed', busyAction: null, errorCode: resultCode(result), message: resultMessage(result) });
+        setState({ status: 'failed', busyAction: null,
+          errorCode: mismatch ? 'source_identity_mismatch' : resultCode(result),
+          message: mismatch ? 'The returned source did not match the saved reference. Previous analysis remains available.' : resultMessage(result) });
+        return false;
       }
     },
     async clear() {

@@ -14,16 +14,293 @@ const SCHEMA: &str = "rangoon.backup.v3";
 const MAX_MANIFEST: usize = 2 * 1024 * 1024;
 const MAX_RECORD: usize = 160 * 1024;
 
-#[derive(Debug)]
 pub struct WorkspaceBackup {
     pub(super) records: Records,
     id: String,
     byte_length: usize,
 }
 
+impl std::fmt::Debug for WorkspaceBackup {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("WorkspaceBackup(<redacted>)")
+    }
+}
+
+/// A bounded, existing-only Legacy capture. This is not migration authority.
+/// Paths, decoded records and plaintext bytes never enter diagnostics.
+///
+/// ```compile_fail
+/// fn serializable<T: serde::Serialize>() {}
+/// serializable::<rangoon_store::ExistingWorkspaceCapture>();
+/// ```
+pub struct ExistingWorkspaceCapture {
+    content: Option<CapturedContent>,
+    #[cfg(unix)]
+    source: ExistingSourceProof,
+}
+
+struct CapturedContent {
+    archive: zeroize::Zeroizing<Vec<u8>>,
+    digest: String,
+    schema: u32,
+    inventory: WorkflowRecoveryCounts,
+}
+
+impl std::fmt::Debug for ExistingWorkspaceCapture {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("ExistingWorkspaceCapture(<redacted>)")
+    }
+}
+
+impl ExistingWorkspaceCapture {
+    fn content(&self) -> Result<&CapturedContent, StoreError> {
+        self.content.as_ref().ok_or(StoreError::WorkspaceChanged)
+    }
+    pub fn schema_version(&self) -> Result<u32, StoreError> {
+        Ok(self.content()?.schema)
+    }
+    pub fn inventory(&self) -> Result<&WorkflowRecoveryCounts, StoreError> {
+        Ok(&self.content()?.inventory)
+    }
+    pub fn digest(&self) -> Result<&str, StoreError> {
+        Ok(&self.content()?.digest)
+    }
+    /// Restart-stable identity metadata, not authentication or content authority.
+    pub fn identity_fingerprint(&self) -> Result<String, StoreError> {
+        self.content()?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            self.source.check()?;
+            let mut bytes = b"rangoon.legacy-identity.v1\0".to_vec();
+            bytes.push(
+                u8::try_from(self.source.ancestors.len()).map_err(|_| StoreError::Unavailable)?,
+            );
+            for metadata in self
+                .source
+                .ancestors
+                .iter()
+                .rev()
+                .map(|(_, metadata)| metadata)
+                .chain(std::iter::once(&self.source.database))
+            {
+                bytes.extend_from_slice(&metadata.dev().to_be_bytes());
+                bytes.extend_from_slice(&metadata.ino().to_be_bytes());
+            }
+            Ok(byte_digest(&bytes))
+        }
+        #[cfg(not(unix))]
+        {
+            Err(StoreError::Unavailable)
+        }
+    }
+    /// Trusted Rust host access only. No renderer/export endpoint is registered.
+    pub fn archive(&self) -> Result<&[u8], StoreError> {
+        Ok(&self.content()?.archive)
+    }
+    pub fn cancel(&mut self) {
+        self.content = None;
+    }
+}
+
+#[cfg(unix)]
+struct ExistingSourceProof {
+    directory: PathBuf,
+    ancestors: Vec<(PathBuf, fs::Metadata)>,
+    database: fs::Metadata,
+}
+
+#[cfg(unix)]
+impl ExistingSourceProof {
+    fn observe(directory: &std::path::Path) -> Result<Self, StoreError> {
+        use std::path::Component;
+        if !directory.is_absolute()
+            || directory.components().count() > 64
+            || directory
+                .components()
+                .any(|part| matches!(part, Component::CurDir | Component::ParentDir))
+        {
+            return Err(StoreError::Unavailable);
+        }
+        let mut ancestors = Vec::new();
+        for path in directory.ancestors() {
+            let metadata = fs::symlink_metadata(path).map_err(|_| StoreError::Unavailable)?;
+            if linked(&metadata) || !metadata.is_dir() {
+                return Err(StoreError::Unavailable);
+            }
+            ancestors.push((path.to_owned(), metadata));
+        }
+        let database = Self::database(directory)?;
+        let result = Self {
+            directory: directory.to_owned(),
+            ancestors,
+            database,
+        };
+        result.check()?;
+        Ok(result)
+    }
+    fn same_identity(left: &fs::Metadata, right: &fs::Metadata) -> bool {
+        use std::os::unix::fs::MetadataExt;
+        left.dev() == right.dev() && left.ino() == right.ino()
+    }
+    fn database(directory: &std::path::Path) -> Result<fs::Metadata, StoreError> {
+        use std::os::unix::fs::MetadataExt;
+        // Refuse all sidecars before SQLite can inspect or recover them. A
+        // later appearance is a refusal too, never a repair/checkpoint path.
+        let mut count = 0;
+        for entry in fs::read_dir(directory).map_err(|_| StoreError::Unavailable)? {
+            let entry = entry.map_err(|_| StoreError::Unavailable)?;
+            count += 1;
+            if count > 1 || entry.file_name() != "workspace.sqlite3" {
+                return Err(StoreError::Unavailable);
+            }
+        }
+        let metadata = fs::symlink_metadata(directory.join("workspace.sqlite3"))
+            .map_err(|_| StoreError::Unavailable)?;
+        if linked(&metadata) || !metadata.is_file() || metadata.nlink() != 1 || metadata.len() == 0
+        {
+            return Err(StoreError::Unavailable);
+        }
+        if metadata.len() > MAX_DATABASE_BYTES {
+            return Err(StoreError::Full);
+        }
+        Ok(metadata)
+    }
+    fn check(&self) -> Result<(), StoreError> {
+        for (path, held) in &self.ancestors {
+            let current = fs::symlink_metadata(path).map_err(|_| StoreError::WorkspaceChanged)?;
+            if linked(&current) || !current.is_dir() || !Self::same_identity(held, &current) {
+                return Err(StoreError::WorkspaceChanged);
+            }
+        }
+        if !Self::same_identity(&self.database, &Self::database(&self.directory)?) {
+            return Err(StoreError::WorkspaceChanged);
+        }
+        Ok(())
+    }
+    fn unchanged_during_capture(&self) -> Result<(), StoreError> {
+        use std::os::unix::fs::MetadataExt;
+        self.check()?;
+        let current = Self::database(&self.directory)?;
+        if self.database.len() != current.len()
+            || self.database.mtime() != current.mtime()
+            || self.database.mtime_nsec() != current.mtime_nsec()
+            || self.database.ctime() != current.ctime()
+            || self.database.ctime_nsec() != current.ctime_nsec()
+        {
+            return Err(StoreError::WorkspaceChanged);
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+std::thread_local! {
+    static CAPTURE_PROBE: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = std::cell::RefCell::new(None);
+}
+
+impl Workspace {
+    /// Captures only an existing, initialized Legacy database. No create,
+    /// upgrade, journal recovery, vault access or temporary archive is allowed.
+    pub fn capture_existing_snapshot(&self) -> Result<ExistingWorkspaceCapture, StoreError> {
+        #[cfg(not(unix))]
+        {
+            Err(StoreError::Unavailable)
+        }
+        #[cfg(unix)]
+        {
+            if self.key.is_some() {
+                return Err(StoreError::Unavailable);
+            }
+            let source = ExistingSourceProof::observe(&self.directory)?;
+            let mut database = self
+                .connect_complete_read_only(true)?
+                .ok_or(StoreError::Unavailable)?;
+            source.check()?;
+            let transaction = database.transaction()?;
+            let schema: u32 =
+                transaction.pragma_query_value(None, "user_version", |row| row.get(0))?;
+            let records = workflow_mutations::read_records(&transaction)?;
+            let inventory = workflow_recovery::counts(&records);
+            let archive = zeroize::Zeroizing::new(encode(&records)?);
+            if archive.len() > MAX_BACKUP_BYTES {
+                return Err(StoreError::Full);
+            }
+            WorkspaceBackup::decode(&archive)?;
+            let digest = byte_digest(&archive);
+            #[cfg(test)]
+            CAPTURE_PROBE.with(|probe| {
+                if let Some(probe) = probe.borrow_mut().take() {
+                    probe();
+                }
+            });
+            transaction.commit()?;
+            drop(database);
+            source.unchanged_during_capture()?;
+            Ok(ExistingWorkspaceCapture {
+                content: Some(CapturedContent {
+                    archive,
+                    digest,
+                    schema,
+                    inventory,
+                }),
+                source,
+            })
+        }
+    }
+
+    /// Full logical recapture, not an exclusive writer fence or cutover.
+    /// Every failure invalidates retained plaintext, including path mismatch.
+    pub fn revalidate_existing_capture(
+        &self,
+        retained: &mut ExistingWorkspaceCapture,
+    ) -> Result<(), StoreError> {
+        let result = (|| {
+            #[cfg(not(unix))]
+            {
+                let _ = retained;
+                Err(StoreError::Unavailable)
+            }
+            #[cfg(unix)]
+            {
+                retained.content()?;
+                if self.directory != retained.source.directory {
+                    return Err(StoreError::WorkspaceChanged);
+                }
+                retained.source.check()?;
+                let fresh = self.capture_existing_snapshot()?;
+                let old = retained.content()?;
+                let new = fresh.content()?;
+                if old.schema != new.schema
+                    || old.inventory != new.inventory
+                    || old.digest != new.digest
+                    || old.archive != new.archive
+                {
+                    return Err(StoreError::WorkspaceChanged);
+                }
+                Ok(())
+            }
+        })();
+        if result.is_err() {
+            retained.cancel();
+        }
+        result
+    }
+}
+
 impl WorkspaceBackup {
     pub fn decode(bytes: &[u8]) -> Result<Self, StoreError> {
-        let records = if bytes.starts_with(MAGIC) {
+        // Protected history has no plaintext import/export surface. The complete
+        // codec is used only inside authenticated encrypted recovery custody.
+        if bytes.starts_with(b"RANGOON-BACKUP-V4\n") {
+            return Err(StoreError::BackupInvalid);
+        }
+        Self::decode_complete(bytes)
+    }
+    pub(super) fn decode_complete(bytes: &[u8]) -> Result<Self, StoreError> {
+        let records = if bytes.starts_with(b"RANGOON-BACKUP-V4\n") {
+            instruction_history_backup::decode(bytes)
+        } else if bytes.starts_with(MAGIC) {
             decode(bytes).map_err(|error| match error {
                 StoreError::Full => StoreError::Full,
                 _ => StoreError::BackupInvalid,
@@ -195,6 +472,12 @@ impl Manifest {
 /// Schema downgrade here is only the in-memory base reconstruction step; no
 /// destination database or original record version is changed.
 pub(super) fn canonical_database(base: &Records) -> Result<Connection, StoreError> {
+    if base.version == 5 {
+        return instruction_history_backup::canonical_database(base);
+    }
+    if !base.history.changes.is_empty() || !base.history.events.is_empty() {
+        return Err(StoreError::Corrupt);
+    }
     let workflows = &base.workflows;
     if !(1..=4).contains(&base.version) {
         return Err(StoreError::UnsupportedSchema);
@@ -235,6 +518,12 @@ pub(super) fn canonical_database(base: &Records) -> Result<Connection, StoreErro
 }
 
 pub(super) fn encode(base: &Records) -> Result<Vec<u8>, StoreError> {
+    if base.version == 5 {
+        return instruction_history_backup::encode(base);
+    }
+    if !base.history.changes.is_empty() || !base.history.events.is_empty() {
+        return Err(StoreError::Corrupt);
+    }
     let workflows = &base.workflows;
     if !(1..=4).contains(&base.version) {
         return Err(StoreError::UnsupportedSchema);
@@ -373,7 +662,11 @@ impl Workspace {
             return encode(&Records::empty());
         };
         let tx = db.transaction()?;
-        let bytes = encode(&workflow_mutations::read_records(&tx)?)?;
+        let records = workflow_mutations::read_records(&tx)?;
+        if records.version == 5 {
+            return Err(StoreError::UnsupportedSchema);
+        }
+        let bytes = encode(&records)?;
         tx.commit()?;
         Ok(bytes)
     }
@@ -382,3 +675,7 @@ impl Workspace {
 #[cfg(test)]
 #[path = "workflow_backup_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "workspace_capture_tests.rs"]
+mod capture_tests;

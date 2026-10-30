@@ -17,6 +17,47 @@ const workspace = (overrides = {}) => ({ schemaVersion: 'rangoon.workspace-data.
 const plan = (overrides = {}) => ({ schemaVersion: 'rangoon.restore-plan.v2', backupId, expectedStateId: stateId, byteLength: 2048, add: counts(), keptSources: 0, keptCapabilities: 0, keptWorkflows: 0, ...overrides });
 const deletion = (overrides = {}) => ({ schemaVersion: 'rangoon.deletion-plan.v2', kind: 'workflow', id: workflowId, label: 'Review workflow', expectedStateId: stateId, remove: counts({ sources: 0, capabilities: 0, revisions: 0, workflows: 1, workflowRevisions: 1 }), capabilityDependencies: [], workflowDependencies: [], ...overrides });
 
+test('workspace identities are collapsed while record names, review state and actions remain visible', async () => {
+  const { renderWorkspaceView } = await import('../preview/workspace-view.mjs');
+  const html = renderWorkspaceView({ bridgeAvailable: true, status: 'ready', pending: null, error: null, message: 'Ready.', workspace: workspace(), dialog: null }, { storageMode: 'managed_encrypted' });
+  assert.equal((html.match(/class="workbench-technical"/g) ?? []).length, 5);
+  assert.doesNotMatch(html, /<details[^>]*\bopen(?:[\s=>])/);
+  const basic = html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '');
+  const visibleText = basic.replace(/<[^>]+>/g, '');
+  assert.doesNotMatch(visibleText, /source:|capability:|revision:|workflow:/);
+  assert.match(visibleText, /AGENTS\.md/);
+  assert.match(visibleText, /Bounded skill/);
+  assert.match(visibleText, /No local review on latest revision/);
+  assert.match(visibleText, /Review workflow/);
+  assert.match(visibleText, /Encrypted recovery is unavailable/);
+  assert.match(basic, new RegExp(`data-workspace-id="${sourceId}"`));
+  assert.match(basic, /data-workspace-intent="delete"/);
+  assert.match(html, new RegExp(`<dd class="analysis-mono">${sourceId}<\/dd>`));
+  assert.match(html, new RegExp(`<dd class="analysis-mono">${capabilityId}<\/dd>`));
+  assert.match(html, new RegExp(`<dd class="analysis-mono">${workflowId}<\/dd>`));
+});
+
+test('duplicate names retain distinct action labels and the exact deletion target before confirmation', async () => {
+  const { renderWorkspaceView } = await import('../preview/workspace-view.mjs');
+  // Different identities deliberately collide under the normal shortened label.
+  const otherSourceId = `source:${'1'.repeat(20)}${'2'.repeat(24)}${'1'.repeat(20)}`;
+  const data = workspace();
+  data.sources.push({ ...data.sources[0], sourceId: otherSourceId });
+  data.records.sources = 2;
+  const state = { bridgeAvailable: true, status: 'ready', pending: null, error: null, message: 'Ready.', workspace: data, dialog: { kind: 'delete', mode: 'delete' }, deletionPlan: deletion({ kind: 'source', id: otherSourceId, label: 'AGENTS.md' }) };
+  const html = renderWorkspaceView(state, { storageMode: 'managed_encrypted' });
+  const basic = html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '');
+  assert.match(basic, new RegExp(`Record ${sourceId}`));
+  assert.match(basic, new RegExp(`Record ${otherSourceId}`));
+  assert.match(basic, new RegExp(`aria-label="Preview deletion for source AGENTS.md \\(Record ${otherSourceId}\\)"`));
+  const dialog = html.slice(html.indexOf('<dialog'));
+  assert.match(dialog, new RegExp(`Record ${otherSourceId}`));
+  assert.match(dialog, /<details id="workspace-delete-target-details" class="workbench-technical">/);
+  assert.match(dialog, new RegExp(`<dd class="analysis-mono">${otherSourceId}<\/dd>`));
+  assert.match(dialog, /Logical deletion is not secure erase/);
+  assert.match(dialog, /data-workspace-confirm/);
+});
+
 test('closed v2 inventory rejects v1, unknown fields, invalid summaries and count drift', () => {
   assert.ok(validateWorkspaceData(workspace()));
   assert.equal(validateWorkspaceData(workspace({ schemaVersion: 'rangoon.workspace-data.v1' })), null);
@@ -102,11 +143,39 @@ test('historical workflow blockers prevent deletion and render escaped blocker s
 
 test('workspace view names workflow history and no workflow creation action', async () => {
   const { renderWorkspaceView } = await import('../preview/workspace-view.mjs');
-  const html = renderWorkspaceView({ bridgeAvailable: true, status: 'ready', pending: null, error: null, message: 'Ready.', workspace: workspace(), dialog: null, restorePlan: null, deletionPlan: null });
+  const html = renderWorkspaceView({ bridgeAvailable: true, status: 'ready', pending: null, error: null, message: 'Ready.', workspace: workspace(), dialog: null, restorePlan: null, deletionPlan: null }, { storageMode: 'legacy_plaintext' });
   assert.match(html, /SAVED WORKFLOWS/);
   assert.match(html, /Workflow revisions/);
   assert.match(html, /Authority: none/);
   assert.doesNotMatch(html, /Create workflow/);
+});
+
+test('managed storage fails closed without recovery support and keeps older plaintext import separate', async () => {
+  const { renderWorkspaceView } = await import('../preview/workspace-view.mjs');
+  const ready = { bridgeAvailable: true, status: 'ready', pending: null, error: null, message: 'Ready.', workspace: workspace(), dialog: null, restorePlan: null, deletionPlan: null };
+  const managed = renderWorkspaceView(ready, { storageMode: 'managed_encrypted' });
+  assert.doesNotMatch(managed, /id="workspace-export"/);
+  assert.match(managed, /Encrypted recovery is unavailable/);
+  assert.match(managed, /id="workspace-encrypted-export"[^>]*disabled/);
+  assert.match(managed, /More recovery options/);
+  assert.match(managed, /Import older backup/);
+
+  const legacy = renderWorkspaceView(ready, { storageMode: 'legacy_plaintext' });
+  assert.match(legacy, /id="workspace-export"/);
+  assert.match(legacy, /Export an unencrypted backup/);
+
+  const deletionView = renderWorkspaceView({ ...ready, dialog: { kind: 'delete', mode: 'inspect' }, deletionPlan: deletion() }, { storageMode: 'managed_encrypted' });
+  assert.doesNotMatch(deletionView, /Consider exporting a backup first/);
+  assert.match(deletionView, /Logical deletion is not secure erase/);
+});
+
+test('unknown storage mode disables every native workspace action', async () => {
+  const { renderWorkspaceView } = await import('../preview/workspace-view.mjs');
+  const html = renderWorkspaceView({ bridgeAvailable: true, status: 'ready', pending: null, error: null, message: 'Ready.', workspace: workspace(), dialog: null, restorePlan: null, deletionPlan: null }, { storageMode: 'browser' });
+  assert.doesNotMatch(html, /id="workspace-export"/);
+  assert.match(html, /id="workspace-reload" class="analysis-button" type="button" disabled/);
+  assert.match(html, /id="workspace-restore" class="analysis-button" type="button" disabled/);
+  assert.match(html, /data-workspace-inspect="source"[^>]*disabled/);
 });
 
 test('source deletion accepts original 255-byte display label with spaces and Unicode separator', async () => {

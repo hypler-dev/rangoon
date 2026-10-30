@@ -4,7 +4,7 @@ use super::*;
 #[cfg(feature = "encrypted-workspace")]
 use crate::workspace_close::{
     WorkspaceClose,
-    setup::{Cycle, Preparation, Response, cancel, confirm, prepare},
+    setup::{Consent, Cycle, Preparation, Response, cancel, confirm, prepare},
 };
 #[cfg(feature = "encrypted-workspace")]
 use rangoon_desktop::workspace_session::{Action as NativeAction, Owner};
@@ -212,7 +212,7 @@ fn setup_confirm_acknowledges_c1_then_holds_real_owner_until_consumed() {
             |_| true,
             |preview| {
                 assert!(preview.source_id.is_none());
-                true
+                Consent::Approved
             },
             || confirmed_tx.send(()).is_ok() && consume_rx.recv().is_ok(),
         ))
@@ -263,7 +263,7 @@ fn setup_refuses_unacknowledged_wrong_and_replayed_c1_without_losing_retained_co
         &close,
         cycle(&c1_id, &c1_epoch),
         |_| true,
-        |_| false,
+        |_| Consent::Unavailable,
         || true,
     ));
     assert_eq!(declined["outcome"], "closed");
@@ -299,7 +299,10 @@ fn setup_unlock_confirms_existing_workspace_and_publishes_fresh_client() {
         &close,
         cycle(&c1_id, &c1_epoch),
         |_| true,
-        |preview| preview.kind == NativeAction::Unlock && preview.source_id.is_none(),
+        |preview| {
+            assert!(preview.kind == NativeAction::Unlock && preview.source_id.is_none());
+            Consent::Approved
+        },
         || true,
     ));
     assert_eq!(opened["outcome"], "opened");
@@ -341,7 +344,7 @@ fn setup_failed_consent_prepare_or_consumption_never_publishes_a_client() {
         &close,
         cycle(&c1_id, &c1_epoch),
         |_| true,
-        |_| true,
+        |_| Consent::Approved,
         || false,
     ));
     assert_eq!(unconsumed["outcome"], "closed");
@@ -359,7 +362,7 @@ fn setup_failed_consent_prepare_or_consumption_never_publishes_a_client() {
         &close,
         cycle(&c1_id, &c1_epoch),
         |_| true,
-        |_| true,
+        |_| Consent::Approved,
         || panic!("dropped completion is closed"),
     ));
     assert_eq!(panicked_consumption["outcome"], "closed");
@@ -527,7 +530,7 @@ fn setup_cancelled_blocked_callback_stays_closed_and_late_result_cannot_resume()
             &worker_close,
             cycle(&callback_id, &callback_epoch),
             |_| true,
-            |_| true,
+            |_| Consent::Approved,
             || true,
         ))
     });
@@ -557,7 +560,7 @@ fn setup_registry_poison_after_owner_confirmation_fails_closed() {
         &close,
         cycle(&c1_id, &c1_epoch),
         |_| true,
-        |_| true,
+        |_| Consent::Approved,
         || {
             access.0.clients.poison_for_test();
             true
@@ -610,5 +613,142 @@ impl rangoon_desktop::workspace_session::Vault for BlockingVault {
             assert!(release.recv_timeout(WAIT).is_ok());
         }
         rangoon_desktop::workspace_session::Vault::open(&self.inner, identity)
+    }
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn setup_explicit_cancel_releases_custody_and_allows_fresh_setup_or_unlock() {
+    for action in ["create_empty", "unlock"] {
+        let root = TestRoot::new("setup-explicit-cancel");
+        let vault = ThreadVault::default();
+        if action == "unlock" {
+            let mut owner = Owner::acquire(root.0.clone()).unwrap();
+            let preview = owner.prepare_create_empty().unwrap();
+            owner.confirm(&preview.id, &vault).unwrap();
+            owner.lock();
+        }
+        let opens_before = vault.0.lock().unwrap().opens;
+        let access = locked_access(&root, &vault);
+        let (close, mut id, mut epoch) = locked_close(access.clone());
+        for _ in 0..2 {
+            let (_, next_id, next_epoch) = prepared_action(&close, &id, &epoch, action);
+            assert_ne!(id, next_id);
+            assert_ne!(epoch, next_epoch);
+            acknowledge_current(&close, &next_id, &next_epoch);
+            let cleanup_ran = Arc::new(AtomicBool::new(false));
+            let cleaned = cleanup_ran.clone();
+            let cancelled = response_json(confirm(
+                &close,
+                cycle(&next_id, &next_epoch),
+                move |drained| {
+                    cleaned.store(drained, Ordering::SeqCst);
+                    drained
+                },
+                |_| Consent::Cancelled,
+                || panic!("cancel must not consume a successful Owner confirmation"),
+            ));
+            assert!(cleanup_ran.load(Ordering::SeqCst));
+            assert_eq!(cancelled["outcome"], "cancelled");
+            assert_eq!(cancelled["phase"], "locked");
+            assert_eq!(cancelled["diagnostic"], serde_json::Value::Null);
+            assert_eq!(cancelled["action"], serde_json::Value::Null);
+            assert_eq!(cancelled["reload"], false);
+            assert_eq!(
+                identity(&cancelled["close"]),
+                (next_id.clone(), next_epoch.clone())
+            );
+            assert_owner_closed(&access);
+            assert_eq!(request_json(&access)["state"], "unavailable");
+            assert_eq!(vault.0.lock().unwrap().opens, opens_before);
+            let protection = serde_json::to_value(
+                crate::workspace_close::setup::ProtectionResponse::observe(&close),
+            )
+            .unwrap();
+            assert_eq!(
+                protection["layout"],
+                if action == "unlock" {
+                    "locked"
+                } else {
+                    "absent"
+                }
+            );
+            id = next_id;
+            epoch = next_epoch;
+        }
+    }
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn setup_cancel_with_failed_or_panicked_cleanup_cannot_report_retryable_cancellation() {
+    for panic_cleanup in [false, true] {
+        let root = TestRoot::new("setup-cancel-cleanup-failure");
+        let vault = ThreadVault::default();
+        let access = locked_access(&root, &vault);
+        let (close, id, epoch) = locked_close(access.clone());
+        let (_, id, epoch) = prepared_empty(&close, &id, &epoch);
+        acknowledge_current(&close, &id, &epoch);
+        let cancelled = response_json(confirm(
+            &close,
+            cycle(&id, &epoch),
+            move |_| {
+                assert!(!panic_cleanup, "synthetic cleanup failure");
+                false
+            },
+            |_| Consent::Cancelled,
+            || panic!("cancel never consumes confirmation"),
+        ));
+        assert_eq!(cancelled["outcome"], "closed");
+        assert_eq!(cancelled["diagnostic"], "workspace_control_not_completed");
+        assert_eq!(cancelled["phase"], "recovery_required");
+        assert_eq!(cancelled["reload"], false);
+        assert_owner_closed(&access);
+        assert_eq!(request_json(&access)["state"], "unavailable");
+        assert_eq!(vault.0.lock().unwrap().opens, 0);
+    }
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn setup_late_cancel_after_concurrent_close_or_exit_cannot_offer_retry() {
+    for exit in [false, true] {
+        let root = TestRoot::new("setup-late-native-cancel");
+        let vault = ThreadVault::default();
+        let access = locked_access(&root, &vault);
+        let (close, id, epoch) = locked_close(access.clone());
+        let (_, id, epoch) = prepared_empty(&close, &id, &epoch);
+        acknowledge_current(&close, &id, &epoch);
+        let (entered_tx, entered_rx) = mpsc::channel();
+        let (return_tx, return_rx) = mpsc::channel();
+        let worker_close = close.clone();
+        let worker_id = id.clone();
+        let worker_epoch = epoch.clone();
+        let worker = thread::spawn(move || {
+            response_json(confirm(
+                &worker_close,
+                cycle(&worker_id, &worker_epoch),
+                |_| true,
+                |_| {
+                    entered_tx.send(()).unwrap();
+                    return_rx.recv_timeout(WAIT).unwrap();
+                    Consent::Cancelled
+                },
+                || panic!("late cancel never consumes confirmation"),
+            ))
+        });
+        entered_rx.recv_timeout(WAIT).unwrap();
+        if exit {
+            close.fence_admission_for_exit();
+        } else {
+            cancel(&close, cycle(&id, &epoch), |_| true);
+        }
+        return_tx.send(()).unwrap();
+        let late = worker.join().unwrap();
+        assert_eq!(late["outcome"], "closed");
+        assert_eq!(late["reload"], false);
+        assert_owner_closed(&access);
+        assert_eq!(request_json(&access)["state"], "unavailable");
+        assert_eq!(vault.0.lock().unwrap().opens, 0);
     }
 }

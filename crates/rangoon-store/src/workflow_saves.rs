@@ -108,7 +108,7 @@ fn prepare(
         return Err(StoreError::Unavailable);
     }
     let mut result = current.clone();
-    result.version = 4;
+    result.version = current.version.max(4);
     result
         .workflows
         .owners
@@ -141,7 +141,7 @@ fn commit_save(
     if !plan.already_saved {
         #[cfg(test)]
         composition_recovery_tests::fault_checkpoint(tx, "before_workflow_save_migration")?;
-        workflow_mutations::ensure_schema(tx, 4)?;
+        workflow_mutations::ensure_schema(tx, result.version)?;
         #[cfg(test)]
         composition_recovery_tests::fault_checkpoint(tx, "after_workflow_save_migration")?;
         let saved = result

@@ -674,6 +674,268 @@ enum CancellationPath {
     NativeExit,
 }
 
+struct HeldSuccessfulRead {
+    peer: SyntheticPeer,
+    gate: Gate,
+    host: Host,
+    workspace: WorkspaceRequest,
+    review: Review,
+    release: mpsc::Sender<()>,
+    transport_result: ReadOutcome,
+}
+
+impl HeldSuccessfulRead {
+    async fn start() -> Self {
+        let peer = SyntheticPeer::start(SyntheticScenario::Healthy)
+            .await
+            .unwrap();
+        let gate = Gate::new();
+        let host = Host::new(gate.clone());
+        let (workspace, review) = real_review(&host, &gate, &peer, ReadKind::RecentLogs);
+        assert_eq!(
+            host.confirm(&review.id, true),
+            HostStatus::ReadyForNativeCredential
+        );
+        let (returned, result_received) = tokio::sync::oneshot::channel();
+        let (release, held) = mpsc::channel();
+        assert_eq!(
+            host.begin_synthetic(
+                &review.id,
+                peer_lease("test-token"),
+                Box::new(RealReadClient {
+                    returned: Some(returned),
+                    release: Some(held),
+                }),
+            ),
+            HostStatus::Running
+        );
+        // This is the real client's successful result, after its runtime has
+        // dropped but before the host callback can return through the barrier.
+        let transport_result = tokio::time::timeout(Duration::from_secs(5), result_received)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert!(transport_result.matches_review(&review));
+        assert!(matches!(
+            transport_result.observation,
+            Observation::RecentLogs(_)
+        ));
+        assert_eq!(
+            peer.calls().unwrap(),
+            vec![
+                SyntheticRpc::Health,
+                SyntheticRpc::GetSandboxPolicyStatus,
+                SyntheticRpc::GetSandboxLogs,
+            ]
+        );
+        assert_eq!(host.status(), HostStatus::Running);
+        assert_eq!(host.completed_observation(&workspace, &review.id), None);
+        assert!(!host.cancellation_signalled());
+        Self {
+            peer,
+            gate,
+            host,
+            workspace,
+            review,
+            release,
+            transport_result,
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_client_success_waits_for_callback_before_publication() {
+    let HeldSuccessfulRead {
+        peer,
+        gate,
+        host,
+        workspace,
+        review,
+        release,
+        transport_result,
+    } = HeldSuccessfulRead::start().await;
+    release.send(()).unwrap();
+    assert_eq!(real_terminal_status(&host).await, HostStatus::Completed);
+    assert_eq!(
+        host.completed_observation(&workspace, &review.id),
+        Some(transport_result)
+    );
+    assert_eq!(host.confirm(&review.id, true), HostStatus::Unavailable);
+    assert_eq!(host.stop(), HostStatus::Cancelled);
+    assert_eq!(host.completed_observation(&workspace, &review.id), None);
+
+    // Stop permits a fresh review; it does not resurrect the consumed consent.
+    let (_, next) = real_review(&host, &gate, &peer, ReadKind::RecentLogs);
+    assert_ne!(next.id, review.id);
+    assert_eq!(host.confirm(&review.id, true), HostStatus::Unavailable);
+    assert_eq!(host.inspect_review(), Some(next.clone()));
+    assert_eq!(host.confirm(&next.id, false), HostStatus::Cancelled);
+    assert!(gate.request_drain().unwrap().is_quiescent().unwrap());
+    assert_eq!(
+        peer.calls().unwrap(),
+        vec![
+            SyntheticRpc::Health,
+            SyntheticRpc::GetSandboxPolicyStatus,
+            SyntheticRpc::GetSandboxLogs,
+        ]
+    );
+    peer.shutdown().await.unwrap();
+}
+
+async fn real_success_cancellation(path: CancellationPath) {
+    let HeldSuccessfulRead {
+        peer,
+        gate,
+        host,
+        workspace,
+        review,
+        release,
+        transport_result: _,
+    } = HeldSuccessfulRead::start().await;
+    let source = SourceAccess::close_protocol_fixture(gate.clone());
+    let close = WorkspaceClose::new(source.clone());
+    use crate::workspace_close::failure::{ExitAction, ExitCoordinator, route_exit_request};
+    let exit = ExitCoordinator::new();
+    assert_eq!(
+        host.prepare(
+            &workspace,
+            peer_target(&peer, "workspace-1", peer.leaf_der()),
+            ReadKind::RecentLogs,
+            Retention::SessionOnly,
+        ),
+        Err(HostError::Busy)
+    );
+    assert_eq!(host.confirm(&review.id, true), HostStatus::Unavailable);
+    assert_eq!(
+        host.begin_synthetic(
+            &review.id,
+            peer_lease("test-token"),
+            Box::<RealReadClient>::default(),
+        ),
+        HostStatus::Unavailable
+    );
+
+    let drain = match path {
+        CancellationPath::Stop => {
+            assert_eq!(host.stop(), HostStatus::Closing);
+            // The test closes Gate solely to measure outstanding custody.
+            // Stop itself does not claim to close workspace admission.
+            Some(gate.request_drain().unwrap())
+        }
+        CancellationPath::ExitHelper => {
+            assert!(!host.cancel_and_check_exit());
+            Some(gate.request_drain().unwrap())
+        }
+        CancellationPath::WorkspaceClose => {
+            let closing = close.begin(|drained| host.purge_for_workspace_close(drained));
+            assert_eq!(serde_json::to_value(closing).unwrap()["state"], "closing");
+            None
+        }
+        CancellationPath::NativeExit => {
+            assert_eq!(
+                route_exit_request(Some(71), Some((&close, &exit)), || {
+                    assert!(gate.observe_open().is_err());
+                    host.cancel_and_check_exit()
+                }),
+                ExitAction::PreventAndWait
+            );
+            assert!(!source.request_close().unwrap().is_quiescent().unwrap());
+            None
+        }
+    };
+    assert!(host.cancellation_signalled());
+    assert_eq!(host.status(), HostStatus::Closing);
+    assert_eq!(host.completed_observation(&workspace, &review.id), None);
+    if let Some(drain) = &drain {
+        assert!(!drain.is_quiescent().unwrap());
+    }
+    if matches!(path, CancellationPath::WorkspaceClose) {
+        assert_eq!(
+            close.progress_native(|drained| host.purge_for_workspace_close(drained)),
+            Ok(false)
+        );
+    }
+    release.send(()).unwrap();
+    assert_eq!(real_terminal_status(&host).await, HostStatus::Cancelled);
+    assert_eq!(host.completed_observation(&workspace, &review.id), None);
+    assert_eq!(host.confirm(&review.id, true), HostStatus::Unavailable);
+    assert_eq!(
+        host.begin_synthetic(
+            &review.id,
+            peer_lease("test-token"),
+            Box::<RealReadClient>::default(),
+        ),
+        HostStatus::Unavailable
+    );
+    if let Some(drain) = &drain {
+        assert!(drain.is_quiescent().unwrap());
+    }
+    match path {
+        CancellationPath::WorkspaceClose => assert_eq!(
+            close.progress_native(|drained| host.purge_for_workspace_close(drained)),
+            Ok(true)
+        ),
+        CancellationPath::NativeExit => {
+            assert!(source.request_close().unwrap().is_quiescent().unwrap());
+            assert_eq!(
+                route_exit_request(Some(71), Some((&close, &exit)), || host
+                    .cancel_and_check_exit()),
+                ExitAction::PreventAndStart
+            );
+            close.begin(|drained| host.purge_for_workspace_close(drained));
+            assert_eq!(
+                close.progress_native(|drained| host.purge_for_workspace_close(drained)),
+                Ok(true)
+            );
+            assert!(close.clean_native_completion());
+            assert!(exit.send(0));
+            assert_eq!(
+                route_exit_request(Some(0), Some((&close, &exit)), || host
+                    .cancel_and_check_exit()),
+                ExitAction::Pass
+            );
+            assert_eq!(
+                route_exit_request(Some(0), Some((&close, &exit)), || host
+                    .cancel_and_check_exit()),
+                ExitAction::Prevent
+            );
+        }
+        _ => assert!(host.cancel_and_check_exit()),
+    }
+    assert_eq!(host.status(), HostStatus::Unavailable);
+    assert!(gate.observe_open().is_err());
+    assert_eq!(
+        peer.calls().unwrap(),
+        vec![
+            SyntheticRpc::Health,
+            SyntheticRpc::GetSandboxPolicyStatus,
+            SyntheticRpc::GetSandboxLogs,
+        ]
+    );
+    peer.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_client_success_stop_discards_late_observation() {
+    real_success_cancellation(CancellationPath::Stop).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_client_success_workspace_close_discards_late_observation() {
+    real_success_cancellation(CancellationPath::WorkspaceClose).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_client_success_exit_helper_discards_late_observation() {
+    real_success_cancellation(CancellationPath::ExitHelper).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_client_success_native_exit_coordinator_discards_late_observation() {
+    real_success_cancellation(CancellationPath::NativeExit).await;
+}
+
 async fn real_watch_cancellation(path: CancellationPath) {
     let peer = SyntheticPeer::start(SyntheticScenario::StalledWatch)
         .await
@@ -751,7 +1013,7 @@ async fn real_watch_cancellation(path: CancellationPath) {
             .unwrap(),
         Err(ClientError::Cancelled)
     );
-    assert_eq!(host.status(), HostStatus::Running);
+    assert_eq!(host.status(), HostStatus::Closing);
     if let Some(drain) = &drain {
         assert!(!drain.is_quiescent().unwrap());
     }
@@ -1058,7 +1320,14 @@ async fn real_watch_expiry_retains_callback(path: ExpiredCallbackPath) {
             Some(gate.request_drain().unwrap())
         }
     };
-    assert_eq!(host.status(), HostStatus::Running);
+    assert_eq!(
+        host.status(),
+        if matches!(path, ExpiredCallbackPath::ReturnError) {
+            HostStatus::Running
+        } else {
+            HostStatus::Closing
+        }
+    );
     if let Some(drain) = &drain {
         assert!(!drain.is_quiescent().unwrap());
     }
@@ -1205,6 +1474,92 @@ fn consent_is_one_shot_and_production_start_stays_closed() {
 }
 
 #[test]
+fn pending_status_tracks_confirmation_without_consuming_or_dispatching() {
+    let gate = Gate::new();
+    let host = Host::new(gate.clone());
+    let review = prepare(&host, &gate, ReadKind::RecentLogs);
+    assert_eq!(host.status(), HostStatus::AwaitingConsent);
+    assert_eq!(
+        host.confirm("foreign-review", true),
+        HostStatus::Unavailable
+    );
+    assert_eq!(host.status(), HostStatus::AwaitingConsent);
+    assert_eq!(
+        host.confirm(&review.id, true),
+        HostStatus::ReadyForNativeCredential
+    );
+    for _ in 0..3 {
+        assert_eq!(host.status(), HostStatus::ReadyForNativeCredential);
+        assert_eq!(host.inspect_review(), Some(review.clone()));
+        assert_eq!(host.begin_production(&review.id), HostStatus::Unavailable);
+    }
+    assert_eq!(host.confirm(&review.id, true), HostStatus::Unavailable);
+    assert_eq!(host.stop(), HostStatus::Cancelled);
+    assert_eq!(host.status(), HostStatus::Unavailable);
+    assert_eq!(host.inspect_review(), None);
+}
+
+#[test]
+fn pending_status_reports_expiry_without_releasing_retained_custody() {
+    for confirmed in [false, true] {
+        let gate = Gate::new();
+        let host = Host::new(gate.clone());
+        let review = prepare(&host, &gate, ReadKind::RecentLogs);
+        if confirmed {
+            assert_eq!(
+                host.confirm(&review.id, true),
+                HostStatus::ReadyForNativeCredential
+            );
+        }
+        {
+            let mut state = host.state.lock().unwrap();
+            let selection = match state.pending.as_mut().unwrap() {
+                Pending::Awaiting { selection, .. } | Pending::Confirmed { selection, .. } => {
+                    selection
+                }
+            };
+            selection.deadline = Instant::now() - Duration::from_secs(1);
+        }
+        for _ in 0..3 {
+            assert_eq!(
+                host.status(),
+                HostStatus::Error(ClientError::CredentialLeaseExpired)
+            );
+            assert!(host.state.lock().unwrap().pending.is_some());
+            assert!(host.state.lock().unwrap().active.is_none());
+        }
+        let drain = gate.request_drain().unwrap();
+        assert!(!drain.is_quiescent().unwrap());
+        assert_eq!(host.status(), HostStatus::Unavailable);
+        assert_eq!(host.stop(), HostStatus::Cancelled);
+        assert!(drain.is_quiescent().unwrap());
+        assert_eq!(host.status(), HostStatus::Unavailable);
+    }
+}
+
+#[test]
+fn pending_status_refuses_stale_generation_in_both_consent_phases() {
+    for confirmed in [false, true] {
+        let gate = Gate::new();
+        let host = Host::new(gate.clone());
+        let review = prepare(&host, &gate, ReadKind::PolicyStatus);
+        if confirmed {
+            assert_eq!(
+                host.confirm(&review.id, true),
+                HostStatus::ReadyForNativeCredential
+            );
+        }
+        let drain = gate.request_drain().unwrap();
+        assert_eq!(host.status(), HostStatus::Unavailable);
+        assert_eq!(host.inspect_review(), None);
+        assert!(host.state.lock().unwrap().pending.is_some());
+        assert!(!drain.is_quiescent().unwrap());
+        assert_eq!(host.stop(), HostStatus::Cancelled);
+        assert!(drain.is_quiescent().unwrap());
+    }
+}
+
+#[test]
 fn refusal_and_replayed_review_release_admission() {
     let gate = Gate::new();
     let host = Host::new(gate.clone());
@@ -1218,6 +1573,70 @@ fn refusal_and_replayed_review_release_admission() {
     let review = prepare(&host, &gate, ReadKind::RecentLogs);
     assert_eq!(host.confirm(&review.id, false), HostStatus::Cancelled);
     assert_eq!(host.confirm(&review.id, true), HostStatus::Unavailable);
+}
+
+#[test]
+fn preparation_publication_after_close_purge_releases_stale_admission() {
+    let gate = Gate::new();
+    let host = Host::new(gate.clone());
+    let close = WorkspaceClose::new(SourceAccess::close_protocol_fixture(gate.clone()));
+    let workspace = WorkspaceRequest::Managed(Arc::new(gate.observe_open().unwrap()));
+    let admission = workspace.admit(&gate, Lane::Read).unwrap();
+    assert!(admission.is_current().unwrap());
+
+    // Pause the real preparation flow at its admission/publication boundary.
+    // Close fences the same Gate and purges the same Host before publication.
+    let closing = close.begin(|drained| host.purge_for_workspace_close(drained));
+    assert_eq!(serde_json::to_value(closing).unwrap()["state"], "closing");
+    assert_eq!(host.inspect_review(), None);
+    assert_eq!(
+        close.progress_native(|drained| host.purge_for_workspace_close(drained)),
+        Ok(false)
+    );
+
+    let publication = host.retain_review(
+        admission,
+        target(),
+        ReadKind::RecentWatch,
+        Retention::SessionOnly,
+    );
+    let retained = host.state.lock().unwrap().pending.is_some();
+    let completed = close.progress_native(|drained| host.purge_for_workspace_close(drained));
+    assert_eq!(
+        (publication.map(|_| ()), retained, completed),
+        (Err(HostError::Unavailable), false, Ok(true))
+    );
+    assert_eq!(host.inspect_review(), None);
+    assert!(gate.observe_open().is_err());
+}
+
+#[test]
+fn published_pending_review_is_purged_before_native_close_completes() {
+    for confirmed in [false, true] {
+        let gate = Gate::new();
+        let host = Host::new(gate.clone());
+        let close = WorkspaceClose::new(SourceAccess::close_protocol_fixture(gate.clone()));
+        let review = prepare(&host, &gate, ReadKind::RecentWatch);
+        if confirmed {
+            assert_eq!(
+                host.confirm(&review.id, true),
+                HostStatus::ReadyForNativeCredential
+            );
+        }
+        assert_eq!(host.inspect_review(), Some(review.clone()));
+
+        let closing = close.begin(|drained| host.purge_for_workspace_close(drained));
+        assert_eq!(serde_json::to_value(closing).unwrap()["state"], "closing");
+        assert_eq!(host.inspect_review(), None);
+        assert!(host.state.lock().unwrap().pending.is_none());
+        assert_eq!(
+            close.progress_native(|drained| host.purge_for_workspace_close(drained)),
+            Ok(true)
+        );
+        assert_eq!(host.confirm(&review.id, true), HostStatus::Unavailable);
+        assert_eq!(host.begin_production(&review.id), HostStatus::Unavailable);
+        assert!(gate.observe_open().is_err());
+    }
 }
 
 #[test]
@@ -1666,7 +2085,7 @@ fn workspace_close_coordinator_waits_for_active_callback_before_native_completio
         close.progress_native(|drained| host.purge_for_workspace_close(drained)),
         Ok(false)
     );
-    assert_eq!(host.status(), HostStatus::Running);
+    assert_eq!(host.status(), HostStatus::Closing);
 
     release.send(()).unwrap();
     assert_eq!(finish_status(&host), HostStatus::Cancelled);
@@ -1676,4 +2095,360 @@ fn workspace_close_coordinator_waits_for_active_callback_before_native_completio
     );
     assert_eq!(host.status(), HostStatus::Unavailable);
     assert!(gate.observe_open().is_err());
+}
+
+#[test]
+fn native_review_callback_holds_admission_and_binds_only_its_parent() {
+    let gate = Gate::new();
+    let host = Host::new(gate.clone());
+    let review = prepare(&host, &gate, ReadKind::ProtectedCheck);
+    let original_deadline = match host.state.lock().unwrap().pending.as_ref().unwrap() {
+        Pending::Awaiting { selection, .. } => selection.deadline,
+        Pending::Confirmed { .. } => unreachable!("new review must await native consent"),
+    };
+    assert_eq!(
+        host.begin_callback(
+            &review.id,
+            None,
+            CallbackStart::Confirmed,
+            None,
+            |_, _, _, _, _| Err(ClientError::Source),
+        ),
+        HostStatus::AwaitingConsent
+    );
+    assert_eq!(host.inspect_review(), Some(review.clone()));
+    assert_eq!(
+        host.begin_callback(
+            "wrong-review",
+            None,
+            CallbackStart::NativeReview,
+            Some("native-parent".into()),
+            |_, _, _, _, _| Err(ClientError::Source),
+        ),
+        HostStatus::Unavailable
+    );
+    assert_eq!(host.inspect_review(), Some(review.clone()));
+
+    let (entered, started) = mpsc::channel();
+    let (release, held) = mpsc::channel();
+    assert_eq!(
+        host.begin_callback(
+            &review.id,
+            None,
+            CallbackStart::NativeReview,
+            Some("native-parent".into()),
+            move |_, _, _, active, selection| {
+                entered.send(selection.deadline).unwrap();
+                let _ = held.recv();
+                active.accept_credential(selection.deadline)?;
+                Err(ClientError::Cancelled)
+            },
+        ),
+        HostStatus::Running
+    );
+    assert_eq!(
+        started.recv_timeout(Duration::from_secs(1)).unwrap(),
+        original_deadline
+    );
+    assert_eq!(host.confirm(&review.id, true), HostStatus::Unavailable);
+    assert_eq!(
+        host.begin_callback(
+            &review.id,
+            None,
+            CallbackStart::NativeReview,
+            Some("native-parent".into()),
+            |_, _, _, _, _| Err(ClientError::Source),
+        ),
+        HostStatus::Unavailable
+    );
+    host.parent_closed("other-parent");
+    assert!(!host.cancellation_signalled());
+    assert_eq!(host.status(), HostStatus::Running);
+    host.parent_closed("native-parent");
+    assert!(host.cancellation_signalled());
+    assert_eq!(host.status(), HostStatus::Closing);
+    let drain = gate.request_drain().unwrap();
+    assert!(!drain.is_quiescent().unwrap());
+
+    release.send(()).unwrap();
+    assert_eq!(finish_status(&host), HostStatus::Cancelled);
+    assert!(drain.is_quiescent().unwrap());
+    assert_eq!(host.stop(), HostStatus::Cancelled);
+}
+
+#[path = "openshell_credential_tests.rs"]
+mod credential_binding;
+
+#[test]
+fn native_fixture_input_rejects_and_clears_every_non_fixture_value_before_client() {
+    use zeroize::Zeroizing;
+    for value in [
+        "",
+        "credential-example",
+        " test-token",
+        "test-token ",
+        "test-token\n",
+        "TEST-TOKEN",
+    ] {
+        let mut held = Zeroizing::new(value.to_owned());
+        assert_eq!(
+            super::native_input::validate_fixture_input(&mut held),
+            Err(ClientError::InvalidConfiguration)
+        );
+        assert!(
+            held.is_empty(),
+            "rejected owned input must be cleared before returning"
+        );
+    }
+    let mut accepted = Zeroizing::new("test-token".to_owned());
+    assert_eq!(
+        super::native_input::validate_fixture_input(&mut accepted),
+        Ok(())
+    );
+    assert_eq!(accepted.as_str(), "test-token");
+}
+
+// This enters after native confirmation/input. It only exercises the shared
+// post-input tail used by that callback; no test constructs a native widget.
+fn begin_fixture_post_input_callback<F>(
+    host: &Host,
+    review: &Review,
+    value: String,
+    read: F,
+) -> HostStatus
+where
+    F: FnOnce(
+            ClientConfig,
+            BearerLease,
+            ReadKind,
+            WatchControl,
+        ) -> Result<ReadOutcome, ClientError>
+        + Send
+        + 'static,
+{
+    host.begin_callback(
+        &review.id,
+        None,
+        CallbackStart::NativeReview,
+        Some("fixture-native-parent".into()),
+        move |config, kind, control, active, selection| {
+            super::native_input::finish_after_native_input(
+                active,
+                selection.claim(),
+                zeroize::Zeroizing::new(value),
+                None,
+                |lease| read(config, lease, kind, control),
+            )
+        },
+    )
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_fixture_post_input_tail_seals_and_reads_only_after_exact_marker() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let peer = SyntheticPeer::start(SyntheticScenario::Healthy)
+        .await
+        .unwrap();
+    let gate = Gate::new();
+    let host = Host::new(gate.clone());
+    let (workspace, review) = real_review(&host, &gate, &peer, ReadKind::ProtectedCheck);
+    let reader_started = Arc::new(AtomicUsize::new(0));
+    let reader_callback = Arc::clone(&reader_started);
+    assert_eq!(
+        begin_fixture_post_input_callback(
+            &host,
+            &review,
+            "test-token".to_owned(),
+            move |config, lease, kind, control| {
+                reader_callback.fetch_add(1, Ordering::SeqCst);
+                super::native_input::read_once(config, lease, kind, control)
+            },
+        ),
+        HostStatus::Running
+    );
+    assert_eq!(real_terminal_status(&host).await, HostStatus::Completed);
+    assert_eq!(reader_started.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        peer.calls().unwrap(),
+        vec![SyntheticRpc::Health, SyntheticRpc::GetSandboxPolicyStatus]
+    );
+    assert!(host.completed_observation(&workspace, &review.id).is_some());
+    assert_eq!(
+        begin_fixture_post_input_callback(&host, &review, "test-token".to_owned(), |_, _, _, _| {
+            Err(ClientError::Source)
+        }),
+        HostStatus::Unavailable
+    );
+    let drain = gate.request_drain().unwrap();
+    assert!(drain.is_quiescent().unwrap());
+    assert!(host.cancel_and_check_exit());
+    peer.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_fixture_post_input_tail_rejects_non_markers_before_reader() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    for value in [
+        "".to_owned(),
+        "credential-example".to_owned(),
+        " test-token".to_owned(),
+        "test-token ".to_owned(),
+        "test-token\n".to_owned(),
+        "TEST-TOKEN".to_owned(),
+        "tést-token".to_owned(),
+        "x".repeat(16 * 1024 + 1),
+    ] {
+        let peer = SyntheticPeer::start(SyntheticScenario::Healthy)
+            .await
+            .unwrap();
+        let gate = Gate::new();
+        let host = Host::new(gate.clone());
+        let (workspace, review) = real_review(&host, &gate, &peer, ReadKind::ProtectedCheck);
+        let reader_started = Arc::new(AtomicUsize::new(0));
+        let reader_callback = Arc::clone(&reader_started);
+        assert_eq!(
+            begin_fixture_post_input_callback(
+                &host,
+                &review,
+                value,
+                move |config, lease, kind, control| {
+                    reader_callback.fetch_add(1, Ordering::SeqCst);
+                    super::native_input::read_once(config, lease, kind, control)
+                },
+            ),
+            HostStatus::Running
+        );
+        assert_eq!(
+            real_terminal_status(&host).await,
+            HostStatus::Error(ClientError::InvalidConfiguration)
+        );
+        assert_eq!(reader_started.load(Ordering::SeqCst), 0);
+        assert_eq!(host.completed_observation(&workspace, &review.id), None);
+        assert!(peer.calls().unwrap().is_empty());
+        assert_eq!(
+            begin_fixture_post_input_callback(
+                &host,
+                &review,
+                "test-token".to_owned(),
+                |_, _, _, _| { Err(ClientError::Source) }
+            ),
+            HostStatus::Unavailable
+        );
+        let drain = gate.request_drain().unwrap();
+        assert!(drain.is_quiescent().unwrap());
+        assert!(host.cancel_and_check_exit());
+        peer.shutdown().await.unwrap();
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_fixture_post_input_tail_stop_before_tail_refuses_valid_marker() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let peer = SyntheticPeer::start(SyntheticScenario::Healthy)
+        .await
+        .unwrap();
+    let gate = Gate::new();
+    let host = Host::new(gate.clone());
+    let (workspace, review) = real_review(&host, &gate, &peer, ReadKind::ProtectedCheck);
+    let reader_started = Arc::new(AtomicUsize::new(0));
+    let reader_callback = Arc::clone(&reader_started);
+    let (entered, started) = mpsc::channel();
+    let (release, held) = mpsc::channel();
+    assert_eq!(
+        host.begin_callback(
+            &review.id,
+            None,
+            CallbackStart::NativeReview,
+            Some("fixture-native-parent".into()),
+            move |config, kind, control, active, selection| {
+                entered.send(()).unwrap();
+                let value = held.recv().map_err(|_| ClientError::Source)?;
+                super::native_input::finish_after_native_input(
+                    active,
+                    selection.claim(),
+                    zeroize::Zeroizing::new(value),
+                    None,
+                    |lease| {
+                        reader_callback.fetch_add(1, Ordering::SeqCst);
+                        super::native_input::read_once(config, lease, kind, control)
+                    },
+                )
+            },
+        ),
+        HostStatus::Running
+    );
+    started.recv_timeout(Duration::from_secs(1)).unwrap();
+    assert_eq!(host.stop(), HostStatus::Closing);
+    let drain = gate.request_drain().unwrap();
+    assert!(!drain.is_quiescent().unwrap());
+    release.send("test-token".to_owned()).unwrap();
+    assert_eq!(real_terminal_status(&host).await, HostStatus::Cancelled);
+    assert_eq!(reader_started.load(Ordering::SeqCst), 0);
+    assert_eq!(host.completed_observation(&workspace, &review.id), None);
+    assert!(peer.calls().unwrap().is_empty());
+    assert_eq!(
+        begin_fixture_post_input_callback(&host, &review, "test-token".to_owned(), |_, _, _, _| {
+            Err(ClientError::Source)
+        },),
+        HostStatus::Unavailable
+    );
+    assert!(drain.is_quiescent().unwrap());
+    assert!(host.cancel_and_check_exit());
+    peer.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn native_fixture_post_input_tail_expired_received_selection_never_reads() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let peer = SyntheticPeer::start(SyntheticScenario::Healthy)
+        .await
+        .unwrap();
+    let gate = Gate::new();
+    let host = Host::new(gate.clone());
+    let (workspace, review) = real_review(&host, &gate, &peer, ReadKind::ProtectedCheck);
+    let reader_started = Arc::new(AtomicUsize::new(0));
+    let reader_callback = Arc::clone(&reader_started);
+    assert_eq!(
+        host.begin_callback(
+            &review.id,
+            None,
+            CallbackStart::NativeReview,
+            Some("fixture-native-parent".into()),
+            move |config, kind, control, active, mut selection| {
+                selection.deadline = Instant::now() - Duration::from_secs(1);
+                super::native_input::finish_after_native_input(
+                    active,
+                    selection.claim(),
+                    zeroize::Zeroizing::new("test-token".to_owned()),
+                    None,
+                    |lease| {
+                        reader_callback.fetch_add(1, Ordering::SeqCst);
+                        super::native_input::read_once(config, lease, kind, control)
+                    },
+                )
+            },
+        ),
+        HostStatus::Running
+    );
+    assert_eq!(
+        real_terminal_status(&host).await,
+        HostStatus::Error(ClientError::CredentialLeaseExpired)
+    );
+    assert_eq!(reader_started.load(Ordering::SeqCst), 0);
+    assert_eq!(host.completed_observation(&workspace, &review.id), None);
+    assert!(peer.calls().unwrap().is_empty());
+    assert_eq!(
+        begin_fixture_post_input_callback(&host, &review, "test-token".to_owned(), |_, _, _, _| {
+            Err(ClientError::Source)
+        }),
+        HostStatus::Unavailable
+    );
+    let drain = gate.request_drain().unwrap();
+    assert!(drain.is_quiescent().unwrap());
+    assert!(host.cancel_and_check_exit());
+    peer.shutdown().await.unwrap();
 }

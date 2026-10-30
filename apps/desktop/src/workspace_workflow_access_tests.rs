@@ -122,7 +122,7 @@ fn legacy_workflow_routing_keeps_inventory_history_exact_bytes_and_source_clear_
     let access = SourceAccess::legacy(Gate::new(), Ok(root.0.clone()));
 
     match tauri::async_runtime::block_on(access.workflow_data()) {
-        DataResult::Loaded { workspace } => {
+        DataResult::Loaded { workspace, .. } => {
             assert_eq!(workspace.sources.len(), 1);
             assert!(workspace.workflows.is_empty());
         }
@@ -437,7 +437,7 @@ fn workflow_clear_purge_and_cross_instance_handles_do_not_reopen_or_change_inven
         "workspace_changed"
     );
     match tauri::async_runtime::block_on(access.workflow_data()) {
-        DataResult::Loaded { workspace } => assert!(workspace.workflows.is_empty()),
+        DataResult::Loaded { workspace, .. } => assert!(workspace.workflows.is_empty()),
         _ => panic!("expected unchanged inventory"),
     }
     let drain = gate.request_drain().unwrap();

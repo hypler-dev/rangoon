@@ -8,7 +8,7 @@ struct Fixture(std::path::PathBuf);
 impl Fixture {
     fn new() -> Self {
         let sequence = NEXT_FIXTURE
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
                 value.checked_add(1)
             })
             .expect("cloud fixture sequence exhausted");

@@ -90,6 +90,7 @@ pub(super) struct Records {
     pub recipes: BTreeMap<String, Recipe>,
     pub applications: BTreeMap<String, Application>,
     pub workflows: workflow_records::WorkflowRows,
+    pub history: instruction_history::HistoryRows,
     histories: BTreeMap<String, Vec<String>>,
 }
 
@@ -111,6 +112,7 @@ impl Records {
             recipes: BTreeMap::new(),
             applications: BTreeMap::new(),
             workflows: workflow_records::WorkflowRows::default(),
+            history: instruction_history::HistoryRows::default(),
             histories: BTreeMap::new(),
         }
     }
@@ -136,6 +138,7 @@ impl Records {
             recipes: BTreeMap::new(),
             applications: BTreeMap::new(),
             workflows: workflow_records::WorkflowRows::default(),
+            history: instruction_history::HistoryRows::default(),
             histories: BTreeMap::new(),
         };
         for metadata in list_metadata(db)? {
@@ -149,12 +152,15 @@ impl Records {
             records.load_owners(db)?;
             records.load_revisions(db)?;
         }
-        if matches!(version, 3 | 4) {
+        if matches!(version, 3..=5) {
             records.load_compositions(db)?;
         }
         records.validate()?;
-        if version == 4 {
+        if version >= 4 {
             records.workflows = workflow_records::WorkflowRows::load(db, &records)?;
+        }
+        if version == 5 {
+            records.history = instruction_history::HistoryRows::load(db, &records)?;
         }
         Ok(records)
     }
@@ -184,7 +190,7 @@ impl Records {
                 },
             );
         }
-        if matches!(self.version, 3 | 4) {
+        if matches!(self.version, 3..=5) {
             check_count(
                 db,
                 "SELECT count(*) FROM derived_capabilities",
@@ -786,6 +792,12 @@ impl Records {
     }
 
     pub fn state_id(&self) -> Result<String, StoreError> {
+        if self.version == 5 {
+            return self.history.state_id(self);
+        }
+        if !self.history.changes.is_empty() || !self.history.events.is_empty() {
+            return Err(StoreError::Corrupt);
+        }
         if self.version == 4 {
             return self.workflows.state_id_v4(self);
         }

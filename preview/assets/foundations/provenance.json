@@ -1,0 +1,18 @@
+{
+  "schema": "rangoon.foundation-assets.v1",
+  "reviewedOn": "2026-10-20",
+  "assets": [
+    {
+      "id": "vusl",
+      "path": "preview/assets/foundations/vusl-logo.png",
+      "sourceAsset": "vusl/assets/vusl-logo.png",
+      "sourceCommit": "d8028c65ed312d7a4ff8c9a08780c8fcf6e8e2ca",
+      "sha256": "d6f2a28ee947790a7324ae1c86fe70b4c4bad327f8dca53d4d0ee4097f54c71a",
+      "bytes": 1025861,
+      "purpose": "Local product identification only; not a catalog, provider, connection, readiness, adapter, or authorization claim.",
+      "rights": "Canonical VUSL identity supplied for requested local identification. Use unchanged without crop, recolor, dark variant, or implied product endorsement. Brand and trademark rights remain separate from Apache-2.0 source licensing.",
+      "sourceRepository": "https://github.com/hypler-dev/vusl",
+      "owner": "HYPLER LLC"
+    }
+  ]
+}

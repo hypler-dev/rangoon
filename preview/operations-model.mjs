@@ -1,4 +1,5 @@
 // Renderer fence only. Native O1 inspection and custody remain authoritative.
+export const OPERATIONS_PAGE_SIZE = 50;
 export const RECORD_KINDS = Object.freeze(['actor','resource','tool','workflow','engine','policy_revision','gateway_revision','assignment','delegation','request','evaluation','approval_plan','approval_decision','authorization','attempt','suspension','metric','evidence','coverage']);
 const CODES = Object.freeze(['duplicate_observation','event_identity_conflict','sequence_conflict','record_identity_conflict','sequence_gap','predecessor_missing','predecessor_conflict','prefix_fence_mismatch','prefix_watermark_mismatch','prefix_identity_conflict','scope_mismatch','correlation_mismatch','duplicate_node','node_record_missing','node_record_kind_mismatch','duplicate_edge','edge_endpoint_missing','edge_endpoint_ambiguous']);
 const STAGES = Object.freeze(['structural','relationships','delegations','approvals','lifecycle']);
@@ -54,7 +55,9 @@ function decodeView(value) {
   if (!source.recordCounts.every((entry, index) => { const row = exact(entry, ['kind','count']); return row && row.kind === RECORD_KINDS[index] && integer(row.count); })) return null;
   if (!DECISION_GROUPS.every(([field, kind, buckets]) => { const group = exact(decisions[field], buckets); const denominator = source.recordCounts.find(row => row.kind === kind)?.count; return group && integer(denominator) && buckets.every(bucket => integer(group[bucket])) && buckets.reduce((total, bucket) => total + group[bucket], 0) === denominator; })) return null;
   const producers = new Map(); const fences = new Map(); let referenceTotal = 0;
+  const observedRecords = new Map(RECORD_KINDS.map(kind => [kind, 0]));
   const observedDecisions = Object.fromEntries(DECISION_GROUPS.map(([field,, buckets]) => [field, Object.fromEntries(buckets.map(bucket => [bucket, 0]))]));
+  // Native inventory also counts producers present only in snapshot prefixes.
   if (!view.events.every((entry, index) => {
     const event = exact(entry, ['inputOrdinal','producerOrdinal','fenceOrdinal','sequence','recordKind','reportedValue','structuralDiagnostics','issueStages','references']);
     if (!event || event.inputOrdinal !== index || !integer(event.producerOrdinal) || !integer(event.fenceOrdinal) || !integer(event.sequence) || !member(event.recordKind, RECORD_KINDS) || !reported(event.recordKind, event.reportedValue) || !enums(event.structuralDiagnostics, CODES) || !enums(event.issueStages, STAGES) || !Array.isArray(event.references)) return false;
@@ -63,11 +66,13 @@ function decodeView(value) {
     const fenceKey = `${event.producerOrdinal}:${event.fenceOrdinal}`;
     if (!fences.has(fenceKey)) fences.set(fenceKey, [...fences.keys()].filter(key => key.startsWith(`${event.producerOrdinal}:`)).length);
     if (fences.get(fenceKey) !== event.fenceOrdinal) return false;
+    observedRecords.set(event.recordKind, observedRecords.get(event.recordKind) + 1);
     const decision = DECISION_GROUPS.find(([, kind]) => kind === event.recordKind);
     if (decision) observedDecisions[decision[0]][decision[3][event.reportedValue]] += 1;
     referenceTotal += event.references.length;
     return event.references.every((entry, refIndex) => { const ref = exact(entry, ['referenceIndex','status','matchingEventOrdinals']); return ref && ref.referenceIndex === refIndex && member(ref.status, ['missing','ambiguous','wrong_kind','unique_unverified']) && orderedUnique(ref.matchingEventOrdinals, source.eventCount); });
-  }) || producers.size !== source.producerCount || referenceTotal > 8192) return null;
+  }) || producers.size > source.producerCount || referenceTotal > 8192) return null;
+  if (!source.recordCounts.every(row => row.count === observedRecords.get(row.kind))) return null;
   if (!DECISION_GROUPS.every(([field,, buckets]) => buckets.every(bucket => decisions[field][bucket] === observedDecisions[field][bucket]))) return null;
   if (!topology.nodes.every((entry, index) => { const node = exact(entry, ['inputNodeIndex','kind','matchingEventOrdinals','hasIssue']); return node && node.inputNodeIndex === index && NODE_KINDS.has(node.kind) && orderedUnique(node.matchingEventOrdinals, source.eventCount) && typeof node.hasIssue === 'boolean'; })) return null;
   if (!topology.edges.every((entry, index) => { const edge = exact(entry, ['inputEdgeIndex','kind','fromNodeIndices','toNodeIndices','hasIssue']); return edge && edge.inputEdgeIndex === index && EDGE_KINDS.has(edge.kind) && orderedUnique(edge.fromNodeIndices, source.topologyNodeCount) && orderedUnique(edge.toNodeIndices, source.topologyNodeCount) && typeof edge.hasIssue === 'boolean'; })) return null;
@@ -84,17 +89,30 @@ function decodeResult(value) {
 
 export function createOperationsController({ invoke, onChange = () => {} } = {}) {
   let identity = Symbol('operations'); let generation = 0;
-  let state = { status: typeof invoke === 'function' ? 'empty' : 'unavailable', view: null, selectedOrdinal: null, mode: 'timeline', kind: 'all', diagnostic: 'all', ordinal: '', notice: null, errorCode: null, generation };
+  let state = { status: typeof invoke === 'function' ? 'empty' : 'unavailable', view: null, selectedOrdinal: null, mode: 'timeline', kind: 'all', diagnostic: 'all', ordinal: '', page: 0, notice: null, errorCode: null, generation };
   const publish = () => onChange({ ...state });
   const set = changes => { state = { ...state, ...changes }; publish(); };
   const filtered = () => state.view?.events.filter(event => (state.kind === 'all' || event.recordKind === state.kind) && (state.diagnostic === 'all' || event.structuralDiagnostics.includes(state.diagnostic)) && (!state.ordinal || String(event.inputOrdinal) === state.ordinal)) ?? [];
   return {
-    getState: () => ({ ...state, filteredEvents: filtered() }),
-    purgeForWorkspaceLock() { identity = Symbol('operations'); generation += 1; set({ status: typeof invoke === 'function' ? 'empty' : 'unavailable', view: null, selectedOrdinal: null, notice: null, errorCode: null, generation }); },
-    clear() { identity = Symbol('operations'); generation += 1; set({ status: typeof invoke === 'function' ? 'cleared' : 'unavailable', view: null, selectedOrdinal: null, notice: 'Inspection cleared. No local window selected.', errorCode: null, generation }); },
-    setMode(mode) { if (member(mode, ['timeline','topology'])) set({ mode }); },
-    setFilters(filters = {}) { const kind = member(filters.kind, ['all', ...RECORD_KINDS]) ? filters.kind : state.kind; const diagnostic = member(filters.diagnostic, ['all', ...CODES]) ? filters.diagnostic : state.diagnostic; const ordinal = typeof filters.ordinal === 'string' && (/^$|^(0|[1-9][0-9]{0,3})$/).test(filters.ordinal) ? filters.ordinal : state.ordinal; set({ kind, diagnostic, ordinal }); },
-    select(ordinal) { if (state.view?.events.some(event => event.inputOrdinal === ordinal)) set({ selectedOrdinal: ordinal }); },
+    getState: () => {
+      const filteredEvents = filtered();
+      const pageCount = Math.max(1, Math.ceil(filteredEvents.length / OPERATIONS_PAGE_SIZE));
+      return { ...state, filteredEvents, pageCount, pageEvents: filteredEvents.slice(state.page * OPERATIONS_PAGE_SIZE, (state.page + 1) * OPERATIONS_PAGE_SIZE) };
+    },
+    purgeForWorkspaceLock() { identity = Symbol('operations'); generation += 1; set({ status: typeof invoke === 'function' ? 'empty' : 'unavailable', view: null, selectedOrdinal: null, kind: 'all', diagnostic: 'all', ordinal: '', page: 0, notice: null, errorCode: null, generation }); },
+    clear() { identity = Symbol('operations'); generation += 1; set({ status: typeof invoke === 'function' ? 'cleared' : 'unavailable', view: null, selectedOrdinal: null, kind: 'all', diagnostic: 'all', ordinal: '', page: 0, notice: 'Inspection cleared. No local window selected.', errorCode: null, generation }); },
+    setMode(mode) { if (member(mode, ['timeline','topology']) && mode !== state.mode) set({ mode }); },
+    setFilters(filters = {}) { const kind = member(filters.kind, ['all', ...RECORD_KINDS]) ? filters.kind : state.kind; const diagnostic = member(filters.diagnostic, ['all', ...CODES]) ? filters.diagnostic : state.diagnostic; const ordinal = typeof filters.ordinal === 'string' && (/^$|^(0|[1-9][0-9]{0,3})$/).test(filters.ordinal) ? filters.ordinal : state.ordinal; if (kind !== state.kind || diagnostic !== state.diagnostic || ordinal !== state.ordinal) set({ kind, diagnostic, ordinal, page: 0 }); },
+    resetFilters() { if (state.kind !== 'all' || state.diagnostic !== 'all' || state.ordinal !== '' || state.page !== 0) set({ kind: 'all', diagnostic: 'all', ordinal: '', page: 0 }); },
+    setPage(page) { if (Number.isSafeInteger(page) && page >= 0 && page < Math.max(1, Math.ceil(filtered().length / OPERATIONS_PAGE_SIZE)) && page !== state.page) set({ page }); },
+    revealSelected() {
+      const index = state.view?.events.findIndex(event => event.inputOrdinal === state.selectedOrdinal) ?? -1;
+      if (index >= 0) {
+        const page = Math.floor(index / OPERATIONS_PAGE_SIZE);
+        if (state.kind !== 'all' || state.diagnostic !== 'all' || state.ordinal !== '' || page !== state.page) set({ kind: 'all', diagnostic: 'all', ordinal: '', page });
+      }
+    },
+    select(ordinal) { if (ordinal !== state.selectedOrdinal && state.view?.events.some(event => event.inputOrdinal === ordinal)) set({ selectedOrdinal: ordinal }); },
     async choose() {
       if (typeof invoke !== 'function' || state.status === 'choosing') return false;
       const request = ++generation; const captured = identity; const prior = state.view;
@@ -105,7 +123,7 @@ export function createOperationsController({ invoke, onChange = () => {} } = {})
         if (state.status === 'cleared' || state.status === 'empty') set({ status: 'stale', view: null, selectedOrdinal: null, notice: 'Stale inspection result discarded. No local window selected.', errorCode: null });
         return false;
       }
-      if (decoded?.outcome === 'inspected') { set({ status: 'inspected', view: decoded.view, selectedOrdinal: decoded.view.events[0]?.inputOrdinal ?? null, notice: 'Selected local window — unverified', errorCode: null }); return true; }
+      if (decoded?.outcome === 'inspected') { set({ status: 'inspected', view: decoded.view, selectedOrdinal: decoded.view.events[0]?.inputOrdinal ?? null, kind: 'all', diagnostic: 'all', ordinal: '', page: 0, notice: 'Selected local window — unverified', errorCode: null }); return true; }
       if (decoded?.outcome === 'cancelled') { set({ status: 'cancelled', view: prior, selectedOrdinal: prior ? state.selectedOrdinal : null, notice: prior ? 'Previous inspected window — selection cancelled' : null, errorCode: null }); return false; }
       const failure = decoded?.outcome === 'rejected' ? 'rejected' : 'failed';
       set({ status: failure, view: prior, selectedOrdinal: prior ? state.selectedOrdinal : null, notice: prior ? 'Previous inspected window — replacement failed' : null, errorCode: decoded?.code ?? 'operations_response_invalid' });

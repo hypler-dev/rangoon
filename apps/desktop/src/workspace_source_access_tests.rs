@@ -63,6 +63,28 @@ fn workspace_code(result: WorkspaceResult) -> &'static str {
     }
 }
 
+#[test]
+fn unavailable_native_backend_rejects_legacy_requests_without_latching_corruption() {
+    let access = SourceAccess::unavailable(Gate::new());
+    assert!(access.encrypted_close_available());
+    let view = serde_json::to_value(access.request_view()).unwrap();
+    assert_eq!(view["storage"], "managed_encrypted");
+    assert!(view["clientId"].is_null());
+    assert!(matches!(
+        access.request_context("main", None),
+        crate::workspace_requests::WorkspaceRequest::Refused
+    ));
+    let legacy = access.for_request(&crate::workspace_requests::WorkspaceRequest::Legacy);
+    assert!(legacy.begin_selection().is_err());
+    assert!(legacy.begin_model_inputs().is_err());
+    assert!(matches!(
+        tauri::async_runtime::block_on(legacy.list_snapshots()),
+        WorkspaceResult::Failed { .. }
+    ));
+    assert!(!access.failure_latched());
+    assert!(serde_json::to_value(access.request_view()).unwrap()["clientId"].is_null());
+}
+
 fn selection_code(result: SelectionResult) -> &'static str {
     match result {
         SelectionResult::Failed { error } => error.code,
@@ -493,6 +515,24 @@ fn read_only_picker_never_selects_source_and_discards_late_result() {
 }
 
 #[test]
+fn folder_listing_uses_counted_read_only_selection_and_fences_stale_delivery() {
+    let (access, _, _) = probe(report("existing.md", b"# Existing\n"));
+    let operation = access.begin_selection().unwrap();
+    assert!(matches!(
+        access.begin_selection(),
+        Err(AdmissionError::Busy)
+    ));
+    let result = rangoon_host::FolderCollectionResult::Cancelled;
+    let pending = operation.complete_read_only(result);
+    assert!(matches!(access.clear_analysis(), WorkspaceResult::Cleared));
+    let delivered = pending.deliver(rangoon_host::FolderCollectionResult::stale);
+    assert_eq!(
+        serde_json::to_value(delivered).unwrap()["error"]["code"],
+        "folder_inventory_cleared"
+    );
+}
+
+#[test]
 fn operations_inspection_stops_before_read_when_picker_clears() {
     let (access, _, _) = probe(report("operations.md", b"# Source\n"));
     let picker = access.begin_selection().unwrap();
@@ -709,11 +749,17 @@ fn closed_admission_maps_to_unavailable_not_busy() {
 }
 
 #[test]
-fn source_binding_keeps_private_dispatch_and_test_only_managed_constructor() {
+fn source_binding_keeps_private_dispatch_and_native_owned_startup_factory() {
     let main = include_str!("main.rs");
     let source = include_str!("workspace_source_access.rs");
+    let bootstrap = include_str!("workspace_native_bootstrap.rs");
     assert!(main.contains("mod workspace_source_access;"));
-    assert!(main.contains("app.manage(source_state(app.state::<Gate>().inner(), root));"));
+    assert!(
+        main.contains("workspace_native_bootstrap::install_workbench_state(app.handle(), anchor)")
+    );
+    assert!(bootstrap.contains("SourceAccess::managed_deferred"));
+    assert!(bootstrap.contains("SourceAccess::unavailable"));
+    assert!(!bootstrap.contains("SourceAccess::new("));
     for call in [
         "sources.list_snapshots().await",
         "sources.save_analysis(source_id).await",
@@ -726,7 +772,8 @@ fn source_binding_keeps_private_dispatch_and_test_only_managed_constructor() {
     assert!(
         source.contains("#[cfg(all(test, feature = \"encrypted-workspace\"))]\n    fn managed")
     );
-    assert!(!source.contains("pub(super) fn managed"));
+    assert!(!source.contains("pub(super) fn managed<"));
+    assert!(!main.contains("SourceAccess::managed_locked"));
 }
 
 #[cfg(feature = "encrypted-workspace")]
@@ -978,3 +1025,10 @@ mod setup_commands;
 
 #[path = "workspace_protection_access_tests.rs"]
 mod protection_status;
+
+#[cfg(feature = "encrypted-workspace")]
+#[path = "workspace_managed_bootstrap_tests.rs"]
+mod managed_bootstrap_tests;
+
+#[path = "workspace_recovery_file_tests.rs"]
+mod recovery_files;

@@ -1,0 +1,22 @@
+{
+  "productName": "Rangoon Native Credential Qualification",
+  "version": "0.1.0-dev",
+  "identifier": "ai.rangoon.native-credential-qualification",
+  "build": {},
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [],
+    "security": {
+      "csp": "default-src 'none'",
+      "capabilities": [{
+        "identifier": "c1-no-permissions",
+        "description": "Disposable native parent only; no webview or IPC grants.",
+        "local": false,
+        "windows": [],
+        "webviews": [],
+        "permissions": []
+      }]
+    }
+  },
+  "bundle": { "active": false, "icon": ["../icons/32x32.png"] }
+}

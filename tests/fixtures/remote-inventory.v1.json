@@ -1,0 +1,150 @@
+{
+  "description": "Synthetic unverified offline metadata; no live system, grant, source read or authorization.",
+  "scope": {
+    "version": "rangoon.remote-inventory.offline.v1",
+    "adapter": {
+      "id": "rangoon-peer",
+      "product": "Rangoon fixture host",
+      "version": "0.1.0-test",
+      "operations": [
+        "inventory.metadata"
+      ]
+    },
+    "binding": {
+      "installationId": "host-b",
+      "installationEpoch": "enrollment-2",
+      "principalId": "operator-a",
+      "grantId": "grant-7",
+      "rootId": "root-1"
+    },
+    "sessionId": "session-2",
+    "snapshotId": "snapshot-4",
+    "access": {
+      "grantOperations": [
+        "inventory.metadata"
+      ],
+      "grantExpiresAtMs": 2000000,
+      "consentId": "consent-9",
+      "consentOperation": "inventory.metadata",
+      "consentExpiresAtMs": 1800000
+    }
+  },
+  "pages": [
+    {
+      "version": "rangoon.remote-inventory.offline.v1",
+      "binding": {
+        "installationId": "host-b",
+        "installationEpoch": "enrollment-2",
+        "principalId": "operator-a",
+        "grantId": "grant-7",
+        "rootId": "root-1"
+      },
+      "sessionId": "session-2",
+      "snapshotId": "snapshot-4",
+      "requestId": 1,
+      "afterCursor": null,
+      "nextCursor": "cursor-1",
+      "observedAtMs": 990000,
+      "coverage": "complete",
+      "items": [
+        {
+          "fileId": "file-1",
+          "relativePath": "AGENTS.md",
+          "byteLength": 333,
+          "modifiedAtMs": 900000,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "native-revision-1"
+        },
+        {
+          "fileId": "file-2",
+          "relativePath": ".claude/SKILL.md",
+          "byteLength": 333,
+          "modifiedAtMs": 900000,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "native-revision-1"
+        }
+      ],
+      "adapter": {
+        "id": "rangoon-peer",
+        "product": "Rangoon fixture host",
+        "version": "0.1.0-test",
+        "operations": [
+          "inventory.metadata"
+        ]
+      },
+      "access": {
+        "grantOperations": [
+          "inventory.metadata"
+        ],
+        "grantExpiresAtMs": 2000000,
+        "consentId": "consent-9",
+        "consentOperation": "inventory.metadata",
+        "consentExpiresAtMs": 1800000
+      }
+    },
+    {
+      "version": "rangoon.remote-inventory.offline.v1",
+      "binding": {
+        "installationId": "host-b",
+        "installationEpoch": "enrollment-2",
+        "principalId": "operator-a",
+        "grantId": "grant-7",
+        "rootId": "root-1"
+      },
+      "sessionId": "session-2",
+      "snapshotId": "snapshot-4",
+      "requestId": 2,
+      "afterCursor": "cursor-1",
+      "nextCursor": null,
+      "observedAtMs": 990000,
+      "coverage": "complete",
+      "items": [
+        {
+          "fileId": "file-3",
+          "relativePath": "project/CLAUDE.md",
+          "byteLength": 333,
+          "modifiedAtMs": 900000,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revisionId": "native-revision-1"
+        }
+      ],
+      "adapter": {
+        "id": "rangoon-peer",
+        "product": "Rangoon fixture host",
+        "version": "0.1.0-test",
+        "operations": [
+          "inventory.metadata"
+        ]
+      },
+      "access": {
+        "grantOperations": [
+          "inventory.metadata"
+        ],
+        "grantExpiresAtMs": 2000000,
+        "consentId": "consent-9",
+        "consentOperation": "inventory.metadata",
+        "consentExpiresAtMs": 1800000
+      }
+    }
+  ],
+  "unsafePaths": [
+    "../AGENTS.md",
+    "/AGENTS.md",
+    "C:/AGENTS.md",
+    "folder/../AGENTS.md",
+    "folder//AGENTS.md",
+    "folder\\AGENTS.md",
+    "%2e%2e/AGENTS.md",
+    "a.md?token=x",
+    "a.md#part",
+    ".ssh/AGENTS.md",
+    ".git/AGENTS.md",
+    "node_modules/AGENTS.md",
+    "CON.md",
+    "a/./b.md",
+    "a /b.md",
+    "a\u0000.md",
+    "a\n.md",
+    "a.txt"
+  ]
+}

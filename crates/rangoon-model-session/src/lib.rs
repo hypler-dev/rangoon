@@ -322,14 +322,13 @@ impl Operation {
 impl Drop for Operation {
     fn drop(&mut self) {
         self.cancellation.cancel();
-        if let Ok(mut state) = self.session.lock() {
-            if state
+        if let Ok(mut state) = self.session.lock()
+            && state
                 .active
                 .as_ref()
                 .is_some_and(|a| a.view.run_id == self.id)
-            {
-                state.active = None;
-            }
+        {
+            state.active = None;
         }
     }
 }

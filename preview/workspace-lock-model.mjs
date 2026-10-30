@@ -1,14 +1,16 @@
 // Renderer fence only. Native control and custody remain authoritative.
 const lifecycle = new Set([
+  'workspace_startup_status', 'workspace_startup_action',
   'get_workspace_close_state', 'begin_workspace_close', 'acknowledge_workspace_purge', 'get_workspace_request_state',
   'get_workspace_control_state', 'get_workspace_protection_state', 'prepare_workspace_control',
   'confirm_workspace_control', 'cancel_workspace_control'
 ]);
 const workspaceCommands = new Set([
-  'select_and_analyze', 'list_snapshots', 'save_analysis', 'open_snapshot', 'read_composition_source', 'clear_analysis',
+  'select_and_analyze', 'select_and_inspect_sources', 'select_and_list_sources', 'list_snapshots', 'save_analysis', 'open_snapshot', 'read_composition_source', 'clear_analysis',
   'list_capabilities', 'open_capability', 'create_capability', 'revise_capability', 'review_capability',
   'compile_capability', 'export_instruction_bundle', 'inspect_instruction_bundle', 'get_workspace_data',
   'export_workspace_backup', 'prepare_workspace_restore', 'restore_workspace_backup', 'inspect_workspace_deletion',
+  'create_workspace_recovery_key', 'export_encrypted_workspace_backup', 'prepare_encrypted_workspace_restore',
   'delete_workspace_record', 'preview_composition', 'commit_composition', 'list_workflows', 'open_workflow',
   'begin_workflow_draft', 'inspect_workflow_save', 'commit_workflow_save', 'clear_workflow_draft',
   'get_local_model_profile', 'configure_local_model', 'clear_local_model', 'prepare_local_model', 'check_local_model',
@@ -43,6 +45,7 @@ function decodeClose(value) {
   return result.diagnostic === null && typeof result.attemptId === 'string'
     && /^[a-f0-9]{64}$/.test(result.attemptId) && validEpoch(result.epoch) ? result : null;
 }
+export { decodeClose as decodeWorkspaceCloseState };
 function decodeClient(value) {
   const result = exact(value, ['schemaVersion', 'storage', 'state', 'clientId']);
   return result?.schemaVersion === 'rangoon.workspace-request-state.v1' && result.storage === 'managed_encrypted'
@@ -75,6 +78,17 @@ function decodeProtection(value) {
 const sameClose = (left, right) => left?.storage === right?.storage && left?.state === right?.state
   && left?.attemptId === right?.attemptId && left?.epoch === right?.epoch && left?.diagnostic === right?.diagnostic;
 const raw = value => new TextEncoder().encode(JSON.stringify(value));
+
+// Input is the lock controller's validated view, never a URL or build flag.
+export function workspaceSaveDisclosure(state) {
+  if (state?.blocked === false && ['open', 'confirming'].includes(state.status)) {
+    return 'Saves source text in this encrypted workspace. Original files and exports remain readable. No upload. Saved does not mean reviewed.';
+  }
+  if (state?.blocked === false && state.status === 'legacy') {
+    return 'Stores original source text unencrypted on this computer. No upload. Saved does not mean reviewed.';
+  }
+  return 'Workspace storage is unavailable. Open an available desktop workspace to save.';
+}
 
 export function createWorkspaceLockController({
   invoke, beforeInvoke = () => {}, purge = () => {}, onChange = () => {}, schedule = setTimeout,
@@ -190,7 +204,7 @@ export function createWorkspaceLockController({
     }, Math.max(50, Math.min(60000, Number(pollInterval) || 250)));
     if (typeof timer?.unref === 'function') timer.unref();
   }
-  async function enterProtection(token, observed) {
+  async function enterProtection(token, observed, expectedLayout = null) {
     if (observed.outcome !== 'observed' || observed.phase !== 'locked' || observed.action !== null
       || observed.diagnostic !== null || observed.reload || observed.close.storage !== 'managed_encrypted'
       || observed.close.state !== 'locked') throw closedError();
@@ -199,6 +213,8 @@ export function createWorkspaceLockController({
     if (!purgeLocal({ fresh: true })) throw closedError();
     const protection = await fixed('get_workspace_protection_state', {}, token, decodeProtection);
     if (!sameClose(protection.close, c0)) throw closedError();
+    if (expectedLayout && ['absent', 'locked'].includes(protection.layout)
+      && protection.layout !== expectedLayout) throw closedError();
     status = 'protection';
     layout = protection.layout;
     pending = false;
@@ -322,6 +338,18 @@ export function createWorkspaceLockController({
         const opened = await fixed(
           'confirm_workspace_control', raw({ schemaVersion: 'rangoon.workspace-control-cycle.v1', ...attempt }), token, decodeControl
         );
+        if (opened.outcome === 'cancelled') {
+          if (opened.phase !== 'locked' || opened.action !== null || opened.diagnostic !== null || opened.reload
+            || opened.close.storage !== 'managed_encrypted' || opened.close.state !== 'locked'
+            || opened.close.attemptId !== attempt.attemptId || opened.close.epoch !== attempt.epoch) throw closedError();
+          const observed = await fixed('get_workspace_control_state', {}, token, decodeControl);
+          if (!sameClose(observed.close, opened.close)) throw closedError();
+          // Cancel never opens admission or reloads. Re-read native health and
+          // purge before offering a new attempt with a new control identity.
+          await enterProtection(token, observed, action === 'create_empty' ? 'absent' : 'locked');
+          attempt = null;
+          return false;
+        }
         if (opened.outcome !== 'opened' || opened.phase !== 'open' || opened.action !== null || opened.diagnostic !== null
           || opened.reload !== true || opened.close.storage !== 'managed_encrypted' || opened.close.state !== 'open') throw closedError();
         identity = Symbol('reloading-workspace');

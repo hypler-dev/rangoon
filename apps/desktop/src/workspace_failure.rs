@@ -343,6 +343,11 @@ impl Host for NativeHost {
                 let _ = sender.send(Progress::Stopped);
                 return;
             };
+            if app.state::<crate::SourceAccess>().failure_latched() {
+                // The source failure already closed admission. Retire a ready
+                // startup plan without waiting on its retained Flight here.
+                crate::workspace_startup_host::retire_for_close(&app);
+            }
             let completed = app
                 .state::<WorkspaceClose>()
                 .progress_native(|drained| native_cleanup(&app, drained));
@@ -432,13 +437,18 @@ impl Anchor {
         route_exit_request(
             code,
             Some((&self.app.state::<WorkspaceClose>(), &self.exit)),
-            cancel_and_check,
+            || {
+                // route_exit_request closes admission before this cancellation.
+                crate::workspace_startup_host::retire_for_close(&self.app);
+                cancel_and_check()
+            },
         )
     }
     pub(crate) fn begin_exit_close(&self) {
         self.app
             .state::<WorkspaceClose>()
             .begin(|drained| native_cleanup(&self.app, drained));
+        crate::workspace_startup_host::retire_for_close(&self.app);
         wake(&self.app);
     }
 }

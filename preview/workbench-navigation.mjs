@@ -2,15 +2,15 @@ import { icon } from './icons.mjs';
 
 const compactQuery = '(max-width: 800px)';
 const routes = Object.freeze([
-  ['Discover', [['analysis', 'import', 'Import & Analyze'], ['decompose', 'decompose', 'Decompose'], ['merge', 'merge', 'Merge'], ['split', 'decompose', 'Split']]],
-  ['Build', [['skills', 'skill', 'Skills'], ['workflows', 'workflow', 'Workflows'], ['compile', 'bundle', 'Compile']]],
-  ['Connect', [['model-assistance', 'research', 'Model assistance'], ['authority-engines', 'gate', 'Authority engines'], ['operations', 'evidence', 'Operations window'], ['engine', 'evidence', 'LNSAT diagnostic']]],
-  ['Workspace', [['workspace', 'bundle', 'Data']]],
+  ['Workbench', [['files', 'source', 'Agent files'], ['analysis', 'import', 'Import sources'], ['skills', 'skill', 'Skills']]],
+  ['Compose & export', [['decompose', 'decompose', 'Decompose'], ['merge', 'merge', 'Merge'], ['split', 'decompose', 'Split'], ['compile', 'bundle', 'Compile & export']]],
+  ['Review', [['operations', 'evidence', 'Activity reports'], ['workspace', 'bundle', 'Workspace data']]],
+  ['Advanced', [['workflows', 'workflow', 'Workflow definitions'], ['model-assistance', 'research', 'Model guidance'], ['authority-engines', 'gate', 'System coverage'], ['engine', 'evidence', 'LNSAT diagnostic']]],
 ]);
 const examples = Object.freeze([
   ['sample-design', 'command', 'Sample design preview', 'index.html'],
-  ['workflow-playground', 'workflow', 'Workflow playground', 'workflow-playground.html'],
-  ['flow-playground', 'workflow', 'Flow playground', 'flow-playground.html'],
+  ['workflow-playground', 'workflow', 'Sample · Workflow playground', 'workflow-playground.html'],
+  ['flow-playground', 'workflow', 'Sample · Flow playground', 'flow-playground.html'],
 ]);
 const areas = new Map(routes.flatMap(([, links]) => links).map(([id, , label]) => [id, label]));
 const surfaces = new Set(['workbench', 'sample-design', 'workflow-playground', 'flow-playground']);
@@ -40,7 +40,7 @@ export function renderWorkbenchNavigation({ area, surface, theme = 'dark', suppl
   const themeControl = currentSurface === 'workbench' ? 'id="analysis-theme"'
     : currentSurface === 'workflow-playground' ? 'id="playground-theme"'
       : currentSurface === 'flow-playground' ? 'data-flow-theme' : 'data-workbench-theme';
-  return `<aside class="analysis-rail" data-workbench-nav><a class="analysis-brand" href="${brandHref}"><img src="assets/brand-symbol.png" alt=""><span>Rangoon.si</span></a><nav class="analysis-nav" aria-label="Task navigation"><details class="analysis-nav-drawer" data-workbench-nav-drawer${open ? ' open' : ''}><summary><span>${currentLabel}</span><span>Navigation</span></summary><div class="analysis-nav-groups">${routes.map(([label, links]) => `<section class="analysis-nav-group" aria-label="${label}"><p>${label}</p>${links.map(renderLink).join('')}</section>`).join('')}${extra ? `<div class="analysis-nav-supplementary">${extra}</div>` : ''}<section class="analysis-nav-group analysis-nav-group--sample" aria-label="Examples"><p>Examples</p>${examples.map(renderExample).join('')}</section></div></details></nav>${guard}<button ${themeControl} class="analysis-theme" type="button">${icon('theme', { size: 16 })}<span>${theme === 'light' ? 'Dark mode' : 'Light mode'}</span></button></aside>`;
+  return `<aside class="analysis-rail" data-workbench-nav><a class="analysis-brand" href="${brandHref}"><img src="assets/brand-symbol.png" alt=""><span>Rangoon.si</span></a><nav class="analysis-nav" aria-label="Task navigation"><details class="analysis-nav-drawer" data-workbench-nav-drawer${open ? ' open' : ''}><summary><span>${currentLabel}</span><span>Navigation</span></summary><div class="analysis-nav-groups">${routes.map(([label, links]) => `<section class="analysis-nav-group" aria-label="${label}"><p>${label}</p>${links.map(renderLink).join('')}</section>`).join('')}${extra ? `<div class="analysis-nav-supplementary">${extra}</div>` : ''}<section class="analysis-nav-group analysis-nav-group--sample" aria-label="Samples and prototypes"><p>Samples &amp; prototypes</p>${examples.map(renderExample).join('')}</section></div></details></nav>${guard}<button ${themeControl} class="analysis-theme" type="button">${icon('theme', { size: 16 })}<span>${theme === 'light' ? 'Dark mode' : 'Light mode'}</span></button></aside>`;
 }
 
 export function captureWorkbenchNavigation(root, documentRef = root?.ownerDocument ?? globalThis.document) {

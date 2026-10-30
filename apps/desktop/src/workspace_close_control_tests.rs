@@ -636,3 +636,162 @@ fn panicking_callback_cleanup_and_generic_lock_after_success_stay_closed() {
         Err(AdmissionError::Unavailable)
     ));
 }
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn startup_permit_keeps_real_closed_custody_without_content_or_vault_access() {
+    let root = TestRoot::new("startup-permit-custody");
+    let vault = ThreadVault::default();
+    let access = locked_access(&root, &vault);
+    let close = locked_close(access.clone());
+    let opens = vault.0.lock().unwrap().opens;
+
+    let flight = close.start_control(ControlKind::Startup, |_| true).unwrap();
+    let (id, epoch) = control_attempt(&close);
+    assert!(matches!(
+        flight.startup_permit(),
+        Err(ControlError::Unavailable)
+    ));
+    assert!(matches!(
+        access.begin(Lane::Read),
+        Err(AdmissionError::Unavailable)
+    ));
+    assert_eq!(vault.0.lock().unwrap().opens, opens);
+
+    assert_eq!(
+        view_json(close.acknowledge(&acknowledgement(&id, &epoch), |_| true))["state"],
+        "closing"
+    );
+    let permit = flight.startup_permit().unwrap();
+    assert!(permit.checkpoint().is_ok());
+    assert_eq!(vault.0.lock().unwrap().opens, opens);
+
+    drop(flight);
+    assert_eq!(view_json(close.inspect(|_| true))["state"], "locked");
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn ordinary_controls_cannot_mint_startup_permits_or_run_startup_as_setup() {
+    for (label, kind) in [
+        ("create", ControlKind::CreateEmpty),
+        ("unlock", ControlKind::Unlock),
+        ("recovery", ControlKind::Recovery),
+    ] {
+        let root = TestRoot::new(&format!("startup-permit-{label}"));
+        let vault = ThreadVault::default();
+        let access = locked_access(&root, &vault);
+        let close = locked_close(access);
+        let flight = close.start_control(kind, |_| true).unwrap();
+        let (id, epoch) = control_attempt(&close);
+        assert_eq!(
+            view_json(close.acknowledge(&acknowledgement(&id, &epoch), |_| true))["state"],
+            "closing"
+        );
+        assert!(matches!(
+            flight.startup_permit(),
+            Err(ControlError::Invalid)
+        ));
+        drop(flight);
+    }
+
+    let root = TestRoot::new("startup-resume-not-ordinary-control");
+    let vault = ThreadVault::default();
+    let access = locked_access(&root, &vault);
+    let close = locked_close(access);
+    let opens = vault.0.lock().unwrap().opens;
+    let flight = close.start_control(ControlKind::Startup, |_| true).unwrap();
+    assert!(matches!(flight.resume(), Err(ControlError::Invalid)));
+    assert_eq!(vault.0.lock().unwrap().opens, opens);
+
+    let root = TestRoot::new("startup-prepare-not-ordinary-control");
+    let vault = ThreadVault::default();
+    let access = locked_access(&root, &vault);
+    let close = locked_close(access);
+    let opens = vault.0.lock().unwrap().opens;
+    let mut flight = close.start_control(ControlKind::Startup, |_| true).unwrap();
+    assert!(matches!(flight.prepare(), Err(ControlError::Invalid)));
+    assert_eq!(vault.0.lock().unwrap().opens, opens);
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn retained_startup_requires_fresh_c1_ack_and_has_one_active_worker() {
+    let root = TestRoot::new("startup-retained-worker");
+    let vault = ThreadVault::default();
+    let access = locked_access(&root, &vault);
+    let close = locked_close(access);
+
+    let flight = close.start_control(ControlKind::Startup, |_| true).unwrap();
+    let (id, epoch) = control_attempt(&close);
+    flight.retain().unwrap();
+    assert!(matches!(
+        close.take_control_ready(&id, &epoch, |_| true),
+        Err(ControlError::Unavailable)
+    ));
+    assert_eq!(
+        view_json(close.acknowledge(&acknowledgement(&id, &epoch), |_| true))["state"],
+        "closing"
+    );
+
+    let worker = close.take_control_ready(&id, &epoch, |_| true).unwrap();
+    assert!(worker.startup_permit().unwrap().checkpoint().is_ok());
+    assert!(matches!(
+        close.take_control_ready(&id, &epoch, |_| true),
+        Err(ControlError::Busy)
+    ));
+    assert_eq!(
+        view_json(close.cancel_control("wrong", &epoch, |_| true))["diagnostic"],
+        "invalid_workspace_close_request"
+    );
+
+    let cancelled = view_json(close.cancel_control(&id, &epoch, |_| true));
+    let (new_id, new_epoch) = attempt(&cancelled);
+    assert_ne!(
+        (id.as_str(), epoch.as_str()),
+        (new_id.as_str(), new_epoch.as_str())
+    );
+    assert!(matches!(worker.startup_permit(), Err(ControlError::Stale)));
+    assert!(matches!(
+        close.take_control_ready(&id, &epoch, |_| true),
+        Err(ControlError::Stale)
+    ));
+    assert_eq!(
+        view_json(close.cancel_control(&id, &epoch, |_| true))["diagnostic"],
+        "invalid_workspace_close_request"
+    );
+    drop(worker);
+}
+
+#[cfg(feature = "encrypted-workspace")]
+#[test]
+fn cancelling_a_held_startup_permit_waits_for_actual_flight_drop() {
+    let root = TestRoot::new("startup-held-permit-cancel");
+    let vault = ThreadVault::default();
+    let access = locked_access(&root, &vault);
+    let close = locked_close(access.clone());
+    let opens = vault.0.lock().unwrap().opens;
+
+    let flight = close.start_control(ControlKind::Startup, |_| true).unwrap();
+    let (old_id, old_epoch) = control_attempt(&close);
+    assert_eq!(
+        view_json(close.acknowledge(&acknowledgement(&old_id, &old_epoch), |_| true))["state"],
+        "closing"
+    );
+    let permit = flight.startup_permit().unwrap();
+    let cancelled = view_json(close.cancel_control(&old_id, &old_epoch, |_| true));
+    let (new_id, new_epoch) = attempt(&cancelled);
+    assert!(matches!(permit.checkpoint(), Err(ControlError::Stale)));
+    assert!(matches!(
+        access.begin(Lane::Read),
+        Err(AdmissionError::Unavailable)
+    ));
+    assert_eq!(vault.0.lock().unwrap().opens, opens);
+    assert_eq!(
+        view_json(close.acknowledge(&acknowledgement(&new_id, &new_epoch), |_| true))["state"],
+        "closing"
+    );
+
+    drop(flight);
+    assert_eq!(view_json(close.inspect(|_| true))["state"], "locked");
+}

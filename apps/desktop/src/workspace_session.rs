@@ -6,10 +6,10 @@ use rangoon_compose::application::Request as CompositionRequest;
 use rangoon_domain::AnalysisReport;
 use rangoon_domain::capability_v1::{CapabilityDetail, CapabilitySummary};
 use rangoon_store::{
-    CapabilityReceiptV1, CompositionPreview, CompositionReceipt, SaveReceipt, SnapshotMetadata,
-    WorkflowDeletionPlan, WorkflowDetail, WorkflowRecordKind, WorkflowRestorePlan,
-    WorkflowSavePlan, WorkflowSaveReceipt, WorkflowSummary, WorkflowWorkspaceData, Workspace,
-    WorkspaceBackup, WorkspaceCompilation,
+    CapabilityReceiptV1, CompositionPreview, CompositionReceipt, EmptyWorkflowRestorePlan,
+    SaveReceipt, SnapshotMetadata, WorkflowDeletionPlan, WorkflowDetail, WorkflowRecordKind,
+    WorkflowRestorePlan, WorkflowSavePlan, WorkflowSaveReceipt, WorkflowSummary,
+    WorkflowWorkspaceData, Workspace, WorkspaceBackup, WorkspaceCompilation,
 };
 use rangoon_workflow::records::WorkflowRevision;
 use serde::Serialize;
@@ -21,7 +21,7 @@ use std::{
 
 #[path = "workspace_recovery.rs"]
 mod recovery;
-pub use recovery::{Operation as RecoveryOperation, RecoveryPreview};
+pub use recovery::{EmptyProvisioningPreview, Operation as RecoveryOperation, RecoveryPreview};
 
 #[path = "workspace_protection.rs"]
 mod protection;
@@ -186,6 +186,7 @@ pub struct Owner {
     opened: Option<Opened>,
     recovery: bool,
     reconciliation: Option<recovery::Retained>,
+    empty_provisioning: Option<recovery::RetainedEmpty>,
     #[cfg(all(test, feature = "encrypted-workspace"))]
     fault: Option<Fault>,
 }
@@ -220,21 +221,37 @@ enum DataMutation {
 }
 
 impl Owner {
-    /// Explicit native acquisition; default builds do not touch the filesystem.
+    /// Explicit native acquisition. This opens no credential slot or database.
     pub fn acquire(host_root: PathBuf) -> Result<Self, Error> {
+        Self::acquire_inner(host_root, true)
+    }
+
+    /// Acquire only an existing control file. A disappeared control is never
+    /// repaired, even when the caller previously observed a valid workspace.
+    pub fn acquire_existing(host_root: PathBuf) -> Result<Self, Error> {
+        Self::acquire_inner(host_root, false)
+    }
+
+    fn acquire_inner(host_root: PathBuf, create_control: bool) -> Result<Self, Error> {
         workspace_keys::ensure_backend().map_err(|_| Error::BackendUnavailable)?;
         let root_metadata = plain_directory(&host_root)?;
         let path = host_root.join(CONTROL);
         let mut options = options();
-        options.read(true).write(true).create_new(true);
-        let control = match options.open(&path) {
-            Ok(file) => file,
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-                regular(&fs::symlink_metadata(&path).map_err(|_| Error::Unavailable)?)?;
-                options.create_new(false);
-                options.open(&path).map_err(|_| Error::Unavailable)?
+        options.read(true).write(true);
+        let control = if !create_control {
+            regular(&fs::symlink_metadata(&path).map_err(|_| Error::Unavailable)?)?;
+            options.open(&path).map_err(|_| Error::Unavailable)?
+        } else {
+            options.create_new(true);
+            match options.open(&path) {
+                Ok(file) => file,
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                    regular(&fs::symlink_metadata(&path).map_err(|_| Error::Unavailable)?)?;
+                    options.create_new(false);
+                    options.open(&path).map_err(|_| Error::Unavailable)?
+                }
+                Err(_) => return Err(Error::Unavailable),
             }
-            Err(_) => return Err(Error::Unavailable),
         };
         verify_file(&control, &path)?;
         if control.metadata().map_err(|_| Error::Unavailable)?.len() != 0 {
@@ -255,6 +272,7 @@ impl Owner {
             opened: None,
             recovery: false,
             reconciliation: None,
+            empty_provisioning: None,
             #[cfg(all(test, feature = "encrypted-workspace"))]
             fault: None,
         };
@@ -283,7 +301,11 @@ impl Owner {
         if self.recovery {
             return Err(Error::RecoveryRequired);
         }
-        if self.opened.is_some() || self.pending.is_some() || self.reconciliation.is_some() {
+        if self.opened.is_some()
+            || self.pending.is_some()
+            || self.reconciliation.is_some()
+            || self.empty_provisioning.is_some()
+        {
             return Err(Error::Busy);
         }
         self.check_control()
@@ -909,6 +931,41 @@ impl Owner {
         self.finish_data_mutation(result, previous, DataMutation::Restore)
     }
 
+    /// Trusted host-only preparation for a separately created empty destination.
+    pub fn prepare_adoption_restore(
+        &mut self,
+        vault: &impl Vault,
+        backup: &WorkspaceBackup,
+        source_schema: u32,
+    ) -> Result<EmptyWorkflowRestorePlan, Error> {
+        let previous = self.checked(vault)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .prepare_empty_workflow_restore(backup, source_schema);
+        self.finish_read(result, previous)
+    }
+
+    /// Uses existing Restore durable intent/uncertainty handling; no new operation code.
+    pub fn restore_adoption(
+        &mut self,
+        vault: &impl Vault,
+        backup: &WorkspaceBackup,
+        prepared: &EmptyWorkflowRestorePlan,
+    ) -> Result<WorkflowWorkspaceData, Error> {
+        let previous = self.checked(vault)?;
+        self.begin_mutation(RecoveryOperation::Restore)?;
+        let result = self
+            .opened
+            .as_ref()
+            .ok_or(Error::Locked)?
+            .workspace
+            .restore_empty_workflow_backup(backup, prepared);
+        self.finish_data_mutation(result, previous, DataMutation::Restore)
+    }
+
     /// Returns an exact dependency-aware logical deletion plan, not authority.
     pub fn inspect_workflow_deletion(
         &mut self,
@@ -1175,6 +1232,7 @@ impl Owner {
         self.advance_composition_generation();
         self.pending = None;
         self.reconciliation = None;
+        self.empty_provisioning = None;
         self.opened = None;
     }
     fn advance_composition_generation(&mut self) {
@@ -1333,3 +1391,15 @@ fn sync_directory(path: &Path) -> Result<(), Error> {
 #[cfg(test)]
 #[path = "workspace_session_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "workspace_adoption_owner_tests.rs"]
+mod adoption_tests;
+
+#[cfg(all(test, feature = "encrypted-workspace"))]
+#[path = "workspace_startup_owner_tests.rs"]
+mod startup_owner_tests;
+
+#[cfg(all(test, feature = "encrypted-workspace"))]
+#[path = "workspace_empty_provisioning_tests.rs"]
+mod empty_provisioning_tests;

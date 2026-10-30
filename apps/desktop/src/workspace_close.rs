@@ -102,6 +102,35 @@ impl WorkspaceClose {
             state: Arc::new(Mutex::new(State::default())),
         }
     }
+    /// Bootstrap uses the existing close protocol before the first renderer is
+    /// present. It must leave a real Closing attempt for that renderer to purge
+    /// and acknowledge; this is never a shortcut to Locked or an open client.
+    pub(super) fn begin_initial(&self, cleanup: impl FnOnce(bool) -> bool) -> bool {
+        let fresh = self.state.lock().is_ok_and(|state| {
+            state.epoch == 0
+                && !state.failed
+                && !state.exiting
+                && state.attempt.is_none()
+                && state.control.is_none()
+        });
+        if !fresh {
+            return false;
+        }
+        let view = self.begin(cleanup);
+        matches!(view.state, Phase::Closing)
+            && view.attempt_id.is_some()
+            && view.epoch.is_some()
+            && view.diagnostic.is_none()
+    }
+    /// Startup failure is terminal for this application lifetime. Even a later
+    /// successful drain cannot turn it into a successful startup/clean exit.
+    pub(super) fn fail_startup(&self) {
+        match self.state.lock() {
+            Ok(mut state) => state.failed = true,
+            Err(error) => error.into_inner().failed = true,
+        }
+        self.source.fail_closed();
+    }
     /// Serialize the irreversible exit fence with closed-control resume. The
     /// source owns the drain cycle; this adds no second drain or cleanup owner.
     pub(super) fn fence_admission_for_exit(&self) {
@@ -472,6 +501,8 @@ pub(super) mod failure;
 #[allow(dead_code)]
 #[path = "workspace_close_control.rs"]
 mod control;
+#[cfg(feature = "encrypted-workspace")]
+pub(crate) use control::{Flight as StartupFlight, StartupBinding, StartupPermit};
 #[path = "workspace_setup.rs"]
 pub(super) mod setup;
 
@@ -489,7 +520,7 @@ fn next_identity(
     }
     (id, epoch.map(|n| n.to_string()))
 }
-fn native_cleanup(app: &AppHandle, drained: bool) -> bool {
+pub(super) fn native_cleanup(app: &AppHandle, drained: bool) -> bool {
     let local = app
         .state::<models::NativeModel>()
         .purge_for_workspace_close();
@@ -502,7 +533,8 @@ fn native_cleanup(app: &AppHandle, drained: bool) -> bool {
     let openshell = app
         .state::<openshell_host::Host>()
         .purge_for_workspace_close(drained);
-    let mut healthy = local.healthy && cloud.healthy && credential.healthy && openshell;
+    let startup = crate::workspace_startup_host::cleanup_consistent(app, drained);
+    let mut healthy = local.healthy && cloud.healthy && credential.healthy && openshell && startup;
     for (label, keep_parent) in [
         (crate::model_consent::REVIEW_WINDOW, local.keep_parent),
         (crate::cloud_model_consent::REVIEW_WINDOW, cloud.keep_parent),
@@ -556,6 +588,9 @@ pub(super) fn window_event(window: &Window, event: &WindowEvent) {
         |drained| native_cleanup(app, drained),
         || failure::wake(app),
     );
+    if main_window_destroyed(window.label(), event) {
+        crate::workspace_startup_host::retire_for_close(app);
+    }
 }
 #[tauri::command]
 pub(super) fn get_workspace_close_state(
@@ -580,7 +615,9 @@ pub(super) fn begin_workspace_close(
     allowed(window.label())?;
     let state = app.state::<WorkspaceClose>();
     Ok(if empty(request.body()) {
+        let retirement = crate::workspace_startup_host::retire_for_ordinary_close(&app);
         let view = state.begin(|drained| native_cleanup(&app, drained));
+        drop(retirement);
         failure::wake(&app);
         view
     } else {

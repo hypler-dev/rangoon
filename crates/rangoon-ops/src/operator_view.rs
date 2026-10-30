@@ -281,10 +281,25 @@ pub fn build_operator_view(
 
     let mut timeline = projection_document.timeline.iter().collect::<Vec<_>>();
     timeline.sort_by_key(|event| event.input_ordinal);
-    if timeline.iter().enumerate().any(|(ordinal, event)| {
-        event.input_ordinal != ordinal || !RECORD_KINDS.contains(&event.record_kind.as_str())
-    }) {
-        return Err(OperatorViewError::InvalidView);
+    let mut record_counts = [0usize; RECORD_KINDS.len()];
+    for (ordinal, event) in timeline.iter().enumerate() {
+        if event.input_ordinal != ordinal {
+            return Err(OperatorViewError::InvalidView);
+        }
+        let Some(kind_index) = RECORD_KINDS
+            .iter()
+            .position(|kind| *kind == event.record_kind.as_str())
+        else {
+            return Err(OperatorViewError::InvalidView);
+        };
+        record_counts[kind_index] += 1;
+    }
+    if RECORD_KINDS
+        .iter()
+        .zip(record_counts)
+        .any(|(kind, count)| decoded.inventory().record_counts().get(*kind).copied() != Some(count))
+    {
+        return Err(OperatorViewError::StageMismatch);
     }
 
     let relationship_events = indexed_stage(

@@ -1,0 +1,198 @@
+.foundation-context {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.foundation-context__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.foundation-context__head h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.foundation-context__cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.foundation-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.foundation-card > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.foundation-card__mark {
+  display: grid;
+  flex: 0 0 42px;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.foundation-card__mark img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 34px;
+  max-height: 28px;
+  object-fit: contain;
+}
+
+.foundation-card__mark--vusl {
+  flex-basis: 112px;
+  width: 112px;
+  height: 42px;
+}
+
+.foundation-card__mark--vusl img {
+  max-width: 104px;
+  max-height: 39px;
+}
+
+.foundation-card h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.foundation-card__role,
+.foundation-card__state {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.foundation-card__role {
+  margin-top: 2px;
+}
+
+.foundation-card__state {
+  padding: 6px 12px;
+  border-top: 1px solid var(--line);
+}
+
+.foundation-card details {
+  border-top: 1px solid var(--line);
+}
+
+.foundation-card summary {
+  display: list-item;
+  box-sizing: border-box;
+  list-style-position: inside;
+  line-height: 20px;
+  min-height: 44px;
+  padding: 12px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.foundation-card summary:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: -3px;
+}
+
+.foundation-card summary:hover {
+  color: var(--ink);
+  background: var(--raised);
+}
+
+.foundation-card details p {
+  margin: 0;
+  padding: 0 12px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.authority-context__foundation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.authority-context__foundation img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.engine-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.engine-identity__mark {
+  display: grid;
+  flex: 0 0 50px;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.engine-identity__mark img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 42px;
+  max-height: 31px;
+  object-fit: contain;
+}
+
+@media (max-width: 660px) {
+  .foundation-context__head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .foundation-context__cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .foundation-card,
+  .foundation-card * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .foundation-card,
+  .foundation-card__mark,
+  .engine-identity__mark {
+    forced-color-adjust: auto;
+    border-color: CanvasText;
+    background: Canvas;
+  }
+
+  .foundation-card__mark img,
+  .engine-identity__mark img {
+    forced-color-adjust: none;
+  }
+}

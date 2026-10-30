@@ -35,6 +35,19 @@ struct Envelope {
     secret: Secret,
 }
 impl NativeCloud {
+    /// Isolated qualification fault: exercise the unchanged native purge result.
+    #[cfg(all(test, feature = "native-exit-qualification"))]
+    pub(crate) fn poison_for_native_exit_qualification(&self) {
+        let state = Arc::clone(&self.state);
+        let result = std::thread::spawn(move || {
+            let _guard = state.lock().expect("fixture mutex");
+            panic!("nx06 fixture poison");
+        })
+        .join();
+        assert!(result.is_err());
+        assert!(self.state.is_poisoned());
+    }
+
     pub(super) fn purge_for_workspace_close(&self) -> crate::workspace_close::Cleanup {
         let (session, state_healthy) = {
             let (mut state, healthy) = match self.state.lock() {

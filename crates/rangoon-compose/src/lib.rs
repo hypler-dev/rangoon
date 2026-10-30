@@ -832,17 +832,17 @@ fn coverage(
         let mut pieces = Vec::new();
         for (oi, output) in draft.outputs.iter().enumerate() {
             for (pi, piece) in output.pieces.iter().enumerate() {
-                if let Piece::Copy { range } | Piece::Replace { range, .. } = piece {
-                    if range.input_index == input_index as u32 {
-                        endpoints.insert(range.start_byte);
-                        endpoints.insert(range.end_byte);
-                        pieces.push((
-                            range,
-                            oi as u32,
-                            pi as u32,
-                            matches!(piece, Piece::Copy { .. }),
-                        ));
-                    }
+                if let Piece::Copy { range } | Piece::Replace { range, .. } = piece
+                    && range.input_index == input_index as u32
+                {
+                    endpoints.insert(range.start_byte);
+                    endpoints.insert(range.end_byte);
+                    pieces.push((
+                        range,
+                        oi as u32,
+                        pi as u32,
+                        matches!(piece, Piece::Copy { .. }),
+                    ));
                 }
             }
         }

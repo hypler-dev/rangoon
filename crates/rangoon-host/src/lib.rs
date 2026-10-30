@@ -1,7 +1,19 @@
-//! Bounded reads for a host-selected file. The caller owns the selection UI.
-//! This is not a generic frontend path API or a directory confinement boundary.
+//! Native-selected file reads and retained-root metadata inventory.
+//! Single-file helpers do not retain parents; inventory owns directory handles.
+//! Neither interface is a generic frontend path or file-mutation API.
 #![forbid(unsafe_code)]
 
+mod source_inventory;
+pub use source_inventory::{
+    FileObservation, FolderCollectionResult, InventoryError, InventoryPage, PartialReason,
+    SelectedRootInventory, list_selected_root,
+};
+
+mod source_collection;
+pub use source_collection::{
+    MAX_COLLECTION_BYTES, MAX_COLLECTION_FILES, SourceCollectionItem, SourceCollectionResult,
+    inspect_selected_sources,
+};
 mod backup;
 pub use backup::{MAX_BACKUP_FILE_BYTES, read_selected_backup, write_selected_backup};
 mod instructions;

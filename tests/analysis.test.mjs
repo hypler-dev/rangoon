@@ -107,7 +107,7 @@ test('save success refreshes metadata, duplicate success does not create a dupli
 });
 
 test('open failure preserves current analysis and allows retry to replace it', async () => {
-  const opened = { ...report, source: { ...report.source, id: 'saved-source' } };
+  const opened = { ...report, source: { ...report.source, id: `source:${'f'.repeat(64)}` } };
   const outcomes = [
     { outcome: 'listed', snapshots },
     { outcome: 'analyzed', report },
@@ -116,10 +116,10 @@ test('open failure preserves current analysis and allows retry to replace it', a
   ];
   const controller = createAnalysisController({ invoke: () => Promise.resolve(outcomes.shift()) });
   await controller.choose();
-  await controller.openSnapshot(report.source.id);
+  await controller.openSnapshot(opened.source.id);
   assert.equal(controller.getState().report, report);
   assert.equal(controller.getState().errorCode, 'missing');
-  await controller.openSnapshot(report.source.id);
+  await controller.openSnapshot(opened.source.id);
   assert.equal(controller.getState().report, opened);
   assert.equal(controller.getState().selectedFragmentId, opened.fragments[0].id);
 });
@@ -183,4 +183,27 @@ test('confirmed snapshot deletion preserves active source and invalidates stale 
   assert.equal(controller.getState().report, report);
   assert.deepEqual(controller.getState().snapshots, []);
   assert.match(controller.getState().message, /now unsaved/);
+});
+
+
+test('saved source handoff passes only ID and requires exact returned saved identity',async()=>{
+ const calls=[];let returned=report;const controller=createAnalysisController({invoke:async(command,args)=>{calls.push([command,args]);return command==='list_snapshots'?listed:command==='select_and_analyze'?{outcome:'analyzed',report}:{outcome:'analyzed',report:returned};}});
+ await controller.choose();const expected={sha256:report.source.sha256,byteLength:report.source.byteLength};
+ assert.equal(await controller.openSnapshot(report.source.id,expected),true);
+ assert.deepEqual(calls.at(-1),['open_snapshot',{sourceId:report.source.id}]);
+ for(const changes of [{id:`source:${'f'.repeat(64)}`},{sha256:'f'.repeat(64)},{byteLength:143}]){
+  returned={...report,source:{...report.source,...changes}};assert.equal(await controller.openSnapshot(report.source.id,expected),false);
+  assert.equal(controller.getState().report,report);assert.equal(controller.getState().errorCode,'source_identity_mismatch');
+ }
+ const before=calls.length;assert.equal(await controller.openSnapshot('path/to/file',expected),false);assert.equal(await controller.openSnapshot(report.source.id,{sha256:'bad',byteLength:144}),false);assert.equal(calls.length,before);
+});
+
+test('saved handoff refuses pending actions and fences late opens after lock or deletion',async()=>{
+ for(const action of ['lock','delete']){
+  let finish;let calls=0;const controller=createAnalysisController({invoke:async(command)=>command==='list_snapshots'?listed:new Promise(resolve=>{calls++;finish=resolve;})});
+  const pending=controller.openSnapshot(report.source.id,{sha256:report.source.sha256,byteLength:144});
+  assert.equal(await controller.openSnapshot(report.source.id),false);assert.equal(calls,1);
+  if(action==='lock')controller.purgeForWorkspaceLock();else controller.noteSnapshotDeleted(report.source.id);
+  finish({outcome:'analyzed',report});assert.equal(await pending,false);assert.equal(controller.getState().report,null);
+ }
 });

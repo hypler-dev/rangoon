@@ -232,3 +232,177 @@ test('malformed bootstrap, dispose, and stale observer callbacks stay closed wit
   await callback();
   assert.equal(open.calls.length, calls);
 });
+
+test('native setup and unlock cancellation returns false only after exact C1 reconciliation, then permits retry', async () => {
+  for (const layout of ['absent', 'locked']) {
+    const cycles = [
+      { id: c1, epoch: '2' },
+      { id: 'ef'.repeat(32), epoch: '3' },
+    ];
+    let prepared = 0;
+    let active = null;
+    const f = fixture({ initial: close(), invoke: name => {
+      if (name === 'get_workspace_close_state') return close();
+      if (name === 'get_workspace_control_state') {
+        if (!active) return control();
+        return control('locked', { close: close('locked', active.id, active.epoch) });
+      }
+      if (name === 'get_workspace_protection_state') return protection(layout, active ? close('locked', active.id, active.epoch) : close());
+      if (name === 'prepare_workspace_control') {
+        active = cycles[prepared++];
+        return control('closing', {
+          close: close('closing', active.id, active.epoch),
+          phase: 'awaiting_confirmation',
+          action: layout === 'absent' ? 'create_empty' : 'unlock',
+          outcome: 'prepared',
+        });
+      }
+      if (name === 'acknowledge_workspace_purge') return close('closing', active.id, active.epoch);
+      if (name === 'confirm_workspace_control') return control('locked', {
+        close: close('locked', active.id, active.epoch), phase: 'locked', outcome: 'cancelled',
+      });
+      throw new Error(`unexpected ${name}`);
+    } });
+    await f.model.initialize();
+
+    assert.equal(await f.model.beginProtection(), false);
+    assert.deepEqual(f.model.getState(), { status: 'protection', blocked: true, canLock: false, layout, canProtect: true, pending: false });
+    assert.equal(await f.model.beginProtection(), false);
+    assert.equal(prepared, 2);
+    assert.equal(f.reloads(), 0);
+    assert.equal(f.calls.some(([name]) => name === 'get_workspace_request_state'), false);
+    await assert.rejects(f.model.bridge('save_analysis', { sourceId: 'private' }), /closed/);
+
+    const confirms = f.calls.filter(([name]) => name === 'confirm_workspace_control');
+    assert.equal(confirms.length, 2);
+    for (const [index, [, payload]] of confirms.entries()) {
+      assert.deepEqual(JSON.parse(new TextDecoder().decode(payload)), {
+        schemaVersion: 'rangoon.workspace-control-cycle.v1', attemptId: cycles[index].id, epoch: cycles[index].epoch,
+      });
+    }
+    const lastConfirm = f.calls.map(([name]) => name).lastIndexOf('confirm_workspace_control');
+    assert.deepEqual(f.calls.slice(lastConfirm + 1).map(([name]) => name), ['get_workspace_control_state', 'get_workspace_protection_state']);
+    assert.equal(f.purges(), 5);
+  }
+});
+
+test('cancelled control must be exact C1 locked and non-reloading; malformed or lost delivery stays closed', async () => {
+  const malformed = control('locked', { close: close('locked', c0, '1'), phase: 'locked', outcome: 'cancelled' });
+  const crossCycle = control('locked', { close: close('locked', 'ef'.repeat(32), '3'), phase: 'locked', outcome: 'cancelled' });
+  const wrongStorage = control('locked', { close: legacy(), phase: 'locked', outcome: 'cancelled' });
+  const opened = control('open', { close: close('open'), phase: 'open', outcome: 'cancelled', reload: true });
+  const reloadShaped = control('locked', { close: close('locked', c1, '2'), phase: 'locked', outcome: 'cancelled', reload: true });
+  for (const cancelled of [null, malformed, crossCycle, wrongStorage, opened, reloadShaped, new Error('delivery lost')]) {
+    const f = fixture({ initial: close(), control: control(), protection: protection('absent'), invoke: name => {
+      if (name === 'get_workspace_close_state') return close();
+      if (name === 'get_workspace_control_state') return control();
+      if (name === 'get_workspace_protection_state') return protection('absent');
+      if (name === 'prepare_workspace_control') return control('closing', { phase: 'awaiting_confirmation', action: 'create_empty', outcome: 'prepared' });
+      if (name === 'acknowledge_workspace_purge') return close('closing', c1, '2');
+      if (name === 'confirm_workspace_control') {
+        if (cancelled instanceof Error) throw cancelled;
+        return cancelled;
+      }
+      throw new Error(`unexpected ${name}`);
+    } });
+    await f.model.initialize();
+    assert.equal(await f.model.beginProtection(), false);
+    assert.equal(f.model.getState().status, 'recovery_required');
+    assert.equal(f.model.getState().blocked, true);
+    assert.equal(f.model.getState().canProtect, false);
+    assert.equal(f.reloads(), 0);
+    assert.equal(f.calls.some(([name]) => name === 'get_workspace_request_state'), false);
+  }
+});
+
+test('cancelled C1 requires fresh authoritative control and protection before setup becomes retryable', async () => {
+  const cancelled = control('locked', { close: close('locked', c1, '2'), phase: 'locked', outcome: 'cancelled' });
+  const observedC1 = control('locked', { close: close('locked', c1, '2') });
+  const run = async ({ refreshedControl = observedC1, refreshedProtection = protection('absent', close('locked', c1, '2')) } = {}) => {
+    let controls = 0;
+    let protections = 0;
+    const f = fixture({ initial: close(), invoke: name => {
+      if (name === 'get_workspace_close_state') return close();
+      if (name === 'get_workspace_control_state') {
+        if (++controls < 3) return control();
+        if (refreshedControl instanceof Error) throw refreshedControl;
+        return refreshedControl;
+      }
+      if (name === 'get_workspace_protection_state') {
+        if (++protections === 1) return protection('absent');
+        if (refreshedProtection instanceof Error) throw refreshedProtection;
+        return refreshedProtection;
+      }
+      if (name === 'prepare_workspace_control') return control('closing', { phase: 'awaiting_confirmation', action: 'create_empty', outcome: 'prepared' });
+      if (name === 'acknowledge_workspace_purge') return close('closing', c1, '2');
+      if (name === 'confirm_workspace_control') return cancelled;
+      throw new Error(`unexpected ${name}`);
+    } });
+    await f.model.initialize();
+    assert.equal(await f.model.beginProtection(), false);
+    assert.equal(f.reloads(), 0);
+    assert.equal(f.calls.some(([name]) => name === 'get_workspace_request_state'), false);
+    return f;
+  };
+
+  for (const refreshedControl of [
+    control('locked', { close: close('locked', 'ef'.repeat(32), '3') }),
+    control('open'),
+    new Error('control delivery lost'),
+  ]) {
+    const f = await run({ refreshedControl });
+    assert.equal(f.model.getState().status, 'recovery_required');
+    assert.equal(f.model.getState().canProtect, false);
+    assert.equal(f.calls.filter(([name]) => name === 'get_workspace_protection_state').length, 1);
+  }
+
+  for (const refreshedProtection of [
+    protection('absent', close('locked', 'ef'.repeat(32), '3')),
+    new Error('protection delivery lost'),
+    protection('locked', close('locked', c1, '2')),
+  ]) {
+    const f = await run({ refreshedProtection });
+    assert.equal(f.model.getState().status, 'recovery_required');
+    assert.equal(f.model.getState().canProtect, false);
+  }
+
+  for (const layout of ['busy', 'recovery_required', 'unavailable']) {
+    const f = await run({ refreshedProtection: protection(layout, close('locked', c1, '2')) });
+    assert.deepEqual(f.model.getState(), { status: 'protection', blocked: true, canLock: false, layout, canProtect: false, pending: false });
+  }
+});
+
+test('purge failure or disposal while cancellation is in flight cannot reopen or reload', async () => {
+  const purgeFailed = fixture({ initial: close(), control: control(), protection: protection('absent'), purge: count => count !== 2 });
+  await purgeFailed.model.initialize();
+  assert.equal(await purgeFailed.model.beginProtection(), false);
+  assert.equal(purgeFailed.calls.some(([name]) => name === 'confirm_workspace_control'), false);
+  assert.equal(purgeFailed.reloads(), 0);
+  assert.equal(purgeFailed.model.getState().status, 'recovery_required');
+
+  const late = deferred();
+  const disposed = fixture({ initial: close(), control: control(), protection: protection('absent'), invoke: name => {
+    if (name === 'get_workspace_close_state') return close();
+    if (name === 'get_workspace_control_state') return control();
+    if (name === 'get_workspace_protection_state') return protection('absent');
+    if (name === 'prepare_workspace_control') return control('closing', { phase: 'awaiting_confirmation', action: 'create_empty', outcome: 'prepared' });
+    if (name === 'acknowledge_workspace_purge') return close('closing', c1, '2');
+    if (name === 'confirm_workspace_control') return late.promise;
+    throw new Error(`unexpected ${name}`);
+  } });
+  await disposed.model.initialize();
+  const opening = disposed.model.beginProtection();
+  disposed.model.dispose();
+  late.resolve(control('locked', { close: close('locked', c1, '2'), phase: 'locked', outcome: 'cancelled' }));
+  assert.equal(await opening, false);
+  assert.equal(disposed.model.getState().status, 'recovery_required');
+  assert.equal(disposed.reloads(), 0);
+  assert.equal(disposed.calls.some(([name]) => name === 'get_workspace_request_state'), false);
+});
+
+test('folder metadata command is workspace-bound and closed workspaces never invoke it',async()=>{
+ const open=fixture();await open.model.initialize();await open.model.bridge('select_and_list_sources');
+ const call=open.calls.find(([name])=>name==='select_and_list_sources');assert.deepEqual(call[2],{headers:{'x-rangoon-workspace-client':c0}});
+ const locked=fixture({initial:close(),control:control(),protection:protection('locked')});await locked.model.initialize();
+ await assert.rejects(locked.model.bridge('select_and_list_sources'),/closed/);assert.equal(locked.calls.some(([name])=>name==='select_and_list_sources'),false);
+});
