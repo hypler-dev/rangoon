@@ -252,14 +252,17 @@ export function createCompositionController({ operation, invoke, onChange = () =
       set({ pending: null, inputs: [input], message: 'Saved source selected. Start a draft to edit its proposed partition.' });
       return true;
     },
-    async addRevision(capabilityId, revisionId = null) {
-      if (!mutationAllowed() || operation === 'decompose' || state.draft || !validId(capabilityId, 'capability:') || (revisionId !== null && !validId(revisionId, 'revision:'))) return false;
+    async addRevision(capabilityId, revisionId = null, { isCurrent = () => true } = {}) {
+      if (!isCurrent() || !mutationAllowed() || operation === 'decompose' || state.draft || !validId(capabilityId, 'capability:') || (revisionId !== null && !validId(revisionId, 'revision:'))) return false;
       const max = operation === 'merge' ? 16 : 1;
       if (state.inputs.length >= max) return false;
+      const prior = { pending: state.pending, error: state.error, message: state.message };
       const request = ++epoch; const identity = workspaceIdentity; set({ pending: 'revision', error: null, message: 'Opening saved skill revision…' });
-      if (identity !== workspaceIdentity) return false;
+      if (identity !== workspaceIdentity || request !== epoch) return false;
+      if (!isCurrent()) { set(prior); return false; }
       const result = await call('open_capability', { capabilityId, revisionId });
       if (identity !== workspaceIdentity || request !== epoch) return false;
+      if (!isCurrent()) { set(prior); return false; }
       const input = result?.outcome === 'opened' ? revisionInput(result.capability) : null;
       if (!input || input.reference.capabilityId !== capabilityId || (revisionId ? input.reference.revisionId !== revisionId : input.reference.revisionId !== input.latestRevisionId) || state.inputs.some(item => item.reference.kind === 'revision' && item.reference.capabilityId === input.reference.capabilityId && item.reference.revisionId === input.reference.revisionId)) { fail(result); return false; }
       set({ pending: null, inputs: [...state.inputs, input], message: 'Saved skill revision selected.' });

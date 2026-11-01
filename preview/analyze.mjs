@@ -1,3 +1,4 @@
+import { compositionResultIssue, openCompositionResultInSkills, compositionResultFocus } from './composition-skill-handoff.mjs';
 import { bindMarkdownFind } from './markdown-find.mjs';
 import { renderImportMarkdownLines, captureMarkdownReview, restoreMarkdownReview, jumpToMarkdownLine } from './markdown-review.mjs';
 import { createAgentFilesController } from './agent-files-model.mjs';
@@ -22,7 +23,7 @@ import { createModelAssistanceController } from './model-assistance-model.mjs';
 import { bindModelAssistanceView } from './model-assistance-view.mjs';
 import { createCloudCredentialController } from './cloud-credential-model.mjs';
 import { icon } from './icons.mjs';
-import { openSkillInCompilation, skillCompileSelection } from './skill-compile-handoff.mjs';
+import { openSkillInCompilation, skillCompileSelection, openSkillInComposition, skillCompositionIssue } from './skill-compile-handoff.mjs';
 import { createStartupSplash } from './launch.mjs';
 import { bindWorkbenchNavigation, renderWorkbenchNavigation } from './workbench-navigation.mjs';
 import { createWorkspaceLockController, workspaceSaveDisclosure } from './workspace-lock-model.mjs';
@@ -149,6 +150,11 @@ let compilationActionFocus = null;
 let compilationHandoffRevision = null;
 let skillsCompileHandoff = { pending: false, error: null };
 let skillsCompileEpoch = 0;
+let skillsComposeHandoff = { pending: false, error: null };
+let skillsComposeEpoch = 0;
+let compositionSkillHandoff = { pending: false, error: null };
+let compositionSkillEpoch = 0;
+let skillsHandoffSelection = null;
 
 const text = value => escapeText(value);
 const formatBytes = value => new Intl.NumberFormat().format(value ?? 0);
@@ -198,7 +204,23 @@ function renderComposition() {
     app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1"><div id="composition-root"></div></main></div>`;
     compositionViewRoute = route;
     compositionView = bindCompositionView(document.querySelector('#composition-root'), composition, {
-      onOpenSkill: id => { if (sourceBlocked()) return; location.hash = '#skills'; void skillsController.open(id); },
+      getResultHandoff: () => compositionSkillHandoff,
+      onOpenSkill: async (capabilityId, revisionId) => {
+        const originRoute = route, navigation = navigationEpoch;
+        if (sourceBlocked() || nativeOperations || compositionSkillHandoff.pending || compositionControllers.get(originRoute) !== composition || location.hash !== `#${originRoute}`) return false;
+        const issue = compositionResultIssue({ composition, skills: skillsController, capabilityId, revisionId });
+        if (issue) { compositionSkillHandoff = { pending: false, error: issue }; renderComposition(); return false; }
+        const request = ++compositionSkillEpoch;
+        const isCurrent = () => !sourceBlocked() && request === compositionSkillEpoch && navigation === navigationEpoch && route === originRoute && location.hash === `#${originRoute}`;
+        compositionSkillHandoff = { pending: true, error: null }; renderComposition();
+        const opened = await openCompositionResultInSkills({ composition, skills: skillsController, capabilityId, revisionId, isCurrent }).catch(() => false);
+        if (!isCurrent()) return false;
+        compositionSkillHandoff = { pending: false, error: opened ? null : 'Could not open this saved revision. Your composition and other drafts are retained. Try again or open Skills.' };
+        if (!opened) { renderComposition(); return false; }
+        skillsHandoffSelection = { capabilityId, revisionId };
+        location.hash = '#skills';
+        return true;
+      },
     });
   } else compositionView.render();
   routeEntry = false;
@@ -555,7 +577,7 @@ function renderSkills() {
   const disclosures = skillsDisclosureStates.get(skillsRenderedCapability);
   skillsOriginalOpen = disclosures?.original ?? false;
   skillsSavedOpen = disclosures?.saved ?? false;
-  app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderSkillsView(state, { discardConfirmation: skillsDiscardConfirmation, compileHandoff: skillsCompileHandoff })}</main></div>`;
+  app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderSkillsView(state, { discardConfirmation: skillsDiscardConfirmation, compileHandoff: skillsCompileHandoff, composeHandoff: { ...skillsComposeHandoff, composition: compositionControllers.get('merge')?.getState() } })}</main></div>`;
   routeEntry = false;
   announcer.textContent = state.message;
   if (skillsSourceDisclosures.has(skillsRenderedSource)) document.querySelector('.skills-source-create').open = skillsSourceDisclosures.get(skillsRenderedSource);
@@ -568,7 +590,9 @@ function renderSkills() {
   if (library) library.scrollTop = libraryScroll;
   if (routeFocusPending === 'skills') {
     if (skillsCreateFocusPending) document.querySelector('.skills-source-create')?.setAttribute('open', '');
-    document.querySelector(skillsCreateFocusPending ? '#skills-create-title' : '#skills-title')?.focus({ preventScroll: true });
+    const resultFocus = compositionResultFocus(state, skillsHandoffSelection);
+    document.querySelector(resultFocus || (skillsCreateFocusPending ? '#skills-create-title' : '#skills-title'))?.focus({ preventScroll: true });
+    skillsHandoffSelection = null;
     skillsCreateFocusPending = false;
     routeFocusPending = null;
   } else {
@@ -716,7 +740,7 @@ for (const operation of compositionRoutes) {
       }
       return bridge(command, args);
     } : undefined,
-    onChange: () => { if (sourceBlocked()) return; if (route === operation) renderComposition(); },
+    onChange: () => { if (sourceBlocked()) return; if (route === operation) renderComposition(); else if (route === 'skills' && operation === 'merge') renderSkills(); },
     onCommitted: async () => {
       if (sourceBlocked()) return;
       invalidateCompositions('Composition saved. Preview other retained drafts against the current workspace before saving.', operation);
@@ -964,7 +988,7 @@ app.addEventListener('click', event => {
     return;
   }
   if (event.target.closest('#skills-open-compile')) {
-    if (route !== 'skills' || location.hash !== '#skills' || nativeOperations || skillsCompileHandoff.pending || !skillCompileSelection(skillsController.getState())) return;
+    if (route !== 'skills' || location.hash !== '#skills' || nativeOperations || skillsCompileHandoff.pending || skillsComposeHandoff.pending || !skillCompileSelection(skillsController.getState())) return;
     const request = ++skillsCompileEpoch;
     const navigation = navigationEpoch;
     const isCurrent = () => !sourceBlocked() && request === skillsCompileEpoch && navigation === navigationEpoch && route === 'skills' && location.hash === '#skills';
@@ -975,6 +999,20 @@ app.addEventListener('click', event => {
       if (!opened) { skillsActionFocus = '#skills-open-compile'; renderSkills(); return; }
       compilationHandoffRevision = compilationController.getState().selected.revision.id;
       location.hash = '#compile';
+    });
+  }
+  if (event.target.closest('#skills-open-compose')) {
+    const composition = compositionControllers.get('merge');
+    if (route !== 'skills' || location.hash !== '#skills' || nativeOperations || skillsCompileHandoff.pending || skillsComposeHandoff.pending || skillCompositionIssue(skillsController.getState(), composition?.getState())) return;
+    const request = ++skillsComposeEpoch;
+    const navigation = navigationEpoch;
+    const isCurrent = () => !sourceBlocked() && request === skillsComposeEpoch && navigation === navigationEpoch && route === 'skills' && location.hash === '#skills';
+    skillsComposeHandoff = { pending: true, error: null }; renderSkills();
+    return openSkillInComposition({ skills: skillsController, composition, isCurrent }).catch(() => false).then(opened => {
+      if (!isCurrent()) return;
+      skillsComposeHandoff = { pending: false, error: opened ? null : 'Could not add this saved revision. Existing Compose work is retained. Check the selection and try again.' };
+      if (!opened) { skillsActionFocus = '#skills-open-compose'; renderSkills(); return; }
+      location.hash = '#merge';
     });
   }
   if (event.target.closest('#skills-save')) { skillsActionFocus = '#skills-save'; return skillsController.save(); }
@@ -1050,7 +1088,7 @@ app.addEventListener('input', event => {
   skillsController.updateDraft(event.target.matches('#skills-title-input') ? { title: event.target.value } : { content: event.target.value });
   skillsDiscardConfirmation = null;
   document.querySelector('.skills-discard-confirmation')?.remove();
-  syncSkillsEditorChrome(document, skillsController.getState(), { compileHandoff: skillsCompileHandoff });
+  syncSkillsEditorChrome(document, skillsController.getState(), { compileHandoff: skillsCompileHandoff, composeHandoff: { ...skillsComposeHandoff, composition: compositionControllers.get('merge')?.getState() } });
 });
 
 app.addEventListener('change', event => {
@@ -1080,6 +1118,11 @@ window.addEventListener('hashchange', () => {
   navigationEpoch += 1;
   skillsCompileEpoch += 1;
   skillsCompileHandoff = { pending: false, error: null };
+  skillsComposeEpoch += 1;
+  skillsComposeHandoff = { pending: false, error: null };
+  compositionSkillEpoch += 1;
+  compositionSkillHandoff = { pending: false, error: null };
+  if (routeFromHash() !== 'skills') skillsHandoffSelection = null;
   if (routeFromHash() !== 'compile') compilationHandoffRevision = null;
   if (sourceBlocked()) return;
   retainSourceScroll();
@@ -1170,7 +1213,12 @@ function openWorkspaceLockDialog() {
 function purgeWorkspaceRenderer() {
   skillsCompileEpoch += 1;
   skillsCompileHandoff = { pending: false, error: null };
+  skillsComposeEpoch += 1;
+  skillsComposeHandoff = { pending: false, error: null };
+  compositionSkillEpoch += 1;
+  compositionSkillHandoff = { pending: false, error: null };
   compilationHandoffRevision = null;
+  skillsHandoffSelection = null;
   let healthy = true;
   const attempt = callback => { try { if (callback() === false) healthy = false; } catch { healthy = false; } };
   attempt(() => markdownFindBinding?.dispose());

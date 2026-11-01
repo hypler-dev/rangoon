@@ -117,3 +117,27 @@ test('saved revision continuation is contextual, escaped and disabled for dirty 
   syncSkillsEditorChrome(root, saved, { compileHandoff: { pending: true } });
   assert.equal(nodes.get('#skills-open-compile').disabled, true);
 });
+
+test('Compose continuation exposes a bounded saved-input action and preserves a route to retained work', () => {
+  const saved = editorState();
+  const destination = { operation: 'merge', bridgeAvailable: true, pending: null, draft: null, inputs: [] };
+  const options = { composeHandoff: { composition: destination } };
+  const html = renderSkillsView(saved, options);
+  assert.match(html, /id="skills-open-compose"[^>]*aria-describedby="skills-compose-help"[^>]*>Add to Compose/);
+  assert.doesNotMatch(html, /id="skills-open-compose"[^>]*disabled/);
+  assert.match(html, /href="#merge">Open Compose/);
+  for (const changed of [{ ...saved, draft: { ...saved.draft, dirty: true } }, { ...saved, needsReload: true }, { ...saved, pending: 'save' }]) {
+    assert.match(renderSkillsView(changed, options), /id="skills-open-compose"[^>]*disabled/);
+  }
+  assert.match(renderSkillsView(saved, { composeHandoff: { composition: { ...destination, draft: {} } } }), /draft is open/);
+  assert.match(renderSkillsView(saved), /id="skills-open-compose"[^>]*disabled/);
+  assert.match(renderSkillsView(saved, { composeHandoff: { ...options.composeHandoff, error: '<bad>' } }), /&lt;bad&gt;/);
+  assert.match(renderSkillsView(saved, { composeHandoff: { ...options.composeHandoff, pending: true } }), /id="skills-open-compose"[^>]*disabled[^>]*>Opening/);
+  assert.match(renderSkillsView(saved, { ...options, compileHandoff: { pending: true } }), /id="skills-open-compose"[^>]*disabled/);
+  assert.match(renderSkillsView(saved, { composeHandoff: { pending: true } }), /id="skills-open-compile"[^>]*disabled/);
+  const nodes = new Map([['#skills-open-compose', { disabled: false }], ['#skills-compose-hint', { textContent: '' }]]);
+  const root = { querySelector: selector => nodes.get(selector) };
+  syncSkillsEditorChrome(root, saved, options); assert.equal(nodes.get('#skills-open-compose').disabled, false);
+  syncSkillsEditorChrome(root, { ...saved, draft: { ...saved.draft, dirty: true } }, options);
+  assert.equal(nodes.get('#skills-open-compose').disabled, true); assert.match(nodes.get('#skills-compose-hint').textContent, /Save or discard/);
+});

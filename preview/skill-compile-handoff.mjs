@@ -35,3 +35,26 @@ export async function openSkillInCompilation({ skills, compilation, isCurrent })
   const opened = await compilation.openPinnedRevision(selection.capabilityId, selection.revisionId, { isCurrent: current });
   return Boolean(opened && current());
 }
+
+// Shared eligibility is a UI hint; Rust still resolves the exact saved reference.
+export function skillCompositionIssue(skills, composition) {
+  const selection = skillCompileSelection(skills);
+  if (!selection) return skillCompileHint(skills);
+  if (!composition?.bridgeAvailable || composition.operation !== 'merge') return 'Open Rangoon desktop to add this revision to Compose.';
+  if (composition.pending) return 'Wait for the current Compose operation to finish.';
+  if (composition.draft) return 'A Compose draft is open. Continue it in Compose, or discard it there before adding inputs.';
+  if (composition.inputs?.some(input => input.reference?.capabilityId === selection.capabilityId && input.reference?.revisionId === selection.revisionId)) return 'This revision is already selected in Compose. Open Compose to continue.';
+  if (!Array.isArray(composition.inputs) || composition.inputs.length >= 16) return 'Compose accepts up to 16 revisions. Remove an input there before adding another.';
+  return null;
+}
+
+export async function openSkillInComposition({ skills, composition, isCurrent }) {
+  const selection = skillCompileSelection(skills.getState());
+  if (!selection || !isCurrent() || skillCompositionIssue(skills.getState(), composition.getState())) return false;
+  const current = () => {
+    const next = skillCompileSelection(skills.getState());
+    return isCurrent() && next?.capabilityId === selection.capabilityId && next.revisionId === selection.revisionId;
+  };
+  const opened = await composition.addRevision(selection.capabilityId, selection.revisionId, { isCurrent: current });
+  return Boolean(opened && current());
+}

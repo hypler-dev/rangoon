@@ -25,6 +25,14 @@ import time
 REPO = Path(__file__).resolve().parents[1]
 LIMIT = 1024 * 1024
 BUNDLE = "Rangoon E1c4.app"
+FOLDER_NAME = "folder-fixture"
+FOLDER_DIRECTORIES = ("skills", "skills/review", ".git")
+FOLDER_FILES = {
+    "AGENTS.md": b"# Disposable project\n\n## Guidelines\nPreserve exact source references.\n",
+    "skills/review/SKILL.md": b"# Disposable review\n\n## Checks\nReport findings without execution.\n",
+    ".git/ignored.md": b"# Hidden fixture; do not list.\n",
+    "notes.txt": b"Non-Markdown fixture; do not list.\n",
+}
 PLAN_PATH = REPO / "apps/desktop/native-encrypted-qualification/cases.v1.json"
 EXPECTATIONS = {
     "cold_cancel", "cold_relaunch", "authoring", "relaunch", "export", "lose_key",
@@ -180,6 +188,87 @@ def identity(path):
     return {"dev": value.st_dev, "ino": value.st_ino, "uid": value.st_uid}
 
 
+def create_folder_fixture(root):
+    """Create only fixed synthetic files outside every workspace case root."""
+    folder = root / FOLDER_NAME
+    folder.mkdir(mode=0o700)
+    for name in FOLDER_DIRECTORIES:
+        (folder / name).mkdir(mode=0o700)
+    for name, contents in FOLDER_FILES.items():
+        fd = os.open(folder / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(contents)
+            stream.flush()
+            os.fsync(stream.fileno())
+    return identity(folder)
+
+
+def capture_folder_fixture(root):
+    """Observe fixed fixture entries through retained no-follow directory handles.
+
+    Returned metadata binds this disposable input to an artifact. It does not
+    assert that the native picker, renderer or Lock operation was exercised.
+    """
+    handles, directories, proofs, files = [], {}, [], {}
+    def directory(parent, name, key):
+        before = os.stat(name, dir_fd=parent, follow_symlinks=False)
+        fd = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+        handles.append(fd)
+        current = os.fstat(fd)
+        require(stat.S_ISDIR(current.st_mode) and current.st_uid == os.getuid()
+                and stat.S_IMODE(current.st_mode) == 0o700
+                and (before.st_dev, before.st_ino) == (current.st_dev, current.st_ino),
+                "unsafe folder fixture directory")
+        proof = {"dev": current.st_dev, "ino": current.st_ino, "uid": current.st_uid}
+        proofs.append((parent, name, fd, proof))
+        directories[key] = proof
+        return fd
+    try:
+        run = directory(None, root, "run")
+        folder = directory(run, FOLDER_NAME, "folder")
+        by_name = {"": folder}
+        for relative in FOLDER_DIRECTORIES:
+            path = Path(relative)
+            parent = "" if str(path.parent) == "." else str(path.parent)
+            by_name[relative] = directory(by_name[parent], path.name, relative)
+        expected_children = {name: set() for name in by_name}
+        for relative in (*FOLDER_DIRECTORIES, *FOLDER_FILES):
+            path = Path(relative)
+            parent = "" if str(path.parent) == "." else str(path.parent)
+            expected_children[parent].add(path.name)
+        def check_children():
+            require(all(set(os.listdir(fd)) == expected_children[name] for name, fd in by_name.items()),
+                    "unexpected folder fixture child")
+        check_children()
+        checks = []
+        for relative, contents in FOLDER_FILES.items():
+            path = Path(relative)
+            parent = "" if str(path.parent) == "." else str(path.parent)
+            metadata, _ = private_file(by_name[parent], path.name, len(contents), checks=checks)
+            require(metadata["bytes"] == len(contents)
+                    and metadata["sha256"] == hashlib.sha256(contents).hexdigest(),
+                    "folder fixture content changed")
+            files[relative] = metadata
+        for check in checks:
+            check()
+        check_children()
+        for parent, name, fd, proof in proofs:
+            current = os.stat(name, dir_fd=parent, follow_symlinks=False)
+            retained = os.fstat(fd)
+            require(stat.S_ISDIR(current.st_mode) and stat.S_IMODE(current.st_mode) == 0o700
+                    and {"dev": current.st_dev, "ino": current.st_ino, "uid": current.st_uid} == proof
+                    and (retained.st_dev, retained.st_ino) == (current.st_dev, current.st_ino),
+                    "folder fixture directory replaced")
+        return {"directories": directories, "files": files}
+    finally:
+        for fd in reversed(handles):
+            os.close(fd)
+
+
+def verify_folder_fixture(root, expected):
+    require(capture_folder_fixture(root) == expected, "folder fixture inventory changed")
+
+
 def run_path(nonce):
     require(re.fullmatch(r"[0-9a-f]{32}", nonce) is not None, "invalid nonce")
     return Path(tempfile.gettempdir()).resolve() / ("rangoon-e1c4-" + nonce)
@@ -188,13 +277,15 @@ def run_path(nonce):
 def validate_run(nonce):
     root = run_path(nonce)
     manifest = read_record(root / "manifest.json")
-    require(set(manifest) == {"schema", "nonce", "directory", "roots", "casePlanSha256"}
-            and manifest.get("schema") == "rangoon.e1c4.run.v2" and manifest.get("nonce") == nonce
+    require(set(manifest) == {"schema", "nonce", "directory", "roots", "casePlanSha256", "folderFixture"}
+            and manifest.get("schema") == "rangoon.e1c4.run.v3" and manifest.get("nonce") == nonce
             and manifest["casePlanSha256"] == PLAN_SHA256,
             "invalid manifest")
     require(identity(root) == manifest["directory"] and set(manifest["roots"]) == set(ROOTS), "run replaced")
     for name in ROOTS:
         require(identity(root / name) == manifest["roots"][name], "case directory replaced")
+    require(identity(root / FOLDER_NAME) == manifest["folderFixture"], "folder fixture replaced")
+    capture_folder_fixture(root)
     return root
 
 
@@ -440,6 +531,8 @@ def init():
     root.mkdir(mode=0o700)
     for name in ROOTS:
         (root / name).mkdir(mode=0o700)
+    folder_identity = create_folder_fixture(root)
+    folder_fixture = capture_folder_fixture(root)
     # Accessibility tools require an application bundle to address this exact
     # running native process. This disposable wrapper contains the unchanged
     # custom-test executable; it is not an installer or a product package.
@@ -453,17 +546,19 @@ def init():
     info.write_bytes(bundle_info())
     info.chmod(0o600)
     require(digest(wrapped) == digest(executable), "wrapper changed executable bytes")
-    write_new(root / "manifest.json", {"schema": "rangoon.e1c4.run.v2", "nonce": nonce,
+    write_new(root / "manifest.json", {"schema": "rangoon.e1c4.run.v3", "nonce": nonce,
+              "folderFixture": folder_identity,
               "casePlanSha256": PLAN_SHA256,
               "directory": identity(root), "roots": {name: identity(root / name) for name in ROOTS}})
     write_new(root / "artifact.json", {"sourceSha256": before, "executable": str(wrapped),
+              "folderFixture": folder_fixture,
               "casePlanSha256": PLAN_SHA256,
               "sourceExecutable": str(executable), "wrapperDirectories": {
                   str(d.relative_to(root)): identity(d) for d in bundle_directories},
               "infoPlistSha256": digest(info),
               "executableSha256": digest(executable), "architecture": subprocess.check_output(["file", "-b", str(executable)], text=True).strip(),
               "os": subprocess.check_output(["sw_vers", "-productVersion"], text=True).strip()})
-    print(json.dumps({"nonce": nonce, "directory": str(root), "status": "created", "nativeCasesPassed": 0}), flush=True)
+    print(json.dumps({"nonce": nonce, "directory": str(root), "status": "created", "folderFixture": str(root / FOLDER_NAME), "nativeCasesPassed": 0}), flush=True)
 
 
 def alive(pid):
@@ -853,11 +948,13 @@ def run(nonce, case, require_headers=False):
             and digest(info) == artifact["infoPlistSha256"], "application metadata changed")
     require(digest(executable) == artifact["executableSha256"] and source_digest() == artifact["sourceSha256"],
             "artifact/source changed; create a new run")
+    verify_folder_fixture(root, artifact.get("folderFixture"))
     permit(root, nonce, case)
     events, stderr, pending, total = [], bytearray(), bytearray(), 0
     recovery_snapshot_requested = False
     killed, failure, kill_checkpoint = False, None, None
     storage_before = storage_after = None
+    folder_fixture_verified = False
     if captures_storage(case) and case_record(case)["prerequisite"]["kind"] != "initial":
         storage_before = capture_storage(root, nonce, case)
         previous = prior_receipt(root, case_record(case)["prerequisite"]["case"])
@@ -932,6 +1029,9 @@ def run(nonce, case, require_headers=False):
         if captures_storage(case):
             storage_after = capture_storage(root, nonce, case)
         verify_exit(case, code, events, killed, require_headers, kill_checkpoint, storage_before, storage_after)
+        require(validate_run(nonce) == root, "run changed during phase")
+        verify_folder_fixture(root, artifact["folderFixture"])
+        folder_fixture_verified = True
         require(digest(executable) == artifact["executableSha256"]
                 and source_digest() == artifact["sourceSha256"], "artifact/source changed during phase")
     except (Exception, KeyboardInterrupt) as error:
@@ -956,6 +1056,8 @@ def run(nonce, case, require_headers=False):
                    "headerProbeVerified": failure is None and any(e["event"] == "header_probe_current" for e in events),
                    "executableSha256": artifact["executableSha256"], "sourceSha256": artifact["sourceSha256"],
                    "casePlanSha256": PLAN_SHA256,
+                   "folderFixtureVerified": folder_fixture_verified,
+                   "folderUiVerdict": "unassessed; requires separate picker and Lock UI evidence",
                    "architecture": artifact["architecture"], "os": artifact["os"],
                    "artifactRecordSha256": digest(root / "artifact.json"),
                    "wrapperInfoPlistSha256": artifact["infoPlistSha256"],

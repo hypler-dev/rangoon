@@ -64,6 +64,8 @@ mod macos {
         "allow-begin-workspace-close",
         "allow-acknowledge-workspace-purge",
         "allow-select-and-analyze",
+        "allow-select-and-inspect-sources",
+        "allow-select-and-list-sources",
         "allow-list-snapshots",
         "allow-save-analysis",
         "allow-open-snapshot",
@@ -229,6 +231,8 @@ mod macos {
         nonce: String,
         #[serde(rename = "casePlanSha256")]
         case_plan_sha256: String,
+        #[serde(rename = "folderFixture")]
+        folder_fixture: Identity,
         directory: Identity,
         roots: BTreeMap<String, Identity>,
     }
@@ -350,7 +354,13 @@ mod macos {
     }
     impl Run {
         fn validate(&self) -> Result<(), ()> {
-            if !same_directory(&self.directory, &self.manifest.directory) {
+            if !same_directory(&self.directory, &self.manifest.directory)
+                || self.manifest.folder_fixture.uid != self.manifest.directory.uid
+                || !same_directory(
+                    &self.directory.join("folder-fixture"),
+                    &self.manifest.folder_fixture,
+                )
+            {
                 return Err(());
             }
             for (name, id) in &self.manifest.roots {
@@ -405,7 +415,7 @@ mod macos {
             return Err(());
         }
         let manifest: Manifest = read_record(&directory.join("manifest.json"), meta.uid())?;
-        if manifest.schema != "rangoon.e1c4.run.v2"
+        if manifest.schema != "rangoon.e1c4.run.v3"
             || manifest.nonce != args[0]
             || manifest.case_plan_sha256 != plan_digest()
             || manifest.roots.len() != plan.roots.len()
@@ -1119,6 +1129,32 @@ mod macos {
     #[cfg(test)]
     mod header_tests {
         use super::*;
+        #[test]
+        fn folder_qualification_permissions_are_exact_and_required() {
+            let config: Value = serde_json::from_str(include_str!(
+                "../native-encrypted-qualification/tauri.conf.json"
+            ))
+            .unwrap();
+            assert!(valid_context(&config, true));
+            for required in [
+                "allow-select-and-inspect-sources",
+                "allow-select-and-list-sources",
+            ] {
+                let mut changed = config.clone();
+                changed["app"]["security"]["capabilities"][0]["permissions"]
+                    .as_array_mut()
+                    .unwrap()
+                    .retain(|permission| permission != required);
+                assert!(!valid_context(&changed, true));
+            }
+            let mut broadened = config.clone();
+            broadened["app"]["security"]["capabilities"][0]["permissions"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!("allow-send-cloud-model"));
+            assert!(!valid_context(&broadened, true));
+        }
+
         #[test]
         fn header_callback_accepts_only_finite_classifications() {
             assert_eq!(header_reply("\"pending\""), Ok(HeaderReply::Pending));

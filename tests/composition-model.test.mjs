@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { byteRangeText, createCompositionController, textareaSelectionRange } from '../preview/composition-model.mjs';
+import { openSkillInComposition } from '../preview/skill-compile-handoff.mjs';
 import { validatePreviewEnvelope } from '../preview/composition-contract.mjs';
 
 const independentCoreVector = JSON.parse(readFileSync(new URL('../fixtures/composition/decompose-v0.json', import.meta.url), 'utf8'));
@@ -434,4 +435,67 @@ test('serialized history budget keeps only independent recent snapshots', async 
   assert.equal(model.undo(), false);
   assert.ok(model.redo());
   assert.equal(model.getState().draft.outputs[0].pieces[1].content.at(-1), '3');
+});
+
+function handoffSkills(revision = revisionId) {
+  const state = { bridgeAvailable: true, pending: null, needsReload: false, viewedRevisionId: revision, selected: { id: capabilityId, latestRevisionId: revisionId, revision: { id: revision } }, draft: { capabilityId, baseRevisionId: revisionId, dirty: false } };
+  return { state, getState: () => state };
+}
+
+test('Compose continuation reads exact history through the real controller and preserves prior inputs', async () => {
+  const calls = [];
+  const model = createCompositionController({ operation: 'merge', invoke: async (command, args) => {
+    calls.push([command, args]);
+    assert.equal(command, 'open_capability');
+    return { outcome: 'opened', capability: detail({ revision: args.revisionId, latest: revisionId }) };
+  } });
+  assert.equal(await model.addRevision(capabilityId, revisionId), true);
+  const prior = model.getState().inputs[0]; const skills = handoffSkills(nextRevisionId);
+  assert.equal(await openSkillInComposition({ skills, composition: model, isCurrent: () => true }), true);
+  assert.deepEqual(calls.at(-1), ['open_capability', { capabilityId, revisionId: nextRevisionId }]);
+  const state = model.getState();
+  assert.deepEqual(state.inputs[0], prior);
+  assert.equal(state.inputs[1].reference.revisionId, nextRevisionId);
+  assert.equal(state.draft, null); assert.equal(state.preview, null); assert.deepEqual(state.results, []);
+  assert.equal(await openSkillInComposition({ skills, composition: model, isCurrent: () => true }), false);
+  assert.equal(calls.length, 2);
+  assert.equal(model.startDraft(), true); const draftState = model.getState();
+  assert.equal(await openSkillInComposition({ skills: handoffSkills(), composition: model, isCurrent: () => true }), false);
+  assert.deepEqual(model.getState(), draftState);
+});
+
+test('late handoff read never retains content after route, selection, edits or Lock invalidation', async () => {
+  for (const kind of ['route', 'selection', 'draft', 'lock']) {
+    let release, active = true; const skills = handoffSkills();
+    const model = createCompositionController({ operation: 'merge', invoke: () => new Promise(resolve => { release = resolve; }) });
+    const before = model.getState();
+    const pending = openSkillInComposition({ skills, composition: model, isCurrent: () => active });
+    assert.equal(model.getState().pending, 'revision');
+    if (kind === 'route') active = false;
+    if (kind === 'selection') skills.state.viewedRevisionId = nextRevisionId;
+    if (kind === 'draft') skills.state.draft.dirty = true;
+    if (kind === 'lock') model.purgeForWorkspaceLock();
+    const locked = model.getState();
+    release({ outcome: 'opened', capability: detail() });
+    assert.equal(await pending, false);
+    const state = model.getState();
+    assert.deepEqual(state.inputs, []); assert.equal(state.pending, null);
+    assert.deepEqual(state, kind === 'lock' ? locked : before);
+  }
+});
+
+test('reentrant cancellation before dispatch sends no native read and releases pending state', async () => {
+  let active = true;
+  const model = createCompositionController({ operation: 'merge', invoke: () => assert.fail('no dispatch'), onChange: state => { if (state.pending === 'revision') active = false; } });
+  const before = model.getState();
+  assert.equal(await model.addRevision(capabilityId, revisionId, { isCurrent: () => active }), false);
+  assert.deepEqual(model.getState(), before);
+});
+
+test('handoff refuses native failures, malformed details and substituted current revisions', async () => {
+  for (const response of [{ outcome: 'failed', error: { code: 'not_found', message: 'Missing revision' } }, { outcome: 'opened', capability: {} }, { outcome: 'opened', capability: detail() }]) {
+    const model = createCompositionController({ operation: 'merge', invoke: async () => response });
+    assert.equal(await openSkillInComposition({ skills: handoffSkills(nextRevisionId), composition: model, isCurrent: () => true }), false);
+    const state = model.getState(); assert.deepEqual(state.inputs, []); assert.equal(state.pending, null); assert.ok(state.error);
+  }
 });

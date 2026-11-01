@@ -458,3 +458,29 @@ test('selection excerpt bounds large spans, preserves astral code points, and re
  assert.equal(compositionSelectionExcerpt('abc',{inputIndex:0,startByte:0,endByte:4}),null);
  assert.equal(compositionSelectionExcerpt('\ud800',{inputIndex:0,startByte:0,endByte:3}),null);
 });
+
+test('saved-result controls carry exact revision, disable missing pins and show escaped handoff states', () => {
+  const state = initial({ draft, results: [{ id: capabilityId, revision: { id: revisionId, title: 'Saved result' } }] });
+  const html = renderCompositionView(state);
+  assert.match(html, new RegExp(`data-composition-open-skill="${capabilityId}" data-composition-result-revision="${revisionId}"`));
+  assert.doesNotMatch(html, /class="composition-result"[^>]*disabled/);
+  assert.match(renderCompositionView(state, { resultHandoff: { pending: true } }), /class="composition-result"[^>]*disabled/);
+  assert.match(renderCompositionView(state, { resultHandoff: { error: '<bad>' } }), /&lt;bad&gt;/);
+  assert.match(renderCompositionView(initial({ draft, results: [{ id: capabilityId, title: 'Missing revision' }] })), /class="composition-result"[^>]*disabled/);
+});
+
+test('result clicks pin both identities, ignore repeat/disposed events and never invoke missing references', async () => {
+  const root = filterRoot('data-composition-picker-filter');
+  const state = initial({ draft, results: [{ id: capabilityId, revision: { id: revisionId, title: 'Saved result' } }] });
+  const calls = []; let pending = false, release;
+  const binding = bindCompositionView(root, { getState: () => state }, {
+    getResultHandoff: () => ({ pending }),
+    onOpenSkill: (id, revision) => { calls.push([id, revision]); pending = true; return new Promise(resolve => { release = resolve; }); },
+  });
+  const target = { tagName: 'BUTTON', dataset: { compositionOpenSkill: capabilityId, compositionResultRevision: revisionId }, disabled: false,
+    closest: selector => selector === 'button,select' ? target : null, matches: () => false, hasAttribute: () => false };
+  root.fire('click', { target }); root.fire('click', { target });
+  assert.deepEqual(calls, [[capabilityId, revisionId]]);
+  binding.dispose(); const renders = root.renders; release(true); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(root.renders, renders); root.fire('click', { target }); assert.equal(calls.length, 1);
+});

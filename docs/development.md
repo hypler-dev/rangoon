@@ -1,4 +1,102 @@
 # Development status
+
+## Source branch publication — November 1, 2026
+
+Authority: Jeff requests “commit and push”; [accepted publication intent](intent.md#source-commit-and-branch-push--november-1-2026). Source branch: `codex/native-workflow-qualification-20261030`. Fetched public main and source base both resolve to `929873aa18521bebab911b410cf4705542b85b80`. Root owns aggregate integration, commit and non-force branch push; merge/deployment/release remain closed. Local evidence: `<local-evidence>/rangoon-source-push-20261101`.
+
+**Delivered scope:** NQ-1 synthetic folder inventory/integrity preparation, reconciled local/remote/enterprise drafting records, exact saved-revision Skills → Compose handoff and exact saved-result Compose → Skills readback/focus. No new runtime dependency or engine integration is introduced. Earlier source packets retain their implementation and native-operation limits; this task authorizes their source publication only.
+
+**Exact authored paths (29):**
+
+- `README.md`
+- `apps/desktop/native-encrypted-qualification/tauri.conf.json`
+- `apps/desktop/src/native_encrypted_qualification.rs`
+- `docs/application-architecture.md`
+- `docs/continue.md`
+- `docs/development.md`
+- `docs/encrypted-workspace.md`
+- `docs/intent.md`
+- `docs/operations-control-plane.md`
+- `docs/plan.md`
+- `docs/product-experience.md`
+- `docs/provider-interoperability.md`
+- `docs/reviewer-guide.md`
+- `docs/visual-system.md`
+- `preview/analyze.mjs`
+- `preview/composition-model.mjs`
+- `preview/composition-skill-handoff.mjs`
+- `preview/composition-view.mjs`
+- `preview/skill-compile-handoff.mjs`
+- `preview/skills-model.mjs`
+- `preview/skills-view.mjs`
+- `scripts/qualify-native-encrypted.py`
+- `tests/composition-model.test.mjs`
+- `tests/composition-skill-handoff.test.mjs`
+- `tests/composition-view.test.mjs`
+- `tests/qualify_native_encrypted_test.py`
+- `tests/skill-compile-handoff.test.mjs`
+- `tests/skills-model.test.mjs`
+- `tests/skills-view.test.mjs`
+
+**Validation basis:** packet postimages reconcile exactly after accounting for later accepted overlays. The latest JavaScript source evidence is `npm run build:check` with 646 tests plus syntax/visual/vision checks; NEXT-02a and NEXT-02b independently passed 68 and 55 focused tests. Unchanged NQ-1 source retains its dated pinned offline desktop evidence (739 passed, 4 ignored, format/Clippy/build), four qualification-feature tests, custom-target offline build and Python 50 focused/114 aggregate tests. These are reused evidence, not new native GUI runs. Final document/shape/whitespace checks and fresh aggregate read-only review are recorded before publication; terminal commit/remote-ref proof is retained in local evidence and Git history.
+
+**Security/standards and open gates:** synthetic source/fixtures only; no normal data/keys/vault, provider/remote/cloud operation, LNSAT/VUSL edit, dependency fetch or executable distribution. Native/rendered qualification remains unassessed in this session because no UI controller is exposed. Windows/Proxmox is deferred; source CI is not three-OS GUI or key-custody proof. Existing plaintext export/host-compromise limitations remain. This branch publication claims no ISO/OpenSSF certification, security guarantee or production readiness.
+
+## NEXT-02b exact saved-result continuation — November 1, 2026
+
+Authority: Jeff's “proceed” after NEXT-02a; [accepted intent](intent.md#next-02b-exact-saved-result-continuation--november-1-2026) owns thirteen paths, including a new presentation-only handoff module and its tests. Root owns integration. Baseline: branch `codex/native-workflow-qualification-20261030`, HEAD `929873aa18521bebab911b410cf4705542b85b80`; all twenty-three prior dirty paths preserved. Preimages, task-only patch and local validation/review receipt: `<local-evidence>/rangoon-result-continuity-20261101`.
+
+**Experience:** opening a saved Compose output now reads its exact saved revision before moving to Skills. This keeps the saved result selected when its current head has advanced. Successful matching readback targets the editor heading; a failure stays in Compose with a recovery message. Busy states disable repeated result actions. Same-skill unsaved edits block opening; unrelated drafts remain. Existing routes, layout and explicit save/review/compile/export actions remain.
+
+**Technical:** buttons carry capability plus revision IDs; the handoff requires membership in the current validated composition receipt and uses the existing `open_capability` command. Skills open gains an optional caller guard and a Boolean completion result, preserving existing default callers. Guard checks before dispatch and retention supplement existing request/workspace generation checks. Receipt invalidation, navigation and Lock cannot retain late content or trigger result navigation. Focus uses a matching selected capability, revision and viewed revision. This is UI orchestration; native Rust remains responsible for saved-reference validation and transactions.
+
+**Validation:** `node --test tests/skills-model.test.mjs tests/composition-view.test.mjs tests/composition-skill-handoff.test.mjs`: **55 passed**. `npm run build:check`: syntax, visual/vision contracts and **646 JavaScript tests passed**. Coverage includes advanced current head versus exact historical result, draft preservation, invalid/missing/substituted references, native failure, late route/receipt/Lock replies, pre-dispatch reentry, repeated/disposed clicks and exact focus selection. One initial new view assertion failed because its fixture lacked a saved draft; the fixture was corrected and all focused/full checks rerun. `node scripts/validate-review.mjs` passed (640 authored text files, 8 image hashes); intent/plan/visual-spec shapes, six incremental links/anchors, whitespace and exact prior-work/new-path preservation passed.
+
+**Independent review:** fresh read-only `gpt_reviewer` returned **PASS, no actionable P1/P2/P3**, independently reran all 55 focused tests and verified exact patch membership/reverse integrity. Installed OpenAI role configuration pins `gpt-5.6-terra` at xhigh; its serving identifier is not exposed. Producer: root/Codex, OpenAI `gpt-6.1-sol` per active session configuration. Root owns final integration judgment. No GLM invocation was needed. Source review does not qualify rendered/native operation.
+
+**Security/standards impact:** no new native permission, persistence/schema, key/credential handling, dependency or network/build privilege. Saved local content crosses only existing native read and renderer lifecycle boundaries. Guard/identity tests contribute secure-development evidence; no ISO/OpenSSF, OS or release qualification is claimed. No normal files/keys/vault, engine/provider/cloud/remote operation, LNSAT/VUSL edit or dependency fetch occurred.
+
+**Open gates:** no computer-use UI controller is exposed. Actual keyboard/pointer, viewport/theme/reduced-motion rendering and the disposable encrypted native end-to-end journey remain **unassessed**. NEXT-02 source continuity is improved; the full visual/native packet is not complete. Windows/Proxmox remains deferred. No commit/push/merge/deploy or release.
+
+## NEXT-02a saved-revision Compose handoff — November 1, 2026
+
+Authority: Jeff's next-phase “proceed”; [accepted intent](intent.md#next-02a-saved-revision-compose-handoff--november-1-2026) owns the thirteen-path packet. Baseline: branch `codex/native-workflow-qualification-20261030`, HEAD `929873aa18521bebab911b410cf4705542b85b80`; sixteen existing dirty paths preserved. Exact preimages and task delta: `<local-evidence>/rangoon-compose-continuity-20261101`.
+
+**Experience:** Skills adds **Add to Compose** beside Compile. The selected saved revision is read through the existing native command before navigation to Compose. Historical selections stay exact; other skill drafts and selected Compose inputs remain. An open Compose draft, busy operation, duplicate pin or full sixteen-input selection offers a reason and a link to continue existing work. Existing styles, route, heading focus and explicit draft/preview/save steps remain. No graphics or layout rewrite is included.
+
+**Technical:** reuse saved-revision eligibility and `open_capability`; guard before dispatch and before retaining a reply. Route, selected-skill/revision, edits, conflict, busy state and workspace Lock invalidate stale handoffs. Cancellation releases only the initiating operation's pending state; Lock generation checks prevent content resurrection. The renderer provides navigation hints; Rust still resolves stored references and validates composition preview/commit transactions. No authoritative saveability, provider permission or execution is added.
+
+**Source validation:** focused `node --test tests/skills-view.test.mjs tests/composition-model.test.mjs tests/composition-view.test.mjs tests/skill-compile-handoff.test.mjs`: **68 passed**. `npm run build:check`: syntax, visual/vision contracts and **636 JavaScript tests passed**. New cases cover exact historical reads, prior inputs, same/unrelated drafts, draft/capacity/duplicate/unavailable/busy gates, malformed/substituted/failed replies, stale route/selection/edit/Lock and reentrant cancellation. `node scripts/validate-review.mjs` passed (638 authored text files, 8 image hashes); intent/plan/visual-spec artifact validation, six incremental links/anchors, whitespace, exact outside-owned dirty-file hashes and untracked preservation passed. A shell summary initially used zsh's reserved `status` variable after tests finished; the test log independently reports all 68 passing. No source failure was hidden by that wrapper error.
+
+**Independent review:** fresh read-only `gpt_reviewer` returned **PASS, no actionable P1/P2/P3** and independently reran the 68 focused tests. Installed OpenAI role configuration pins `gpt-5.6-terra` at xhigh; the serving model identifier is not exposed. Producer: root/Codex, OpenAI `gpt-6.1-sol` per active session configuration. Root retains integration judgment. Source review does not close the rendered/native gate. No GLM invocation was needed for this bounded packet.
+
+**Security/standards impact:** no new data category, dependency, native permission, database/schema, filesystem access, credential, network or build privilege. Saved content remains within the existing local workspace and renderer lifecycle; plaintext export and host-compromise limitations are unchanged. Exact identity/Lock tests support existing secure-development evidence; they establish no ISO/OpenSSF certification, maturity or release qualification.
+
+**Open gates:** actual keyboard/pointer, viewport/theme/reduced-motion and native encrypted workflow checks remain **unassessed**: no UI controller is exposed in this session. Source tests do not prove rendered behavior or native personal-data safety. Matching composition-result focus is a later NEXT-02 subpacket. NEXT-01 native qualification remains first before normal files/keys. No normal data/keys/vault, provider/cloud/remote operation, LNSAT/VUSL change, dependency fetch, commit/push/merge/deploy or release occurred.
+
+## Direction reconciliation — November 1, 2026
+
+Authority: Jeff requests canonical drafting/development updates and preparation of the next phases after the reviewed workflow/enterprise direction. The [accepted intent](intent.md#direction-reconciliation-and-next-phase-preparation--november-1-2026) names exactly eleven documents. Root owns architecture/security/integration; a bounded documentation worker owns product experience and visual-system prose. Baseline: `codex/native-workflow-qualification-20261030`, HEAD `929873aa18521bebab911b410cf4705542b85b80`, with nine pre-existing NQ-1 authored changes preserved. Preimages, exact task delta and validation/preservation receipts live at `<local-evidence>/rangoon-doc-direction-20261101`.
+
+**Experience:** project/target task continuity, original library/work area/inspector hierarchy, radials/bars, local logos/icons and refined abstract artwork remain linked acceptance requirements. The docs define truthful metric partitions, table/graph drill-down, credential references, scoped bulk review and complete real/empty/stale/partial/denied/error/recovery states. Required dark/light/narrow checks remain, with representative desktop/4K logical-scale profiles. These are mechanics and proposed acceptance, not a rendered implementation claim.
+
+**Technical:** canonical architecture now states source/projection identity, tenant/actor scope across all copies, authoritative cell assignment/epochs, target-qualified fence/CAS/idempotency or explicit weaker coverage, unknown-effect reconciliation, old-worker/credential migration limits, and coordinated recovery. Local versus hosted keys and provider credentials remain separate. Cloud KMS/BYOK/federation, shared tenant services, remote peers, dispatcher and scale remain unimplemented. Existing VUSL ownership, independent authority engines, two-qualified-adapter SDK gate and local release path are preserved. The [ordered packet queue](plan.md#next-phase-packets--november-1-2026) gives owners, candidate source boundaries and validators without accepting those implementations.
+
+**Security and standards impact:** no new data collection, credential/key operation, runtime authority, dependency, schema, asset or build privilege. The update clarifies proposed identity/storage/evidence/key lifecycle controls under existing ISO/OpenSSF development requirements; it adds no certification, maturity, throughput or platform-support claim and changes no standards pin. Internal strategic reasoning and private review paths are not published as product claims. Native, cloud, provider, normal-data and release gates remain separate.
+
+**Validation:** document/reference checks pass over 638 authored text files and eight image hashes; all 45 new/changed local links and heading anchors pass. Intent, plan and visual-spec artifact validators and whitespace pass. Exact outside-owned diff and untracked-path preservation pass against task preimages. Initial independent review identified a candidate-scope gap; the plan now lists verified existing paths, explicitly proposed new files and named validators for all eight packets. Fresh independent read-only recheck returns PASS with no actionable P1/P2/P3 findings. It verifies all eleven document postimages, 50 unique existing candidate paths, 18 explicitly absent/proposed paths, clean whitespace and the preserved five outside-owned NQ-1 files. Producer: OpenAI GPT-6.1 Sol; documentation worker: `gpt_docs`, configured OpenAI GPT-5.6 Luna; reviewer: `gpt_reviewer`, configured OpenAI GPT-5.6 Terra (worker/reviewer serving IDs are not exposed). Final metadata/reference/preservation checks close this documentation task; they do not qualify any future source packet. No source/runtime/rendered/load tests are run by this docs-only packet; earlier NQ-1 counts below remain dated evidence, not revalidation. No commit/push/merge/deploy/release or external operation.
+## NQ-1 disposable folder qualification preparation — October 30, 2026
+
+Authority: Jeff asks to keep working on the next local application phases while postponing Windows/Proxmox testing until the new host is ready. Root owns the exact nine paths named in [intent](intent.md#nq-1-disposable-folder-qualification-preparation--october-30-2026). Baseline is published main `929873aa18521bebab911b410cf4705542b85b80` on isolated branch `codex/native-workflow-qualification-20261030`; the original dirty application and website worktrees are outside this packet.
+
+**Experience:** the isolated test artifact can now reach the same explicit folder-metadata and multi-file inspection pickers as the existing local workbench. The [manual checklist](reviewer-guide.md#disposable-native-workflow-checklist) separates metadata browsing, explicit content selection, saved revisions and exported files. It requires cancellation, Lock-purge, restart and recovery observations before personal-use qualification. Product layout and normal command behavior are unchanged.
+
+**Technical:** the exact-match Rust/config permission pair gains only the two existing read-only picker grants. Disposable manifest `rangoon.e1c4.run.v3` adds a fixed `folderFixture` directory identity; native validation rechecks it with all existing case roots. Parent artifact metadata records the fixture's exact no-follow directory/file identities, byte lengths and SHA-256 values. Before and after each phase the runner verifies private permissions, entry sets, retained-handle identity and fixed content, refusing links, hardlinks, nonregular entries, replacements and mutations. The output includes fixture location and a separate `folderFixtureVerified` result; `folderUiVerdict` remains unassessed. A fresh artifact/run is mandatory. The unchanged 46-case plan and product persistence/schema/contracts retain their behavior.
+
+**Security and standards impact:** only literal synthetic Markdown and ignored test files are created in the nonce-scoped private run. No input file text enters receipts; only fixed names, identities, lengths and hashes do. This prepares reproducible validation evidence under existing ISO/OpenSSF development requirements; it establishes no compliance, encryption qualification or authorization. SHA-256 fixture checks detect changed test inputs and do not authenticate a hostile host. No dependency, product permission, provider, credential or execution boundary changes. Real OS custody and GUI observations remain separate. Normal data/keys/vault, live systems, LNSAT/VUSL edits, dependency fetches and publication/release stay closed.
+
+**Validation:** pinned Rust 1.99.1 passes four qualification-feature unit tests and builds the actual custom native target offline without launching it. The default desktop checker passes formatting, 739 tests (including one isolated child; four ignored), all-target warnings-denied Clippy and build. JavaScript syntax/vision/visual checks and all 628 tests pass, as do documentation, intent and whitespace checks. Python validation passes 50 focused harness tests and all 114 harness tests, including real parent init/manifest generation and mocked-child runner preflight/postphase/receipt checks. Independent review identified stale validation wording (P2) and missing runner-level coverage (P3); both are corrected, and fresh independent read-only review returns PASS with no actionable P1/P2/P3 findings. The custom qualification target retains non-fatal unused test-helper warnings; default desktop Clippy remains clean. Logs and review evidence are local at `<local-evidence>/rangoon-nq1-20261030`. No native GUI was launched. Fresh CUA startup fails on the configured symlinked writable root before any app opens. A passing source/build result must not clear that native qualification gap.
+
 ## Full application source publication — October 29, 2026
 
 ### Windows lint completion during PR 55

@@ -1,5 +1,27 @@
 # Product experience: make the visual promise useful
 
+## Current direction and acceptance — November 1, 2026
+
+This is the current product-experience direction for the next planning phases. It preserves the existing library/work-area/right-inspector workbench, route IDs, grouped navigation, dark/light themes and abstract glossy Rangoon art. Marketing mascot art remains secondary. The proposed contexts are Workspace, Library, Systems and Activity; they are information-architecture proposals, not an implemented replacement shell. The canonical custody boundary is [enterprise operation and custody boundaries](application-architecture.md#enterprise-operation-and-custody-boundaries--november-1-2026), and packet sequencing is in [next-phase packets](plan.md#next-phase-packets--november-1-2026).
+
+Task continuity is project- and target-oriented. Every handoff carries the exact source, revision and target. Older-scope drafts remain available; navigation never silently retargets, auto-saves, runs or changes a selected target. Proposed target preparation stays distinct from effective-configuration readback. Any future enterprise operation scopes action at organization, workspace, project, environment, region and target levels. Immutable target sets, policy pins and artifact pins are recorded before approval; each target reports its own outcome and freshness. Credential references are shown only as references. Simple and advanced density change presentation, never authority.
+
+The next phase may make real local work easier to find and recover, but it must not invent fleet progress, packet animation, compliance/readiness claims or provider support. State coverage includes loading, empty, stale, partial, denied, error, unknown and recovery. Each state says what remains usable and the next safe action. Shared typography and tokens govern these states; real-state transitions stay subtle, with reduced-motion, forced-colors, keyboard, touch and text alternatives preserved.
+
+Acceptance for this direction is documentation and planning acceptance only. It does not accept source implementation, a replacement IA, rendered UI quality or native/runtime qualification. Root records reconciliation in [direction reconciliation](development.md#direction-reconciliation--november-1-2026). Future implementation must preserve existing route and control semantics, prove each target/state with source and rendered evidence, and keep unsupported or unqualified behavior visibly unavailable.
+
+## NEXT-02b inspect the exact saved output — November 1, 2026
+
+A saved composition output opens its exact saved revision in Skills after successful native readback. The editor heading receives focus only when the selected capability and viewed revision match. A newer saved head never silently replaces the composition result. Missing or changed results, failed reads and unavailable/busy states retain the current workbench and explain the next step. Same-skill unsaved edits must be saved or discarded first; other drafts remain available.
+
+Result controls carry both identities, disable during opening and stop after disposal. Navigation, receipt invalidation and Lock reject stale completion. This continuation does not save, review, compile, export or execute. Source tests cover identity/focus decisions and lifecycle handling; rendered keyboard/pointer, theme/viewport/reduced-motion and native encrypted qualification remain open. [Development receipt](development.md#next-02b-exact-saved-result-continuation--november-1-2026) owns evidence.
+
+## NEXT-02a saved skill into Compose — November 1, 2026
+
+**Add to Compose** carries the exact selected saved revision from Skills into the existing Compose workbench, after an existing native read validates the returned identity. Historical revisions remain pinned. The user chooses another input and starts a draft explicitly; navigation creates no composition, preview, save, review, export or execution.
+
+Keep skill edits and other work intact. Same-skill unsaved edits, conflict, unavailable/busy state, an existing Compose draft, duplicate pin and full input selection disable adding with an explanation. **Open Compose** remains available to continue retained work. Navigation, selection/edit changes and Lock discard late handoff replies. Failed reads keep the user in Skills and retain previous Compose work. Existing theme, button and heading-focus patterns apply. Source tests are complete; actual rendered keyboard/pointer/layout/Lock behavior remains unassessed until UI control is available. [Development receipt](development.md#next-02a-saved-revision-compose-handoff--november-1-2026) records evidence and remaining work.
+
 ## CW-1 saved-revision continuation — October 29, 2026
 
 Skills gains **Open in Compile** beside its saved-revision actions. It opens that exact saved revision, including a selected historical revision, in the existing Compile workbench and focuses the selected revision/profile area after loading. Choose the format and compile explicitly there; nothing is compiled, exported or executed by navigation.

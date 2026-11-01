@@ -4,7 +4,19 @@
 Status: accepted
 Intent: [intent.md](intent.md), visual quality continuation
 Owner: Jeff; primary controller owns visual direction and integration
-Last updated: 2026-10-18
+Last updated: 2026-11-01
+
+## Current visual direction and acceptance — November 1, 2026
+
+Retain the finished original command-center feel: radials, bars, icons, logos, restrained glossy abstract art, library/work area/right inspector, grouped navigation and dark/light themes. Visual refinement must strengthen this professional surface, not replace it with a marketing mascot or a generic dashboard. Existing route IDs and controls remain stable. The proposed Workspace, Library, Systems and Activity contexts are planning vocabulary only.
+
+Charts are evidence views, never decoration that implies capability. Metric cards state scope, numerator, denominator, source and watermark. Radial segments are disjoint. Desired, installed and effective are independent fields, not additive slices; use explicit effective, installed-only, pending, failed and unknown buckets where applicable. Composition coverage uses exact native-derived units. The renderer never becomes save authority.
+
+Bars show outcomes, latency, queue pressure and cost with explicit definitions: latency includes sample window, sample count and failure treatment; queues show age, depth/capacity and delayed/rejected counts; costs distinguish actual, reserved, estimated and unknown values with currency and period. Every bar supports table or inspector drilldown to the underlying scope and freshness. No invented progress, packet animation, fake compliance/readiness or unlabeled synthetic activity.
+
+Use packaged marks only: `preview/assets/authority/lnsat-mark.webp`, `preview/assets/foundations/vusl-logo.png` and the compact SVG catalog in `preview/icons.mjs`. Logos identify assets and provenance; they never imply support, permission, approval or runtime integration. Do not add external untrusted SVG/HTML or runtime asset fetches. Finish loading, empty, stale, partial, denied, error, unknown and recovery states with shared typography/tokens, subtle real-state transitions, reduced-motion, forced-colors, keyboard/touch access and text alternatives.
+
+Required viewport matrix remains 320, 768 and 1440 in dark and light. Add 1366×768 and 1920×1080 profiles, plus actual 4K profiles when available. Record logical viewport and scale/DPR for each 4K observation; do not confuse physical pixels with CSS layout. This update accepts design requirements only. Future implementation requires source/rendered evidence plus separate native/runtime qualification. The [enterprise custody boundary](application-architecture.md#enterprise-operation-and-custody-boundaries--november-1-2026), [next-phase packets](plan.md#next-phase-packets--november-1-2026) and [direction reconciliation](development.md#direction-reconciliation--november-1-2026) own cross-document sequencing and receipts.
 
 ## UI-V2 mature workbench art and hierarchy
 

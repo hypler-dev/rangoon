@@ -33,6 +33,8 @@
             "allow-begin-workspace-close",
             "allow-acknowledge-workspace-purge",
             "allow-select-and-analyze",
+            "allow-select-and-inspect-sources",
+            "allow-select-and-list-sources",
             "allow-list-snapshots",
             "allow-save-analysis",
             "allow-open-snapshot",
