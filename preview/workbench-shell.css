@@ -136,3 +136,114 @@
 
 /* Focused workbench: separate optional configuration from the source-to-export path. */
 .analysis-nav-group[aria-label="Advanced"],.analysis-nav-group--sample{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+
+/* Daily workbench: compact task headers and a visible revision action row. */
+.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero){min-height:0;padding:12px 18px;margin-bottom:8px;background:linear-gradient(110deg,var(--surface),color-mix(in srgb,var(--surface) 94%,var(--orange)))}
+.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero) h1{font-size:28px;line-height:1.15;letter-spacing:-.7px;font-weight:650}
+.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero)>p:not(.analysis-kicker){margin:4px 0 0;font-size:12px;line-height:1.5;max-width:78%}
+.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero)::after{width:112px;height:112px;opacity:.55;right:20px}
+.analysis-shell[data-area=skills] .skills-page>.term-help{margin:0 0 8px}
+.analysis-shell[data-area=skills] .skills-source-create{margin:0 0 10px;border-radius:9px;border-color:var(--ui-hairline);background:var(--surface)}
+.analysis-shell[data-area=skills] .skills-source-create>summary{min-height:44px;box-sizing:border-box;padding:8px 12px;line-height:1.4}
+.analysis-shell[data-area=skills] .skills-panel-head{padding:10px 14px;gap:10px;border-color:var(--ui-hairline)}
+.analysis-shell[data-area=skills] .skills-panel-head h2{font-size:15px;line-height:1.4}
+.analysis-shell[data-area=skills] .skills-actions{display:grid;grid-template-columns:minmax(0,1fr);margin:0;padding:0;gap:0;border-bottom:1px solid var(--ui-hairline);background:var(--surface)}
+.analysis-shell[data-area=skills] .skills-actions .analysis-button{width:100%;min-height:44px;padding:7px 10px;font-size:12px;line-height:1.35}
+.analysis-shell[data-area=skills] .skills-field{padding:10px 14px;border-color:var(--ui-hairline);font-size:12px;font-weight:500}
+.analysis-shell[data-area=skills] .skills-field input{min-height:44px;padding:10px;font-family:inherit;font-size:13px;letter-spacing:0}
+.analysis-shell[data-area=skills] .skills-field textarea{min-height:clamp(180px,28vh,280px);padding:12px;font-size:13px;line-height:1.65;resize:vertical}
+.analysis-shell[data-area=skills] :is(.skills-field input,.skills-field textarea){border-radius:7px;border-color:color-mix(in srgb,var(--line) 78%,transparent);background:var(--raised)}
+.analysis-shell[data-area=skills] :is(.skills-field small,.skills-revision-context){font-size:10px;line-height:1.5;font-weight:400;color:var(--muted)}
+.analysis-shell[data-area=skills] :is(.skills-edit-hint,.skills-record-summary p){font-size:11px;line-height:1.55;margin:8px 14px}
+.analysis-shell[data-area=skills] .skills-record-summary{padding:10px 14px}
+.analysis-shell[data-area=skills] .skills-record-summary p{margin:6px 0 0}
+.analysis-shell[data-area=skills] .skills-history__item{padding:10px 12px;min-height:58px;line-height:1.5}
+.analysis-shell[data-area=skills] .skills-editor :is(input,textarea):focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.analysis-shell[data-area=skills] #skills-editor-title:focus-visible{outline:none;text-decoration:underline;text-decoration-color:var(--orange);text-underline-offset:5px;text-decoration-thickness:2px}
+@media(min-width:1240px){.analysis-shell[data-area=skills] .skills-workbench{grid-template-columns:minmax(220px,.55fr) minmax(440px,1fr) minmax(232px,.63fr);gap:10px}}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){.analysis-shell[data-area=skills] .skills-actions .analysis-button:not(:disabled){transition:background-color 120ms ease,border-color 120ms ease,box-shadow 120ms ease}.analysis-shell[data-area=skills] .skills-actions .analysis-button:not(:disabled):hover{border-color:color-mix(in srgb,var(--orange) 65%,var(--line));box-shadow:0 0 0 2px color-mix(in srgb,var(--orange) 10%,transparent)}}
+@media(max-width:980px){.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero)::after{display:none}.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero)>p:not(.analysis-kicker){max-width:none}}
+@media(max-width:620px){.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero){padding:12px}.analysis-shell[data-area=skills] .skills-actions .analysis-button{white-space:normal}.analysis-shell[data-area=skills] .skills-field textarea{min-height:180px}}
+@media(forced-colors:active){.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero){background:Canvas;border-color:CanvasText}.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero)::after{display:none}.analysis-shell[data-area=skills] :is(.skills-actions,.skills-field input,.skills-field textarea){background:Canvas;border-color:CanvasText}.analysis-shell[data-area=skills] .skills-actions .analysis-button:not(:disabled):hover{box-shadow:none;border-color:Highlight}.analysis-shell[data-area=skills] :is(#skills-editor-title,input,textarea):focus-visible{outline-color:Highlight}}
+
+.analysis-shell[data-area] :is(.analysis-hero,.skills-hero,.composition-hero,.compile-hero)>.analysis-kicker{margin:0 0 4px}
+.analysis-shell[data-area=skills] .skills-source-create>summary span{display:inline;margin-inline-start:10px;font-size:11px;font-weight:400}
+.analysis-shell :is(.analysis-rail,main){scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+@media(max-width:620px){.analysis-shell[data-area=skills] .skills-source-create>summary span{display:block;margin-inline-start:0}}
+@media(forced-colors:active){.analysis-shell[data-area=skills] #skills-editor-title:focus-visible{outline:2px solid Highlight;outline-offset:3px;text-decoration:none}}
+
+/* Task arrangement: find/create, edit, then use an exact saved revision. */
+.analysis-shell[data-area=skills] .skills-inspection{min-width:0;display:grid;gap:8px}
+.analysis-shell[data-area=skills] .skills-inspection>.term-help{margin:0}
+.analysis-shell[data-area=skills] .skills-inspection>.skills-provenance{grid-column:auto}
+.analysis-shell[data-area=skills] .skills-library>.skills-source-create{margin:0;border:0;border-bottom:1px solid var(--ui-hairline);border-radius:0}
+.analysis-shell[data-area=skills] .skills-library>.skills-source-create>summary span{display:block;margin-inline-start:0;margin-top:3px}
+.analysis-shell[data-area=skills] .skills-library .skills-source{grid-template-columns:minmax(0,1fr);padding:8px 14px 14px;gap:10px}
+.analysis-shell[data-area=skills] .skills-source :is(input,.analysis-button){min-height:44px;font-family:inherit}
+.analysis-shell[data-area=skills] .skills-library__filters{padding:10px 14px;gap:6px}
+.analysis-shell[data-area=skills] .skills-library__filters :is(input,select){font-family:inherit;font-size:12px}
+.analysis-shell[data-area=skills] .skills-filter-options{min-width:0}
+.analysis-shell[data-area=skills] .skills-filter-options>summary{min-height:44px;box-sizing:border-box;padding:10px 0;cursor:pointer;font-size:12px;color:var(--ink)}
+.analysis-shell[data-area=skills] .skills-filter-options>summary span{display:block;font-size:10px;margin:3px 0 0 14px;color:var(--muted);overflow-wrap:anywhere}
+.analysis-shell[data-area=skills] .skills-filter-options .skills-library__facets{grid-template-columns:repeat(2,minmax(0,1fr));margin:0 0 8px}
+.analysis-shell[data-area=skills] .skills-action-group{min-width:0;padding:8px 14px}
+.analysis-shell[data-area=skills] .skills-use-group{border-top:1px solid var(--ui-hairline);background:color-mix(in srgb,var(--raised) 45%,var(--surface))}
+.analysis-shell[data-area=skills] .skills-action-label{margin:0 0 6px;color:var(--muted);font-size:10px;font-weight:650;letter-spacing:.05em;text-transform:uppercase}
+.analysis-shell[data-area=skills] .skills-edit-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.analysis-shell[data-area=skills] .skills-continuations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.analysis-shell[data-area=skills] .skills-actions .skills-edit-hint{margin:6px 0 0;font-size:11px;overflow-wrap:anywhere}
+.analysis-shell[data-area=skills] .skills-conflict{margin:0;padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--ui-hairline)}
+.analysis-shell[data-area=skills] .skills-editor>.skills-panel-head>div{min-width:0}
+.analysis-shell[data-area=skills] #skills-editor-title{overflow-wrap:anywhere}
+@media(max-width:620px){.analysis-shell[data-area=skills] .skills-edit-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}.analysis-shell[data-area=skills] #skills-discard{grid-column:1/-1}.analysis-shell[data-area=skills] .skills-continuations{grid-template-columns:minmax(0,1fr)}}
+@media(forced-colors:active){.analysis-shell[data-area=skills] .skills-use-group{background:Canvas;border-color:CanvasText}}
+
+/* Semantic symbols share one baseline; text remains the accessible action name. */
+.analysis-shell :is(.analysis-button,.workspace-guard__lock,.workspace-protection-action,.workspace-lock-dialog__actions button){gap:7px}
+.analysis-shell .foldline-icon{flex:none;vertical-align:middle}
+.analysis-shell :is(.skills-action-label,.skills-history h3,.compile-portable-action h3,.workspace-guard__status){display:flex;align-items:center;gap:7px}
+.analysis-shell .workspace-guard__status{align-items:flex-start}
+.analysis-shell .workspace-guard__status>.foldline-icon{margin-top:1px}
+.analysis-shell :is(.workspace-guard__lock,.workspace-protection-action,.workspace-lock-dialog__actions button){display:inline-flex;align-items:center;justify-content:center}
+.analysis-shell .workspace-close-card__symbol{display:inline-flex;margin-bottom:12px;color:var(--muted)}
+.analysis-shell .compile-profiles .vendor-mark{object-fit:contain;flex:none}
+.icon-gallery__identity{margin:20px 0 28px}
+.icon-gallery__identity>p{max-width:85ch;font-size:13px;line-height:1.6;color:var(--muted)}
+.icon-gallery__software{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:14px}
+.icon-gallery__software article{display:grid;grid-template-columns:32px minmax(0,1fr);gap:5px 10px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:8px}
+.icon-gallery__software img{grid-row:span 2;object-fit:contain;max-width:100%}
+.icon-gallery__software small{color:var(--muted);font-size:11px}
+.icon-gallery__group{margin-top:24px;min-width:0}
+.icon-gallery__group>h2{font-size:18px;margin-bottom:12px}
+.icon-gallery__card h3{font-size:12px;margin:0 0 12px;overflow-wrap:anywhere}
+@media(forced-colors:active){.analysis-shell .workspace-close-card__symbol{color:CanvasText}.icon-gallery__software article{border-color:CanvasText}}
+
+/* Unavailable primary actions must not retain the active orange affordance. */
+.analysis-shell .analysis-button--primary:disabled{background:var(--raised);border-color:var(--line);color:var(--muted);box-shadow:none}
+@media(forced-colors:active){.analysis-shell .analysis-button--primary:disabled{background:Canvas;color:GrayText;border-color:GrayText}}
+
+/* Keep global workspace controls reachable; scroll route navigation independently. */
+@media(min-width:801px){
+  .analysis-rail{box-sizing:border-box;min-height:0;overflow:hidden}
+  .analysis-rail>.analysis-nav{flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  .analysis-rail>:is(.analysis-brand,.workspace-guard,.analysis-theme){flex-shrink:0}
+  .analysis-rail>.analysis-theme{min-height:44px}
+}
+
+/* Wordmarks need a wider slot; preserve dark native marks on a light backing. */
+.icon-gallery__software article{grid-template-columns:64px minmax(0,1fr)}
+.icon-gallery__software img{width:56px;height:36px}
+.icon-gallery__software img[src$="lnsat-mark.webp"],.icon-gallery__software img[src$="vusl-logo.png"]{padding:4px;box-sizing:border-box;background:#fff;border:1px solid #d9dee8;border-radius:4px;forced-color-adjust:none}
+
+/* Product identity remains unchanged; a light local tile keeps native marks legible. */
+.icon-gallery__software .vendor-mark{padding:4px;box-sizing:border-box;background:#fff;border:1px solid #d9dee8;border-radius:6px;forced-color-adjust:none}
+
+.icon-gallery__software{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:1100px){.icon-gallery__software{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.icon-gallery__software{grid-template-columns:minmax(0,1fr)}}
+
+/* Compile setup remains reachable before long record/history lists. */
+.compile-current-context{margin:0;padding:10px 15px;font-size:12px;line-height:1.5;overflow-wrap:anywhere;color:var(--muted);border-bottom:1px solid var(--line)}
+.compile-current-context strong{color:var(--ink)}
+.compile-selection>.compile-actions{padding:10px 15px;border-bottom:1px solid var(--line)}
+.compile-selection>.compile-actions .analysis-button{min-height:44px;white-space:normal}

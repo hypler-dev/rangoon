@@ -46,7 +46,7 @@ const freeze = value => {
 
 export const AUTHORITY_CATALOG = freeze([
   entry({
-    id: 'agentgateway', productTarget: 'agentgateway standalone', family: 'agentgateway', category: 'gateway', badge: 'Gateway', logoPath: null,
+    id: 'agentgateway',  productTarget: 'agentgateway standalone', family: 'agentgateway', category: 'gateway', badge: 'Gateway', logoPath: 'assets/vendors/agentgateway-mark.svg',
     summary: 'Research reference for a standalone gateway configuration and mediated access-log inspection.',
     abilities: [{ label: 'Configuration preview', operation: 'configuration_preview' }, { label: 'MCP authorization mapping', operation: 'authorization_evaluation' }, { label: 'Mediated access-log evidence', operation: 'evidence_read' }],
     limitations: 'Gateway authorization applies only to traffic it mediates. Kubernetes is a separate future target; no Rangoon profile or connection exists.',
@@ -54,7 +54,7 @@ export const AUTHORITY_CATALOG = freeze([
     areas: [{ id: 'decompose', relationship: 'Local transformation needs no authority engine.' }, { id: 'merge', relationship: 'Local transformation needs no authority engine.' }, { id: 'split', relationship: 'Local transformation needs no authority engine.' }, { id: 'workflows', relationship: 'Design reference for mediated workflow traffic.' }, { id: 'compile', relationship: 'Design reference for configuration preview output.' }],
   }),
   entry({
-    id: 'cerbos', productTarget: 'Cerbos PDP', family: 'cerbos', category: 'authorization', badge: 'Authorization', logoPath: null,
+    id: 'cerbos',  productTarget: 'Cerbos PDP', family: 'cerbos', category: 'authorization', badge: 'Authorization', logoPath: 'assets/vendors/cerbos-mark.png',
     summary: 'Research reference for policy configuration and explicit authorization-decision inspection.',
     abilities: [{ label: 'Policy configuration preview', operation: 'configuration_preview' }, { label: 'Resource decision inspection', operation: 'authorization_evaluation' }],
     limitations: 'CheckResources evaluates requested resource/actions. Enforcement remains with the caller; a decision is not an approval, grant consumption, or execution receipt.',
@@ -62,7 +62,7 @@ export const AUTHORITY_CATALOG = freeze([
     areas: [{ id: 'skills', relationship: 'Local review is separate from a provider decision.' }, { id: 'workflows', relationship: 'Design reference for explicit decision boundaries.' }, { id: 'engine', relationship: 'Contrast with the separate LNSAT diagnostic.' }],
   }),
   entry({
-    id: 'permit', productTarget: 'Permit authorization', family: 'permit', category: 'authorization', badge: 'Authorization', logoPath: null,
+    id: 'permit',  productTarget: 'Permit authorization', family: 'permit', category: 'authorization', badge: 'Authorization', logoPath: 'assets/vendors/permit-mark.svg',
     summary: 'Research reference for identity, resource, tenant, and policy decision evidence.',
     abilities: [{ label: 'Configuration preview', operation: 'configuration_preview' }, { label: 'Decision evidence inspection', operation: 'authorization_evaluation' }],
     limitations: 'Permit identity, resource, tenant, and policy semantics remain provider-specific. Account, PDP, credential, and retention qualification are open; decisions are not Rangoon approvals.',
@@ -70,7 +70,7 @@ export const AUTHORITY_CATALOG = freeze([
     areas: [{ id: 'skills', relationship: 'Local review is separate from a provider decision.' }, { id: 'workflows', relationship: 'Design reference for resource-aware policy decisions.' }, { id: 'workspace', relationship: 'Design reference only; no saved assignment exists.' }],
   }),
   entry({
-    id: 'permit-fastmcp', productTarget: 'Permit FastMCP middleware', family: 'permit', category: 'authorization', badge: 'Middleware', logoPath: null,
+    id: 'permit-fastmcp',  productTarget: 'Permit FastMCP middleware', family: 'permit', category: 'authorization', badge: 'Middleware', logoPath: 'assets/vendors/permit-mark.svg',
     summary: 'Research reference for server-side permission mapping in an owned FastMCP server.',
     abilities: [{ label: 'Permission-mapping preview', operation: 'configuration_preview' }, { label: 'Compatible evaluation evidence', operation: 'authorization_evaluation' }],
     limitations: 'This middleware runs inside an owned FastMCP server with its own request and identity mapping. It is not the commercial Permit MCP Gateway.',
@@ -78,7 +78,7 @@ export const AUTHORITY_CATALOG = freeze([
     areas: [{ id: 'workflows', relationship: 'Design reference for owned-server middleware placement.' }, { id: 'model-assistance', relationship: 'Design reference only; no model route is bound.' }],
   }),
   entry({
-    id: 'permit-mcp-gateway', productTarget: 'Permit MCP Gateway', family: 'permit', category: 'gateway', badge: 'Gateway', logoPath: null,
+    id: 'permit-mcp-gateway',  productTarget: 'Permit MCP Gateway', family: 'permit', category: 'gateway', badge: 'Gateway', logoPath: 'assets/vendors/permit-mark.svg',
     summary: 'Research reference for commercial gateway configuration and decision/audit evidence.',
     abilities: [{ label: 'Gateway configuration preview', operation: 'configuration_preview' }, { label: 'Decision and audit evidence', operation: 'evidence_read' }],
     limitations: 'This is a separate commercial product with separate connection, authentication, entitlement, and retention treatment. Middleware availability does not confer gateway access.',
@@ -86,7 +86,7 @@ export const AUTHORITY_CATALOG = freeze([
     areas: [{ id: 'workflows', relationship: 'Design reference for mediated gateway placement.' }, { id: 'compile', relationship: 'Design reference for an inert configuration preview.' }],
   }),
   entry({
-    id: 'invariant-local', productTarget: 'Invariant local', family: 'invariant', category: 'guardrail', badge: 'Local guardrail', logoPath: null,
+    id: 'invariant-local',  productTarget: 'Invariant local', family: 'invariant', category: 'guardrail', badge: 'Local guardrail', logoPath: 'assets/vendors/invariant-mark.png',
     summary: 'Research reference for a pinned local policy preview and locally produced violation reports.',
     abilities: [{ label: 'Policy configuration preview', operation: 'configuration_preview' }, { label: 'Violation report inspection', operation: 'guardrail_evaluation' }],
     limitations: 'A future adapter must pin LocalPolicy, detectors, and dependencies. Imported policy is not trusted code; local execution, isolation, and detector egress remain unqualified. No violations is not authorization.',
@@ -94,7 +94,7 @@ export const AUTHORITY_CATALOG = freeze([
     areas: [{ id: 'analysis', relationship: 'Design reference for local content inspection.' }, { id: 'model-assistance', relationship: 'Design reference for separate guardrail reporting.' }],
   }),
   entry({
-    id: 'invariant-remote', productTarget: 'Invariant remote', family: 'invariant', category: 'guardrail', badge: 'Remote guardrail', logoPath: null,
+    id: 'invariant-remote',  productTarget: 'Invariant remote', family: 'invariant', category: 'guardrail', badge: 'Remote guardrail', logoPath: 'assets/vendors/invariant-mark.png',
     summary: 'Research reference for explicitly consented policy and trace evaluation result inspection.',
     abilities: [{ label: 'Consented remote policy evaluation', operation: 'guardrail_evaluation' }, { label: 'Result evidence inspection', operation: 'evidence_read' }],
     limitations: 'Remote treatment has distinct payload, endpoint, credential, and retention handling. There is no automatic local-to-remote fallback; remote compatibility remains unqualified.',

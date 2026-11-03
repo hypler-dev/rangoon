@@ -2,11 +2,12 @@
 import copy
 import hashlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("qualification", ROOT / "scripts/qualify-native-encrypted.py")
@@ -186,6 +187,12 @@ class CasePlanTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     Q.validate_run("a" * 32)
                 manifest["schema"] = "rangoon.e1c4.run.v2"
+                manifest["casePlanSha256"] = Q.PLAN_SHA256
+                with patch.object(Q, "read_record", return_value=manifest):
+                    with self.assertRaises(RuntimeError):
+                        Q.validate_run("a" * 32)
+                manifest["schema"] = "rangoon.e1c4.run.v3"
+                manifest["folderFixture"] = Q.create_folder_fixture(root)
                 manifest["casePlanSha256"] = "0" * 64
                 with patch.object(Q, "read_record", return_value=manifest):
                     with self.assertRaises(RuntimeError):
@@ -235,6 +242,192 @@ class CasePlanTests(unittest.TestCase):
                 fixture.symlink_to(root / "Cargo.toml")
                 with self.assertRaises(RuntimeError):
                     Q.source_digest()
+
+
+class FolderFixtureTests(unittest.TestCase):
+    def initialized_run(self, base):
+        # Simulate only compiler/platform output. Generated run records and
+        # synthetic fixture files are real; no executable is launched.
+        repo, run = base / "repo", base / "disposable-run"
+        executable = repo / "apps/desktop/target/debug/qualification-fixture"
+        executable.parent.mkdir(parents=True)
+        executable.write_bytes(b"inert synthetic executable bytes")
+        compiler = {"reason": "compiler-artifact", "executable": str(executable),
+                    "target": {"name": "native-encrypted-qualification"}}
+        result = type("Build", (), {"returncode": 0, "stdout": json.dumps(compiler).encode()})()
+        with patch.object(Q, "REPO", repo), patch.object(Q, "run_path", return_value=run), \
+             patch.object(Q, "source_digest", return_value="a" * 64), \
+             patch.object(Q.subprocess, "run", return_value=result) as build, \
+             patch.object(Q.subprocess, "check_output", return_value="synthetic platform"), \
+             patch.dict(Q.os.environ, {"CARGO_TARGET_DIR": str(base / "foreign-target")}), \
+             patch("builtins.print"):
+            Q.init()
+            manifest = Q.read_record(run / "manifest.json")
+            artifact = Q.read_record(run / "artifact.json")
+            self.assertEqual(manifest["schema"], "rangoon.e1c4.run.v3")
+            self.assertEqual(manifest["folderFixture"], Q.identity(run / Q.FOLDER_NAME))
+            self.assertEqual(artifact["folderFixture"], Q.capture_folder_fixture(run))
+            self.assertEqual(Q.validate_run(manifest["nonce"]), run)
+            self.assertTrue(all(not list((run / name).iterdir()) for name in Q.ROOTS))
+            self.assertNotIn("CARGO_TARGET_DIR", build.call_args.kwargs["env"])
+        return run, manifest["nonce"]
+
+    def test_init_binds_new_fixture_without_contaminating_workspace_roots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            self.initialized_run(Path(directory))
+
+    def test_parent_run_guards_inputs_and_keeps_ui_verdict_unassessed(self):
+        # Fake the stopped child and its separate native-exit oracle. This tests
+        # the real parent pre/post integrity guards and receipt, never native UI.
+        for mutation in ("none", "before", "after"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                root, nonce = self.initialized_run(Path(directory))
+                path = root / Q.FOLDER_NAME / "AGENTS.md"
+                def replace():
+                    path.rename(root / "held-original.md")
+                    path.write_bytes(Q.FOLDER_FILES["AGENTS.md"])
+                    path.chmod(0o600)
+                if mutation == "before":
+                    replace()
+                child = MagicMock(pid=12345, returncode=0)
+                child.poll.return_value = 0
+                child.wait.return_value = 0
+                child.stdin, child.stdout, child.stderr = (io.BytesIO() for _ in range(3))
+                selector = MagicMock()
+                selector.get_map.return_value = {}
+                def native_exit(*args):
+                    if mutation == "after":
+                        replace()
+                with patch.object(Q, "run_path", return_value=root), \
+                     patch.object(Q, "source_digest", return_value="a" * 64), \
+                     patch.object(Q.subprocess, "Popen", return_value=child) as launch, \
+                     patch.object(Q.selectors, "DefaultSelector", return_value=selector), \
+                     patch.object(Q.sys, "stdin", io.StringIO()), \
+                     patch.object(Q, "verify_exit", side_effect=native_exit) as exit_oracle, \
+                     patch("builtins.print"):
+                    if mutation == "none":
+                        Q.run(nonce, "authoring")
+                    else:
+                        with self.assertRaisesRegex(RuntimeError, "folder fixture inventory changed"):
+                            Q.run(nonce, "authoring")
+                    if mutation == "before":
+                        launch.assert_not_called()
+                        exit_oracle.assert_not_called()
+                        self.assertFalse((root / "receipt-authoring.json").exists())
+                        self.assertFalse((root / "permit-authoring.json").exists())
+                    else:
+                        launch.assert_called_once()
+                        exit_oracle.assert_called_once()
+                        receipt = Q.read_record(root / "receipt-authoring.json")
+                        self.assertEqual(receipt["folderFixtureVerified"], mutation == "none")
+                        self.assertEqual(receipt["phaseExitVerified"], mutation == "none")
+                        self.assertTrue(receipt["folderUiVerdict"].startswith("unassessed"))
+                        self.assertTrue(receipt["nativeCaseVerdict"].startswith("unassessed"))
+                        if mutation == "after":
+                            self.assertIn("folder fixture inventory changed", receipt["parentFailure"])
+
+    def fixture(self, root):
+        Q.create_folder_fixture(root)
+        return Q.capture_folder_fixture(root)
+
+    def test_fixed_input_is_private_complete_and_contains_no_workspace_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = self.fixture(root)
+            self.assertEqual(set(expected["files"]), set(Q.FOLDER_FILES))
+            self.assertEqual(set(expected["directories"]), {"run", "folder", *Q.FOLDER_DIRECTORIES})
+            self.assertEqual(set(p.name for p in root.iterdir()), {Q.FOLDER_NAME})
+            Q.verify_folder_fixture(root, expected)
+            self.assertNotIn("contents", json.dumps(expected))
+
+    def test_modified_contents_or_missing_file_refuse(self):
+        for relative in Q.FOLDER_FILES:
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                expected = self.fixture(root)
+                path = root / Q.FOLDER_NAME / relative
+                path.write_bytes(b"changed")
+                with self.assertRaises(RuntimeError):
+                    Q.verify_folder_fixture(root, expected)
+                path.unlink()
+                with self.assertRaises((RuntimeError, OSError)):
+                    Q.verify_folder_fixture(root, expected)
+
+    def test_same_bytes_in_replaced_file_do_not_reuse_previous_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            expected = self.fixture(root)
+            path = root / Q.FOLDER_NAME / "AGENTS.md"
+            original = root / "held-original.md"
+            path.rename(original)
+            path.write_bytes(Q.FOLDER_FILES["AGENTS.md"])
+            path.chmod(0o600)
+            with self.assertRaises(RuntimeError):
+                Q.verify_folder_fixture(root, expected)
+
+    def test_links_and_nonregular_entries_refuse_without_following(self):
+        for kind in ("symlink", "hardlink", "fifo"):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                expected = self.fixture(root)
+                path = root / Q.FOLDER_NAME / "AGENTS.md"
+                path.unlink()
+                if kind == "symlink":
+                    path.symlink_to("notes.txt")
+                elif kind == "hardlink":
+                    Q.os.link(root / Q.FOLDER_NAME / "notes.txt", path)
+                else:
+                    Q.os.mkfifo(path, 0o600)
+                with self.assertRaises((RuntimeError, OSError)):
+                    Q.verify_folder_fixture(root, expected)
+
+    def test_unexpected_children_refuse_in_each_fixture_directory(self):
+        for relative in ("", *Q.FOLDER_DIRECTORIES):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                expected = self.fixture(root)
+                path = root / Q.FOLDER_NAME / relative / "unexpected.md"
+                path.write_bytes(b"unexpected")
+                path.chmod(0o600)
+                with self.assertRaises(RuntimeError):
+                    Q.verify_folder_fixture(root, expected)
+
+    def test_directory_link_or_replacement_cannot_reuse_fixture_evidence(self):
+        for linked in (False, True):
+            with self.subTest(linked=linked), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                expected = self.fixture(root)
+                path = root / Q.FOLDER_NAME
+                path.rename(root / "held-folder")
+                if linked:
+                    path.symlink_to("held-folder", target_is_directory=True)
+                else:
+                    Q.create_folder_fixture(root)
+                with self.assertRaises((RuntimeError, OSError)):
+                    Q.verify_folder_fixture(root, expected)
+
+    def test_widened_file_or_directory_permissions_refuse(self):
+        for relative in ("AGENTS.md", "skills"):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                expected = self.fixture(root)
+                (root / Q.FOLDER_NAME / relative).chmod(0o755)
+                with self.assertRaises(RuntimeError):
+                    Q.verify_folder_fixture(root, expected)
+
+    def test_fixture_changes_during_capture_refuse(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.fixture(root)
+            original = Q.private_file
+            def mutate(*args, **kwargs):
+                result = original(*args, **kwargs)
+                if args[1] == "AGENTS.md":
+                    (root / Q.FOLDER_NAME / "AGENTS.md").write_bytes(b"changed during read")
+                return result
+            with patch.object(Q, "private_file", side_effect=mutate):
+                with self.assertRaises(RuntimeError):
+                    Q.capture_folder_fixture(root)
 
 
 class WorkflowOracleTests(unittest.TestCase):

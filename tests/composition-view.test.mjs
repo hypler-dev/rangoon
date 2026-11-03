@@ -458,3 +458,117 @@ test('selection excerpt bounds large spans, preserves astral code points, and re
  assert.equal(compositionSelectionExcerpt('abc',{inputIndex:0,startByte:0,endByte:4}),null);
  assert.equal(compositionSelectionExcerpt('\ud800',{inputIndex:0,startByte:0,endByte:3}),null);
 });
+
+test('saved-result controls carry exact revision, disable missing pins and show escaped handoff states', () => {
+  const state = initial({ draft, results: [{ id: capabilityId, revision: { id: revisionId, title: 'Saved result' } }] });
+  const html = renderCompositionView(state);
+  assert.match(html, new RegExp(`data-composition-open-skill="${capabilityId}" data-composition-result-revision="${revisionId}"`));
+  assert.doesNotMatch(html, /class="composition-result"[^>]*disabled/);
+  assert.match(renderCompositionView(state, { resultHandoff: { pending: true } }), /class="composition-result"[^>]*disabled/);
+  assert.match(renderCompositionView(state, { resultHandoff: { error: '<bad>' } }), /&lt;bad&gt;/);
+  assert.match(renderCompositionView(initial({ draft, results: [{ id: capabilityId, title: 'Missing revision' }] })), /class="composition-result"[^>]*disabled/);
+});
+
+test('result clicks pin both identities, ignore repeat/disposed events and never invoke missing references', async () => {
+  const root = filterRoot('data-composition-picker-filter');
+  const state = initial({ draft, results: [{ id: capabilityId, revision: { id: revisionId, title: 'Saved result' } }] });
+  const calls = []; let pending = false, release;
+  const binding = bindCompositionView(root, { getState: () => state }, {
+    getResultHandoff: () => ({ pending }),
+    onOpenSkill: (id, revision) => { calls.push([id, revision]); pending = true; return new Promise(resolve => { release = resolve; }); },
+  });
+  const target = { tagName: 'BUTTON', dataset: { compositionOpenSkill: capabilityId, compositionResultRevision: revisionId }, disabled: false,
+    closest: selector => selector === 'button,select' ? target : null, matches: () => false, hasAttribute: () => false };
+  root.fire('click', { target }); root.fire('click', { target });
+  assert.deepEqual(calls, [[capabilityId, revisionId]]);
+  binding.dispose(); const renders = root.renders; release(true); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(root.renders, renders); root.fire('click', { target }); assert.equal(calls.length, 1);
+});
+
+
+test('Compose explains missing and excess selections without changing Start draft gates', () => {
+  for (const [count, message, enabled] of [
+    [0, 'Add 2 more saved revisions to begin.', false],
+    [1, 'Add 1 more saved revision to begin.', false],
+    [2, 'Selection complete. Start a draft to arrange content.', true],
+    [16, 'Selection complete. Start a draft to arrange content.', true],
+    [17, 'Remove 1 revision; maximum 16.', false],
+  ]) {
+    const html = renderCompositionView(initial({ operation: 'merge', inputs: Array.from({ length: count }, () => input) }));
+    assert.ok(html.includes(message));
+    assert.match(html, /id="composition-start" aria-describedby="composition-selection-help"/);
+    const button = html.match(/<button id="composition-start"[^>]*>/)[0];
+    assert.equal(button.includes('disabled'), !enabled);
+  }
+  for (const operation of ['split', 'decompose']) {
+    const noun = operation === 'decompose' ? 'source' : 'revision';
+    assert.ok(renderCompositionView(initial({ operation, inputs: [] })).includes(`Choose one saved ${noun} to begin.`));
+    assert.ok(renderCompositionView(initial({ operation, inputs: [input, input] })).includes(`Keep one saved ${noun}; remove 1.`));
+  }
+  for (const state of [initial({ pending: 'start' }), initial({ bridgeAvailable: false })]) {
+    assert.match(renderCompositionView(state), /<button id="composition-start"[^>]*disabled/);
+  }
+  const locked = renderCompositionView(initial({ draft }));
+  assert.ok(locked.includes('Inputs locked after draft start.'));
+  assert.ok(!locked.includes('id="composition-selection-help"'));
+});
+
+
+test('Compose groups existing tools and keeps the workflow guide noninteractive', () => {
+  const html = renderCompositionView(initial({ draft, dirty: true, canUndo: true, canRedo: false }));
+  for (const label of ['Composition workflow', 'Composition editor views', 'Edit history', 'Workspace layout', 'Draft controls']) assert.ok(html.includes(`aria-label="${label}"`));
+  for (const name of ['source', 'recipe', 'graph']) assert.equal((html.match(new RegExp(`data-composition-tab="${name}"`, 'g')) ?? []).length, 1);
+  const guide = html.match(/<ol class="composition-guide"[^>]*>(.*?)<\/ol>/s)[1];
+  assert.equal((guide.match(/<li>/g) ?? []).length, 4);
+  assert.ok(!/<button|<a |aria-current|role="progressbar"/.test(guide));
+  assert.match(html, /data-composition-undo >[\s\S]*?Undo<\/button>/);
+  assert.match(html, /data-composition-redo disabled/);
+  assert.ok(html.includes('Unsaved draft'));
+  assert.ok(!html.includes('Saved local result'));
+  assert.ok(html.includes('class="composition-save-controls"'));
+  assert.ok(html.includes('I reviewed exact host preview content, destinations and coverage. This does not approve execution.'));
+  assert.match(html, /id="composition-save"[^>]*disabled/);
+  assert.match(html, /<details><summary>Selection details<\/summary>[\s\S]*?Original input remains read-only\.[\s\S]*?<\/details>/);
+});
+
+test('Compose result messaging follows returned results, never cleanliness alone', () => {
+  const clean = renderCompositionView(initial({ draft, dirty: false, results: [] }));
+  assert.ok(clean.includes('Draft unchanged'));
+  assert.ok(!clean.includes('Saved local result'));
+  const result = { id: capabilityId, revision: { id: revisionId, title: 'Actual saved result' } };
+  assert.ok(renderCompositionView(initial({ draft, dirty: false, results: [result] })).includes('Saved local result'));
+  assert.ok(renderCompositionView(initial({ draft, dirty: true, results: [result] })).includes('Unsaved draft'));
+  for (const overrides of [{ pending: 'preview' }, { bridgeAvailable: false }, { previewStale: true }]) {
+    const html = renderCompositionView(initial({ draft, ...overrides }));
+    assert.match(html, /id="composition-save"[^>]*disabled/);
+    assert.match(html, /data-composition-ack[^>]*disabled/);
+  }
+});
+
+test('inspector handles sixteen escaped long outputs with explicit navigation and no implicit save', async () => {
+  const { compositionInspectorCases } = await import('../scripts/ui-composition-fixtures.mjs');
+  const cases = compositionInspectorCases();
+  assert.equal(cases.length, 5);
+  for (const { name, state } of cases) {
+    assert.equal(state.draft.outputs.length, 16);
+    const before = structuredClone(state);
+    const html = renderCompositionView(state, { rangeOutputIndex: 15 });
+    assert.ok(html.includes('16 outputs · 16 pieces'));
+    assert.ok(html.includes('data-composition-scroll="output-navigator"'));
+    assert.equal((html.match(/data-composition-inspect-output=/g) ?? []).length, 16);
+    assert.match(html, /data-composition-inspect-output="15" aria-pressed="true"/);
+    assert.ok(html.includes('&lt;Output &amp; review&gt;'));
+    assert.ok(!html.includes('<Output & review>'));
+    assert.match(html, /id="composition-save"[^>]*disabled/);
+    assert.match(html, /data-composition-ack[^>]*disabled/);
+    if (name === 'preview-failed') assert.ok(html.includes('Draft kept. Check the message above before retrying.'));
+    if (name === 'preview-stale') assert.ok(html.includes('Preview stale'));
+    if (name === 'unresolved-conflict') {
+      assert.ok(html.includes('1 unresolved declaration'));
+      assert.ok(html.includes('&lt;Unresolved &amp; declaration&gt;'));
+      assert.match(html, /data-composition-conflict-resolution="0"/);
+    }
+    if (name === 'busy') assert.match(html, /data-composition-inspect-output="15"[^>]*disabled/);
+    assert.deepEqual(state, before);
+  }
+});

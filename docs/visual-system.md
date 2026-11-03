@@ -4,7 +4,73 @@
 Status: accepted
 Intent: [intent.md](intent.md), visual quality continuation
 Owner: Jeff; primary controller owns visual direction and integration
-Last updated: 2026-10-18
+Last updated: 2026-11-02
+
+
+
+## UI-C8 inspector scale and recovery — November 3, 2026
+
+Keep output navigation within a 260px scrollable region, with 44px labeled targets, wrapped names, visible focus and a selected border that survives forced colors. Preserve the selected row and scroll when rerendering. Counts describe local recipe records and unresolved declarations, never approval or semantic safety. Recovery guidance is concise and adjacent to preview status. Use inert sixteen-output and recovery fixtures for responsive checks; do not turn fixture acceptance into a native support claim.
+
+[Intent](intent.md#ui-c8-recipegraph-inspector-and-edge-cases--november-3-2026) and [development receipt](development.md#ui-c8-recipegraph-inspector-and-edge-cases--november-3-2026) own exact scope and validation.
+
+
+## UI-C7 Compose toolbar and responsive draft layout — November 2, 2026
+
+Use compact 11px tool-group labels, fixed local semantic icons and labeled 44px buttons. Grouped tools wrap instead of horizontal scrolling. The static workflow guide becomes a two-column list on narrow screens and never displays fake completion. Preserve visible focus, forced-color borders, reduced motion and separate saved versus unsaved messaging. Below the 1200px workspace gate, CSS must stack draft panels even before asynchronous layout state updates. Native selects stay within their containing panel.
+
+[Intent](intent.md#ui-c7-compose-task-hierarchy--november-2-2026) and [development receipt](development.md#ui-c7-compose-task-hierarchy--november-2-2026) own exact scope and evidence. This is UI-only; native task qualification remains separate.
+
+
+## UI-C5 reachable Compile setup — November 2, 2026
+
+Keep output format and explicit actions near the selected-revision summary, before long skill/history lists. Preserve exact historical selection, disabled gates, readable-export warnings and the existing three-panel layout. Stale selection recovery belongs beside actions. Desktop Compile should remain visible in the initial viewport; narrow layouts may scroll vertically. This presentation order changes no native behavior. [Actual evidence and open gates](development.md#ui-c5-compile-control-placement--november-2-2026).
+
+## UI-C4 filled color artwork and authentic software marks — November 2, 2026
+
+Full-color presentation supersedes UI-I3's monochrome default. Each of 57 closed names now renders an original layered object with fixed blue/violet/cyan/jade/gold/ember parts and light/cutout details. Documents, modules, tools, storage and connections retain recognizable silhouettes at 16/20/24/40 pixels. The treatment uses meaningful object parts rather than a uniform colored tile behind an unchanged line. Geometry stays in the 24-unit viewBox and uses no ID, URL, filter, script or animation. No icon becomes an independent control or replaces its visible action label.
+
+The renderer includes a color group and the original monochrome path. Normal themes show the color group; forced colors hides it and restores the currentColor outline. Color identifies object family, not a successful check, approval, enforcement, connection, encryption guarantee or live activity. Locked/unlocked geometry and adjacent validated state remain distinct from a material's color. Disabled controls keep their actual disabled semantics and existing control styling. Reduced motion introduces no new animation.
+
+Package authentic marks for agentgateway, Cerbos, Permit and Invariant alongside existing Claude, Rangoon, LNSAT and VUSL. Preserve exact asset bytes, ratio and original color. Gallery software cards use a balanced four/two/one-column layout; white backing may separate native marks from a dark surface without recoloring them. All sources, hashes and trademark attribution remain in the [vendor manifest](../preview/assets/vendors/provenance.json). Permit internal gradient/clip references stay inside the original fixed local SVG image; original Rangoon geometry has no references. Do not accept arbitrary SVG or remote image URLs at runtime. A brand mark does not establish adapter coverage or endorsement.
+
+Fresh visual review of actual normal and forced-color renders passes. Complete browser interaction qualification remains open because of the repeated Lock-input and teardown failures documented in the [receipt](development.md#ui-c4-full-color-artwork-and-software-marks--november-2-2026). Rendered artwork review is not native execution, security or release qualification.
+
+## UI-I3 semantic icon system — November 2, 2026
+
+The closed Foldline catalog now contains 57 unique path-based symbols, including distinct edit, compile, export, lock, unlock, encrypted-storage, readable-file, database, history, restore, copy, filter, folder, terminal, model, agent, API, cloud, network and warning shapes. Existing skill/source/composition symbols remain. Fix callers that request an unsupported size rather than accepting arbitrary sizes: Compose's skill now requests 16 instead of 15; Authority's header requests 40 instead of 34. Static literal-name/size checks supplement the unchanged runtime allowlist; they do not parse arbitrary JavaScript or become a security boundary.
+
+Use 16px action/kicker glyphs, 20px record/panel glyphs, 24px category symbols and 40px empty/recovery symbols. Navigation retains its existing 18px CSS slot. Keep the 24-unit viewBox, 1.75-unit stroke, rounded joins/caps and currentColor; no decorative SVG receives focus or replaces a text name. Preserve 44px interactive targets. Additions have no script, references, external image, animation or user-supplied path. Warm orange denotes active choice or an available primary action; disabled primary actions use neutral surfaces with their actual disabled attribute unchanged. Forced colors uses system text/borders, not a colored glow.
+
+Packaged software marks remain unchanged and identifiable: Rangoon application, Claude text format, LNSAT authority engine and VUSL semantic layer. The gallery separates those marks from generic operation/category icons. It labels identity as distinct from connection, compatibility and authority. Missing vetted marks use generic gateway/policy/guardrail symbols beside product names; do not invent vendor logos or download assets at runtime. All mark provenance and trademark boundaries remain in the existing asset manifests. No new binary/vector vendor asset is introduced by this packet.
+
+The lock symbol means a local lock action or reported locked state. Encrypted-storage symbols follow the existing managed-storage presentation path; fresh setup, unknown, browser and Legacy states must not display a successful encrypted state. Unlock symbols label the explicit unlock action, not proof that content is already open. Readable export and Legacy backup use a different document symbol. Labels and warnings remain authoritative presentation context; icons do not attest host integrity, confidentiality after unlock, export encryption, authentication, approval or enforcement.
+
+Keep abstract glossy Rangoon art subdued and static in task headers; professional flat symbols carry the working hierarchy. Avoid mascot art, constant border animation, motion suggesting live traffic, glowing green security marks and oversized controls. Preserve existing reduced-motion behavior. Review [the local icon gallery](../preview/icon-gallery.html) in both themes, then the real core-route renders. Synthetic review labels must not obscure controls; browser mechanics remain separate from native and actual-user usability qualification.
+
+## UI-T2 tool arrangement — November 2, 2026
+
+Retain shared tokens and the three-panel workbench. Skills action groups use small descriptive headings, three edit controls, then two saved-revision continuations with local explanations. On narrow screens, edit buttons wrap and continuations stack; all button and disclosure targets remain at least 44px. Source creation belongs in the library; help joins the inspector. Active review/origin labels remain visible when filters are closed. The wrapped inspector explicitly resets inherited tablet grid-column placement to avoid implicit empty tracks. No decorative animation, external asset, framework or synthetic progress is added.
+
+The final synthetic browser suite records fourteen theme/viewport profiles and seventeen interaction/media/controller cases, with no overflow and valid inspector width. Its overall PARTIAL result retains actual native-select input as an open qualification gate. The content field starts 19px lower on desktop because explanations moved beside actions; the editor panel itself starts 110px higher. These are measured layout outcomes, not a universal UX improvement claim. Native, physical-display, screen-reader and real-user task evidence remain separate. [Receipt](development.md#ui-t2-task-arrangement-and-interaction-audit--november-2-2026).
+
+## UI-R1 implemented local refinement — November 1, 2026
+
+The Skills editor uses an action row above fields, system type for titles, monospace content, a 180–280 pixel responsive/resizable textarea and consistent hairline panel/field borders. Its primary actions remain at least 44×44 pixels and visible above the fold at tested desktop widths. Compact shared local-task headers use existing restrained abstract artwork and unchanged semantic content. Hover border emphasis is 120 ms only when hover is available and reduced motion is not requested. Forced-colors restores system borders, Canvas and Highlight; no animated border loop is added.
+
+The library/editor/inspector structure and existing responsive fallback remain. Browser QA covers 320/768/1366/1440/1920/3840 logical widths, dark/light, and explicitly recorded DPR 1/2 profiles. These are headless Chrome emulations, not physical display or native-WebView observations. The runner records overflow, action geometry, browser identity, exceptions and console errors while synthetic data remains visibly labeled. [Development receipt](development.md#ui-r1-rendered-workbench-refinement-and-native-rebuild--november-1-2026) owns actual results. Broader operational surfaces, actual saved-result native flows and three-OS qualification are not marked complete by this refinement.
+
+## Current visual direction and acceptance — November 1, 2026
+
+Retain the finished original command-center feel: radials, bars, icons, logos, restrained glossy abstract art, library/work area/right inspector, grouped navigation and dark/light themes. Visual refinement must strengthen this professional surface, not replace it with a marketing mascot or a generic dashboard. Existing route IDs and controls remain stable. The proposed Workspace, Library, Systems and Activity contexts are planning vocabulary only.
+
+Charts are evidence views, never decoration that implies capability. Metric cards state scope, numerator, denominator, source and watermark. Radial segments are disjoint. Desired, installed and effective are independent fields, not additive slices; use explicit effective, installed-only, pending, failed and unknown buckets where applicable. Composition coverage uses exact native-derived units. The renderer never becomes save authority.
+
+Bars show outcomes, latency, queue pressure and cost with explicit definitions: latency includes sample window, sample count and failure treatment; queues show age, depth/capacity and delayed/rejected counts; costs distinguish actual, reserved, estimated and unknown values with currency and period. Every bar supports table or inspector drilldown to the underlying scope and freshness. No invented progress, packet animation, fake compliance/readiness or unlabeled synthetic activity.
+
+Use packaged marks only: `preview/assets/authority/lnsat-mark.webp`, `preview/assets/foundations/vusl-logo.png` and the compact SVG catalog in `preview/icons.mjs`. Logos identify assets and provenance; they never imply support, permission, approval or runtime integration. Do not add external untrusted SVG/HTML or runtime asset fetches. Finish loading, empty, stale, partial, denied, error, unknown and recovery states with shared typography/tokens, subtle real-state transitions, reduced-motion, forced-colors, keyboard/touch access and text alternatives.
+
+Required viewport matrix remains 320, 768 and 1440 in dark and light. Add 1366×768 and 1920×1080 profiles, plus actual 4K profiles when available. Record logical viewport and scale/DPR for each 4K observation; do not confuse physical pixels with CSS layout. This update accepts design requirements only. Future implementation requires source/rendered evidence plus separate native/runtime qualification. The [enterprise custody boundary](application-architecture.md#enterprise-operation-and-custody-boundaries--november-1-2026), [next-phase packets](plan.md#next-phase-packets--november-1-2026) and [direction reconciliation](development.md#direction-reconciliation--november-1-2026) own cross-document sequencing and receipts.
 
 ## UI-V2 mature workbench art and hierarchy
 

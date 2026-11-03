@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { catalogKeys, icon } from '../preview/icons.mjs';
+import { COLOR_ICON_NAMES } from '../preview/color-icon-artwork.mjs';
+
+assert.deepEqual(COLOR_ICON_NAMES, catalogKeys, 'Color and forced-color fallback catalogs must agree.');
 
 // Validate the assets that actually ship, including closed-input SVG boundaries.
 const sizes = [16, 20, 24, 40];
@@ -17,6 +20,8 @@ for (const name of catalogKeys) {
     assert.match(output, /viewBox="0 0 24 24"/);
     assert.match(output, /aria-hidden="true" focusable="false"/);
     assert.match(output, /stroke="currentColor"/);
+    assert.match(output, /class="foldline-color"/);
+    assert.match(output, /class="foldline-monochrome"/);
     assert.doesNotMatch(output, /<(?:script|image|foreignObject|use)\b|\bon\w+\s*=|\bhref\s*=|url\(/i);
   }
 }
@@ -26,6 +31,21 @@ for (const name of ['__proto__', 'constructor', '<svg onload="alert(1)">', '', n
 for (const size of [0, 17, -20, '20', '20" onload="alert(1)', null, Infinity]) {
   assert.equal(icon('command', { size }), '', 'Only supported numeric sizes may enter markup.');
 }
+// Static literal call-site audit supplements the runtime allowlist; it is not
+// an SVG parser or a security boundary for arbitrary JavaScript expressions.
+let fixedSizeCalls = 0;
+for (const file of await readdir(new URL('../preview/', import.meta.url))) {
+  if (!file.endsWith('.mjs')) continue;
+  const source = await readFile(new URL(`../preview/${file}`, import.meta.url), 'utf8');
+  for (const match of source.matchAll(/\bicon\([^;\n]{0,160}?\bsize:\s*(\d+)\s*}/g)) {
+    assert.ok(sizes.includes(Number(match[1])), `Unsupported literal icon size ${match[1]} in ${file}`);
+    fixedSizeCalls++;
+  }
+  for (const match of source.matchAll(/\bicon\(\s*(['"])([a-z]+)\1/g)) {
+    assert.ok(catalogKeys.includes(match[2]), `Unknown literal icon ${match[2]} in ${file}`);
+  }
+}
+assert.ok(fixedSizeCalls > 0, 'Icon call-site audit must inspect real callers.');
 const manifest = JSON.parse(await readFile(new URL('../docs/visual-assets.json', import.meta.url)));
 for (const asset of manifest.assets) {
   const bytes = await readFile(new URL(`../${asset.path}`, import.meta.url));
@@ -39,4 +59,4 @@ for (const asset of manifest.assets) {
     assert.ok(bytes.length < (asset.transparent ? 1_200_000 : 1_900_000), 'Decorative artwork exceeds its reviewed byte budget.');
   }
 }
-console.log(`PASS: ${catalogKeys.length} unique icons × ${sizes.length} sizes, invalid inputs, and ${manifest.assets.length} asset hashes.`);
+console.log(`PASS: ${catalogKeys.length} unique icons × ${sizes.length} sizes, invalid inputs, ${fixedSizeCalls} literal-size callers, and ${manifest.assets.length} asset hashes.`);

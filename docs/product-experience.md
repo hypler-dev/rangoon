@@ -1,5 +1,78 @@
 # Product experience: make the visual promise useful
 
+
+
+## UI-C8 output-focused inspector — November 3, 2026
+
+The shared Recipe/Graph inspector presents bounded output navigation, counts and the existing working-selection context. Choosing a record opens the corresponding Recipe fields with title focus; it does not modify content or assign ranges. Output-list scroll and unapplied authored text survive navigation. Long names remain readable through wrapping. Failed actions retain the draft and point to the existing message; preview diagnostics and explicit save acknowledgement stay visible.
+
+[Intent](intent.md#ui-c8-recipegraph-inspector-and-edge-cases--november-3-2026) and [development receipt](development.md#ui-c8-recipegraph-inspector-and-edge-cases--november-3-2026) own exact scope and validation.
+
+
+## UI-C7 task-oriented Compose controls — November 2, 2026
+
+Keep one compact static workflow guide above the editing surface. Separate view switching, edit history, workspace layout and destructive draft actions into named groups. Keep review and Save together below the work area, with exact preview content, diagnostics and acknowledgement visible. Technical explanations belong in existing inspector details; selected inputs, reasons, annotations and error recovery remain in context. Narrow drafts stack panels and fit revision selectors without clipped controls.
+
+[Intent](intent.md#ui-c7-compose-task-hierarchy--november-2-2026) and [development receipt](development.md#ui-c7-compose-task-hierarchy--november-2-2026) own exact scope and evidence. This is UI-only; native task qualification remains separate.
+
+
+## UI-C5 reachable Compile setup — November 2, 2026
+
+Keep output format and explicit actions near the selected-revision summary, before long skill/history lists. Preserve exact historical selection, disabled gates, readable-export warnings and the existing three-panel layout. Stale selection recovery belongs beside actions. Desktop Compile should remain visible in the initial viewport; narrow layouts may scroll vertically. This presentation order changes no native behavior. [Actual evidence and open gates](development.md#ui-c5-compile-control-placement--november-2-2026).
+
+## UI-C4 full-color object and software identity — November 2, 2026
+
+Jeff requests richer full-color icons. Daily work now uses filled layered objects with stable family colors, preserving labels, exact action meaning and neutral unavailable states. Software identity remains separate from operation symbols: original local vendor marks identify named products, while capabilities and connection states come from existing application data. All current catalog families have vetted local marks; no new adapter becomes supported by this presentation change.
+
+The gallery presents the complete icon catalog and eight software identities. Forced colors switches to the original monochrome shapes. No framework, decorative motion, live-traffic animation or new operation is added. [Visual mechanics](visual-system.md#ui-c4-filled-color-artwork-and-authentic-software-marks--november-2-2026) and [actual validation limits](development.md#ui-c4-full-color-artwork-and-software-marks--november-2-2026) govern this refinement. Existing organizational recommendations remain next work; source/visual completion does not close browser Lock or native qualification.
+
+## UI-I3 inspected organization and visual direction — November 2, 2026
+
+The second pass inspected actual synthetic Skills, historical Compose, Compile, conflict, responsive and accessibility screenshots plus current renderers and local assets. The existing library/editor/inspector structure is worth retaining. The strongest remaining organizational issues are Compile's primary action below the initial viewport, Compose's weak minimum-input guidance, and competing conflict messages. These are prioritized follow-up recommendations, not completed workflow changes. Keep critical plaintext/export and recovery warnings visible at the relevant decision; an advanced fold must not hide a consequential warning.
+
+Use one coherent vocabulary for four visual roles: record types (source, skill, workflow, revision), actions (edit, save, compose, compile, export), operational states (locked, readable, encrypted, unknown, warning), and software identities. Action icons remain beside labels; a software mark never substitutes for an action or an availability label. Software without a vetted local mark uses a generic category glyph beside its exact name. LNSAT/VUSL remain independent; Claude identifies a text format only, and AGENTS.md keeps a generic document symbol.
+
+Delivered UI-I3 work adds semantic icons and grouped icon/software review, fixes two silently absent glyphs caused by unsupported sizes, aligns existing actions, and neutralizes disabled primary buttons. It changes no operation predicate, persistence, connection, export or authority behavior. The [receipt](development.md#ui-i3-semantic-icons-and-visual-organization--november-2-2026) owns actual tests and open qualification gates.
+
+Next arrangement changes should be small and testable: put Compile's current-revision/profile/action summary together; show Compose's required/pinned count beside Start draft; make conflict recovery one clearly identified action zone while retaining detailed error context; add a compact persistent selected-record/revision context before expanding system administration. Graphs should use the same flat entity symbols and exact labeled connections as lists; 3D remains an optional inspection view, not the only editor. Do not replace useful whitespace with fake activity, invented charts or decorative system nodes.
+
+Recommended next information-architecture experiment: expose Decompose/Merge/Split as modes under one Compose entry while preserving the existing routes, per-operation drafts and exact input rules. This is proposed navigation, not delivered consolidation. Keep selected-folder metadata clearly separate from saved workspace copies; searching a folder must not imply content inspection or permission to reopen paths. A persistent selected record/revision context should identify what will be acted on, with output format kept distinct from an actually connected target. Daily tools and Systems/Advanced remain separate without hiding unresolved errors or unavailable-operation reasons.
+
+
+## Current direction and acceptance — November 1, 2026
+
+This is the current product-experience direction for the next planning phases. It preserves the existing library/work-area/right-inspector workbench, route IDs, grouped navigation, dark/light themes and abstract glossy Rangoon art. Marketing mascot art remains secondary. The proposed contexts are Workspace, Library, Systems and Activity; they are information-architecture proposals, not an implemented replacement shell. The canonical custody boundary is [enterprise operation and custody boundaries](application-architecture.md#enterprise-operation-and-custody-boundaries--november-1-2026), and packet sequencing is in [next-phase packets](plan.md#next-phase-packets--november-1-2026).
+
+Task continuity is project- and target-oriented. Every handoff carries the exact source, revision and target. Older-scope drafts remain available; navigation never silently retargets, auto-saves, runs or changes a selected target. Proposed target preparation stays distinct from effective-configuration readback. Any future enterprise operation scopes action at organization, workspace, project, environment, region and target levels. Immutable target sets, policy pins and artifact pins are recorded before approval; each target reports its own outcome and freshness. Credential references are shown only as references. Simple and advanced density change presentation, never authority.
+
+The next phase may make real local work easier to find and recover, but it must not invent fleet progress, packet animation, compliance/readiness claims or provider support. State coverage includes loading, empty, stale, partial, denied, error, unknown and recovery. Each state says what remains usable and the next safe action. Shared typography and tokens govern these states; real-state transitions stay subtle, with reduced-motion, forced-colors, keyboard, touch and text alternatives preserved.
+
+Acceptance for this direction is documentation and planning acceptance only. It does not accept source implementation, a replacement IA, rendered UI quality or native/runtime qualification. Root records reconciliation in [direction reconciliation](development.md#direction-reconciliation--november-1-2026). Future implementation must preserve existing route and control semantics, prove each target/state with source and rendered evidence, and keep unsupported or unqualified behavior visibly unavailable.
+
+## UI-T2 task grouping and usability evidence — November 2, 2026
+
+Keep daily work in four places: library finds/creates, editor changes a revision, Use saved revision continues to Compose/Compile, and inspector explains origin/history. Search is always visible; Review/Origin/Clear use a keyboard-accessible native disclosure whose closed summary names active facets. Retain deliberate open/closed state through rerenders/navigation and reset it on workspace purge. Filtering never closes or replaces the selected editor. No-match and failure states keep existing work and offer recovery. Conflict reload belongs before editable content. Term help remains available with the inspector.
+
+Place each disabled/recovery explanation beside its action. Preserve action IDs, exact historical pinning, save/review gates, local-review scope and explicit confirmation. Grouping does not grant authority or run the next operation. Narrow layouts scroll; desktop preserves library/editor/inspector. Completed browser assertions are mechanics evidence, not a user study: the final run is PARTIAL because native-select input remains open. [Receipt](development.md#ui-t2-task-arrangement-and-interaction-audit--november-2-2026) records measurements and known tradeoffs. Next assess Compose input prerequisites and Compile→Export hierarchy, then test complete task success with real native persistence and disposable data.
+
+## UI-R1 compact daily editing — November 1, 2026
+
+Skills revision actions sit directly below the selected revision header, before Title and Content. Keep the complete existing action block, IDs, gating and descriptions. Group the five actions into two readable rows on desktop and wrap them on narrow layouts with at least 44-pixel targets. Saved, dirty, historical, pending and conflict states keep their existing meaning. The textarea scales from 180 to 280 pixels and remains vertically resizable; title text uses the shared system font, content remains monospace.
+
+Local-task headers reserve less space for existing abstract art. Compress closed source/help disclosures without hiding their text or error/recovery states. Retain library/editor/provenance hierarchy, theme-aware borders, clear keyboard focus and restrained hover emphasis. At 1366×768 the actions and beginning of content must be visible without scrolling; narrow views may scroll vertically, never horizontally. Browser fixtures stay visibly synthetic. Rendered evidence now covers the named local cases; native encrypted and OS qualification remain separate. [Receipt](development.md#ui-r1-rendered-workbench-refinement-and-native-rebuild--november-1-2026).
+
+## NEXT-02b inspect the exact saved output — November 1, 2026
+
+A saved composition output opens its exact saved revision in Skills after successful native readback. The editor heading receives focus only when the selected capability and viewed revision match. A newer saved head never silently replaces the composition result. Missing or changed results, failed reads and unavailable/busy states retain the current workbench and explain the next step. Same-skill unsaved edits must be saved or discarded first; other drafts remain available.
+
+Result controls carry both identities, disable during opening and stop after disposal. Navigation, receipt invalidation and Lock reject stale completion. This continuation does not save, review, compile, export or execute. Source tests cover identity/focus decisions and lifecycle handling; rendered keyboard/pointer, theme/viewport/reduced-motion and native encrypted qualification remain open. [Development receipt](development.md#next-02b-exact-saved-result-continuation--november-1-2026) owns evidence.
+
+## NEXT-02a saved skill into Compose — November 1, 2026
+
+**Add to Compose** carries the exact selected saved revision from Skills into the existing Compose workbench, after an existing native read validates the returned identity. Historical revisions remain pinned. The user chooses another input and starts a draft explicitly; navigation creates no composition, preview, save, review, export or execution.
+
+Keep skill edits and other work intact. Same-skill unsaved edits, conflict, unavailable/busy state, an existing Compose draft, duplicate pin and full input selection disable adding with an explanation. **Open Compose** remains available to continue retained work. Navigation, selection/edit changes and Lock discard late handoff replies. Failed reads keep the user in Skills and retain previous Compose work. Existing theme, button and heading-focus patterns apply. Source tests are complete; actual rendered keyboard/pointer/layout/Lock behavior remains unassessed until UI control is available. [Development receipt](development.md#next-02a-saved-revision-compose-handoff--november-1-2026) records evidence and remaining work.
+
 ## CW-1 saved-revision continuation — October 29, 2026
 
 Skills gains **Open in Compile** beside its saved-revision actions. It opens that exact saved revision, including a selected historical revision, in the existing Compile workbench and focuses the selected revision/profile area after loading. Choose the format and compile explicitly there; nothing is compiled, exported or executed by navigation.

@@ -210,3 +210,11 @@ summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: -3px; }
   .term-help summary, .term-help__definitions dt, .term-help__definitions dd { color: CanvasText; }
   .term-help summary:focus-visible { outline-color: Highlight; }
 }
+
+/* Original filled object artwork; color identifies object family, never authority. */
+.foldline-icon>.foldline-monochrome{display:none}
+.foldline-icon>.foldline-color{display:inline}
+@media(forced-colors:active){
+  .foldline-icon>.foldline-color{display:none}
+  .foldline-icon>.foldline-monochrome{display:inline}
+}

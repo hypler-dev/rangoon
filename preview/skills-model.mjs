@@ -285,18 +285,21 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
         message: state.needsReload ? 'Local edits discarded. Reload current before saving or reviewing.' : 'Unsaved edits discarded. Saved revision remains unchanged.' });
       return true;
     },
-    async open(capabilityId, revisionId = null, { preserveDraft = null } = {}) {
-      if (unavailable() || state.pending || !id(capabilityId, 'capability:') || (revisionId !== null && !id(revisionId, 'revision:'))) return;
+    async open(capabilityId, revisionId = null, { preserveDraft = null, isCurrent = () => true } = {}) {
+      if (!isCurrent() || unavailable() || state.pending || !id(capabilityId, 'capability:') || (revisionId !== null && !id(revisionId, 'revision:'))) return false;
+      const prior = { pending: state.pending, error: state.error, message: state.message };
       const localRequest = ++actionEpoch;
       const identity = workspaceIdentity;
       openingCapabilityId = capabilityId;
       set({ pending: 'open', error: null, message: 'Opening local capability…' });
-      if (identity !== workspaceIdentity) return;
+      if (identity !== workspaceIdentity || localRequest !== actionEpoch) return false;
+      if (!isCurrent()) { openingCapabilityId = null; set(prior); return false; }
       const result = await call('open_capability', { capabilityId, revisionId });
-      if (identity !== workspaceIdentity || localRequest !== actionEpoch) return;
+      if (identity !== workspaceIdentity || localRequest !== actionEpoch) return false;
       openingCapabilityId = null;
+      if (!isCurrent()) { set(prior); return false; }
       const opened = acceptOpened(result, 'open');
-      if (!opened || opened.detail.id !== capabilityId || opened.detail.revision.id !== (revisionId ?? opened.detail.latestRevisionId)) { set({ pending: null, error: failure(result), message: failure(result).message }); return; }
+      if (!opened || opened.detail.id !== capabilityId || opened.detail.revision.id !== (revisionId ?? opened.detail.latestRevisionId)) { set({ pending: null, error: failure(result), message: failure(result).message }); return false; }
       const latest = opened.detail.latestRevisionId;
       const historical = opened.detail.revision.id !== latest;
       if (!historical && preserveDraft) {
@@ -307,6 +310,7 @@ export function createSkillsController({ invoke, onChange = () => {} } = {}) {
       } else if (!historical) selectDraft(opened.detail);
       const staleDraft = !historical && state.draft?.baseRevisionId !== latest;
       set({ selected: opened.detail, viewedRevisionId: opened.detail.revision.id, pending: null, needsReload: staleDraft, error: null, message: staleDraft ? 'A newer revision is available. Reload current to compare your retained draft before saving.' : historical ? 'Historical revision open. Return to current before saving or reviewing.' : preserveDraft ? 'Current revision reloaded. Draft retained; compare the saved revision before saving.' : 'Current skill open.' });
+      return true;
     },
     async reloadCurrent() {
       if (unavailable() || state.pending || !state.selected) return;

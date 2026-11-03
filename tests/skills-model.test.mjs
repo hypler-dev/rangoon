@@ -388,3 +388,22 @@ test('pending and historical views refuse discard without changing the retained 
   release(); await opening; assert.equal(controller.discardDraft(expected), false);
   await controller.open(capabilityId); assert.equal(controller.getState().draft.content, 'Retained current');
 });
+
+test('guarded open rejects reentrant cancellation before native dispatch', async () => {
+  let active = true;
+  const controller = createSkillsController({ invoke: () => assert.fail('no read'), onChange: state => { if (state.pending === 'open') active = false; } });
+  const before = controller.getState();
+  assert.equal(await controller.open(capabilityId, revisionId, { isCurrent: () => active }), false);
+  assert.deepEqual(controller.getState(), before);
+});
+
+test('guarded open retains existing selection and dirty draft when a late reply is cancelled', async () => {
+  let release, delay = false;
+  const controller = createSkillsController({ invoke: async () => delay ? new Promise(resolve => { release = resolve; }) : { outcome: 'opened', capability: detail(), alreadyApplied: false } });
+  assert.equal(await controller.open(capabilityId, revisionId), true);
+  controller.updateDraft({ content: 'Keep the local draft\n' }); const before = controller.getState(); delay = true;
+  let active = true;
+  const waiting = controller.open(capabilityId2, revisionId, { isCurrent: () => active });
+  active = false; release({ outcome: 'opened', capability: detail({ id: capabilityId2 }), alreadyApplied: false });
+  assert.equal(await waiting, false); assert.deepEqual(controller.getState(), before);
+});

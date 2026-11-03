@@ -33,7 +33,7 @@ export function renderWorkspaceGuard(state = {}) {
   const status = statusOf(state);
   const canLock = status === 'open' && state?.canLock === true;
   const message = canLock
-    ? 'Managed workspace protection is open.'
+    ? 'Encrypted workspace is unlocked.'
     : status === 'browser'
       ? 'Browser preview has no native workspace lock.'
       : status === 'legacy'
@@ -49,11 +49,12 @@ export function renderWorkspaceGuard(state = {}) {
                 : status === 'recovery_required'
                   ? 'Workspace recovery is required.'
                   : 'Workspace lock is unavailable.';
-  return `<section class="workspace-guard" data-workspace-guard aria-label="Workspace protection"><p class="workspace-guard__status" role="status">${message}</p>${canLock ? '<button id="workspace-lock-open" class="workspace-guard__lock" type="button" data-workspace-lock-open>Lock workspace</button>' : ''}</section>`;
+  const stateIcon = canLock ? 'encrypted' : status === 'legacy' ? 'plaintext' : status === 'locked' ? 'lock' : 'unknown';
+  return `<section class="workspace-guard" data-workspace-guard aria-label="Workspace protection"><p class="workspace-guard__status" role="status">${icon(stateIcon, { size: 16 })}<span>${message}</span></p>${canLock ? `<button id="workspace-lock-open" class="workspace-guard__lock" type="button" data-workspace-lock-open>${icon('lock', { size: 16 })}Lock workspace</button>` : ''}</section>`;
 }
 
 export function renderWorkspaceLockDialog() {
-  return '<dialog id="workspace-lock-dialog" class="workspace-lock-dialog" aria-labelledby="workspace-lock-dialog-title" aria-describedby="workspace-lock-dialog-description"><section><p class="workspace-lock-dialog__eyebrow">WORKSPACE PROTECTION</p><h2 id="workspace-lock-dialog-title">Lock workspace?</h2><p id="workspace-lock-dialog-description">Unsaved drafts and window history will be discarded. Writes already begun may have completed.</p><div class="workspace-lock-dialog__actions"><button id="workspace-lock-cancel" type="button" data-workspace-lock-cancel autofocus>Cancel</button><button id="workspace-lock-confirm" type="button" data-workspace-lock-confirm>Lock and discard</button></div></section></dialog>';
+  return `<dialog id="workspace-lock-dialog" class="workspace-lock-dialog" aria-labelledby="workspace-lock-dialog-title" aria-describedby="workspace-lock-dialog-description"><section><p class="workspace-lock-dialog__eyebrow">WORKSPACE PROTECTION</p><h2 id="workspace-lock-dialog-title">Lock workspace?</h2><p id="workspace-lock-dialog-description">Unsaved drafts and window history will be discarded. Writes already begun may have completed.</p><div class="workspace-lock-dialog__actions"><button id="workspace-lock-cancel" type="button" data-workspace-lock-cancel autofocus>Cancel</button><button id="workspace-lock-confirm" type="button" data-workspace-lock-confirm>${icon('lock', { size: 16 })}Lock and discard</button></div></section></dialog>`;
 }
 
 export function workspaceCloseAnnouncement(state = {}) {
@@ -109,10 +110,10 @@ export function renderWorkspaceCloseShell(state = {}, { theme = 'dark', quitAvai
   const themeLabel = theme === 'light' ? 'Dark mode' : 'Light mode';
   const recovery = status === 'recovery_required' || (status === 'protection' && state.layout === 'recovery_required');
   const fresh = status === 'protection' && state.canProtect === true && state.layout === 'absent';
-  const button = protect ? `<button class="workspace-protection-action" type="button" data-workspace-protection-action${quitPending ? ' disabled' : ''}>${title}</button>` : '';
+  const button = protect ? `<button class="workspace-protection-action" type="button" data-workspace-protection-action${quitPending ? ' disabled' : ''}>${icon(fresh ? 'database' : 'unlock', { size: 16 })}${title}</button>` : '';
   const quit = quitAvailable && canRequestQuit(state) ? `<button class="workspace-close-quit" type="button" data-workspace-close-quit${quitPending ? ' disabled' : ''}>${quitPending ? 'Quitting Rangoon…' : 'Quit Rangoon'}</button>` : '';
   const quitNotice = quitFailed && quit ? '<p role="status">Rangoon could not quit. You can try Quit again.</p>' : '';
   const guidance = recovery ? '<p class="workspace-close-recovery">If operating-system account or credential-store access changed, restore access to the original account or store, then reopen Rangoon. If the original key is unavailable, Rangoon cannot replace it. This guidance does not repair damaged workspace files.</p>' : '';
   const details = fresh ? '<dl><div><dt>Storage</dt><dd>Encrypted workspace</dd></div><div><dt>Phase</dt><dd>Fresh setup</dd></div><div><dt>Original copy</dt><dd>No original copy is part of this setup.</dd></div><div><dt>Portable backup</dt><dd>Encrypted portable backup unavailable.</dd></div></dl>' : '<p>Protection uses native desktop storage. Exports can remain readable outside this window. Legacy storage is not encrypted. Recovery controls are not available in this window.</p>';
-  return `<div class="analysis-shell workspace-close-shell" data-workspace-close="${status}" data-workspace-layout="${protect ? state.layout : 'none'}" data-workspace-pending="${state?.pending === true || quitPending ? 'true' : 'false'}"><aside class="analysis-rail workspace-close-rail"><div class="analysis-brand workspace-close-brand"><img src="assets/brand-symbol.png" alt=""><span>Rangoon.si</span></div><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme', { size: 16 })}<span>${themeLabel}</span></button></aside><main id="analysis-main" class="workspace-close-main"><section class="workspace-close-card" aria-labelledby="workspace-close-title" aria-busy="${quitPending}"><p class="workspace-close-card__eyebrow">WORKSPACE PROTECTION</p><h1 id="workspace-close-title" tabindex="-1">${title}</h1><p>${copy}</p>${guidance}<div class="workspace-close-actions">${button}${quit}</div>${quitNotice}<details class="workspace-close-help"><summary>${fresh ? 'Details' : 'Technical details'}</summary>${details}</details></section></main></div>`;
+  return `<div class="analysis-shell workspace-close-shell" data-workspace-close="${status}" data-workspace-layout="${protect ? state.layout : 'none'}" data-workspace-pending="${state?.pending === true || quitPending ? 'true' : 'false'}"><aside class="analysis-rail workspace-close-rail"><div class="analysis-brand workspace-close-brand"><img src="assets/brand-symbol.png" alt=""><span>Rangoon.si</span></div><button id="analysis-theme" class="analysis-theme" type="button">${icon('theme', { size: 16 })}<span>${themeLabel}</span></button></aside><main id="analysis-main" class="workspace-close-main"><section class="workspace-close-card" aria-labelledby="workspace-close-title" aria-busy="${quitPending}"><span class="workspace-close-card__symbol">${icon(recovery ? 'warning' : fresh ? 'database' : status === 'locked' || state.layout === 'locked' ? 'lock' : 'unknown', { size: 40 })}</span><p class="workspace-close-card__eyebrow">WORKSPACE PROTECTION</p><h1 id="workspace-close-title" tabindex="-1">${title}</h1><p>${copy}</p>${guidance}<div class="workspace-close-actions">${button}${quit}</div>${quitNotice}<details class="workspace-close-help"><summary>${fresh ? 'Details' : 'Technical details'}</summary>${details}</details></section></main></div>`;
 }

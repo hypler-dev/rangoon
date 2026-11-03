@@ -34,7 +34,13 @@ test('provider distinctions keep products and privacy modes separate', () => {
   assert.match(byId['invariant-remote'].limitations, /no automatic local-to-remote fallback/i);
   assert.match(byId.lnsat.limitations, /separate A1 diagnostic seams/i);
   assert.equal(byId.lnsat.logoPath, 'assets/authority/lnsat-mark.webp');
-  assert.equal(byId.permit.logoPath, null);
+  assert.equal(byId.permit.logoPath, 'assets/vendors/permit-mark.svg');
+  assert.equal(byId['permit-fastmcp'].logoPath, byId.permit.logoPath);
+  assert.equal(byId['permit-mcp-gateway'].logoPath, byId.permit.logoPath);
+  assert.equal(byId.agentgateway.logoPath, 'assets/vendors/agentgateway-mark.svg');
+  assert.equal(byId.cerbos.logoPath, 'assets/vendors/cerbos-mark.png');
+  assert.equal(byId['invariant-local'].logoPath, 'assets/vendors/invariant-mark.png');
+  assert.equal(byId['invariant-remote'].logoPath, byId['invariant-local'].logoPath);
   assert.ok(byId.lnsat.areas.some(area => area.id === 'engine'));
 });
 
