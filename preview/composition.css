@@ -65,3 +65,48 @@
 .composition-page .composition-source-text { height: clamp(180px, 28vh, 320px); }
 .composition-range-more > [data-composition-return-range] { margin: 0 12px 10px; }
 .composition-range-more > [data-composition-range-binding] { padding: 10px 12px; border-top: 1px solid var(--orange); color: var(--ink); }
+
+/* Task hierarchy: static guide, grouped tools, visible review and save controls. */
+.composition-guide{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 10px;padding:8px 12px;list-style:none;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--muted);font-size:11px}
+.composition-guide li{display:flex;align-items:center;gap:6px;min-width:0}
+.composition-guide li:not(:last-child)::after{content:'→';margin-left:10px;color:var(--muted)}
+.composition-tabs{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px 14px;overflow:visible;padding:10px 12px}
+.composition-tabs .composition-tool-group{display:flex;flex-direction:column;gap:5px;min-width:0;width:auto;order:0}
+.composition-tool-label{color:var(--muted);font-size:10px;line-height:1.4}
+.composition-tool-group>div{display:flex;flex-wrap:wrap;gap:5px}
+.composition-tabs .composition-draft-tools{margin-left:auto}
+.composition-tabs button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;max-width:100%;white-space:normal}
+.composition-views button{padding:8px 11px;border:1px solid var(--line);border-radius:5px;background:transparent;color:var(--ink);font:inherit;font-size:11px;cursor:pointer}
+.composition-views button[aria-pressed=true]{background:color-mix(in srgb,var(--orange) 12%,var(--surface));border-color:var(--orange);color:var(--orange)}
+.composition-views button:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.composition-save-controls{padding:12px 15px;border-top:1px solid var(--line)}
+.composition-save-controls h3{margin:0 0 8px;font-size:13px}
+.composition-save-controls .composition-ack{padding:0 0 12px}
+.composition-save-controls #composition-save{margin:0;min-height:44px}
+@media(max-width:767px){.composition-tabs .composition-draft-tools{margin-left:0}.composition-tabs .composition-history .analysis-button{flex:0 1 auto}.composition-guide{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.composition-guide li::after{display:none}}
+@media(forced-colors:active){.composition-guide,.composition-save-controls{border-color:CanvasText}.composition-views button[aria-pressed=true]{border-color:Highlight;color:Highlight;background:Canvas}.composition-views button:focus-visible{outline-color:Highlight}}
+/* Viewport fallback must win before asynchronous workspace resize state catches up. */
+@media(max-width:1199px){.composition-page .composition-workbench{grid-template-columns:minmax(0,1fr)}}
+.composition-inputs li>div:first-child{min-width:0;max-width:100%}
+.composition-revision-choice{display:grid;gap:4px;min-width:0;max-width:100%;font-size:11px}
+.composition-revision-choice select{width:100%;min-width:0;max-width:100%;min-height:44px}
+.composition-working-selection details>summary{display:list-item;min-height:44px;cursor:pointer}
+.composition-working-selection details>summary:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+
+/* Inspector navigation selects an existing output; it never edits or commits it. */
+.composition-inspector-outputs{padding:12px 14px;border-bottom:1px solid var(--line)}
+.composition-inspector-outputs h3{margin:0 0 6px;font-size:13px}
+.composition-inspector-outputs>p{margin:0 0 8px;color:var(--muted);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.composition-output-navigator{display:grid;gap:5px;max-height:260px;overflow:auto;scrollbar-gutter:stable}
+.composition-output-navigator button{display:grid;gap:3px;min-height:44px;min-width:0;padding:8px 10px;border:1px solid var(--line);border-radius:5px;background:var(--raised);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.composition-output-navigator :is(span,small){color:var(--muted);font-size:10px}
+.composition-output-navigator strong{font-size:11px;font-weight:600;overflow-wrap:anywhere}
+.composition-output-navigator button[aria-pressed=true]{border-color:var(--orange);border-left-width:3px}
+.composition-output-navigator button:focus-visible{outline:2px solid var(--orange);outline-offset:-3px}
+.composition-output-navigator button:disabled{cursor:default;opacity:.6}
+.composition-page :is(.composition-output,.composition-graph__output,.composition-working-selection,.composition-conflicts article){min-width:0;overflow-wrap:anywhere}
+.composition-page :is(.composition-output,.composition-graph__output) header>div{min-width:0}
+.composition-page :is(.composition-output-title,.composition-graph__output-title){overflow-wrap:anywhere}
+.composition-page .composition-conflicts :is(input,textarea){min-width:0;max-width:100%;width:100%}
+.composition-recovery-hint{margin:0;padding:10px 15px;color:var(--ink);font-size:12px;border-left:3px solid var(--orange);background:var(--raised)}
+@media(forced-colors:active){.composition-output-navigator button[aria-pressed=true]{border-color:Highlight}.composition-output-navigator button:focus-visible{outline-color:Highlight}.composition-recovery-hint{border-color:Highlight}}

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { renderSkillsView, getSkillsEditorPresentation, skillsDiscardMatches, syncSkillsEditorChrome } from '../preview/skills-view.mjs';
 import { EMPTY_SKILLS_STATE } from '../preview/skills-model.mjs';
 
+const withoutIcons = html => html.replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/g, '');
+
 const capabilityId = `capability:${'3'.repeat(64)}`;
 const revisionId = `revision:${'4'.repeat(64)}`;
 const sourceId = `source:${'1'.repeat(64)}`;
@@ -103,12 +105,12 @@ test('typing updates editor chrome in place without assigning HTML or changing f
 
 test('saved revision continuation is contextual, escaped and disabled for dirty or conflicting state', () => {
   const saved = editorState();
-  assert.match(renderSkillsView(saved), /id="skills-open-compile"[^>]*>Open in Compile/);
+  assert.match(withoutIcons(renderSkillsView(saved)), /id="skills-open-compile"[^>]*>Open in Compile/);
   assert.doesNotMatch(renderSkillsView(saved), /id="skills-open-compile"[^>]*disabled/);
   for (const state of [{ ...saved, draft: { ...saved.draft, dirty: true } }, { ...saved, pending: 'save' }, { ...saved, needsReload: true }, { ...saved, bridgeAvailable: false }]) {
     assert.match(renderSkillsView(state), /id="skills-open-compile"[^>]*disabled/);
   }
-  assert.match(renderSkillsView(saved, { compileHandoff: { pending: true } }), /id="skills-open-compile"[^>]*disabled[^>]*>Opening/);
+  assert.match(withoutIcons(renderSkillsView(saved, { compileHandoff: { pending: true } })), /id="skills-open-compile"[^>]*disabled[^>]*>Opening/);
   assert.match(renderSkillsView(saved, { compileHandoff: { error: '<bad>' } }), /&lt;bad&gt;/);
   const nodes = new Map([['#skills-open-compile', { disabled: false }], ['#skills-compile-help', { textContent: '' }]]);
   const root = { querySelector: selector => nodes.get(selector) };
@@ -123,7 +125,7 @@ test('Compose continuation exposes a bounded saved-input action and preserves a 
   const destination = { operation: 'merge', bridgeAvailable: true, pending: null, draft: null, inputs: [] };
   const options = { composeHandoff: { composition: destination } };
   const html = renderSkillsView(saved, options);
-  assert.match(html, /id="skills-open-compose"[^>]*aria-describedby="skills-compose-help"[^>]*>Add to Compose/);
+  assert.match(withoutIcons(html), /id="skills-open-compose"[^>]*aria-describedby="skills-compose-help"[^>]*>Add to Compose/);
   assert.doesNotMatch(html, /id="skills-open-compose"[^>]*disabled/);
   assert.match(html, /href="#merge">Open Compose/);
   for (const changed of [{ ...saved, draft: { ...saved.draft, dirty: true } }, { ...saved, needsReload: true }, { ...saved, pending: 'save' }]) {
@@ -132,7 +134,7 @@ test('Compose continuation exposes a bounded saved-input action and preserves a 
   assert.match(renderSkillsView(saved, { composeHandoff: { composition: { ...destination, draft: {} } } }), /draft is open/);
   assert.match(renderSkillsView(saved), /id="skills-open-compose"[^>]*disabled/);
   assert.match(renderSkillsView(saved, { composeHandoff: { ...options.composeHandoff, error: '<bad>' } }), /&lt;bad&gt;/);
-  assert.match(renderSkillsView(saved, { composeHandoff: { ...options.composeHandoff, pending: true } }), /id="skills-open-compose"[^>]*disabled[^>]*>Opening/);
+  assert.match(withoutIcons(renderSkillsView(saved, { composeHandoff: { ...options.composeHandoff, pending: true } })), /id="skills-open-compose"[^>]*disabled[^>]*>Opening/);
   assert.match(renderSkillsView(saved, { ...options, compileHandoff: { pending: true } }), /id="skills-open-compose"[^>]*disabled/);
   assert.match(renderSkillsView(saved, { composeHandoff: { pending: true } }), /id="skills-open-compile"[^>]*disabled/);
   const nodes = new Map([['#skills-open-compose', { disabled: false }], ['#skills-compose-hint', { textContent: '' }]]);
@@ -140,4 +142,29 @@ test('Compose continuation exposes a bounded saved-input action and preserves a 
   syncSkillsEditorChrome(root, saved, options); assert.equal(nodes.get('#skills-open-compose').disabled, false);
   syncSkillsEditorChrome(root, { ...saved, draft: { ...saved.draft, dirty: true } }, options);
   assert.equal(nodes.get('#skills-open-compose').disabled, true); assert.match(nodes.get('#skills-compose-hint').textContent, /Save or discard/);
+});
+
+
+test('task groups keep creation in library, edit and continuation guidance adjacent, and help in inspector', () => {
+  const html = renderSkillsView(editorState());
+  const library = html.slice(html.indexOf('<aside class="skills-library"'), html.indexOf('<section class="skills-editor"'));
+  assert.match(library, /skills-source-create/);
+  assert.match(library, /skills-library-query/);
+  const edit = html.slice(html.indexOf('aria-label="Edit revision"'), html.indexOf('aria-label="Use saved revision"'));
+  assert.match(edit, /skills-save/); assert.match(edit, /skills-review/); assert.match(edit, /skills-discard/);
+  assert.match(edit, /id="skills-draft-status"/);
+  const use = html.slice(html.indexOf('aria-label="Use saved revision"'), html.indexOf('<label class="skills-field"'));
+  assert.match(use, /skills-open-compose[\s\S]*skills-compose-help/);
+  assert.match(use, /skills-open-compile[\s\S]*skills-compile-help/);
+  assert.ok(html.indexOf('skills-inspection') < html.indexOf('data-term-help-group="skills"'));
+  const conflict = renderSkillsView(editorState({ needsReload: true }));
+  assert.ok(conflict.indexOf('id="skills-reload-current"') < conflict.indexOf('id="skills-content-input"'));
+});
+
+test('filter disclosure exposes active facets even when collapsed and retains explicit presentation state', () => {
+  const html = renderSkillsView(state({ reviewFilter: 'reviewed', originFilter: 'composition' }));
+  assert.match(html, /<summary id="skills-filter-summary">Filters<span>Reviewed · Composition<\/span>/);
+  assert.doesNotMatch(html, /skills-filter-options" open/);
+  assert.match(renderSkillsView(state(), { libraryFiltersOpen: true }), /skills-filter-options" open/);
+  assert.match(renderSkillsView(state({ query: 'missing' })), /Clear filters or adjust search/);
 });

@@ -78,3 +78,33 @@ test('focus only targets the matching successfully loaded saved revision', () =>
   assert.equal(compositionResultFocus(state, { capabilityId: cap, revisionId: newer }), '#skills-title');
   assert.equal(compositionResultFocus({ ...state, pending: 'open' }, { capabilityId: cap, revisionId: rev }), null);
 });
+
+test('opt-in handoff fixture preserves exact display contracts and memory-only receipts', async () => {
+  const { handoffPreview, handoffReceipt } = await import('../scripts/ui-composition-handoff-fixture.mjs');
+  const { validatePreviewEnvelope, validateReceipt } = await import('../preview/composition-contract.mjs');
+  const reads = [detail(cap), detail(other)];
+  const inputs = reads.map(item => ({ reference: { kind: 'revision', capabilityId: item.id, revisionId: item.revision.id, sha256: item.revision.sha256 }, content: item.revision.content }));
+  const draft = { schemaVersion: 'rangoon.composition-draft.v0', operation: 'merge', inputs: inputs.map(item => item.reference), outputs: [{ title: 'Synthetic saved result', pieces: inputs.map((item, inputIndex) => ({ kind: 'copy', range: { inputIndex, startByte: 0, endByte: new TextEncoder().encode(item.content).length } })) }], exclusions: [], duplications: [], conflicts: [] };
+  const request = { schemaVersion: 'rangoon.composition-application-request.v0', draft, targets: [{ kind: 'new' }] };
+  const ready = await handoffPreview(request, reads);
+  assert.equal(validatePreviewEnvelope(ready, draft, request.targets, inputs), ready);
+  assert.equal(ready.preview.core.outputs[0].content, inputs.map(item => item.content).join(''));
+  const receipt = handoffReceipt(ready, request);
+  assert.equal(validateReceipt(receipt, ready.preview), receipt);
+  assert.equal(receipt.authority, 'none');
+  assert.equal(receipt.capabilities[0].revision.id, `revision:${'9'.repeat(64)}`);
+  await assert.rejects(handoffPreview({ ...request, targets: [{ kind: 'append' }] }, reads), /Unsupported/);
+  await assert.rejects(handoffPreview(request, []), /Unknown exact/);
+});
+
+test('handoff fixture does nothing on ordinary preview URLs', async () => {
+  const { installHandoffFixture } = await import('../scripts/ui-composition-handoff-fixture.mjs');
+  const saved = globalThis.location;
+  try {
+    globalThis.location = new URL('http://127.0.0.1/analyze.html?qa=open#skills');
+    assert.doesNotThrow(() => installHandoffFixture(() => assert.fail('inactive'), () => assert.fail('inactive')));
+  } finally {
+    if (saved === undefined) delete globalThis.location;
+    else globalThis.location = saved;
+  }
+});

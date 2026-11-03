@@ -238,3 +238,16 @@ test('compilation css keeps wide columns, stacks evidence, then one column and n
   assert.match(css, /prefers-reduced-motion/);
   assert.doesNotMatch(css, /screenshot|visual regression|pixel/i);
 });
+
+
+test('format and explicit actions precede long libraries while exact revision context stays escaped', () => {
+  const html=renderCompilationPage(state());
+  assert.ok(html.indexOf('id="compile-generate"')<html.indexOf('id="compile-capability-list"'));
+  assert.ok(html.indexOf('class="compile-profiles"')<html.indexOf('id="compile-generate"'));
+  assert.match(html,/Selected revision: <strong>&lt;Older &amp; hostile&gt;/);
+  const empty=renderCompilationPage(state({selected:null}));
+  assert.match(empty,/Choose a skill and saved revision below/);
+  assert.match(empty.match(/<button id="compile-generate"[^>]*>/)[0],/disabled/);
+  const stale=renderCompilationPage(state({needsRefresh:true}));
+  assert.ok(stale.indexOf('Refresh this exact selection')<stale.indexOf('id="compile-capability-list"'));
+});

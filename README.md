@@ -15,6 +15,8 @@ The desktop application is named **Rangoon**; Rangoon.si is the product wordmark
 
 The [October 29 whole-application audit](docs/system-audit.md#october-29-whole-application-viability-and-drift-audit) reconciles current source against earlier architecture and usability checkpoints. The [completion plan](docs/plan.md#next-phase-packets--november-1-2026) puts recovery, installed local tasks and usable editing ahead of more disconnected demonstrations. The [development ledger](docs/development.md) records exact validation and limits. Source tests, checksums, model reviews and source CI do not establish runtime enforcement, target-loader compatibility, desktop support or certification.
 
+**Workbench update — November 3:** continue exact saved revisions from Skills or Compose into Compile while preserving dirty drafts and historical pins. Task-oriented controls, 57 original full-color icons, packaged software marks and Recipe/Graph output navigation make the local workflow clearer; long titles and sixteen-output/recovery cases are covered by source and synthetic UI tests. Current source checks pass 670 JavaScript tests; headless software-rendered browser review completes 110 layout profiles and 30 checks while retaining native-select/Lock-pointer gaps. Opt-in memory-only replay also covers saved-result routing, exact revision/focus and dirty/busy/late-result guards; it is not native persistence evidence. Disposable native folder fixtures now bind their exact identity and require newly created manifest-v3 runs; this does not qualify the installed encrypted workflow. See the [publication scope and evidence](docs/development.md#november-3-reviewed-workbench-publication).
+
 **Review today:** [the reviewer guide](docs/reviewer-guide.md) provides a short design/source task and a disposable-data native task. Browser samples and playgrounds are synthetic. The local Operations window reads one selected report and shows unverified observations; it is not a live feed. Use disposable data in an explicitly isolated review profile. Earlier macOS recovery evidence does not qualify the current working tree, normal-profile migration or every platform. Broader desktop beta and three-OS release support have separate qualification gates.
 
 A fresh macOS development binary exposed and then passed a repair for a startup lifecycle panic caused by registering a native failure anchor before Tauri `setup`. The [native startup receipt](docs/development.md#native-startup-lifecycle-repair--october-16-2026) records the direct-binary smoke, source checks and independent review. Installed GUI task qualification remains open.
@@ -24,6 +26,34 @@ Approval management, redacted correlated telemetry and live operations visualiza
 **[VUSL](https://github.com/hypler-dev/vusl)** develops independently; its repository owns the language specification and future core. **RUSL is retired as an active Rangoon technical contract.** The old `rangoon-language` parser remains inert experimental source with its original fixtures and wire identifiers preserved for reproducibility. No RUSL reader, converter, alias, dual-profile system or backward-compatibility promise is planned without demonstrated need. Rangoon will remove the old source only after a usable, pinned VUSL core is integrated and the affected consumer tests are updated and pass independent review. The [consumer direction](docs/vusl.md) records that sequence; [historical spec/fixture provenance](docs/vusl-upstream.json) does not establish a runtime dependency or current VUSL support. OpenShell and LNSAT remain separate optional systems, and Rangoon's local capability workflows remain independent of both. [The retirement receipt](docs/development.md#rusl-retirement-and-vusl-consumer-sequencing--october-19-2026) records this documentation-only update.
 
 The [cross-runtime operator-record target](docs/operations-control-plane.md#cross-runtime-operator-record-acceptance-target) defines what Rangoon must show for denied, approved, changed, repeated and uncertain actions. It prioritizes read-only OpenShell observations for this goal while LNSAT evidence remains an independent later gate. No live cross-runtime record exists today.
+
+## Compile setup refinement — November 2, 2026
+
+Output format and Compile actions now appear above long saved-skill/history lists, with selected-revision context and nearby stale-selection recovery. Existing action gates and export warnings remain. Local source checks pass 660 tests; eight bounded ARM-browser layout captures completed with clean teardown; complete interaction and native workflow qualification remain open. [Evidence](docs/development.md#ui-c5-compile-control-placement--november-2-2026).
+
+## Full-color icons and software identities — November 2, 2026
+
+The workbench now uses 57 original filled, multi-color object icons, with the original monochrome shapes retained for high-contrast mode. Software identities include locally packaged authentic marks for agentgateway, Cerbos, Permit and Invariant, alongside Claude, Rangoon, LNSAT and VUSL. Existing availability, authorization and action gates are unchanged. View the [color gallery](preview/icon-gallery.html) and [asset provenance](preview/assets/vendors/provenance.json).
+
+JavaScript checks pass 659 tests and independent rendered visual review passes. Browser runs captured all 44 viewport/theme profiles but failed during repeated Lock input; complete interaction and native-workflow qualification remain open. See the [full-color receipt](docs/development.md#ui-c4-full-color-artwork-and-software-marks--november-2-2026).
+
+## Visual organization and icons — November 2, 2026
+
+The workbench now uses a 57-symbol local icon system for actions, records, storage states and systems. Skills, Compile, Lock and backup/export controls retain their text and behavior. Real packaged software marks identify Claude, Rangoon, LNSAT and VUSL; other software uses generic category symbols beside its name. The [icon gallery](preview/icon-gallery.html) separates identity from connection or support claims. Desktop navigation scrolls while Lock/theme stay reachable, and disabled primary actions use neutral styling.
+
+JavaScript checks pass 652 tests. Synthetic browser validation completed 44 viewport/theme profiles and 17 checks; qualification remains partial for actual native dropdown input. Current native encrypted workflows and real-user usability require separate proof. See the [inspection and validation receipt](docs/development.md#ui-i3-semantic-icons-and-visual-organization--november-2-2026).
+
+## Task-focused editing — November 2, 2026
+
+Skills now groups tools by task: find or create in the library, edit a revision, continue with its saved version in Compose/Compile, and inspect origin/history. Search stays visible; optional filters retain their state and show active facets. Recovery explanations sit beside relevant controls, and conflict reload appears above the editor.
+
+Source checks pass 648 tests. Synthetic browser checks completed 14 viewport/theme profiles and 17 interaction/media/controller cases; overall qualification remains partial because native dropdown input is unverified. Native encrypted persistence and the latest desktop artifact still require separate qualification. See the [task-arrangement receipt](docs/development.md#ui-t2-task-arrangement-and-interaction-audit--november-2-2026).
+
+## Workbench refinement — November 1, 2026
+
+Skills keeps revision actions above the editor, with more compact task headers, clearer title typography, responsive content sizing and consistent dark/light surfaces. Existing draft, conflict, history and exact-revision rules stay intact. The native development executable has been rebuilt offline with these frontend changes.
+
+Isolated synthetic browser checks now cover 14 viewport/theme profiles, including emulated 4K/DPR layouts, and 11 pointer/keyboard/recovery states. All desktop revision actions stayed above the fold and all tested action targets met 44×44 pixels. This is browser/source evidence, not a packaged release or qualified native encrypted workflow. See the [rendered/build receipt](docs/development.md#ui-r1-rendered-workbench-refinement-and-native-rebuild--november-1-2026).
 
 ## Source update — November 1, 2026
 

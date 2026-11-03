@@ -2,6 +2,7 @@
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 import { createWorkspaceLockQAServer } from './qa-workspace-lock.mjs';
+import { handoffPreview, handoffReceipt, installHandoffFixture } from './ui-composition-handoff-fixture.mjs';
 
 function installSkillsFixture() {
   const original = window.__TAURI__?.core?.invoke;
@@ -68,7 +69,7 @@ function installSkillsFixture() {
 export async function createSkillsInteractionQAServer() {
   const server = await createWorkspaceLockQAServer();
   const original = server.listeners('request')[0]; server.removeAllListeners('request');
-  const script = `\n(${installSkillsFixture.toString()})();`;
+  const script = `\n(${installSkillsFixture.toString()})();\n(${installHandoffFixture.toString()})(${handoffPreview.toString()},${handoffReceipt.toString()});`;
   server.on('request', (request, response) => {
     if (new URL(request.url, 'http://localhost').pathname === '/workspace-lock-fixture.mjs') {
       const end = response.end.bind(response); response.end = (chunk, ...rest) => end(String(chunk ?? '') + script, ...rest);

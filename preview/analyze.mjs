@@ -134,6 +134,7 @@ let openEngineDetails = new Set();
 let skillsActionFocus = null;
 let skillsOriginalOpen = false;
 let skillsSavedOpen = false;
+let skillsLibraryFiltersOpen = false;
 let skillsDiscardConfirmation = null;
 let skillsRenderedCapability = null;
 const skillsDisclosureStates = new Map();
@@ -560,6 +561,8 @@ function renderSkills() {
   const selection = typeof active?.selectionStart === 'number' ? [active.selectionStart, active.selectionEnd] : null;
   const editorScroll = document.querySelector('#skills-content-input')?.scrollTop ?? 0;
   const libraryScroll = document.querySelector('.skills-library__list')?.scrollTop ?? 0;
+  const filters = document.querySelector('.skills-filter-options');
+  if (filters) skillsLibraryFiltersOpen = filters.open;
   const original = document.querySelector('.skills-original');
   if (original) skillsOriginalOpen = original.open;
   const saved = document.querySelector('.skills-saved');
@@ -577,7 +580,7 @@ function renderSkills() {
   const disclosures = skillsDisclosureStates.get(skillsRenderedCapability);
   skillsOriginalOpen = disclosures?.original ?? false;
   skillsSavedOpen = disclosures?.saved ?? false;
-  app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderSkillsView(state, { discardConfirmation: skillsDiscardConfirmation, compileHandoff: skillsCompileHandoff, composeHandoff: { ...skillsComposeHandoff, composition: compositionControllers.get('merge')?.getState() } })}</main></div>`;
+  app.innerHTML = `<div class="analysis-shell" data-area="${route}">${renderRail()}<main id="analysis-main" class="${routeEntry ? 'route-enter' : ''}" tabindex="-1">${renderSkillsView(state, { libraryFiltersOpen: skillsLibraryFiltersOpen, discardConfirmation: skillsDiscardConfirmation, compileHandoff: skillsCompileHandoff, composeHandoff: { ...skillsComposeHandoff, composition: compositionControllers.get('merge')?.getState() } })}</main></div>`;
   routeEntry = false;
   announcer.textContent = state.message;
   if (skillsSourceDisclosures.has(skillsRenderedSource)) document.querySelector('.skills-source-create').open = skillsSourceDisclosures.get(skillsRenderedSource);
@@ -1040,7 +1043,9 @@ app.addEventListener('click', event => {
 // Capture disclosure changes before navigation replaces the Skills DOM.
 app.addEventListener('toggle', event => {
   if (sourceBlocked() || !event.target.isConnected || !event.target.closest('.skills-page')) return;
-  if (event.target.matches('.skills-source-create') && skillsRenderedSource) {
+  if (event.target.matches('.skills-filter-options')) {
+    skillsLibraryFiltersOpen = event.target.open;
+  } else if (event.target.matches('.skills-source-create') && skillsRenderedSource) {
     skillsSourceDisclosures.set(skillsRenderedSource, event.target.open);
   } else if (skillsRenderedCapability && event.target.matches('.skills-advanced, .skills-original, .skills-saved')) {
     skillsDisclosureStates.set(skillsRenderedCapability, {
@@ -1237,7 +1242,7 @@ function purgeWorkspaceRenderer() {
   skillsDisclosureStates.clear();
   skillsSourceDisclosures.clear();
   skillsRenderedSource = null;
-  skillsOriginalOpen = skillsSavedOpen = skillsCreateFocusPending = engineCheckFocusPending = workflowVisited = routeEntry = false;
+  skillsOriginalOpen = skillsSavedOpen = skillsLibraryFiltersOpen = skillsCreateFocusPending = engineCheckFocusPending = workflowVisited = routeEntry = false;
   route = '';
   attempt(() => openEngineDetails.clear());
   attempt(() => workbenchNavigation?.dispose());
